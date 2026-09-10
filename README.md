@@ -188,7 +188,7 @@ ou sur vingt, et rien dans le nombre seul ne permet de le deviner.
 
 Chaque résultat porte sa provenance : la fenêtre d'estimation pour les mesures
 estimées sur un historique, la **date de valorisation** pour le HHI
-(`ConcentrationResult.valuation_date`), qui est ponctuel et n'a pas de fenêtre.
+(`ConcentrationResult.as_of`), qui est ponctuel et n'a pas de fenêtre.
 Aucun chiffre ne doit être ininterprétable isolément.
 
 Le refus d'un poids négatif est délibérément une exception levée par le moteur :
@@ -215,7 +215,11 @@ Ensuite, la date d'observation est inscrite à côté de la valeur
 une semaine : sans date, la constante devient une hypothèse invisible dont plus
 personne ne peut juger la péremption. Un taux surchargé par
 `MX_RISK_FREE_RATE=0.035` dans `.env` ressort avec une date `None` — le moteur
-ne sait pas d'où vient une valeur qu'on lui impose.
+ne sait pas d'où vient une valeur qu'on lui impose. Celui qui impose un taux
+peut en fournir la provenance avec lui :
+`analyse_portfolio(conn, 1, annual_risk_free=0.035, risk_free_observed_on=date(...))`.
+`None` signifie alors une date réellement inconnue, pas une date perdue en
+chemin.
 
 Quand aucun rendement de la fenêtre ne passe sous la cible, le Sortino vaut
 `None` et non `inf` : le ratio est indéfini, pas infini, et une valeur infinie se

@@ -83,9 +83,11 @@ class SharpeResult:
     risk_free_annual: float
     risk_free_daily: float
     window: Window
-    # Date d'observation du taux sans risque, ou None s'il a été surchargé.
-    # Même principe que la fenêtre d'estimation : le chiffre transporte de quoi
-    # juger sa fraîcheur, au lieu d'obliger à retrouver la constante.
+    # Date d'observation du taux sans risque. Même principe que la fenêtre
+    # d'estimation : le chiffre transporte de quoi juger sa fraîcheur, au lieu
+    # d'obliger à retrouver la constante. None signifie que la date est
+    # réellement inconnue — taux imposé sans provenance fournie — et non
+    # qu'elle a été perdue en chemin.
     risk_free_observed_on: date | None = None
 
 
@@ -109,16 +111,20 @@ class ConcentrationResult:
 
     Elle porte en revanche sa PROVENANCE, qui est la règle de fond : aucun
     résultat ne doit être ininterprétable isolément. Pour une mesure estimée,
-    la provenance est la fenêtre ; pour une mesure ponctuelle, c'est la date des
-    prix ayant servi à calculer les poids — un HHI de 0,18 ne dit pas la même
-    chose s'il décrit le portefeuille d'aujourd'hui ou celui d'il y a six mois.
+    la provenance est la fenêtre ; pour une mesure ponctuelle, c'est la date de
+    valorisation — celle des prix ayant servi à calculer les poids. Un HHI de
+    0,18 ne dit pas la même chose s'il décrit le portefeuille d'aujourd'hui ou
+    celui d'il y a six mois.
+
+    Le champ s'appelle `as_of`, comme dans `PortfolioWeights` et `RiskReport` :
+    un même concept, un seul mot.
     """
 
     hhi: float
     effective_positions: float
     equal_weight_reference: float
     n_positions: int
-    valuation_date: date
+    as_of: date
 
 
 @dataclass(frozen=True)
@@ -234,9 +240,30 @@ def drawdown(serie: PortfolioSeries) -> DrawdownResult:
 
 
 def sharpe(
-    serie: PortfolioSeries, annual_risk_free: float | None = None
+    serie: PortfolioSeries,
+    annual_risk_free: float | None = None,
+    risk_free_observed_on: date | None = None,
 ) -> SharpeResult:
+    """Sharpe annualisé du portefeuille.
+
+    `risk_free_observed_on` permet de faire voyager la provenance d'un taux
+    imposé : celui qui fournit le taux est le seul à savoir de quand il date.
+    Sans lui, un taux surchargé ressort avec une date `None`, qui signifie alors
+    « réellement inconnue » et non « perdue par construction ».
+
+    Dater le taux par DÉFAUT est refusé : sa provenance est déjà connue
+    (`RISK_FREE_RATE_OBSERVED_ON`), et lui en attribuer une autre reviendrait à
+    affirmer sur cette valeur quelque chose qui n'est pas vrai.
+    """
     surcharge = annual_risk_free is not None
+    if risk_free_observed_on is not None and not surcharge:
+        raise ValueError(
+            "risk_free_observed_on ne se fournit qu'avec annual_risk_free. "
+            "Le taux par défaut porte déjà sa date d'observation "
+            "(RISK_FREE_RATE_OBSERVED_ON) ; la remplacer lui attribuerait une "
+            "provenance qui n'est pas la sienne."
+        )
+
     taux_annuel = annual_risk_free if surcharge else risk_free_rate()
     taux_quotidien = daily_risk_free_rate(taux_annuel)
     return SharpeResult(
@@ -244,8 +271,9 @@ def sharpe(
         risk_free_annual=taux_annuel,
         risk_free_daily=taux_quotidien,
         window=serie.window,
-        # Un taux passé en argument n'a pas de date connue du moteur.
-        risk_free_observed_on=None if surcharge else risk_free_observation_date(),
+        risk_free_observed_on=(
+            risk_free_observed_on if surcharge else risk_free_observation_date()
+        ),
     )
 
 
@@ -274,7 +302,7 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
         effective_positions=1.0 / hhi,
         equal_weight_reference=measures.equal_weight_reference(n),
         n_positions=n,
-        valuation_date=poids.as_of,
+        as_of=poids.as_of,
     )
 
 
@@ -287,6 +315,7 @@ def analyse_portfolio(
     *,
     window: int = DEFAULT_WINDOW,
     annual_risk_free: float | None = None,
+    risk_free_observed_on: date | None = None,
     sortino_target_daily: float = 0.0,
 ) -> RiskReport:
     """Toutes les mesures du bloc 4A sur un portefeuille.
@@ -304,7 +333,7 @@ def analyse_portfolio(
         volatility=volatility(serie),
         ewma_volatility=ewma_volatility(serie),
         drawdown=drawdown(serie),
-        sharpe=sharpe(serie, annual_risk_free),
+        sharpe=sharpe(serie, annual_risk_free, risk_free_observed_on),
         sortino=sortino(serie, sortino_target_daily),
         concentration=concentration(serie.weights),
     )

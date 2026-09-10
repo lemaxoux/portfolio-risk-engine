@@ -419,13 +419,13 @@ def test_un_taux_surcharge_n_a_pas_de_date_d_observation(conn):
     assert rapport.sharpe.risk_free_observed_on is None
 
 
-def test_la_concentration_porte_la_date_de_valorisation(conn):
+def test_la_concentration_porte_sa_date_de_valorisation(conn):
     """Provenance d'une mesure ponctuelle.
 
     Pas de fenêtre d'estimation — le HHI ne s'estime pas sur un historique —
     mais la date des prix qui ont servi aux poids, sans laquelle un HHI de 0,18
     ne dit pas s'il décrit le portefeuille d'aujourd'hui ou celui d'il y a six
-    mois.
+    mois. Le champ se nomme `as_of`, comme partout ailleurs pour ce concept.
     """
     j = seances(3)
     peupler(
@@ -438,7 +438,7 @@ def test_la_concentration_porte_la_date_de_valorisation(conn):
     )
     resultat = concentration(market_value_weights(conn, 1))
 
-    assert resultat.valuation_date == j[-1], "la dernière clôture, pas la première"
+    assert resultat.as_of == j[-1], "la dernière clôture, pas la première"
     assert not hasattr(resultat, "window"), "une mesure ponctuelle n'a pas de fenêtre"
 
 
@@ -468,3 +468,35 @@ def test_le_hhi_leve_sur_un_poids_negatif_mais_les_autres_mesures_tiennent(conn)
     assert volatility(serie).annualised >= 0.0
     assert drawdown(serie).value <= 0.0
     assert sharpe(serie).annualised is not None
+
+
+def test_un_taux_impose_peut_porter_sa_propre_date_d_observation(conn):
+    """La provenance voyage quand elle est connue.
+
+    Sans ce paramètre, `None` recouvrait deux situations distinctes : personne
+    ne connaît la date, ou bien elle est connue de l'appelant mais le moteur n'a
+    aucun moyen de la recevoir. Le second cas disparaît.
+    """
+    j = seances(40)
+    peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
+
+    observe = date(2026, 3, 31)
+    rapport = analyse_portfolio(
+        conn, 1, window=30, annual_risk_free=0.045, risk_free_observed_on=observe
+    )
+
+    assert rapport.sharpe.risk_free_annual == 0.045
+    assert rapport.sharpe.risk_free_observed_on == observe
+
+
+def test_dater_le_taux_par_defaut_est_refuse(conn):
+    # Le défaut porte déjà sa provenance : la remplacer serait affirmer sur
+    # cette valeur quelque chose qui n'est pas vrai.
+    j = seances(40)
+    peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
+    serie = build_portfolio_series(conn, 1, window=30)
+
+    from backend.risk_engine.engine import sharpe
+
+    with pytest.raises(ValueError, match="risk_free_observed_on"):
+        sharpe(serie, risk_free_observed_on=date(2020, 1, 1))
