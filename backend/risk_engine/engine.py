@@ -22,6 +22,7 @@ from .config import (
     EWMA_LAMBDA,
     TRADING_DAYS_PER_YEAR,
     daily_risk_free_rate,
+    risk_free_observation_date,
     risk_free_rate,
 )
 from .portfolio import (
@@ -82,6 +83,10 @@ class SharpeResult:
     risk_free_annual: float
     risk_free_daily: float
     window: Window
+    # Date d'observation du taux sans risque, ou None s'il a été surchargé.
+    # Même principe que la fenêtre d'estimation : le chiffre transporte de quoi
+    # juger sa fraîcheur, au lieu d'obliger à retrouver la constante.
+    risk_free_observed_on: date | None = None
 
 
 @dataclass(frozen=True)
@@ -99,15 +104,21 @@ class ConcentrationResult:
 
     Contrairement aux autres résultats de ce module, elle ne porte pas de
     `Window` : elle ne s'estime pas sur un historique, elle décrit la structure
-    du portefeuille à la date de valorisation. Lui attacher une fenêtre
-    laisserait croire à une moyenne dans le temps.
+    du portefeuille à un instant donné. Lui attacher une fenêtre laisserait
+    croire à une moyenne dans le temps.
+
+    Elle porte en revanche sa PROVENANCE, qui est la règle de fond : aucun
+    résultat ne doit être ininterprétable isolément. Pour une mesure estimée,
+    la provenance est la fenêtre ; pour une mesure ponctuelle, c'est la date des
+    prix ayant servi à calculer les poids — un HHI de 0,18 ne dit pas la même
+    chose s'il décrit le portefeuille d'aujourd'hui ou celui d'il y a six mois.
     """
 
     hhi: float
     effective_positions: float
     equal_weight_reference: float
     n_positions: int
-    as_of: date
+    valuation_date: date
 
 
 @dataclass(frozen=True)
@@ -225,13 +236,16 @@ def drawdown(serie: PortfolioSeries) -> DrawdownResult:
 def sharpe(
     serie: PortfolioSeries, annual_risk_free: float | None = None
 ) -> SharpeResult:
-    taux_annuel = risk_free_rate() if annual_risk_free is None else annual_risk_free
+    surcharge = annual_risk_free is not None
+    taux_annuel = annual_risk_free if surcharge else risk_free_rate()
     taux_quotidien = daily_risk_free_rate(taux_annuel)
     return SharpeResult(
         annualised=measures.sharpe_ratio(serie.returns, risk_free_daily=taux_quotidien),
         risk_free_annual=taux_annuel,
         risk_free_daily=taux_quotidien,
         window=serie.window,
+        # Un taux passé en argument n'a pas de date connue du moteur.
+        risk_free_observed_on=None if surcharge else risk_free_observation_date(),
     )
 
 
@@ -260,7 +274,7 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
         effective_positions=1.0 / hhi,
         equal_weight_reference=measures.equal_weight_reference(n),
         n_positions=n,
-        as_of=poids.as_of,
+        valuation_date=poids.as_of,
     )
 
 

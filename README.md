@@ -186,10 +186,36 @@ ou sur vingt, et rien dans le nombre seul ne permet de le deviner.
 | Sortino | `√252 × moy(r−cible) / DD` | `DD` divise par le nombre **total** de périodes, pas par le seul compte des négatives |
 | HHI | `Σ wᵢ²`, référence `1/N` | positions longues uniquement — un poids négatif est refusé, pas calculé |
 
-Le taux sans risque est un paramètre documenté dans `config.py`, converti
-géométriquement en taux quotidien. Sa valeur par défaut (4 %) est une
-**hypothèse statique à revoir** : elle n'est pas récupérée d'une source de
-marché. Surchargeable par `MX_RISK_FREE_RATE=0.035` dans `.env`.
+Chaque résultat porte sa provenance : la fenêtre d'estimation pour les mesures
+estimées sur un historique, la **date de valorisation** pour le HHI
+(`ConcentrationResult.valuation_date`), qui est ponctuel et n'a pas de fenêtre.
+Aucun chiffre ne doit être ininterprétable isolément.
+
+Le refus d'un poids négatif est délibérément une exception levée par le moteur :
+rendre un nombre ininterprétable serait pire qu'échouer. Il revient à la couche
+de présentation (Phase 7) d'attraper cette `ValueError` et d'afficher le reste
+du rapport — volatilité, drawdown, Sharpe et Sortino restent valides sur un
+portefeuille long/short — en signalant la seule concentration comme non
+calculable.
+
+**Taux sans risque : 3,90 %**, bons du Trésor américain à 13 semaines,
+**équivalent coupon**, observé le **9 septembre 2026**. Défini dans `config.py`
+et converti géométriquement en taux quotidien.
+
+Deux précisions qui comptent. D'abord, c'est l'équivalent coupon et non le taux
+d'escompte : ce dernier rapporte la décote à la valeur *faciale* du bon sur une
+année de 360 jours, alors qu'on achète sous le pair et qu'on détient 365 jours.
+Il sort donc plus bas que le rendement réel, et l'utiliser gonflerait les
+rendements excédentaires — donc le Sharpe — sans qu'aucun calcul ne soit faux
+par ailleurs.
+
+Ensuite, la date d'observation est inscrite à côté de la valeur
+(`RISK_FREE_RATE_OBSERVED_ON`) et voyage avec le résultat
+(`SharpeResult.risk_free_observed_on`). Ce taux a bougé de 6 points de base en
+une semaine : sans date, la constante devient une hypothèse invisible dont plus
+personne ne peut juger la péremption. Un taux surchargé par
+`MX_RISK_FREE_RATE=0.035` dans `.env` ressort avec une date `None` — le moteur
+ne sait pas d'où vient une valeur qu'on lui impose.
 
 Quand aucun rendement de la fenêtre ne passe sous la cible, le Sortino vaut
 `None` et non `inf` : le ratio est indéfini, pas infini, et une valeur infinie se

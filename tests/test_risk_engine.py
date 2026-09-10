@@ -16,6 +16,10 @@ from pathlib import Path
 import pytest
 
 from backend.db.init_db import connect, init_db
+from backend.risk_engine.config import (
+    DEFAULT_RISK_FREE_RATE,
+    RISK_FREE_RATE_OBSERVED_ON,
+)
 from backend.risk_engine.engine import (
     Window,
     analyse_portfolio,
@@ -376,3 +380,91 @@ def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct()
     assert resultat.value == pytest.approx(-0.337, abs=0.002)
     assert resultat.peak_date == date(2020, 2, 19)
     assert resultat.trough_date == date(2020, 3, 23)
+
+
+# ----------------------------------------------- Provenance des résultats --
+
+
+def test_le_taux_par_defaut_est_l_equivalent_coupon_source_et_date():
+    """Le taux n'est ni inventé ni orphelin de sa date.
+
+    L'équivalent coupon rapporte le gain au prix payé sur base 365 ; le taux
+    d'escompte le rapporte à la valeur faciale sur base 360 et ressort plus bas.
+    Retenir l'escompte donnerait un Sharpe flatteur sans qu'aucun calcul ne soit
+    faux — d'où la vérification que la constante est bien celle attendue.
+    """
+    assert DEFAULT_RISK_FREE_RATE == pytest.approx(0.0390)
+    assert RISK_FREE_RATE_OBSERVED_ON == date(2026, 9, 9)
+
+
+def test_le_sharpe_transporte_la_date_d_observation_du_taux(conn):
+    j = seances(40)
+    peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
+
+    rapport = analyse_portfolio(conn, 1, window=30)
+
+    assert rapport.sharpe.risk_free_annual == pytest.approx(0.0390)
+    assert rapport.sharpe.risk_free_observed_on == RISK_FREE_RATE_OBSERVED_ON
+
+
+def test_un_taux_surcharge_n_a_pas_de_date_d_observation(conn):
+    # Le moteur ne sait pas d'où vient un taux qu'on lui impose : lui attribuer
+    # la date du défaut serait une provenance fausse.
+    j = seances(40)
+    peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
+
+    rapport = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.02)
+
+    assert rapport.sharpe.risk_free_annual == 0.02
+    assert rapport.sharpe.risk_free_observed_on is None
+
+
+def test_la_concentration_porte_la_date_de_valorisation(conn):
+    """Provenance d'une mesure ponctuelle.
+
+    Pas de fenêtre d'estimation — le HHI ne s'estime pas sur un historique —
+    mais la date des prix qui ont servi aux poids, sans laquelle un HHI de 0,18
+    ne dit pas s'il décrit le portefeuille d'aujourd'hui ou celui d'il y a six
+    mois.
+    """
+    j = seances(3)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0) for d in j],
+            "B": [(d, 100.0) for d in j],
+        },
+        {"A": 1, "B": 1},
+    )
+    resultat = concentration(market_value_weights(conn, 1))
+
+    assert resultat.valuation_date == j[-1], "la dernière clôture, pas la première"
+    assert not hasattr(resultat, "window"), "une mesure ponctuelle n'a pas de fenêtre"
+
+
+def test_le_hhi_leve_sur_un_poids_negatif_mais_les_autres_mesures_tiennent(conn):
+    """La levée est au moteur ; c'est la présentation (Phase 7) qui rattrape.
+
+    Une position vendeuse rend le HHI ininterprétable, mais volatilité,
+    drawdown, Sharpe et Sortino restent parfaitement valides. Ce test fige le
+    contrat sur lequel la couche de présentation s'appuiera.
+    """
+    j = seances(40)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)],
+            "B": [(d, 50.0) for d in j],
+        },
+        {"A": 10, "B": -4},  # vente à découvert
+    )
+    serie = build_portfolio_series(conn, 1, window=30)
+
+    with pytest.raises(ValueError, match="longues"):
+        concentration(serie.weights)
+
+    from backend.risk_engine.engine import drawdown, sharpe, volatility
+
+    assert volatility(serie).annualised >= 0.0
+    assert drawdown(serie).value <= 0.0
+    assert sharpe(serie).annualised is not None

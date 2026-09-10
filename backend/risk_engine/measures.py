@@ -268,6 +268,15 @@ def herfindahl_index(weights) -> float:
     rendu n'aurait alors aucun sens, c'est pourquoi un poids négatif lève une
     erreur au lieu d'être calculé.
 
+    RÉPARTITION DES RESPONSABILITÉS — c'est bien au moteur de lever : rendre un
+    nombre ininterprétable serait pire qu'échouer, puisque rien en aval ne
+    pourrait plus détecter qu'il ne veut rien dire. Mais lever ici ne doit pas
+    faire tomber tout le rapport de risque. La couche de présentation (Phase 7)
+    doit attraper cette `ValueError` et afficher les autres mesures —
+    volatilité, drawdown, Sharpe, Sortino restent parfaitement valides sur un
+    portefeuille long/short — en signalant la seule concentration comme non
+    calculable et pourquoi.
+
     Les poids doivent sommer à 1 : ce sont des parts, et une normalisation
     silencieuse masquerait une erreur de construction en amont.
     """

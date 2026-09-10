@@ -18,10 +18,13 @@ VaR, CVaR — relèvent du bloc 4B et ne sont pas ici.
 from __future__ import annotations
 
 from .config import (
+    DEFAULT_RISK_FREE_RATE,
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
+    RISK_FREE_RATE_OBSERVED_ON,
     TRADING_DAYS_PER_YEAR,
     daily_risk_free_rate,
+    risk_free_observation_date,
     risk_free_rate,
 )
 from .engine import (
@@ -64,8 +67,10 @@ from .returns import (
 )
 
 __all__ = [
+    "DEFAULT_RISK_FREE_RATE",
     "DEFAULT_WINDOW",
     "EWMA_LAMBDA",
+    "RISK_FREE_RATE_OBSERVED_ON",
     "TRADING_DAYS_PER_YEAR",
     "ConcentrationResult",
     "Drawdown",
@@ -94,6 +99,7 @@ __all__ = [
     "market_value_weights",
     "max_drawdown",
     "portfolio_returns",
+    "risk_free_observation_date",
     "risk_free_rate",
     "sharpe_ratio",
     "simple_returns",

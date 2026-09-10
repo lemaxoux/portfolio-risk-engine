@@ -8,6 +8,7 @@ les hypothèses sans lire le code.
 from __future__ import annotations
 
 import os
+from datetime import date
 
 from dotenv import load_dotenv
 
@@ -34,17 +35,41 @@ EWMA_LAMBDA = 0.94
 
 # --------------------------------------------------------- Taux sans risque --
 #
-# ATTENTION — hypothèse statique à revoir.
+# Taux court sans risque ANNUEL : bons du Trésor américain à 13 semaines.
 #
-# Proxy du taux court sans risque (bon du Trésor US 3 mois), exprimé en taux
-# ANNUEL. Il n'est pas récupéré d'une source de marché : le fournisseur de
-# données du projet ne sert que des actions et des ETF. C'est donc une valeur
-# à ajuster à la main quand le régime de taux change, sous peine de fausser
-# Sharpe et Sortino — un taux sans risque périmé de 200 points de base déplace
-# un Sharpe de façon parfaitement silencieuse.
+# Source : Trésor américain, **équivalent coupon** (coupon equivalent /
+# bond equivalent yield), observé le 9 septembre 2026.
+#
+# ── Pourquoi l'équivalent coupon et pas le taux d'escompte ──
+#
+# Le Trésor publie deux chiffres pour le même titre, et prendre le mauvais
+# gonfle mécaniquement le Sharpe :
+#
+#   * le **taux d'escompte** (discount rate) rapporte la décote à la valeur
+#     FACIALE du bon et compte l'année sur 360 jours. Comme on achète en
+#     dessous du pair, rapporter le gain au montant nominal plutôt qu'au
+#     montant réellement investi sous-estime le rendement — et l'année à 360
+#     jours accentue l'écart ;
+#   * l'**équivalent coupon** rapporte ce même gain au prix effectivement payé,
+#     sur une base 365 jours, ce qui le rend directement comparable au
+#     rendement d'une action.
+#
+# Retenir l'escompte donnerait un taux sans risque trop bas, donc des
+# rendements excédentaires trop élevés, donc un Sharpe flatteur — sans qu'aucun
+# calcul ne soit faux par ailleurs. C'est exactement le genre d'erreur qui ne
+# se voit pas dans les tests.
+#
+# ── Pourquoi la date est écrite à côté de la valeur ──
+#
+# Une constante non datée devient une hypothèse invisible : personne ne peut
+# dire, six mois plus tard, si elle est encore valable. Ce taux a bougé de
+# 6 points de base en une semaine ; sa péremption doit être auditable, pas
+# devinée. `RISK_FREE_RATE_OBSERVED_ON` voyage avec le résultat (voir
+# `SharpeResult.risk_free_observed_on`).
 #
 # Surchargeable sans toucher au code : MX_RISK_FREE_RATE=0.035 dans .env.
-DEFAULT_RISK_FREE_RATE = 0.04
+DEFAULT_RISK_FREE_RATE = 0.0390
+RISK_FREE_RATE_OBSERVED_ON = date(2026, 9, 9)
 
 
 def risk_free_rate() -> float:
@@ -59,6 +84,17 @@ def risk_free_rate() -> float:
             f"MX_RISK_FREE_RATE doit être un nombre décimal (reçu : {brut!r}). "
             "Exemple pour 3,5 % : MX_RISK_FREE_RATE=0.035"
         ) from exc
+
+
+def risk_free_observation_date() -> date | None:
+    """Date d'observation du taux par défaut, ou None s'il a été surchargé.
+
+    Un taux fourni via `MX_RISK_FREE_RATE` ou passé en argument n'a pas de date
+    connue du moteur : c'est à celui qui le fixe de savoir d'où il vient. Rendre
+    `None` plutôt que la date du défaut évite d'attribuer à une valeur
+    quelconque une provenance qu'elle n'a pas.
+    """
+    return None if os.getenv("MX_RISK_FREE_RATE") else RISK_FREE_RATE_OBSERVED_ON
 
 
 def daily_risk_free_rate(annual_rate: float | None = None) -> float:
