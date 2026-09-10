@@ -10,9 +10,20 @@
 PRAGMA foreign_keys = ON;
 
 -- Univers de titres suivis (actions / ETF cotés US en v1).
+--
+-- sector est nullable à dessein : le secteur n'est pas toujours disponible au
+-- moment de l'insertion d'un titre, et l'ingestion des prix ne doit pas échouer
+-- pour une donnée descriptive manquante. Il sert au flag de concentration
+-- sectorielle (Phase 6), qui devra donc traiter le cas NULL explicitement
+-- plutôt que de supposer la colonne renseignée.
+-- NOT NULL sur ticker n'est pas redondant avec PRIMARY KEY : SQLite accepte
+-- NULL dans une clé primaire non-INTEGER (bug historique conservé pour
+-- compatibilité). Sans cette contrainte, un ticker manquant à l'ingestion
+-- s'insérerait silencieusement au lieu d'échouer.
 CREATE TABLE IF NOT EXISTS securities (
-    ticker TEXT PRIMARY KEY,
-    name   TEXT NOT NULL
+    ticker TEXT PRIMARY KEY NOT NULL,
+    name   TEXT NOT NULL,
+    sector TEXT
 );
 
 -- Historique quotidien. adj_close est ajusté des splits ET des dividendes :

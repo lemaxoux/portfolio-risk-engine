@@ -68,3 +68,25 @@ def test_cost_basis_est_optionnel(db):
     )
     row = db.execute("SELECT cost_basis FROM positions").fetchone()
     assert row["cost_basis"] is None
+
+
+def test_securities_expose_une_colonne_sector(db):
+    colonnes = {row["name"]: row for row in db.execute("PRAGMA table_info(securities)")}
+    assert "sector" in colonnes, "colonne sector absente de securities"
+    assert colonnes["sector"]["type"] == "TEXT"
+    assert not colonnes["sector"]["notnull"], (
+        "sector doit rester nullable : le secteur n'est pas toujours connu "
+        "au moment de l'insertion d'un titre"
+    )
+
+
+def test_un_titre_peut_etre_insere_sans_secteur(db):
+    db.execute("INSERT INTO securities (ticker, name) VALUES ('AAPL', 'Apple')")
+    row = db.execute("SELECT sector FROM securities WHERE ticker = 'AAPL'").fetchone()
+    assert row["sector"] is None
+
+
+def test_un_titre_sans_ticker_est_rejete(db):
+    # NOT NULL explicite : SQLite accepterait NULL dans une clé primaire TEXT.
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("INSERT INTO securities (ticker, name) VALUES (NULL, 'Sans ticker')")

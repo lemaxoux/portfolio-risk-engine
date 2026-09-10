@@ -5,6 +5,11 @@ Usage :
 
 Le script est idempotent (toutes les tables sont créées en IF NOT EXISTS) :
 le relancer sur une base existante ne détruit aucune donnée.
+
+Corollaire : il ne migre pas non plus. Ajouter une colonne au schéma n'a aucun
+effet sur une table déjà créée -- IF NOT EXISTS passe simplement son tour. Tant
+que la base est vide, supprimer le fichier et relancer suffit ; une fois
+l'historique chargé, il faudra un ALTER TABLE explicite.
 """
 
 from __future__ import annotations
