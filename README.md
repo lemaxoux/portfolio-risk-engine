@@ -52,7 +52,12 @@ app/
 │   ├── ingestion/       # Backfill, rattrapage, chargement à la demande
 │   │   ├── universe.py  #   14 titres de dev et leurs secteurs
 │   │   └── prices.py    #   écriture en base
-│   ├── risk_engine/     # Calcul des mesures de risque
+│   ├── risk_engine/     # Mesures de risque
+│   │   ├── measures.py  #   fonctions pures : tableaux → nombres
+│   │   ├── returns.py   #   rendements et alignement des dates
+│   │   ├── portfolio.py #   chargement SQLite, poids en valeur
+│   │   ├── engine.py    #   composition + fenêtre d'estimation
+│   │   └── config.py    #   taux sans risque, fenêtre, λ EWMA
 │   ├── api/             # Endpoints FastAPI
 │   └── db/              # Schéma SQLite et initialisation
 │       ├── schema.sql
@@ -136,7 +141,61 @@ réelle obtenue titre par titre.
 > pour rejouer des périodes de crise identifiées sur les poids actuels du
 > portefeuille.
 
-### 5. Tests
+### 5. Moteur de risque
+
+```python
+from backend.db.init_db import connect
+from backend.risk_engine import analyse_portfolio
+
+with connect() as conn:
+    rapport = analyse_portfolio(conn, portfolio_id=1)      # fenêtre 504 par défaut
+    print(rapport.volatility.annualised, rapport.volatility.window)
+```
+
+**Rendements : simples entre titres, log dans le temps.** Le rendement d'un
+portefeuille est la moyenne pondérée des rendements **simples** de ses lignes
+(`r_p = Σ wᵢ·rᵢ`), parce que la valeur du portefeuille est la somme des valeurs
+des lignes. Les rendements log, eux, s'additionnent dans le temps — c'est ce qui
+justifie la règle du √T — mais pas entre titres : `ln(Σ wᵢ(1+rᵢ)) ≠ Σ wᵢ·ln(1+rᵢ)`.
+L'écart est faible au quotidien et se creuse sur les grandes variations, donc
+précisément dans les queues de distribution que le risque cherche à mesurer.
+
+**Poids constants.** Les poids d'aujourd'hui, en valeur de marché, sont
+appliqués à tout l'historique : c'est l'hypothèse de rééquilibrage quotidien,
+qui répond à « quel risque porte l'allocation que je détiens ? ». L'alternative
+buy-and-hold, à poids dérivants depuis une date d'achat, mesure une performance
+réalisée — une autre question.
+
+**Alignement par date.** Les séries sont appariées sur la date, jamais par
+position dans le tableau : seules les séances où tous les titres cotent sont
+retenues. Une séance manquante sur un seul titre décalerait sinon toute sa série
+d'un cran, sans que rien ne le signale.
+
+**Fenêtre d'estimation.** Paramètre explicite, 504 séances (2 ans) par défaut.
+Chaque résultat porte la fenêtre utilisée et le nombre d'observations
+effectivement retenu, ainsi qu'un indicateur `complete` si l'historique n'a pas
+suffi. Une volatilité de 18 % ne veut pas dire la même chose estimée sur deux ans
+ou sur vingt, et rien dans le nombre seul ne permet de le deviner.
+
+| Mesure | Convention | Hypothèse à connaître |
+|---|---|---|
+| Volatilité | écart-type × √252 | le √T suppose des rendements i.i.d. — ni l'autocorrélation ni le regroupement de volatilité ne le respectent |
+| Volatilité EWMA | `σ²ₜ = λσ²ₜ₋₁ + (1−λ)r²ₜ₋₁`, λ = 0,94 | sans centrage (convention RiskMetrics quotidienne) : sur une série constante non nulle, elle rend `\|r\|·√252` là où l'écart-type rend 0 |
+| Max drawdown | pic **glissant** | un pic global postérieur au creux mesurerait une perte impossible à subir |
+| Sharpe | `√252 × moy(r−rf) / σ(r−rf)` | annualisé une seule fois ; `rf` retranché aux deux termes |
+| Sortino | `√252 × moy(r−cible) / DD` | `DD` divise par le nombre **total** de périodes, pas par le seul compte des négatives |
+| HHI | `Σ wᵢ²`, référence `1/N` | positions longues uniquement — un poids négatif est refusé, pas calculé |
+
+Le taux sans risque est un paramètre documenté dans `config.py`, converti
+géométriquement en taux quotidien. Sa valeur par défaut (4 %) est une
+**hypothèse statique à revoir** : elle n'est pas récupérée d'une source de
+marché. Surchargeable par `MX_RISK_FREE_RATE=0.035` dans `.env`.
+
+Quand aucun rendement de la fenêtre ne passe sous la cible, le Sortino vaut
+`None` et non `inf` : le ratio est indéfini, pas infini, et une valeur infinie se
+propagerait dans un tableau de bord en se faisant passer pour un résultat.
+
+### 6. Tests
 
 ```powershell
 pytest
@@ -146,7 +205,7 @@ Aucun test ne sort sur le réseau : la session HTTP et le fournisseur sont
 remplacés par des doubles. La suite passe hors ligne et ne consomme pas de
 quota.
 
-### 6. API
+### 7. API
 
 ```powershell
 uvicorn backend.api.main:app --reload
@@ -186,7 +245,11 @@ l'ordre chronologique.
   - Pas de job APScheduler : écarté volontairement. `refresh` est appelé par le
     Planificateur de tâches Windows ou à la main — un démon à surveiller
     coûterait plus que le problème qu'il résout pour un batch quotidien.
-- [ ] **Phase 4 — Moteur de risque** : mesures + tests unitaires
+- [x] **Phase 4A — Moteur, mesures d'une série** : rendements simples/log,
+  poids en valeur, fenêtre d'estimation, volatilité (écart-type et EWMA), max
+  drawdown, Sharpe, Sortino, HHI
+  - [ ] **Phase 4B** : covariance, corrélation, beta vs benchmark, VaR
+    historique et paramétrique, CVaR
 - [ ] **Phase 5 — Stress testing** : scénarios historiques
 - [ ] **Phase 6 — Recommandations** : règles de détection
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test

@@ -1,0 +1,378 @@
+"""Tests de la couche qui touche SQLite et de la composition des mesures.
+
+Les mesures elles-mêmes sont testées dans `test_risk_measures.py`, sans base.
+Ici on vérifie le chargement, les poids, l'alignement des dates et le fait que
+chaque résultat porte bien sa fenêtre.
+
+Le dernier test est une non-régression sur données RÉELLES : il ne tourne que
+si la base locale existe, et se saute proprement sur un clone frais.
+"""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from pathlib import Path
+
+import pytest
+
+from backend.db.init_db import connect, init_db
+from backend.risk_engine.engine import (
+    Window,
+    analyse_portfolio,
+    build_portfolio_series,
+    concentration,
+)
+from backend.risk_engine.measures import max_drawdown
+from backend.risk_engine.portfolio import (
+    PortfolioError,
+    load_price_panel,
+    market_value_weights,
+)
+from backend.risk_engine.returns import simple_returns, wealth_curve
+
+BASE_REELLE = Path(__file__).resolve().parents[1] / "data" / "mx_risk.sqlite"
+
+
+@pytest.fixture
+def conn(tmp_path):
+    chemin = tmp_path / "risque.sqlite"
+    init_db(chemin)
+    connexion = connect(chemin)
+    yield connexion
+    connexion.close()
+
+
+def seances(n: int, depart: date = date(2026, 1, 5)) -> list[date]:
+    """`n` dates ouvrées consécutives."""
+    resultat, jour = [], depart
+    while len(resultat) < n:
+        if jour.weekday() < 5:
+            resultat.append(jour)
+        jour += timedelta(days=1)
+    return resultat
+
+
+def peupler(conn, prix, positions, adj=None):
+    """Crée un portefeuille (id 1) avec ses titres, prix et lignes.
+
+    `prix` : {ticker: [(date, close), ...]}. `adj` permet de dissocier
+    `adj_close` de `close` pour tester lequel sert à quoi.
+    """
+    conn.execute("INSERT INTO portfolios (owner) VALUES ('test')")
+    for ticker, serie in prix.items():
+        conn.execute(
+            "INSERT INTO securities (ticker, name) VALUES (?, ?)", (ticker, ticker)
+        )
+        for jour, close in serie:
+            ajuste = (adj or {}).get(ticker, {}).get(jour, close)
+            conn.execute(
+                "INSERT INTO prices (ticker, date, close, adj_close) "
+                "VALUES (?, ?, ?, ?)",
+                (ticker, jour.isoformat(), close, ajuste),
+            )
+    for ticker, quantite in positions.items():
+        conn.execute(
+            "INSERT INTO positions (portfolio_id, ticker, quantity) VALUES (1, ?, ?)",
+            (ticker, quantite),
+        )
+    conn.commit()
+    return 1
+
+
+# ------------------------------------------------------------------- Poids --
+
+
+def test_les_poids_sont_en_valeur_pas_en_nombre_de_titres(conn):
+    # Même quantité, prix dix fois différents : les poids doivent refléter la
+    # valeur, sinon deux lignes de 10 titres pèseraient identiquement.
+    jour = seances(1)[0]
+    peupler(
+        conn,
+        {"CHER": [(jour, 500.0)], "PASCHER": [(jour, 50.0)]},
+        {"CHER": 10, "PASCHER": 10},
+    )
+    poids = market_value_weights(conn, 1)
+
+    assert poids.weights["CHER"] == pytest.approx(5000 / 5500)
+    assert poids.weights["PASCHER"] == pytest.approx(500 / 5500)
+    assert poids.total_value == pytest.approx(5500.0)
+
+
+def test_les_poids_somment_a_un(conn):
+    jour = seances(1)[0]
+    peupler(
+        conn,
+        {"A": [(jour, 12.3)], "B": [(jour, 45.6)], "C": [(jour, 7.8)]},
+        {"A": 3, "B": 11, "C": 42},
+    )
+    assert sum(market_value_weights(conn, 1).weights.values()) == pytest.approx(1.0)
+
+
+def test_les_poids_utilisent_la_derniere_cloture(conn):
+    j = seances(3)
+    peupler(
+        conn,
+        {"A": [(j[0], 10.0), (j[1], 20.0), (j[2], 100.0)]},
+        {"A": 2},
+    )
+    poids = market_value_weights(conn, 1)
+
+    assert poids.total_value == pytest.approx(200.0), "dernière clôture, pas la 1re"
+    assert poids.as_of == j[2]
+
+
+def test_les_poids_utilisent_close_et_non_adj_close(conn):
+    # adj_close est un indice de performance totale rebasé, pas un prix
+    # traitable : valoriser un portefeuille avec lui n'aurait pas de sens.
+    jour = seances(1)[0]
+    peupler(
+        conn,
+        {"A": [(jour, 100.0)]},
+        {"A": 1},
+        adj={"A": {jour: 42.0}},
+    )
+    assert market_value_weights(conn, 1).total_value == pytest.approx(100.0)
+
+
+def test_un_portefeuille_inexistant_leve_une_erreur(conn):
+    with pytest.raises(PortfolioError, match="introuvable"):
+        market_value_weights(conn, 999)
+
+
+def test_un_portefeuille_sans_position_leve_une_erreur(conn):
+    conn.execute("INSERT INTO portfolios (owner) VALUES ('vide')")
+    conn.commit()
+    with pytest.raises(PortfolioError, match="sans position"):
+        market_value_weights(conn, 1)
+
+
+def test_un_titre_sans_prix_leve_une_erreur(conn):
+    conn.execute("INSERT INTO portfolios (owner) VALUES ('test')")
+    conn.execute("INSERT INTO securities (ticker, name) VALUES ('A', 'A')")
+    conn.execute(
+        "INSERT INTO positions (portfolio_id, ticker, quantity) VALUES (1, 'A', 5)"
+    )
+    conn.commit()
+    with pytest.raises(PortfolioError, match="Aucun prix"):
+        market_value_weights(conn, 1)
+
+
+# ------------------------------------------------------------- Alignement --
+
+
+def test_le_panel_est_indexe_par_date_et_colonne_par_titre(conn):
+    j = seances(2)
+    peupler(
+        conn,
+        {"A": [(j[0], 10.0), (j[1], 11.0)], "B": [(j[0], 20.0), (j[1], 22.0)]},
+        {"A": 1, "B": 1},
+    )
+    panel = load_price_panel(conn, ["A", "B"])
+
+    assert list(panel.columns) == ["A", "B"]
+    assert list(panel.index) == j
+
+
+def test_une_seance_manquante_ne_decale_pas_les_series(conn):
+    """Le point que l'alignement positionnel casserait silencieusement.
+
+    B ne cote pas le deuxième jour. Après alignement, les deux séries portent
+    sur les mêmes dates (j0 et j2) et leurs rendements couvrent le même
+    intervalle. Un appariement par position aurait comparé le rendement j0→j1 de
+    A à celui j0→j2 de B, sans que rien ne le signale.
+    """
+    j = seances(3)
+    peupler(
+        conn,
+        {
+            "A": [(j[0], 100.0), (j[1], 110.0), (j[2], 121.0)],
+            "B": [(j[0], 50.0), (j[2], 60.0)],
+        },
+        {"A": 1, "B": 1},
+    )
+    serie = build_portfolio_series(conn, 1, window=10)
+
+    assert list(serie.asset_returns.index) == [j[2]], "seule la date commune reste"
+    assert serie.asset_returns.loc[j[2], "A"] == pytest.approx(0.21)
+    assert serie.asset_returns.loc[j[2], "B"] == pytest.approx(0.20)
+
+
+# --------------------------------------------------------------- Fenêtre --
+
+
+def test_la_fenetre_borne_le_nombre_d_observations(conn):
+    j = seances(60)
+    peupler(conn, {"A": [(d, 100.0 + i) for i, d in enumerate(j)]}, {"A": 1})
+
+    serie = build_portfolio_series(conn, 1, window=10)
+
+    assert serie.window.observations == 10
+    assert serie.window.requested == 10
+    assert serie.window.complete
+    assert serie.window.end == j[-1], "la fenêtre se termine à la séance la plus récente"
+
+
+def test_une_fenetre_plus_longue_que_l_historique_est_signalee(conn):
+    j = seances(20)
+    peupler(conn, {"A": [(d, 100.0 + i) for i, d in enumerate(j)]}, {"A": 1})
+
+    fenetre = build_portfolio_series(conn, 1, window=504).window
+
+    assert fenetre.observations == 19, "20 prix donnent 19 rendements"
+    assert fenetre.requested == 504
+    assert not fenetre.complete, "une fenêtre incomplète ne doit pas passer inaperçue"
+
+
+def test_chaque_mesure_porte_sa_fenetre(conn):
+    j = seances(40)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0 * (1.001**i)) for i, d in enumerate(j)],
+            "B": [(d, 50.0 * (0.999**i)) for i, d in enumerate(j)],
+        },
+        {"A": 10, "B": 20},
+    )
+    rapport = analyse_portfolio(conn, 1, window=30)
+
+    for mesure in (
+        rapport.volatility,
+        rapport.ewma_volatility,
+        rapport.drawdown,
+        rapport.sharpe,
+        rapport.sortino,
+    ):
+        assert isinstance(mesure.window, Window)
+        assert mesure.window.observations == 30
+        assert mesure.window.requested == 30
+
+
+def test_une_fenetre_trop_courte_est_refusee(conn):
+    j = seances(5)
+    peupler(conn, {"A": [(d, 100.0 + i) for i, d in enumerate(j)]}, {"A": 1})
+    with pytest.raises(ValueError, match="Fenêtre trop courte"):
+        build_portfolio_series(conn, 1, window=1)
+
+
+# ------------------------------------------------------------- Composition --
+
+
+def test_les_poids_actuels_s_appliquent_a_tout_l_historique(conn):
+    """Hypothèse de poids constants (rééquilibrage quotidien).
+
+    A est plat à 100, B monte de 1 % par séance et finit à 100 × 1,01⁹. Les
+    poids d'AUJOURD'HUI s'appliquent à toute la série, y compris aux dates
+    anciennes où B pesait moins qu'aujourd'hui. Le rendement de chaque séance
+    vaut donc w_A × 0 % + w_B × 1 %, avec les mêmes poids partout.
+    """
+    j = seances(10)
+    prix_final_b = 100.0 * (1.01**9)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0) for d in j],
+            "B": [(d, 100.0 * (1.01**i)) for i, d in enumerate(j)],
+        },
+        {"A": 1, "B": 1},
+    )
+    serie = build_portfolio_series(conn, 1, window=20)
+
+    total = 100.0 + prix_final_b
+    assert serie.weights.weights["A"] == pytest.approx(100.0 / total)
+    assert serie.weights.weights["B"] == pytest.approx(prix_final_b / total)
+
+    attendu = (prix_final_b / total) * 0.01
+    # Poids constants : la MÊME valeur sur toutes les séances, pas seulement la
+    # dernière. Des poids dérivants donneraient une série croissante.
+    assert serie.returns.to_numpy() == pytest.approx(attendu, rel=1e-9)
+
+
+def test_le_hhi_d_un_portefeuille_equipondere_en_valeur(conn):
+    # Quatre lignes de même valeur de marché malgré des prix et quantités
+    # différents : le HHI doit ressortir exactement à 1/4.
+    jour = seances(1)[0]
+    peupler(
+        conn,
+        {
+            "A": [(jour, 100.0)],
+            "B": [(jour, 50.0)],
+            "C": [(jour, 25.0)],
+            "D": [(jour, 10.0)],
+        },
+        {"A": 1, "B": 2, "C": 4, "D": 10},
+    )
+    resultat = concentration(market_value_weights(conn, 1))
+
+    assert resultat.hhi == pytest.approx(0.25)
+    assert resultat.equal_weight_reference == pytest.approx(0.25)
+    assert resultat.effective_positions == pytest.approx(4.0)
+    assert resultat.n_positions == 4
+
+
+def test_le_rapport_expose_toutes_les_mesures_du_bloc(conn):
+    j = seances(40)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)],
+            "B": [(d, 80.0 * (1.0 - 0.001 * (i % 7))) for i, d in enumerate(j)],
+        },
+        {"A": 5, "B": 9},
+    )
+    rapport = analyse_portfolio(conn, 1, window=30)
+
+    assert rapport.volatility.annualised >= 0.0
+    assert rapport.ewma_volatility.method.startswith("EWMA")
+    assert rapport.drawdown.peak_date <= rapport.drawdown.trough_date
+    assert rapport.sharpe.risk_free_annual > 0.0
+    assert rapport.sortino.annualised is not None or rapport.sortino.undefined_reason
+    assert rapport.concentration.hhi >= rapport.concentration.equal_weight_reference
+    assert rapport.total_value > 0.0
+
+
+def test_le_taux_sans_risque_est_un_parametre_pas_une_constante_enfouie(conn):
+    j = seances(40)
+    peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
+
+    sans_taux = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.0)
+    avec_taux = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.10)
+
+    assert avec_taux.sharpe.annualised < sans_taux.sharpe.annualised
+    assert avec_taux.sharpe.risk_free_annual == 0.10
+    assert avec_taux.sharpe.risk_free_daily == pytest.approx(
+        1.10 ** (1 / 252) - 1, rel=1e-9
+    )
+
+
+# --------------------------------------------- Non-régression, données réelles --
+
+
+@pytest.mark.skipif(
+    not BASE_REELLE.exists(),
+    reason="base locale absente — lancer `python -m backend.ingestion backfill`",
+)
+def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct():
+    """Ancrage sur l'histoire réelle, pas sur une valeur inventée.
+
+    Le S&P 500 a perdu environ 34 % entre son sommet du 19 février 2020 et son
+    creux du 23 mars. Ce test traverse toute la chaîne — lecture des cours
+    ajustés, rendements simples, courbe de valeur, drawdown à pic glissant — et
+    tombera si l'une de ces étapes est modifiée de travers, même de façon
+    subtile (rendements log au lieu de simples, `close` au lieu d'`adj_close`,
+    pic global au lieu de glissant).
+    """
+    connexion = connect(BASE_REELLE)
+    try:
+        panel = load_price_panel(
+            connexion, ["SPY"], date(2020, 2, 19), date(2020, 3, 23)
+        )
+    finally:
+        connexion.close()
+
+    prix = panel["SPY"]
+    courbe = wealth_curve(simple_returns(prix), initial_date=prix.index[0])
+    resultat = max_drawdown(courbe)
+
+    assert resultat.value == pytest.approx(-0.337, abs=0.002)
+    assert resultat.peak_date == date(2020, 2, 19)
+    assert resultat.trough_date == date(2020, 3, 23)
