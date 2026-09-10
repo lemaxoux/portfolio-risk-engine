@@ -1,4 +1,4 @@
-"""Univers de titres de développement et leur secteur.
+"""Univers de titres de développement, secteurs, et profondeur d'historique.
 
 Le secteur est saisi à la main : Tiingo ne l'expose pas (l'endpoint de
 métadonnées renvoie `name` et `exchangeCode`, pas de secteur), et aucun des
@@ -12,6 +12,8 @@ supposer la colonne renseignée.
 """
 
 from __future__ import annotations
+
+from datetime import date
 
 # Ordre volontairement conservé tel que défini : lisible et facile à relire
 # ligne à ligne, alors qu'un tri par secteur masquerait les oublis.
@@ -34,14 +36,32 @@ DEV_UNIVERSE: dict[str, str | None] = {
     "SPY": None,
 }
 
-# Profondeur d'historique visée au backfill.
+# Date d'ancrage du backfill — fixe, délibérément, et non un nombre d'années
+# glissant.
 #
-# ATTENTION pour la Phase 5 : 5 ans ne suffisent plus à atteindre le krach
-# COVID. Depuis septembre 2026, la fenêtre démarre en septembre 2021, soit
-# 18 mois APRÈS le décrochage de février-mars 2020. Elle couvre bien la baisse
-# 2022, mais le scénario COVID demandera BACKFILL_YEARS = 7 (début 2019) et un
-# nouveau backfill complet.
-BACKFILL_YEARS = 5
+# Une fenêtre glissante cesse silencieusement de couvrir un événement à mesure
+# que le temps passe : « 5 ans » couvrait le krach COVID jusqu'en mars 2025,
+# puis a cessé de le faire sans que rien ne change dans le code ni n'échoue.
+# Le scénario de stress disparaît en douce, et le jour où on s'en aperçoit,
+# c'est en lisant des résultats qui ne veulent plus dire ce qu'on croit.
+#
+# Une date d'ancrage n'a pas ce défaut : la couverture ne peut que s'étendre.
+# 2005 fait entrer la crise financière de 2008 aux côtés du COVID (2020) et de
+# la baisse 2022, avec trois ans de contexte avant 2008.
+#
+# Les titres dont la cotation commence après cette date entrent simplement avec
+# l'historique qui existe : le fournisseur renvoie ce qu'il a, et `status`
+# montre la couverture réelle titre par titre.
+# ATTENTION (Phase 4) — cette profondeur sert au REJEU DE SCÉNARIOS, pas à
+# l'estimation du risque courant.
+#
+# Une VaR historique ou une volatilité annualisée calculées sur les 21 ans
+# complets seraient dominées par 2008 : elles décriraient un régime de marché
+# révolu, pas le risque d'aujourd'hui. Le moteur de risque doit estimer sur une
+# fenêtre récente (1 à 2 ans) ou pondérer les rendements exponentiellement
+# (EWMA, façon RiskMetrics). L'historique long n'est là que pour rejouer des
+# périodes de crise identifiées sur les poids actuels du portefeuille.
+BACKFILL_START = date.fromisoformat("2005-01-01")
 
 # Benchmark utilisé pour le beta du portefeuille (Phase 4).
 BENCHMARK_TICKER = "SPY"

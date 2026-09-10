@@ -2,7 +2,7 @@
 
 Trois opérations, une par situation :
 
-* `backfill`      — chargement initial, `BACKFILL_YEARS` années d'un coup.
+* `backfill`      — chargement initial depuis `BACKFILL_START`.
 * `refresh`       — rattrapage depuis la dernière séance connue de chaque titre.
 * `ensure_ticker` — chargement à la demande d'un titre absent de la base.
 
@@ -19,12 +19,11 @@ from .prices import (
     ensure_ticker,
     last_stored_date,
     refresh,
-    years_ago,
 )
-from .universe import BACKFILL_YEARS, BENCHMARK_TICKER, DEV_UNIVERSE, dev_tickers
+from .universe import BACKFILL_START, BENCHMARK_TICKER, DEV_UNIVERSE, dev_tickers
 
 __all__ = [
-    "BACKFILL_YEARS",
+    "BACKFILL_START",
     "BENCHMARK_TICKER",
     "DEV_UNIVERSE",
     "IngestionReport",
@@ -34,5 +33,4 @@ __all__ = [
     "ensure_ticker",
     "last_stored_date",
     "refresh",
-    "years_ago",
 ]

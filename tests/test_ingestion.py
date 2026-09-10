@@ -29,9 +29,8 @@ from backend.ingestion.prices import (
     last_stored_date,
     refresh,
     upsert_security,
-    years_ago,
 )
-from backend.ingestion.universe import BACKFILL_YEARS, DEV_UNIVERSE
+from backend.ingestion.universe import BACKFILL_START, DEV_UNIVERSE
 
 AUJOURD_HUI = date(2026, 9, 9)
 
@@ -66,8 +65,10 @@ class FakeProvider:
         self.erreurs = erreurs or {}
         self.erreurs_info = erreurs_info or {}
         self.fenetres: list[tuple[str, date, date]] = []
+        self.appels_info: list[str] = []
 
     def get_security_info(self, ticker: str) -> SecurityInfo:
+        self.appels_info.append(ticker)
         if ticker in self.erreurs_info:
             raise self.erreurs_info[ticker]
         return SecurityInfo(ticker=ticker, name=f"{ticker} Corp", exchange="NASDAQ")
@@ -120,12 +121,12 @@ def test_le_backfill_stocke_adj_close_et_close_separement(conn):
     assert ligne["adj_close"] == 100.0
 
 
-def test_le_backfill_demande_la_profondeur_voulue(conn):
+def test_le_backfill_part_de_la_date_d_ancrage(conn):
     p = FakeProvider({"AAPL": []})
     backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
 
     (debut, fin), = p.fenetres_de("AAPL")
-    assert debut == date(2021, 9, 9), "cinq ans avant aujourd'hui"
+    assert debut == BACKFILL_START
     assert fin == AUJOURD_HUI
 
 
@@ -194,7 +195,7 @@ def test_le_rattrapage_sur_base_vide_fait_un_backfill_complet(conn):
     refresh(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
 
     debut, _ = p.fenetres_de("AAPL")[0]
-    assert debut == years_ago(BACKFILL_YEARS, AUJOURD_HUI)
+    assert debut == BACKFILL_START
 
 
 def test_le_rattrapage_d_une_base_a_jour_n_ecrit_rien(conn):
@@ -221,7 +222,7 @@ def test_un_split_declenche_une_reprise_complete(conn):
     fenetres = p.fenetres_de("AAPL")
     assert len(fenetres) == appels_avant + 2, "un rattrapage puis une reprise complète"
     debut_reprise, _ = fenetres[-1]
-    assert debut_reprise == years_ago(BACKFILL_YEARS, AUJOURD_HUI)
+    assert debut_reprise == BACKFILL_START
 
 
 def test_sans_split_il_n_y_a_pas_de_reprise(conn):
@@ -335,12 +336,72 @@ def test_le_bilan_liste_les_echecs(conn):
     assert "JPM" in report.summary()
 
 
-# --------------------------------------------------------------- Calendrier --
+# ------------------------------------------------------------ Date d'ancrage --
 
 
-def test_years_ago_gere_le_29_fevrier():
-    assert years_ago(1, date(2024, 2, 29)) == date(2023, 2, 28)
+def test_l_ancrage_ne_glisse_pas_avec_le_temps(conn):
+    """Le defaut de la fenetre glissante, verrouille par un test.
+
+    Une profondeur exprimee en annees rendait des debuts differents selon le
+    jour d'execution, et un scenario historique sortait de la fenetre sans que
+    rien ne change dans le code. L'ancrage rend la fenetre independante de la
+    date du jour.
+    """
+    p = FakeProvider({"AAPL": []})
+    backfill(["AAPL"], provider=p, conn=conn, today=date(2026, 9, 9))
+    backfill(["AAPL"], provider=p, conn=conn, today=date(2031, 9, 9))
+
+    debuts = {debut for debut, _ in p.fenetres_de("AAPL")}
+    assert debuts == {BACKFILL_START}, "cinq ans plus tard, le debut est le meme"
 
 
-def test_years_ago_cas_courant():
-    assert years_ago(5, date(2026, 9, 9)) == date(2021, 9, 9)
+def test_l_ancrage_couvre_les_trois_scenarios_de_stress():
+    # Ce que 5 ans glissants ne garantissaient plus.
+    for evenement in (date(2008, 9, 15), date(2020, 3, 16), date(2022, 6, 13)):
+        assert BACKFILL_START < evenement, f"{evenement} hors de la fenetre"
+
+
+def test_un_titre_introduit_apres_l_ancrage_entre_avec_ce_qui_existe(conn):
+    # Le fournisseur renvoie ce qu'il a ; l'absence d'historique avant
+    # l'introduction en bourse n'est pas une erreur.
+    p = FakeProvider({"NEW": barres(date(2024, 3, 1), 10)})
+    report = backfill(["NEW"], provider=p, conn=conn, today=AUJOURD_HUI)
+
+    debut, _ = p.fenetres_de("NEW")[0]
+    assert debut == BACKFILL_START, "on demande large"
+    assert report.results[0].status == OK
+    premiere = conn.execute("SELECT MIN(date) AS d FROM prices").fetchone()["d"]
+    assert premiere == "2024-03-01", "et on stocke ce qui existe reellement"
+
+
+# ------------------------------------------------------------------- Quota --
+
+
+def test_les_metadonnees_ne_sont_pas_redemandees_pour_un_titre_connu(conn):
+    # Un appel par titre economise, soit la moitie du budget d'un backfill.
+    p = FakeProvider({"AAPL": barres(date(2026, 9, 1), 3)})
+    backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
+    assert p.appels_info == ["AAPL"]
+
+    backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
+    assert p.appels_info == ["AAPL"], "le second passage ne redemande rien"
+
+
+def test_refresh_metadata_force_le_rappel(conn):
+    p = FakeProvider({"AAPL": barres(date(2026, 9, 1), 3)})
+    backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
+    backfill(
+        ["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI, refresh_metadata=True
+    )
+    assert p.appels_info == ["AAPL", "AAPL"]
+
+
+def test_le_secteur_reste_applique_meme_sans_appel_de_metadonnees(conn):
+    p = FakeProvider({"AAPL": []})
+    backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
+    conn.execute("UPDATE securities SET sector = NULL")
+
+    backfill(["AAPL"], provider=p, conn=conn, today=AUJOURD_HUI)
+
+    secteur = conn.execute("SELECT sector FROM securities").fetchone()["sector"]
+    assert secteur == "Information Technology"

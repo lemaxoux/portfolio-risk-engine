@@ -20,7 +20,7 @@ from backend.data_provider import (
     get_provider,
 )
 from backend.db.init_db import connect
-from backend.ingestion.universe import BACKFILL_YEARS, DEV_UNIVERSE
+from backend.ingestion.universe import BACKFILL_START, DEV_UNIVERSE
 
 logger = logging.getLogger(__name__)
 
@@ -58,22 +58,6 @@ class IngestionReport:
         for r in self.failures:
             lignes.append(f"  {r.ticker} : {r.status} — {r.detail}")
         return "\n".join(lignes)
-
-
-# ------------------------------------------------------------------ Fenêtres --
-
-
-def years_ago(years: int, reference: date | None = None) -> date:
-    """Même jour, `years` années plus tôt.
-
-    Le 29 février est ramené au 28 : `date.replace` lèverait sinon ValueError
-    une année sur quatre, faisant échouer un backfill au hasard du calendrier.
-    """
-    ref = reference or date.today()
-    try:
-        return ref.replace(year=ref.year - years)
-    except ValueError:
-        return ref.replace(year=ref.year - years, day=28)
 
 
 # ----------------------------------------------------------------- Écritures --
@@ -143,17 +127,41 @@ def last_stored_date(conn: sqlite3.Connection, ticker: str) -> date | None:
 # ------------------------------------------------------------- Un seul titre --
 
 
+def est_enregistre(conn: sqlite3.Connection, ticker: str) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM securities WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        is not None
+    )
+
+
 def _register(
     conn: sqlite3.Connection,
     provider: MarketDataProvider,
     ticker: str,
     sector: str | None,
+    *,
+    refresh_metadata: bool = False,
 ) -> None:
     """Crée ou met à jour la ligne `securities`.
 
     Prérequis de toute écriture de prix : la clé étrangère de `prices` la
     réclame.
+
+    Les métadonnées ne sont redemandées que pour un titre inconnu. Elles ne
+    changent quasiment jamais, alors qu'elles coûtent un appel par titre — la
+    moitié du budget d'un backfill sur les 50 appels/heure du plan gratuit. Le
+    secteur, lui, vient de la table locale et est réappliqué à chaque passage.
     """
+    if not refresh_metadata and est_enregistre(conn, ticker):
+        conn.execute(
+            "UPDATE securities SET sector = COALESCE(?, sector) WHERE ticker = ?",
+            (sector, ticker),
+        )
+        logger.debug("%s : déjà connu, métadonnées non redemandées", ticker)
+        return
+
     info = provider.get_security_info(ticker)
     upsert_security(conn, ticker, info.name, sector)
     logger.debug("%s : %s (%s)", ticker, info.name, info.exchange or "place inconnue")
@@ -179,12 +187,17 @@ def _fetch_and_store(
 def backfill(
     tickers: list[str] | None = None,
     *,
-    years: int = BACKFILL_YEARS,
+    start: date = BACKFILL_START,
     provider: MarketDataProvider | None = None,
     conn: sqlite3.Connection | None = None,
     today: date | None = None,
+    refresh_metadata: bool = False,
 ) -> IngestionReport:
-    """Charge `years` années d'historique pour chaque titre.
+    """Charge l'historique de chaque titre depuis `start`.
+
+    Un titre dont la cotation commence après `start` entre avec l'historique
+    qui existe : le fournisseur renvoie ce qu'il a, sans erreur, et la commande
+    `status` montre la couverture réelle obtenue titre par titre.
 
     Chaque titre est committé séparément : une interruption au neuvième titre
     laisse les huit premiers en base, et relancer reprend sans redemander ce
@@ -192,15 +205,13 @@ def backfill(
     """
     cibles = tickers or list(DEV_UNIVERSE)
     end = today or date.today()
-    start = years_ago(years, end)
-    logger.info(
-        "Backfill de %d titres sur %d ans (%s → %s)", len(cibles), years, start, end
-    )
+    logger.info("Backfill de %d titres (%s → %s)", len(cibles), start, end)
     return _run(
         cibles,
         lambda c, p, t: _fetch_and_store(c, p, t, start, end),
         provider=provider,
         conn=conn,
+        refresh_metadata=refresh_metadata,
     )
 
 
@@ -210,7 +221,7 @@ def refresh(
     provider: MarketDataProvider | None = None,
     conn: sqlite3.Connection | None = None,
     today: date | None = None,
-    fallback_years: int = BACKFILL_YEARS,
+    fallback_start: date = BACKFILL_START,
 ) -> IngestionReport:
     """Rattrape chaque titre depuis sa dernière séance connue jusqu'à `today`.
 
@@ -228,7 +239,7 @@ def refresh(
         derniere = last_stored_date(c, ticker)
         if derniere is None:
             logger.info("%s : aucune donnée en base, backfill complet", ticker)
-            return _fetch_and_store(c, p, ticker, years_ago(fallback_years, end), end)
+            return _fetch_and_store(c, p, ticker, fallback_start, end)
 
         rows, split = _fetch_and_store(c, p, ticker, derniere, end)
         if split:
@@ -239,7 +250,7 @@ def refresh(
                 "%s : split détecté, historique ajusté périmé — reprise complète",
                 ticker,
             )
-            rows, _ = _fetch_and_store(c, p, ticker, years_ago(fallback_years, end), end)
+            rows, _ = _fetch_and_store(c, p, ticker, fallback_start, end)
         return rows, split
 
     logger.info("Rattrapage jusqu'au %s", end)
@@ -249,7 +260,7 @@ def refresh(
 def ensure_ticker(
     ticker: str,
     *,
-    years: int = BACKFILL_YEARS,
+    start: date = BACKFILL_START,
     provider: MarketDataProvider | None = None,
     conn: sqlite3.Connection | None = None,
     today: date | None = None,
@@ -257,15 +268,15 @@ def ensure_ticker(
     """Charge à la demande un titre absent de la base.
 
     Sert quand un utilisateur saisit un ticker hors de l'univers de dev. La
-    profondeur est la même que celle du backfill, délibérément : un titre chargé
-    sur trente ans à côté de titres chargés sur cinq donnerait des matrices de
-    covariance estimées sur des fenêtres différentes selon la paire.
+    date d'ancrage est la même que celle du backfill, délibérément : deux titres
+    chargés sur des fenêtres différentes donneraient des covariances estimées
+    sur des périodes différentes selon la paire. Un titre introduit en bourse
+    après `start` entre simplement avec l'historique qui existe.
 
     Le secteur reste NULL — Tiingo ne le fournit pas et personne ne l'a saisi.
     """
     cible = ticker.upper()
     end = today or date.today()
-    start = years_ago(years, end)
 
     def charger(
         c: sqlite3.Connection, p: MarketDataProvider, t: str
@@ -288,6 +299,7 @@ def _run(
     provider: MarketDataProvider | None = None,
     conn: sqlite3.Connection | None = None,
     sectors: dict[str, str | None] | None = None,
+    refresh_metadata: bool = False,
 ) -> IngestionReport:
     """Applique `operation` à chaque titre en isolant les échecs.
 
@@ -311,7 +323,13 @@ def _run(
                 )
                 continue
             try:
-                _register(connexion, fournisseur, ticker, secteurs.get(ticker))
+                _register(
+                    connexion,
+                    fournisseur,
+                    ticker,
+                    secteurs.get(ticker),
+                    refresh_metadata=refresh_metadata,
+                )
                 rows, _ = operation(connexion, fournisseur, ticker)
                 connexion.commit()
                 report.results.append(

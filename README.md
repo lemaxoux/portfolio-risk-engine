@@ -33,7 +33,7 @@ livrable, au même titre que le code.
 | API | FastAPI + uvicorn | Léger, typé, doc OpenAPI auto-générée |
 | Base | SQLite | Suffisant pour un projet solo, aucun setup |
 | Données de marché | Tiingo (plan gratuit) | 30+ ans d'historique quotidien ajusté, 1000 appels/jour |
-| Planification | APScheduler | Job d'ingestion quotidien |
+| Planification | Planificateur de tâches Windows | `refresh` est un script à lancer, pas un démon à surveiller |
 | Tests | pytest | Priorité aux tests du moteur de risque |
 | Config | python-dotenv | Clé API hors du code |
 
@@ -99,24 +99,42 @@ idempotente : la relancer ne détruit aucune donnée.
 ### 4. Ingestion des prix
 
 ```powershell
-python -m backend.ingestion backfill   # chargement initial : 14 titres, 5 ans
+python -m backend.ingestion backfill   # chargement initial : 14 titres depuis 2005
 python -m backend.ingestion refresh    # rattrapage, à lancer quotidiennement
 python -m backend.ingestion add TSLA   # titre hors univers de dev
 python -m backend.ingestion status     # inventaire de la base, sans appel réseau
 ```
 
-Le backfill consomme 2 appels par titre (métadonnées + prix), soit 28 pour
-l'univers complet — le plan gratuit en autorise 50 par heure et 1000 par jour.
-`refresh` ne redemande que la fenêtre manquante depuis la dernière séance
-connue de chaque titre : la machine peut rester éteinte une semaine sans
+Un titre inconnu coûte 2 appels (métadonnées + prix), un titre déjà en base un
+seul : les métadonnées ne changent quasiment jamais et ne sont redemandées que
+sur `--refresh-metadata`. Le plan gratuit autorise 50 appels par heure et 1000
+par jour. `refresh` ne redemande que la fenêtre manquante depuis la dernière
+séance connue de chaque titre : la machine peut rester éteinte une semaine sans
 laisser de trou. Le code de sortie vaut 1 si un titre a échoué, pour qu'un
 ordonnanceur le voie.
 
-> **Profondeur et stress tests.** Cinq ans à partir de septembre 2026 remontent
-> à septembre 2021 : la fenêtre couvre la baisse 2022 mais **pas** le krach
-> COVID de février-mars 2020. Le scénario COVID de la Phase 5 demandera
-> `BACKFILL_YEARS = 7` dans `backend/ingestion/universe.py` et un nouveau
-> backfill complet.
+**La profondeur est ancrée à une date fixe, pas à une durée glissante.**
+`BACKFILL_START = 2005-01-01` dans `backend/ingestion/universe.py`. Une fenêtre
+exprimée en années cesse silencieusement de couvrir un événement à mesure que
+le temps passe : « 5 ans » couvrait le krach COVID jusqu'en mars 2025, puis a
+cessé de le faire sans que rien ne change dans le code ni n'échoue. Le scénario
+disparaît en douce, et on ne s'en aperçoit qu'en lisant des résultats qui ne
+veulent plus dire ce qu'on croit. Une date d'ancrage ne peut qu'étendre la
+couverture. 2005 donne les trois scénarios de stress — crise financière 2008,
+COVID 2020, baisse 2022 — avec trois ans de contexte avant 2008.
+
+Un titre introduit en bourse après cette date entre avec l'historique qui
+existe : le fournisseur renvoie ce qu'il a, et `status` montre la couverture
+réelle obtenue titre par titre.
+
+> **Cette profondeur sert au rejeu de scénarios, pas à l'estimation du risque
+> courant.** Une VaR historique ou une volatilité annualisée calculées sur les
+> 21 ans complets seraient dominées par 2008 : elles décriraient un régime de
+> marché révolu, pas le risque d'aujourd'hui. Le moteur de risque (Phase 4)
+> doit estimer sur une fenêtre récente (1 à 2 ans) ou pondérer les rendements
+> exponentiellement (EWMA, façon RiskMetrics). L'historique long n'est là que
+> pour rejouer des périodes de crise identifiées sur les poids actuels du
+> portefeuille.
 
 ### 5. Tests
 
@@ -163,9 +181,11 @@ l'ordre chronologique.
 ## État d'avancement
 
 - [x] **Phase 2 — Setup** : repo, venv, arborescence, schéma SQLite, README
-- [x] **Phase 3 — Ingestion** : adaptateur Tiingo, backfill 5 ans (14 titres,
-  17 570 séances), rattrapage, chargement à la demande, retries sur quota
-  - [ ] Reste à faire : job batch quotidien (APScheduler)
+- [x] **Phase 3 — Ingestion** : adaptateur Tiingo, backfill ancré à 2005,
+  rattrapage, chargement à la demande, retries sur quota
+  - Pas de job APScheduler : écarté volontairement. `refresh` est appelé par le
+    Planificateur de tâches Windows ou à la main — un démon à surveiller
+    coûterait plus que le problème qu'il résout pour un batch quotidien.
 - [ ] **Phase 4 — Moteur de risque** : mesures + tests unitaires
 - [ ] **Phase 5 — Stress testing** : scénarios historiques
 - [ ] **Phase 6 — Recommandations** : règles de détection

@@ -1,6 +1,6 @@
 """Ligne de commande de l'ingestion.
 
-    python -m backend.ingestion backfill          # chargement initial (5 ans)
+    python -m backend.ingestion backfill          # chargement initial (depuis 2005)
     python -m backend.ingestion refresh           # rattrapage quotidien
     python -m backend.ingestion add TSLA          # titre hors univers de dev
     python -m backend.ingestion status            # ce qui est en base
@@ -14,10 +14,11 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import date
 
 from backend.db.init_db import connect
 from backend.ingestion.prices import backfill, ensure_ticker, refresh
-from backend.ingestion.universe import BACKFILL_YEARS, DEV_UNIVERSE
+from backend.ingestion.universe import BACKFILL_START, DEV_UNIVERSE
 
 
 def configure_logging(verbose: bool = False) -> None:
@@ -80,7 +81,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_backfill = sub.add_parser("backfill", help="chargement initial de l'historique")
-    p_backfill.add_argument("--years", type=int, default=BACKFILL_YEARS)
+    p_backfill.add_argument(
+        "--start", type=date.fromisoformat, default=BACKFILL_START,
+        metavar="AAAA-MM-JJ", help="date d'ancrage (defaut : %(default)s)",
+    )
+    p_backfill.add_argument(
+        "--refresh-metadata", action="store_true",
+        help="redemander nom et place de cotation (1 appel de plus par titre)",
+    )
     p_backfill.add_argument(
         "--tickers", nargs="+", metavar="TICKER", default=list(DEV_UNIVERSE)
     )
@@ -92,7 +100,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_add = sub.add_parser("add", help="charger un titre absent de la base")
     p_add.add_argument("ticker")
-    p_add.add_argument("--years", type=int, default=BACKFILL_YEARS)
+    p_add.add_argument(
+        "--start", type=date.fromisoformat, default=BACKFILL_START,
+        metavar="AAAA-MM-JJ", help="date d'ancrage (defaut : %(default)s)",
+    )
 
     sub.add_parser("status", help="inventaire de la base")
     return parser
@@ -107,11 +118,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "backfill":
-        report = backfill([t.upper() for t in args.tickers], years=args.years)
+        report = backfill(
+            [t.upper() for t in args.tickers],
+            start=args.start,
+            refresh_metadata=args.refresh_metadata,
+        )
     elif args.command == "refresh":
         report = refresh([t.upper() for t in args.tickers])
     else:
-        report = ensure_ticker(args.ticker, years=args.years)
+        report = ensure_ticker(args.ticker, start=args.start)
 
     print(report.summary())
     return 1 if report.failures else 0
