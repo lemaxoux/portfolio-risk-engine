@@ -12,7 +12,6 @@ scipy==1.18.1
 
 # Ingestion des données
 requests==2.34.2
-APScheduler==3.11.3
 
 # Configuration
 python-dotenv==1.2.3
