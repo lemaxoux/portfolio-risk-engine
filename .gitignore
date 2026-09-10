@@ -1,0 +1,41 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# --- Environnement virtuel ---
+venv/
+.venv/
+env/
+
+# --- Secrets & configuration locale ---
+.env
+.env.*
+!.env.example
+
+# --- Base de données locale ---
+# Les données de marché Tiingo ne sont pas redistribuables : la base ne doit
+# jamais être versionnée, même sur un dépôt privé.
+data/*.sqlite
+data/*.sqlite3
+data/*.db
+data/*.csv
+
+# --- Tests & qualité ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Documents de cadrage (copie de travail, non versionnée) ---
+docs/
+
+# --- Éditeurs / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

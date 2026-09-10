@@ -1,0 +1,21 @@
+# Dépendances directes, versions figées (Python 3.12).
+# Installation : pip install -r requirements.txt
+
+# API
+fastapi==0.141.1
+uvicorn==0.52.4
+
+# Calcul quantitatif
+numpy==2.5.3
+pandas==3.0.5
+scipy==1.18.1
+
+# Ingestion des données
+requests==2.34.2
+APScheduler==3.11.3
+
+# Configuration
+python-dotenv==1.2.3
+
+# Tests
+pytest==9.1.1

@@ -1,0 +1,56 @@
+-- Mx Risk MGT — schéma SQLite (v1)
+--
+-- Conventions :
+--   * les dates sont stockées en TEXT au format ISO-8601 'YYYY-MM-DD'.
+--     SQLite n'a pas de type date natif ; l'ordre lexicographique de ce
+--     format est l'ordre chronologique, les comparaisons restent donc justes.
+--   * les montants sont des REAL (précision suffisante pour du calcul de
+--     risque ; ce n'est pas un livre comptable).
+
+PRAGMA foreign_keys = ON;
+
+-- Univers de titres suivis (actions / ETF cotés US en v1).
+CREATE TABLE IF NOT EXISTS securities (
+    ticker TEXT PRIMARY KEY,
+    name   TEXT NOT NULL
+);
+
+-- Historique quotidien. adj_close est ajusté des splits ET des dividendes :
+-- c'est la seule colonne à utiliser pour calculer des rendements, close brut
+-- fausserait les séries à chaque détachement.
+CREATE TABLE IF NOT EXISTS prices (
+    ticker    TEXT    NOT NULL,
+    date      TEXT    NOT NULL,
+    open      REAL,
+    high      REAL,
+    low       REAL,
+    close     REAL    NOT NULL,
+    adj_close REAL    NOT NULL,
+    volume    INTEGER,
+    PRIMARY KEY (ticker, date),
+    FOREIGN KEY (ticker) REFERENCES securities(ticker) ON DELETE CASCADE
+);
+
+-- La clé primaire (ticker, date) rend l'ingestion idempotente : un
+-- INSERT OR REPLACE re-joue un backfill sans créer de doublons.
+CREATE INDEX IF NOT EXISTS idx_prices_date ON prices(date);
+
+-- Un portefeuille = un ensemble de positions appartenant à quelqu'un.
+CREATE TABLE IF NOT EXISTS portfolios (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner TEXT    NOT NULL
+);
+
+-- cost_basis est le prix de revient unitaire, optionnel : il ne sert pas au
+-- calcul du risque (qui ne dépend que des poids et des rendements), seulement
+-- à afficher une P&L si la donnée est disponible.
+CREATE TABLE IF NOT EXISTS positions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    portfolio_id INTEGER NOT NULL,
+    ticker       TEXT    NOT NULL,
+    quantity     REAL    NOT NULL,
+    cost_basis   REAL,
+    UNIQUE (portfolio_id, ticker),
+    FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+    FOREIGN KEY (ticker)       REFERENCES securities(ticker)
+);
