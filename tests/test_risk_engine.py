@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from backend.db.init_db import connect, init_db
@@ -54,6 +55,20 @@ def seances(n: int, depart: date = date(2026, 1, 5)) -> list[date]:
             resultat.append(jour)
         jour += timedelta(days=1)
     return resultat
+
+
+def cours(dates, initial=100.0, sigma=0.01, derive=0.0002, graine=1):
+    """Serie de cours par composition de rendements successifs.
+
+    Un `(1 + tirage) ** i` eleverait UN seul tirage a la puissance i : la serie
+    exploserait ou s'effondrerait au lieu de suivre une marche aleatoire.
+    """
+    import numpy as np
+
+    rng = np.random.default_rng(graine)
+    rendements = rng.normal(derive, sigma, len(dates))
+    niveaux = initial * np.cumprod(1.0 + rendements)
+    return [(d, float(v)) for d, v in zip(dates, niveaux, strict=True)]
 
 
 def peupler(conn, prix, positions, adj=None):
@@ -237,7 +252,8 @@ def test_chaque_mesure_porte_sa_fenetre(conn):
         },
         {"A": 10, "B": 20},
     )
-    rapport = analyse_portfolio(conn, 1, window=30)
+    rapport = analyse_portfolio(
+        conn, 1, window=30, benchmark=None)
 
     for mesure in (
         rapport.volatility,
@@ -323,7 +339,8 @@ def test_le_rapport_expose_toutes_les_mesures_du_bloc(conn):
         },
         {"A": 5, "B": 9},
     )
-    rapport = analyse_portfolio(conn, 1, window=30)
+    rapport = analyse_portfolio(
+        conn, 1, window=30, benchmark=None)
 
     assert rapport.volatility.annualised >= 0.0
     assert rapport.ewma_volatility.method.startswith("EWMA")
@@ -338,8 +355,10 @@ def test_le_taux_sans_risque_est_un_parametre_pas_une_constante_enfouie(conn):
     j = seances(40)
     peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
 
-    sans_taux = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.0)
-    avec_taux = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.10)
+    sans_taux = analyse_portfolio(
+        conn, 1, window=30, benchmark=None, annual_risk_free=0.0)
+    avec_taux = analyse_portfolio(
+        conn, 1, window=30, benchmark=None, annual_risk_free=0.10)
 
     assert avec_taux.sharpe.annualised < sans_taux.sharpe.annualised
     assert avec_taux.sharpe.risk_free_annual == 0.10
@@ -401,7 +420,8 @@ def test_le_sharpe_transporte_la_date_d_observation_du_taux(conn):
     j = seances(40)
     peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
 
-    rapport = analyse_portfolio(conn, 1, window=30)
+    rapport = analyse_portfolio(
+        conn, 1, window=30, benchmark=None)
 
     assert rapport.sharpe.risk_free_annual == pytest.approx(0.0390)
     assert rapport.sharpe.risk_free_observed_on == RISK_FREE_RATE_OBSERVED_ON
@@ -413,7 +433,8 @@ def test_un_taux_surcharge_n_a_pas_de_date_d_observation(conn):
     j = seances(40)
     peupler(conn, {"A": [(d, 100.0 * (1.002**i)) for i, d in enumerate(j)]}, {"A": 1})
 
-    rapport = analyse_portfolio(conn, 1, window=30, annual_risk_free=0.02)
+    rapport = analyse_portfolio(
+        conn, 1, window=30, benchmark=None, annual_risk_free=0.02)
 
     assert rapport.sharpe.risk_free_annual == 0.02
     assert rapport.sharpe.risk_free_observed_on is None
@@ -482,7 +503,7 @@ def test_un_taux_impose_peut_porter_sa_propre_date_d_observation(conn):
 
     observe = date(2026, 3, 31)
     rapport = analyse_portfolio(
-        conn, 1, window=30, annual_risk_free=0.045, risk_free_observed_on=observe
+        conn, 1, window=30, benchmark=None, annual_risk_free=0.045, risk_free_observed_on=observe,
     )
 
     assert rapport.sharpe.risk_free_annual == 0.045
@@ -500,3 +521,177 @@ def test_dater_le_taux_par_defaut_est_refuse(conn):
 
     with pytest.raises(ValueError, match="risk_free_observed_on"):
         sharpe(serie, risk_free_observed_on=date(2020, 1, 1))
+
+
+# ------------------------------------------------- Bloc 4B : multi-titres --
+
+
+def test_la_volatilite_parametrique_egale_celle_de_la_serie(conn):
+    """L'identité du ddof, vérifiée bout en bout depuis la base.
+
+    √(wᵀΣw) et l'écart-type de la série du portefeuille sont la même quantité
+    calculée par deux chemins. Une divergence de convention entre 4A et 4B
+    introduirait un écart de N/(N−1) — 0,1 % sur 504 séances, indétectable à
+    l'œil et faux quand même.
+    """
+    j = seances(120)
+    peupler(
+        conn,
+        {
+            "A": cours(j, 100.0, 0.010, graine=1),
+            "B": cours(j, 50.0, 0.012, graine=2),
+            "C": cours(j, 80.0, 0.008, graine=3),
+        },
+        {"A": 10, "B": 20, "C": 15},
+    )
+    serie = build_portfolio_series(conn, 1, window=100)
+
+    from backend.risk_engine.engine import parametric_volatility, volatility
+
+    assert parametric_volatility(serie).annualised == pytest.approx(
+        volatility(serie).annualised, rel=1e-12
+    )
+
+
+def test_un_portefeuille_100_pct_benchmark_a_un_beta_de_un(conn):
+    """Le test décisif du beta, depuis la base : β et R² exactement 1."""
+    j = seances(60)
+    peupler(conn, {"SPY": cours(j, 400.0, 0.010, graine=9)}, {"SPY": 10})
+
+    rapport = analyse_portfolio(conn, 1, window=50, benchmark="SPY")
+
+    assert rapport.beta.beta == 1.0
+    assert rapport.beta.r_squared == 1.0
+    assert rapport.beta.idiosyncratic_share == 0.0
+    assert rapport.beta.benchmark == "SPY"
+    assert "bruts" in rapport.beta.basis
+
+
+def test_le_benchmark_est_aligne_dans_le_meme_panel(conn):
+    """Sans quoi le beta comparerait des intervalles différents.
+
+    B ne cote pas le deuxième jour. Le rendement du portefeuille au jour 3
+    couvre donc j1→j3 ; celui du benchmark doit couvrir le même intervalle, pas
+    j2→j3.
+    """
+    j = seances(3)
+    peupler(
+        conn,
+        {
+            "A": [(j[0], 100.0), (j[1], 110.0), (j[2], 121.0)],
+            "B": [(j[0], 50.0), (j[2], 60.0)],
+            "SPY": [(j[0], 400.0), (j[1], 404.0), (j[2], 420.0)],
+        },
+        {"A": 1, "B": 1},
+    )
+    serie = build_portfolio_series(conn, 1, window=10, benchmark="SPY")
+
+    assert list(serie.benchmark_returns.index) == [j[2]]
+    assert serie.benchmark_returns.loc[j[2]] == pytest.approx(420.0 / 400.0 - 1.0), (
+        "le benchmark doit couvrir j1→j3 comme le portefeuille, pas j2→j3"
+    )
+
+
+def test_un_benchmark_absent_de_la_base_est_signale_clairement(conn):
+    # Les titres détenus ont des prix, le benchmark non : le cas passerait au
+    # travers d'un contrôle qui ne vérifie que « le panel est-il vide ».
+    j = seances(30)
+    peupler(conn, {"A": cours(j, graine=4)}, {"A": 1})
+
+    with pytest.raises(PortfolioError, match="SPY"):
+        build_portfolio_series(conn, 1, window=20, benchmark="SPY")
+
+
+def test_l_analyse_sans_benchmark_omet_le_beta(conn):
+    j = seances(40)
+    peupler(conn, {"A": cours(j, graine=5)}, {"A": 1})
+
+    rapport = analyse_portfolio(conn, 1, window=30, benchmark=None)
+    assert rapport.beta is None
+    assert rapport.historical_var[0.95] is not None
+
+
+def test_le_rapport_expose_les_var_aux_deux_niveaux(conn):
+    j = seances(200)
+    peupler(
+        conn,
+        {"A": cours(j, 100.0, 0.012, graine=4), "SPY": cours(j, 400.0, 0.009, graine=6)},
+        {"A": 10},
+    )
+    rapport = analyse_portfolio(conn, 1, window=150)
+
+    for famille in (rapport.historical_var, rapport.parametric_var):
+        assert famille[0.99].value >= famille[0.95].value, "99 % ≥ 95 % en perte"
+        assert famille[0.95].window.observations == 150
+        assert famille[0.95].value > 0.0, "convention : perte positive"
+
+    for niveau in (0.95, 0.99):
+        es = rapport.expected_shortfall[niveau]
+        assert es.value >= rapport.historical_var[niveau].value, "CVaR ≥ VaR"
+        assert es.tail_observations > 0
+
+
+def test_la_queue_fine_est_signalee_dans_le_resultat(conn):
+    """La fragilité du CVaR à 99 % doit se voir dans la sortie.
+
+    Sur 250 séances, le 95 % moyenne une douzaine de points quand le 99 % n'en
+    moyenne que trois. Le second reste calculable, mais son incertitude n'a rien
+    à voir avec celle du premier.
+    """
+    j = seances(300)
+    peupler(
+        conn,
+        {"A": cours(j, 100.0, 0.012, graine=7), "SPY": cours(j, 400.0, 0.009, graine=8)},
+        {"A": 10},
+    )
+    rapport = analyse_portfolio(conn, 1, window=250)
+
+    fin = rapport.expected_shortfall[0.99]
+    large = rapport.expected_shortfall[0.95]
+
+    assert fin.tail_observations < large.tail_observations
+    assert fin.thin_tail, "moins de dix points : estimation fragile"
+    assert not large.thin_tail
+
+
+def test_les_matrices_du_rapport_sont_coherentes(conn):
+    j = seances(120)
+    peupler(
+        conn,
+        {
+            "A": cours(j, 100.0, 0.010, graine=8),
+            "B": cours(j, 50.0, 0.011, graine=9),
+            "SPY": cours(j, 400.0, 0.009, graine=10),
+        },
+        {"A": 10, "B": 20},
+    )
+    rapport = analyse_portfolio(conn, 1, window=100)
+    matrices = rapport.matrices
+
+    assert list(matrices.covariance.columns) == ["A", "B"], (
+        "le benchmark sert au beta, il n'entre pas dans la matrice des détenus"
+    )
+    assert (np.diag(matrices.correlation.to_numpy()) == 1.0).all()
+    assert matrices.ddof == 1
+    assert matrices.window.observations == 100
+
+
+def test_le_monte_carlo_est_optionnel_et_reproductible(conn):
+    j = seances(150)
+    peupler(
+        conn,
+        {
+            "A": cours(j, 100.0, 0.011, graine=12),
+            "B": cours(j, 70.0, 0.013, graine=13),
+            "SPY": cours(j, 400.0, 0.009, graine=14),
+        },
+        {"A": 10, "B": 12},
+    )
+    sans = analyse_portfolio(conn, 1, window=120)
+    assert sans.monte_carlo_var is None
+
+    avec = analyse_portfolio(conn, 1, window=120, monte_carlo=True)
+    encore = analyse_portfolio(conn, 1, window=120, monte_carlo=True)
+
+    assert avec.monte_carlo_var[0.95].value == encore.monte_carlo_var[0.95].value
+    assert "graine" in avec.monte_carlo_var[0.95].detail

@@ -12,6 +12,10 @@ from datetime import date
 
 from dotenv import load_dotenv
 
+# `universe` est un module de données pur (aucune I/O, aucune dépendance) :
+# l'importer ici ne crée pas de couplage entre le moteur et l'ingestion.
+from backend.ingestion.universe import BENCHMARK_TICKER
+
 load_dotenv()
 
 # Nombre de séances par an. Convention de place (≈252 jours ouvrés hors
@@ -32,6 +36,37 @@ DEFAULT_WINDOW = 504
 # λ = 0,94 donne une demi-vie d'environ 11 séances : la volatilité réagit vite
 # à un choc, là où l'écart-type sur fenêtre fixe met des mois à l'intégrer.
 EWMA_LAMBDA = 0.94
+
+# ------------------------------------------------------ Degrés de liberté --
+#
+# UNE SEULE convention pour TOUTE estimation de dispersion du moteur :
+# écart-type, variance, covariance, beta. `ddof=1`, estimateur d'échantillon.
+#
+# Cette constante existe parce que numpy n'est pas cohérent avec lui-même :
+# `np.cov` utilise ddof=1 par défaut, `np.std` et `np.var` utilisent ddof=0.
+# Mélanger les deux casse une identité algébrique dont dépend tout le bloc
+# multi-titres : √(wᵀΣw) doit retomber EXACTEMENT sur la volatilité de la série
+# de rendements du portefeuille, puisque c'est la même quantité calculée de deux
+# façons.
+#
+# L'écart qu'introduirait une incohérence vaut N/(N−1), soit 0,1 % sur 504
+# séances : assez petit pour passer pour un arrondi, assez réel pour être une
+# incohérence qu'on ne retrouverait jamais. D'où la constante partagée plutôt
+# qu'un défaut répété à chaque appel — et un test qui verrouille l'identité.
+DDOF = 1
+
+# ------------------------------------------------------------ Monte Carlo --
+#
+# Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas
+# auditable et ne peut pas servir de référence d'un jour sur l'autre.
+MONTE_CARLO_SEED = 20260910
+MONTE_CARLO_SIMULATIONS = 100_000
+
+# ------------------------------------------------------------- Benchmark --
+#
+# Indice de référence du beta, repris de l'univers d'ingestion plutôt que
+# redéclaré : deux constantes pour un même ticker finiraient par diverger.
+DEFAULT_BENCHMARK = BENCHMARK_TICKER
 
 # --------------------------------------------------------- Taux sans risque --
 #

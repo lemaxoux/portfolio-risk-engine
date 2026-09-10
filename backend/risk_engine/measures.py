@@ -14,7 +14,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from .config import EWMA_LAMBDA, TRADING_DAYS_PER_YEAR
+from .config import DDOF, EWMA_LAMBDA, TRADING_DAYS_PER_YEAR
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ def _as_array(returns) -> np.ndarray:
     return tableau
 
 
-def _sample_std(values: np.ndarray, ddof: int = 1) -> float:
+def _sample_std(values: np.ndarray, ddof: int = DDOF) -> float:
     """Écart-type d'échantillon, calculé sur données décalées.
 
     Retrancher une constante à toute la série ne change pas sa dispersion, mais
@@ -70,7 +70,7 @@ def _sample_std(values: np.ndarray, ddof: int = 1) -> float:
 def annualised_volatility(
     returns,
     periods_per_year: int = TRADING_DAYS_PER_YEAR,
-    ddof: int = 1,
+    ddof: int = DDOF,
 ) -> float:
     """Écart-type des rendements quotidiens × √252.
 
@@ -89,7 +89,9 @@ def annualised_volatility(
     Le √T reste la convention de place et le point de comparaison attendu, mais
     il décrit un monde plus régulier que le vrai.
 
-    `ddof=1` : estimateur d'échantillon (division par N−1), pas de population.
+    `ddof` vient de `config.DDOF` : une seule convention pour tout le moteur,
+    sans quoi √(wᵀΣw) du bloc multi-titres ne retomberait pas sur cette
+    volatilité-ci.
     """
     tableau = _as_array(returns)
     return float(_sample_std(tableau, ddof=ddof) * math.sqrt(periods_per_year))
@@ -195,7 +197,7 @@ def sharpe_ratio(
     `risk_free_daily` est un taux QUOTIDIEN (voir `config.daily_risk_free_rate`).
     """
     excedent = _as_array(returns) - risk_free_daily
-    ecart_type = _sample_std(excedent, ddof=1)
+    ecart_type = _sample_std(excedent)
     if ecart_type == 0.0:
         raise ValueError(
             "Écart-type des rendements excédentaires nul : le ratio de Sharpe "

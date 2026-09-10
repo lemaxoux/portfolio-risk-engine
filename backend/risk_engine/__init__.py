@@ -18,6 +18,8 @@ VaR, CVaR — relèvent du bloc 4B et ne sont pas ici.
 from __future__ import annotations
 
 from .config import (
+    DDOF,
+    DEFAULT_BENCHMARK,
     DEFAULT_RISK_FREE_RATE,
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
@@ -27,17 +29,24 @@ from .config import (
     risk_free_observation_date,
     risk_free_rate,
 )
+from .covariance import Beta, beta, correlation_matrix, covariance_matrix
 from .engine import (
+    BetaResult,
     ConcentrationResult,
+    CovarianceResult,
     DrawdownResult,
+    ExpectedShortfallResult,
     PortfolioSeries,
     RiskReport,
     SharpeResult,
     SortinoResult,
     VolatilityResult,
     Window,
+    VarResult,
     analyse_portfolio,
+    beta_vs_benchmark,
     build_portfolio_series,
+    covariance_matrices,
 )
 from .measures import (
     Drawdown,
@@ -58,6 +67,13 @@ from .portfolio import (
     load_price_panel,
     market_value_weights,
 )
+from .var import (
+    QUANTILE_METHOD,
+    expected_shortfall,
+    historical_var,
+    monte_carlo_var,
+    parametric_var,
+)
 from .returns import (
     align_panel,
     log_returns,
@@ -67,12 +83,18 @@ from .returns import (
 )
 
 __all__ = [
+    "DDOF",
+    "DEFAULT_BENCHMARK",
     "DEFAULT_RISK_FREE_RATE",
     "DEFAULT_WINDOW",
     "EWMA_LAMBDA",
     "RISK_FREE_RATE_OBSERVED_ON",
     "TRADING_DAYS_PER_YEAR",
+    "QUANTILE_METHOD",
+    "Beta",
+    "BetaResult",
     "ConcentrationResult",
+    "CovarianceResult",
     "Drawdown",
     "DrawdownResult",
     "PortfolioError",
@@ -81,23 +103,34 @@ __all__ = [
     "Position",
     "RiskReport",
     "SharpeResult",
+    "ExpectedShortfallResult",
     "SortinoResult",
+    "VarResult",
     "VolatilityResult",
     "Window",
     "align_panel",
     "analyse_portfolio",
     "annualised_volatility",
+    "beta",
+    "beta_vs_benchmark",
     "build_portfolio_series",
+    "correlation_matrix",
+    "covariance_matrices",
+    "covariance_matrix",
     "daily_risk_free_rate",
     "downside_deviation",
     "equal_weight_reference",
     "ewma_volatility",
+    "expected_shortfall",
+    "historical_var",
     "herfindahl_index",
     "load_positions",
     "load_price_panel",
     "log_returns",
     "market_value_weights",
     "max_drawdown",
+    "monte_carlo_var",
+    "parametric_var",
     "portfolio_returns",
     "risk_free_observation_date",
     "risk_free_rate",

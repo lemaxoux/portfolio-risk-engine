@@ -53,11 +53,13 @@ app/
 │   │   ├── universe.py  #   14 titres de dev et leurs secteurs
 │   │   └── prices.py    #   écriture en base
 │   ├── risk_engine/     # Mesures de risque
-│   │   ├── measures.py  #   fonctions pures : tableaux → nombres
+│   │   ├── measures.py  #   pur : vol, drawdown, Sharpe, Sortino, HHI
+│   │   ├── covariance.py#   pur : matrices, variance de portefeuille, beta
+│   │   ├── var.py       #   pur : VaR, Expected Shortfall, Monte Carlo
 │   │   ├── returns.py   #   rendements et alignement des dates
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
-│   │   └── config.py    #   taux sans risque, fenêtre, λ EWMA
+│   │   └── config.py    #   taux sans risque, fenêtre, ddof, λ EWMA
 │   ├── api/             # Endpoints FastAPI
 │   └── db/              # Schéma SQLite et initialisation
 │       ├── schema.sql
@@ -191,6 +193,45 @@ estimées sur un historique, la **date de valorisation** pour le HHI
 (`ConcentrationResult.as_of`), qui est ponctuel et n'a pas de fenêtre.
 Aucun chiffre ne doit être ininterprétable isolément.
 
+### Mesures multi-titres
+
+| Mesure | Convention | Hypothèse à connaître |
+|---|---|---|
+| Covariance / corrélation | observations **complètes** | jamais paire à paire : des recouvrements différents selon les couples peuvent rendre la matrice non semi-définie positive |
+| Beta / R² | `β = Cov(r_p, r_m)/Var(r_m)` | régression sur rendements **bruts**, pas excédentaires |
+| VaR historique | quantile empirique, `method="lower"` | aucune hypothèse de loi ; ne peut rien dire d'un choc pire que la fenêtre |
+| VaR paramétrique | `−(μ + z_α·σ_p)`, `σ_p = √(wᵀΣw)` | normalité ; `μ = 0` par défaut |
+| CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue |
+| Monte Carlo | Cholesky + tirages normaux, graine fixe | même hypothèse de normalité que la VaR paramétrique |
+
+**Une seule convention de degrés de liberté : `config.DDOF = 1`.** numpy n'est
+pas cohérent avec lui-même — `np.cov` utilise `ddof=1`, `np.std` et `np.var`
+utilisent `ddof=0`. Si covariance et volatilité ne partageaient pas la même
+convention, `√(wᵀΣw)` ne retomberait pas sur la volatilité de la série du
+portefeuille : l'écart vaut `N/(N−1)`, soit 0,1 % sur 504 séances — assez petit
+pour passer pour un arrondi, assez réel pour être une incohérence. C'est une
+**identité algébrique**, pas une approximation, et un test la verrouille à la
+tolérance flottante (sur données réelles, l'écart mesuré est exactement nul).
+
+**Convention de signe : la VaR est une PERTE POSITIVE.** Une VaR 95 % de 0,021
+se lit « perte d'au moins 2,1 % une séance sur vingt ». L'alternative — rendre
+le rendement négatif du quantile — coexiste dans la littérature, et mélanger
+les deux est la source classique des bugs de signe : les deux produisent des
+nombres plausibles qui ne se contredisent que dans les inégalités. Une valeur
+négative signifie donc un gain à ce niveau de confiance, pas une erreur.
+
+**Le CVaR porte sa taille de queue.** À 99 % sur 504 séances, la moyenne ne
+repose que sur ~5 points : le chiffre reste calculable mais son incertitude n'a
+rien à voir avec celle du même calcul à 95 %. `tail_observations` et le drapeau
+`thin_tail` rendent cette fragilité lisible dans la sortie, au même titre que la
+fenêtre ou la date de valorisation.
+
+**Le Monte Carlo est une vérification croisée**, pas une redondance : sous
+normalité, il doit converger vers la VaR paramétrique quand les tirages
+augmentent. Un écart persistant signalerait une erreur dans l'une des deux
+implémentations. Graine fixe : un chiffre de risque qui change à chaque
+exécution n'est ni auditable ni comparable à celui de la veille.
+
 Le refus d'un poids négatif est délibérément une exception levée par le moteur :
 rendre un nombre ininterprétable serait pire qu'échouer. Il revient à la couche
 de présentation (Phase 7) d'attraper cette `ValueError` et d'afficher le reste
@@ -278,8 +319,9 @@ l'ordre chronologique.
 - [x] **Phase 4A — Moteur, mesures d'une série** : rendements simples/log,
   poids en valeur, fenêtre d'estimation, volatilité (écart-type et EWMA), max
   drawdown, Sharpe, Sortino, HHI
-  - [ ] **Phase 4B** : covariance, corrélation, beta vs benchmark, VaR
-    historique et paramétrique, CVaR
+- [x] **Phase 4B — Mesures multi-titres** : covariance et corrélation sur
+  données complètes, beta et R² vs SPY, VaR historique / paramétrique /
+  Monte Carlo, CVaR avec taille de queue
 - [ ] **Phase 5 — Stress testing** : scénarios historiques
 - [ ] **Phase 6 — Recommandations** : règles de détection
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test
