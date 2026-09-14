@@ -417,21 +417,47 @@ la pente. En couverture partielle, perte, ratio, beta de crise et beta calme
 portent tous sur les mêmes lignes couvertes, pour que l'écart ne mélange pas un
 effet de couverture à un effet de régime.
 
-Illustration sur le portefeuille de démonstration (six titres, beta calme 0,57
-sur la fenêtre au 9 septembre 2026) :
+Chaque comparaison porte aussi `systematic_share_change`, l'écart entre le R² de
+crise et le R² de régime calme. **Le R² est la lecture la plus directe de la
+dégradation de la diversification** : il mesure la part de la variance du
+portefeuille expliquée par le marché, c'est-à-dire la part de risque qui ne se
+diversifie pas. Il parle plus encore que le beta, qui mêle l'intensité du
+co-mouvement et le rapport des volatilités.
 
-| Scénario | Perte réelle | Prédite par β calme | Écart | Ratio | β de crise |
-|---|---|---|---|---|---|
-| Crise 2008 | −44,0 % | −36,6 % | −7,4 pts | 0,72 | 0,96 ± 0,02 (355 séances) |
-| COVID | −35,8 % | −20,8 % | −15,0 pts | 1,08 | 1,07 ± 0,03 (23 séances, **trop mince**) |
-| Resserrement 2022 | −8,7 % | −14,7 % | +6,0 pts | 0,32 | 0,73 ± 0,03 (195 séances) |
+Illustration sur le portefeuille de démonstration (six titres ; régime calme sur
+504 séances au 9 septembre 2026 : β = 0,57 ± 0,03, **R² = 0,49**) :
 
-En 2008 et en 2020, la crise a coûté bien plus que ce qu'annonçait le beta calme :
-la co-variation avec le marché monte en crise (0,96 contre 0,57). En 2022, le
-portefeuille a fait mieux que prévu, et la divergence entre un ratio de 0,32 et
-un beta de 0,73 dit pourquoi : jour après jour il suivait le marché, mais une
-dérive propre — celle d'une ligne énergie en forte hausse — a amorti la perte
-cumulée.
+| Scénario | Perte réelle | Prédite par β calme | Écart | Ratio | β de crise | R² de crise (calme 0,49) |
+|---|---|---|---|---|---|---|
+| Crise 2008 | −44,0 % | −36,6 % | −7,4 pts | 0,72 | 0,96 ± 0,02 | **0,86** (+0,36) |
+| COVID | −35,8 % | −20,8 % | −15,0 pts | 1,08 | 1,07 ± 0,03 | **0,98** (+0,48) |
+| Resserrement 2022 | −8,7 % | −14,7 % | +6,0 pts | 0,32 | 0,73 ± 0,03 | **0,79** (+0,29) |
+
+Les betas de crise reposent sur 355, 23 et 195 séances ; celui du COVID est
+signalé comme reposant sur un échantillon trop mince.
+
+**Le co-mouvement avec le marché augmente dans les trois crises, sans
+exception.** Le beta passe de 0,57 à 0,96, 1,07 et 0,73 ; le R² de 0,49 à 0,86,
+0,98 et 0,79. En régime calme, la moitié seulement du risque du portefeuille est
+systématique ; en crise, entre les quatre cinquièmes et la quasi-totalité. La
+hausse ne tient pas à la seule fenêtre COVID, trop courte : elle vaut aussi sur
+les deux fenêtres assez longues pour une régression stable, 2008 et 2022. La
+diversification se dégrade précisément quand on en a besoin.
+
+**Ce qui varie d'un épisode à l'autre, c'est seulement l'ampleur d'une
+performance idiosyncratique qui vient compenser.** Nulle en 2020 : le ratio
+rejoint le beta de crise (1,08 contre 1,07) et la perte suit le marché. Partielle
+en 2008 : au beta de crise, la perte aurait atteint −53,7 % ; la tenue de lignes
+défensives la ramène à −44,0 %, ce qui reste plus lourd que ce qu'annonçait le
+beta calme. Plus que complète en 2022 : une ligne énergie en forte hausse fait
+finir le portefeuille mieux que prévu, alors même que sa sensibilité au marché
+avait augmenté.
+
+> **Le risque systématique monte de façon fiable ; la compensation relève de la
+> chance.** Les règles de recommandation de la Phase 6 ne devront jamais compter
+> dessus. Une diversification jugée sur le régime calme surestime la protection
+> disponible en crise, et un épisode où une ligne a sauvé le portefeuille ne dit
+> rien du suivant.
 
 ### 7. Tests
 

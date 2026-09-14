@@ -922,8 +922,8 @@ class RegressedBeta:
             "" if self.standard_error is None else f" ± {self.standard_error:.2f}"
         )
         texte = (
-            f"{self.beta:.2f}{incertitude} (R² {self.r_squared:.2f}, "
-            f"{self.observations} séances)"
+            f"{self.beta:.2f}{incertitude}, R² {self.r_squared:.2f} "
+            f"({self.observations} séances)"
         )
         if self.sample_too_thin:
             texte += (
@@ -952,7 +952,8 @@ class RegimeComparison:
     coûté plus que ce que la gestion courante laissait attendre.
     `ratio_beta_divergence` (ratio − beta de crise) est un résultat en soi, pas
     une anomalie : il mesure la part du résultat cumulé que la co-variation
-    quotidienne avec le marché n'explique pas.
+    quotidienne avec le marché n'explique pas. `systematic_share_change` (R² de
+    crise − R² calme) mesure la dégradation de la diversification.
 
     Convention de portefeuille, dans la crise comme en 5A : poids actuels au
     départ, quantités figées ensuite ; les rendements quotidiens régressés sont
@@ -986,6 +987,19 @@ class RegimeComparison:
             return None
         return self.amplification_ratio - self.crisis_beta.beta
 
+    @property
+    def systematic_share_change(self) -> float | None:
+        """R² de crise − R² de régime calme.
+
+        La lecture la plus directe de la dégradation de la diversification : le
+        R² est la part de la variance du portefeuille expliquée par le marché,
+        c'est-à-dire la part de risque qui ne se diversifie pas. Positif, la
+        crise a rendu le portefeuille plus dépendant du marché qu'en temps calme.
+        """
+        if self.crisis_beta is None or self.calm_beta is None:
+            return None
+        return self.crisis_beta.r_squared - self.calm_beta.r_squared
+
     def summary(self) -> str:
         if self.unavailable_reason is not None:
             return (
@@ -1004,6 +1018,10 @@ class RegimeComparison:
             "(rapport de rendements log, pas un beta)",
             f"  beta régressé dans la fenêtre : {self.crisis_beta}",
             f"  beta de régime calme : {self.calm_beta}",
+            f"  part de risque systématique (R²) : {self.calm_beta.r_squared:.2f} "
+            f"en régime calme → {self.crisis_beta.r_squared:.2f} en crise "
+            f"({self.systematic_share_change:+.2f})"
+            + (" — échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
             f"  le beta calme prédisait {self.predicted_return:+.1%}, "
             f"perte réelle {self.portfolio_return:+.1%} : écart "
             f"{self.prediction_gap * 100:+.1f} pts",

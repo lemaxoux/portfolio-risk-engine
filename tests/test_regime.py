@@ -189,6 +189,7 @@ def test_un_portefeuille_100_pct_benchmark(conn):
     assert c.calm_beta.beta == pytest.approx(1.0, abs=1e-12)
     assert c.predicted_return == pytest.approx(c.benchmark_return, abs=1e-12)
     assert c.prediction_gap == pytest.approx(0.0, abs=1e-12)
+    assert c.systematic_share_change == pytest.approx(0.0, abs=1e-12)
 
 
 def test_ratio_et_beta_divergent_quand_le_portefeuille_derive_seul(conn):
@@ -275,6 +276,40 @@ def test_le_beta_calme_porte_sur_les_lignes_couvertes_renormalisees(conn):
     assert "sous-estimée" in c.summary()
 
 
+def test_la_hausse_du_r2_en_crise_mesure_la_degradation_de_la_diversification(conn):
+    """Le co-mouvement monte en crise : la part de risque systématique aussi.
+
+    A mêle le marché et un bruit propre. En régime calme, le bruit propre domine
+    et la diversification opère ; pendant la crise, le mouvement de marché
+    s'amplifie tandis que le bruit propre reste le même, et le R² grimpe.
+    """
+    rng = np.random.default_rng(31)
+    marche = marche_synthetique()
+    marche[20:120] *= 3.0  # la crise amplifie le facteur commun
+    propre = rng.normal(0.0, 0.012, len(JOURS))
+    peupler(
+        conn,
+        {"SPY": cours_depuis(marche, JOURS), "A": cours_depuis(0.8 * marche + propre, JOURS)},
+        {"A": 10},
+    )
+    c = compare_regimes(conn, 1, CRISE, window=100)
+
+    assert c.crisis_beta.r_squared > c.calm_beta.r_squared
+    assert c.systematic_share_change == pytest.approx(
+        c.crisis_beta.r_squared - c.calm_beta.r_squared
+    )
+    assert c.systematic_share_change > 0.2
+    assert "part de risque systématique (R²)" in c.summary()
+
+
+def test_le_r2_est_affiche_a_cote_de_l_erreur_type():
+    b = RegressedBeta(
+        beta=0.96, r_squared=0.86, standard_error=0.02, observations=355,
+        start=date(2007, 10, 10), end=date(2009, 3, 9),
+    )
+    assert str(b) == "0.96 ± 0.02, R² 0.86 (355 séances)"
+
+
 def test_le_resume_ne_presente_pas_le_ratio_comme_un_beta(conn):
     peupler(conn, {"SPY": cours_depuis(marche_synthetique(), JOURS)}, {"SPY": 1})
     texte = compare_regimes(conn, 1, CRISE, window=100).summary()
@@ -290,6 +325,7 @@ def test_sans_ligne_couverte_la_comparaison_est_impossible(conn):
     c = compare_regimes(conn, 1, CRISE, window=100)
     assert c.unavailable_reason is not None
     assert c.amplification_ratio is None and c.calm_beta is None
+    assert c.systematic_share_change is None
     assert "impossible" in c.summary()
 
 
@@ -324,6 +360,12 @@ def test_comparaison_des_trois_scenarios_sur_un_portefeuille_reel(tmp_path):
         assert c.unavailable_reason is None
         assert c.calm_beta.beta == pytest.approx(b4, rel=1e-12)
         assert c.prediction_gap == pytest.approx(c.portfolio_return - c.predicted_return)
+
+    for c in comparaisons.values():
+        assert 0.0 <= c.crisis_beta.r_squared <= 1.0
+        assert c.systematic_share_change == pytest.approx(
+            c.crisis_beta.r_squared - c.calm_beta.r_squared
+        )
 
     assert comparaisons["covid_2020"].crisis_beta.sample_too_thin
     assert not comparaisons["gfc_2008"].crisis_beta.sample_too_thin
