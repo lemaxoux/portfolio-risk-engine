@@ -143,6 +143,35 @@ def market_value_weights(
     )
 
 
+def price_coverage(
+    conn: sqlite3.Connection, tickers: list[str]
+) -> dict[str, tuple[date, date]]:
+    """Première et dernière séance disponibles pour chaque titre.
+
+    Sert à déterminer si un titre existait pendant un épisode historique. Un
+    titre introduit en bourse en 2019 n'a rien à dire sur 2008 : ce n'est pas
+    une donnée manquante à combler, c'est une absence de fait.
+    """
+    if not tickers:
+        return {}
+
+    marques = ",".join("?" * len(tickers))
+    lignes = conn.execute(
+        f"""
+        SELECT ticker, MIN(date) AS debut, MAX(date) AS fin
+        FROM prices
+        WHERE ticker IN ({marques})
+        GROUP BY ticker
+        """,
+        tickers,
+    ).fetchall()
+
+    return {
+        r["ticker"]: (date.fromisoformat(r["debut"]), date.fromisoformat(r["fin"]))
+        for r in lignes
+    }
+
+
 def load_price_panel(
     conn: sqlite3.Connection,
     tickers: list[str],

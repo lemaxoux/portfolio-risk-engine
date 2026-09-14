@@ -77,6 +77,11 @@ def portfolio_returns(
     récents sont dominés par les titres qui ont le plus monté. Les deux sont
     légitimes ; les confondre ne l'est pas.
 
+    Les scénarios de stress (Phase 5) utilisent délibérément l'autre convention
+    — quantités figées pendant l'épisode — parce que sur dix-sept mois des poids
+    constants supposeraient un rééquilibrage quotidien que personne ne fait.
+    Voir l'en-tête de `risk_engine.stress`.
+
     L'appariement poids/colonnes se fait par ÉTIQUETTE de colonne, pas par
     position : un réordonnancement des colonnes ne peut pas attribuer
     silencieusement le poids d'un titre à un autre.

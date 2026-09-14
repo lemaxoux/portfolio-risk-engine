@@ -56,6 +56,8 @@ app/
 │   │   ├── measures.py  #   pur : vol, drawdown, Sharpe, Sortino, HHI
 │   │   ├── covariance.py#   pur : matrices, variance de portefeuille, beta
 │   │   ├── var.py       #   pur : VaR, Expected Shortfall, Monte Carlo
+│   │   ├── scenarios.py #   catalogue des épisodes — données seules
+│   │   ├── stress.py    #   pur : trajectoire achat-conservation
 │   │   ├── returns.py   #   rendements et alignement des dates
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
@@ -266,7 +268,73 @@ Quand aucun rendement de la fenêtre ne passe sous la cible, le Sortino vaut
 `None` et non `inf` : le ratio est indéfini, pas infini, et une valeur infinie se
 propagerait dans un tableau de bord en se faisant passer pour un résultat.
 
-### 6. Tests
+### 6. Scénarios de stress
+
+```python
+from backend.risk_engine import run_all_scenarios
+
+for r in run_all_scenarios(conn, portfolio_id=1):
+    print(r.summary())
+```
+
+**Les scénarios sont des données**, dans `scenarios.py` : nom, bornes, indice de
+référence, description. En ajouter un ne demande de toucher à aucune logique.
+
+| Épisode | Fenêtre | Amplitude S&P 500 |
+|---|---|---|
+| Crise financière 2008 | 2007-10-09 → 2009-03-09 | −55,2 % |
+| Krach COVID | 2020-02-19 → 2020-03-23 | −33,7 % |
+| Resserrement 2022 | 2022-01-03 → 2022-10-12 | −24,5 % |
+
+Les fenêtres sont bornées **pic à creux**, pas par année civile : un scénario
+« 2008 » calé sur le 1er janvier commencerait trois mois après le sommet et
+manquerait le premier quart de la baisse. Ces dates sont **vérifiées par un
+test** contre l'historique en base — il recalcule le drawdown du benchmark dans
+la fenêtre et exige que le pic tombe à la date de début et le creux à la date de
+fin. Une borne fausse ne se verrait pas autrement : le calcul rendrait un
+chiffre plausible pour un épisode qui n'est pas celui annoncé.
+
+**Le portefeuille actuel entre dans l'épisode.** Au premier jour de la fenêtre,
+chaque ligne pèse son poids d'aujourd'hui en valeur de marché ; les quantités qui
+en découlent sont ensuite figées jusqu'à la fin. Appliquer les quantités
+d'aujourd'hui aux cours de 2007 serait faux : une ligne qui pèse 15 % aujourd'hui
+entrerait dans la crise à 2 %, et le rejeu porterait sur un portefeuille qui n'a
+rien à voir avec celui détenu.
+
+> **Rupture de convention assumée avec la Phase 4.** Le moteur calcule la série
+> de rendements à **poids constants** ; pendant un scénario, ce sont les
+> **quantités** qui restent constantes (achat-conservation). À un jour, l'écart est nul — les poids n'ont
+> pas le temps de dériver. Sur les dix-sept mois de 2008, des poids constants
+> supposent un rééquilibrage quotidien : vendre chaque jour ce qui a le mieux
+> tenu pour racheter ce qui vient de chuter, pendant toute la descente. Ce n'est
+> pas ce que fait un porteur passif, et lui prêter ce rééquilibrage donnerait un
+> résultat plus flatteur que la réalité.
+
+**Deux mesures distinctes**, à ne pas confondre : le rendement de **bout en
+bout** (ce que vaut le portefeuille à la sortie) et le **pire moment traversé**
+(drawdown maximum intra-fenêtre), qui peut être plus profond. Le drawdown est
+celui de la trajectoire du portefeuille, jamais la somme des pires points de
+chaque ligne : cette dernière composerait un épisode fictif où toutes les lignes
+toucheraient leur plancher le même jour.
+
+**La couverture est déclarée, jamais silencieuse.** Un titre introduit en 2019
+n'a rien à dire sur 2008. Trois comportements étaient possibles : faire échouer
+tout le scénario (trop fragile), exclure la ligne en silence (dangereux — la
+perte est sous-estimée et personne ne le voit), ou déclarer la couverture. Chaque
+résultat porte donc le nombre de lignes couvertes et **la fraction de la valeur**
+qu'elles représentent — en valeur et non en nombre de lignes, parce qu'écarter
+une ligne à 1 % et une ligne à 40 % n'ont pas la même portée. En couverture partielle,
+les chiffres portent sur la seule partie couverte, poids renormalisés : les
+lignes exclues ne sont **pas** supposées stables, ce qui diluerait la perte dans
+une valeur non rejouée. `summary()` ne peut pas présenter un chiffre comme
+couvrant l'ensemble quand ce n'est pas le cas, et sans aucune ligne couverte
+aucun chiffre n'est produit.
+
+Chaque scénario décompose la perte **ligne par ligne** : les contributions somment
+exactement au rendement de bout en bout, et distinguent le rendement propre du
+titre de son poids dans la perte — une petite ligne peut s'effondrer sans peser.
+
+### 7. Tests
 
 ```powershell
 pytest
@@ -276,7 +344,7 @@ Aucun test ne sort sur le réseau : la session HTTP et le fournisseur sont
 remplacés par des doubles. La suite passe hors ligne et ne consomme pas de
 quota.
 
-### 7. API
+### 8. API
 
 ```powershell
 uvicorn backend.api.main:app --reload
@@ -322,6 +390,9 @@ l'ordre chronologique.
 - [x] **Phase 4B — Mesures multi-titres** : covariance et corrélation sur
   données complètes, beta et R² vs SPY, VaR historique / paramétrique /
   Monte Carlo, CVaR avec taille de queue
+- [x] **Phase 5A — Mécanique des scénarios** : catalogue déclaratif, bornes
+  auto-vérifiées, achat-conservation, couverture déclarée, contributions
+  - [ ] **Phase 5B** : Monte Carlo en loi de Student
 - [ ] **Phase 5 — Stress testing** : scénarios historiques
 - [ ] **Phase 6 — Recommandations** : règles de détection
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test

@@ -11,12 +11,12 @@ où il se teste sans base de données.
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 
 import pandas as pd
 
-from . import covariance, measures, var
+from . import covariance, measures, stress, var
 from .config import (
     DDOF,
     DEFAULT_BENCHMARK,
@@ -34,7 +34,9 @@ from .portfolio import (
     PortfolioWeights,
     load_price_panel,
     market_value_weights,
+    price_coverage,
 )
+from .scenarios import SCENARIOS, Scenario
 from .returns import align_panel, portfolio_returns, simple_returns, wealth_curve
 
 
@@ -549,6 +551,259 @@ def monte_carlo_var(
         window=serie.window,
         detail=f"{brut.simulations} tirages normaux corrélés, graine {brut.seed}",
     )
+
+
+# --------------------------------------------------- Scénarios de stress --
+
+
+@dataclass(frozen=True)
+class ExcludedPosition:
+    """Ligne écartée d'un scénario, et pourquoi."""
+
+    ticker: str
+    reason: str
+    value: float
+    weight: float
+    first_available: date | None = None
+
+
+@dataclass(frozen=True)
+class ScenarioCoverage:
+    """Quelle part du portefeuille le scénario a réellement pu couvrir.
+
+    Trois comportements étaient possibles face à une ligne sans historique sur
+    la fenêtre : faire échouer tout le scénario, l'exclure en silence, ou
+    déclarer la couverture. Le premier est trop fragile — un seul titre récent
+    priverait de tout rejeu 2008. Le second est dangereux : la perte est
+    mécaniquement sous-estimée et rien ne le signale. D'où le troisième.
+
+    `value_share` est la fraction de la VALEUR du portefeuille couverte, et non
+    la fraction des lignes : écarter une ligne à 1 % et une ligne à 40 % n'ont
+    pas la même portée, alors que « 5 lignes sur 6 » se dirait pareil.
+    """
+
+    covered: tuple[str, ...]
+    excluded: tuple[ExcludedPosition, ...]
+    covered_value: float
+    total_value: float
+
+    @property
+    def value_share(self) -> float:
+        return self.covered_value / self.total_value if self.total_value else 0.0
+
+    @property
+    def is_complete(self) -> bool:
+        return not self.excluded
+
+    @property
+    def has_any(self) -> bool:
+        return bool(self.covered)
+
+    @property
+    def covered_count(self) -> int:
+        return len(self.covered)
+
+    @property
+    def total_count(self) -> int:
+        return len(self.covered) + len(self.excluded)
+
+    def __str__(self) -> str:
+        if self.is_complete:
+            return f"{self.covered_count} lignes, 100 % de la valeur"
+        return (
+            f"{self.covered_count}/{self.total_count} lignes, "
+            f"{self.value_share:.1%} de la valeur "
+            f"(exclues : {', '.join(e.ticker for e in self.excluded)})"
+        )
+
+
+@dataclass(frozen=True)
+class ScenarioResult:
+    """Rejeu d'un épisode historique sur le portefeuille actuel.
+
+    Deux mesures distinctes, à ne pas confondre :
+
+    * `end_to_end_return` — ce que vaudrait le portefeuille à la SORTIE de
+      l'épisode ;
+    * `max_drawdown` — le pire moment TRAVERSÉ en cours de route, qui peut être
+      nettement plus profond.
+
+    Le drawdown est celui de la trajectoire du PORTEFEUILLE, jamais la somme des
+    pires points de chaque ligne : ce dernier composerait un scénario fictif où
+    toutes les lignes toucheraient leur plancher le même jour, ce qui n'arrive
+    jamais et surestime la perte.
+
+    COUVERTURE PARTIELLE — les chiffres portent sur la seule partie couverte,
+    dont les poids actuels sont renormalisés à 1. Les lignes exclues ne sont PAS
+    supposées stables : leur prêter un rendement nul diluerait la perte dans une
+    valeur qui n'a pas été rejouée, exactement la sous-estimation silencieuse
+    qu'on veut éviter. La portée du chiffre est donnée par `coverage`, et
+    `summary()` la rappelle systématiquement.
+
+    Les deux valent None quand aucune ligne n'est couverte : il n'y a alors pas
+    de chiffre à donner, et en fabriquer un serait pire que de n'en donner aucun.
+    """
+
+    scenario: Scenario
+    coverage: ScenarioCoverage
+    end_to_end_return: float | None
+    max_drawdown: measures.Drawdown | None
+    contributions: tuple[stress.PositionContribution, ...]
+    observations: int
+    unavailable_reason: str | None = None
+
+    def summary(self) -> str:
+        """Une ligne qui ne peut pas laisser croire à une couverture totale."""
+        if self.end_to_end_return is None:
+            return f"{self.scenario.name} : non calculable — {self.unavailable_reason}"
+        portee = (
+            "portefeuille complet"
+            if self.coverage.is_complete
+            else f"{self.coverage.value_share:.1%} de la valeur seulement"
+        )
+        return (
+            f"{self.scenario.name} : {self.end_to_end_return:+.1%} de bout en bout, "
+            f"pire moment {self.max_drawdown.value:+.1%} "
+            f"({self.observations} séances, {portee})"
+        )
+
+
+def assess_scenario_coverage(
+    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario
+) -> ScenarioCoverage:
+    """Quelles lignes ont un historique couvrant toute la fenêtre.
+
+    Une ligne est couverte si sa première séance en base précède le début du
+    scénario et sa dernière le suit. Le critère est volontairement strict : un
+    titre introduit en bourse trois jours après le sommet de 2007 n'a pas
+    traversé l'épisode, et lui prêter une trajectoire partielle reviendrait à
+    inventer la partie manquante.
+    """
+    return _coverage_for(conn, market_value_weights(conn, portfolio_id), scenario)
+
+
+def _coverage_for(
+    conn: sqlite3.Connection, poids: PortfolioWeights, scenario: Scenario
+) -> ScenarioCoverage:
+    disponible = price_coverage(conn, poids.tickers)
+
+    couverts: list[str] = []
+    exclus: list[ExcludedPosition] = []
+
+    for ticker in poids.tickers:
+        bornes = disponible.get(ticker)
+        if bornes is None:
+            exclus.append(
+                ExcludedPosition(
+                    ticker=ticker,
+                    reason="aucun historique en base",
+                    value=poids.values[ticker],
+                    weight=poids.weights[ticker],
+                )
+            )
+            continue
+
+        debut, fin = bornes
+        if debut > scenario.start:
+            exclus.append(
+                ExcludedPosition(
+                    ticker=ticker,
+                    reason=(
+                        f"historique débutant le {debut}, après l'ouverture du "
+                        f"scénario ({scenario.start})"
+                    ),
+                    value=poids.values[ticker],
+                    weight=poids.weights[ticker],
+                    first_available=debut,
+                )
+            )
+        elif fin < scenario.end:
+            exclus.append(
+                ExcludedPosition(
+                    ticker=ticker,
+                    reason=(
+                        f"historique s'arrêtant le {fin}, avant la clôture du "
+                        f"scénario ({scenario.end})"
+                    ),
+                    value=poids.values[ticker],
+                    weight=poids.weights[ticker],
+                    first_available=debut,
+                )
+            )
+        else:
+            couverts.append(ticker)
+
+    return ScenarioCoverage(
+        covered=tuple(couverts),
+        excluded=tuple(exclus),
+        covered_value=sum(poids.values[t] for t in couverts),
+        total_value=poids.total_value,
+    )
+
+
+def run_scenario(
+    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario
+) -> ScenarioResult:
+    """Rejoue un épisode sur le portefeuille actuel.
+
+    Le portefeuille entre dans la fenêtre avec ses poids ACTUELS en valeur de
+    marché ; les quantités qui en découlent restent ensuite figées jusqu'à la
+    fin (achat-conservation), et les poids dérivent. Voir l'en-tête de
+    `risk_engine.stress` pour la rupture assumée avec la Phase 4.
+    """
+    poids = market_value_weights(conn, portfolio_id)
+    couverture = _coverage_for(conn, poids, scenario)
+    vide = ScenarioResult(
+        scenario=scenario,
+        coverage=couverture,
+        end_to_end_return=None,
+        max_drawdown=None,
+        contributions=(),
+        observations=0,
+    )
+
+    if not couverture.has_any:
+        return replace(
+            vide,
+            unavailable_reason=(
+                "aucune ligne du portefeuille n'a d'historique couvrant "
+                f"{scenario.start} → {scenario.end}"
+            ),
+        )
+
+    # Poids actuels des seules lignes couvertes ; `stress` les renormalise à 1.
+    poids_couverts = {t: poids.weights[t] for t in couverture.covered}
+    panel = align_panel(
+        load_price_panel(conn, list(poids_couverts), scenario.start, scenario.end)
+    )
+
+    if len(panel) < 2:
+        return replace(
+            vide,
+            unavailable_reason=(
+                f"moins de deux séances communes sur {scenario.start} → "
+                f"{scenario.end} pour les lignes couvertes"
+            ),
+        )
+
+    trajectoire = stress.buy_and_hold_value(panel, poids_couverts)
+    return ScenarioResult(
+        scenario=scenario,
+        coverage=couverture,
+        end_to_end_return=stress.end_to_end_return(trajectoire),
+        max_drawdown=measures.max_drawdown(trajectoire),
+        contributions=tuple(stress.position_contributions(panel, poids_couverts)),
+        observations=len(panel),
+    )
+
+
+def run_all_scenarios(
+    conn: sqlite3.Connection,
+    portfolio_id: int,
+    scenarios: tuple[Scenario, ...] = SCENARIOS,
+) -> list[ScenarioResult]:
+    """Rejoue tous les scénarios du catalogue, du plus ancien au plus récent."""
+    return [run_scenario(conn, portfolio_id, s) for s in scenarios]
 
 
 # ----------------------------------------------------------------- Rapport --
