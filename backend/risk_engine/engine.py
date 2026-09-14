@@ -16,12 +16,13 @@ from datetime import date
 
 import pandas as pd
 
-from . import covariance, measures, stress, var
+from . import covariance, measures, regime, stress, var
 from .config import (
     DDOF,
     DEFAULT_BENCHMARK,
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
+    MIN_REGRESSION_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     MONTE_CARLO_SEED,
     MONTE_CARLO_SIMULATIONS,
@@ -175,6 +176,9 @@ class VarResult:
     Voir la convention de signe en tête de `risk_engine.var` : une valeur de
     0,021 se lit « perte d'au moins 2,1 % », une valeur négative signifie un
     gain à ce niveau de confiance.
+
+    `nu` porte les degrés de liberté quand la VaR repose sur une loi de Student :
+    une donnée du résultat, pas une mention noyée dans `detail`.
     """
 
     value: float
@@ -182,6 +186,7 @@ class VarResult:
     method: str
     window: Window
     detail: str = ""
+    nu: float | None = None
 
 
 @dataclass(frozen=True)
@@ -245,6 +250,9 @@ class RiskReport:
     expected_shortfall: dict[float, ExpectedShortfallResult]
     beta: BetaResult | None = None
     monte_carlo_var: dict[float, VarResult] | None = None
+    student_fit: var.StudentFit | None = None
+    student_parametric_var: dict[float, VarResult] | None = None
+    student_monte_carlo_var: dict[float, VarResult] | None = None
 
 
 # ------------------------------------------------------------------ Séries --
@@ -553,6 +561,67 @@ def monte_carlo_var(
     )
 
 
+def student_fit(serie: PortfolioSeries) -> var.StudentFit:
+    """ν par maximum de vraisemblance sur la série du portefeuille (voir
+    `var.fit_student_t` pour le choix de l'estimateur)."""
+    return var.fit_student_t(serie.returns)
+
+
+def student_parametric_var(
+    serie: PortfolioSeries,
+    confidence: float = 0.95,
+    fit: var.StudentFit | None = None,
+) -> VarResult:
+    """VaR Student à variance ajustée, forme fermée : la cible du Monte Carlo."""
+    ajustement = fit or student_fit(serie)
+    matrice = covariance.covariance_matrix(serie.asset_returns)
+    sigma_quotidien = covariance.parametric_volatility(
+        serie.weights.weights, matrice, periods_per_year=1
+    )
+    return VarResult(
+        value=var.student_t_var(sigma_quotidien, ajustement.nu, confidence),
+        confidence=confidence,
+        method="Student paramétrique",
+        window=serie.window,
+        detail=(
+            f"ν = {ajustement.nu:.2f} (MLE sur {ajustement.observations} séances), "
+            "variance ajustée sur Σ"
+        ),
+        nu=ajustement.nu,
+    )
+
+
+def student_monte_carlo_var(
+    serie: PortfolioSeries,
+    confidence: float = 0.95,
+    fit: var.StudentFit | None = None,
+    simulations: int = MONTE_CARLO_SIMULATIONS,
+    seed: int = MONTE_CARLO_SEED,
+) -> VarResult:
+    """VaR par simulation Student multivariée, covariance simulée égale à Σ."""
+    ajustement = fit or student_fit(serie)
+    matrice = covariance.covariance_matrix(serie.asset_returns)
+    brut = var.monte_carlo_student_var(
+        serie.weights.weights,
+        matrice,
+        ajustement.nu,
+        confidence=confidence,
+        simulations=simulations,
+        seed=seed,
+    )
+    return VarResult(
+        value=brut.value,
+        confidence=confidence,
+        method="Monte Carlo Student",
+        window=serie.window,
+        detail=(
+            f"ν = {ajustement.nu:.2f} (MLE sur {ajustement.observations} séances), "
+            f"échelle S = Σ·(ν−2)/ν, {brut.simulations} tirages, graine {brut.seed}"
+        ),
+        nu=ajustement.nu,
+    )
+
+
 # --------------------------------------------------- Scénarios de stress --
 
 
@@ -634,11 +703,24 @@ class ScenarioResult:
     jamais et surestime la perte.
 
     COUVERTURE PARTIELLE — les chiffres portent sur la seule partie couverte,
-    dont les poids actuels sont renormalisés à 1. Les lignes exclues ne sont PAS
-    supposées stables : leur prêter un rendement nul diluerait la perte dans une
-    valeur qui n'a pas été rejouée, exactement la sous-estimation silencieuse
-    qu'on veut éviter. La portée du chiffre est donnée par `coverage`, et
-    `summary()` la rappelle systématiquement.
+    dont les poids actuels sont renormalisés à 1. La portée du chiffre est
+    donnée par `coverage`, et `summary()` la rappelle systématiquement.
+
+    DIRECTION DU BIAIS — les deux options disponibles sous-estiment la perte,
+    par des mécanismes différents, et il faut le savoir en lisant le chiffre :
+
+    * supposer les lignes exclues stables DILUE la perte dans une valeur qui n'a
+      pas été rejouée ;
+    * les exclure et renormaliser, option retenue, décrit la partie la plus
+      ÉTABLIE du portefeuille. Une ligne absente de l'historique d'une crise est
+      par construction cotée depuis moins longtemps : en moyenne plus jeune,
+      plus spéculative, précisément le profil qui aurait le plus souffert. Le
+      chiffre décrit donc les lignes les plus résistantes, et le biais
+      s'aggrave à mesure que la couverture baisse.
+
+    La renormalisation reste le bon choix — elle ne fabrique aucun rendement —
+    mais la perte réelle aurait vraisemblablement été plus lourde que le chiffre
+    affiché, d'autant plus que `coverage.value_share` est faible.
 
     Les deux valent None quand aucune ligne n'est couverte : il n'y a alors pas
     de chiffre à donner, et en fabriquer un serait pire que de n'en donner aucun.
@@ -659,7 +741,10 @@ class ScenarioResult:
         portee = (
             "portefeuille complet"
             if self.coverage.is_complete
-            else f"{self.coverage.value_share:.1%} de la valeur seulement"
+            else (
+                f"{self.coverage.value_share:.1%} de la valeur seulement, "
+                "perte probablement sous-estimée"
+            )
         )
         return (
             f"{self.scenario.name} : {self.end_to_end_return:+.1%} de bout en bout, "
@@ -806,6 +891,236 @@ def run_all_scenarios(
     return [run_scenario(conn, portfolio_id, s) for s in scenarios]
 
 
+# ------------------------------------------ Régime calme / régime de crise --
+
+
+@dataclass(frozen=True)
+class RegressedBeta:
+    """Beta RÉGRESSÉ sur une fenêtre datée, avec son incertitude.
+
+    Porte son nombre d'observations et son erreur type, comme toute estimation du
+    moteur. `sample_too_thin` signale une fenêtre trop courte pour une pente
+    stable : le chiffre reste rendu, mais il ne doit pas être lu comme solide.
+    Sur les 23 rendements du krach COVID, trois ou quatre séances extrêmes
+    dictent la pente à elles seules.
+    """
+
+    beta: float
+    r_squared: float
+    standard_error: float | None
+    observations: int
+    start: date
+    end: date
+    min_observations: int = MIN_REGRESSION_OBSERVATIONS
+
+    @property
+    def sample_too_thin(self) -> bool:
+        return self.observations < self.min_observations
+
+    def __str__(self) -> str:
+        incertitude = (
+            "" if self.standard_error is None else f" ± {self.standard_error:.2f}"
+        )
+        texte = (
+            f"{self.beta:.2f}{incertitude} (R² {self.r_squared:.2f}, "
+            f"{self.observations} séances)"
+        )
+        if self.sample_too_thin:
+            texte += (
+                f" — ÉCHANTILLON TROP MINCE (< {self.min_observations} séances), "
+                "non fiable"
+            )
+        return texte
+
+
+@dataclass(frozen=True)
+class RegimeComparison:
+    """Le beta de régime calme a-t-il prédit la perte subie pendant la crise ?
+
+    Quatre grandeurs, à ne pas confondre (voir `risk_engine.regime`) :
+
+    * `amplification_ratio` — `ln(1 + R_p)/ln(1 + R_b)`, rapport de deux
+      rendements cumulés. PAS un beta : ni régression, ni résidu, ni erreur type ;
+    * `crisis_beta` — beta réellement régressé sur les rendements quotidiens de
+      la fenêtre, avec R², erreur type et nombre d'observations ;
+    * `calm_beta` — beta de la fenêtre d'estimation récente, convention Phase 4
+      (poids constants) ;
+    * `predicted_return` — `exp(β_calme · ln(1 + R_b)) − 1`, ce que le beta calme
+      aurait annoncé face au mouvement réel du benchmark.
+
+    `prediction_gap` (réalisé − prédit) est le livrable : négatif, la crise a
+    coûté plus que ce que la gestion courante laissait attendre.
+    `ratio_beta_divergence` (ratio − beta de crise) est un résultat en soi, pas
+    une anomalie : il mesure la part du résultat cumulé que la co-variation
+    quotidienne avec le marché n'explique pas.
+
+    Convention de portefeuille, dans la crise comme en 5A : poids actuels au
+    départ, quantités figées ensuite ; les rendements quotidiens régressés sont
+    ceux de cette trajectoire. En couverture partielle, TOUT — perte, ratio,
+    beta de crise ET beta calme — porte sur les mêmes lignes couvertes, poids
+    renormalisés, pour que l'écart ne mélange pas un effet de couverture à un
+    effet de régime.
+    """
+
+    scenario: Scenario
+    coverage: ScenarioCoverage
+    benchmark: str
+    portfolio_return: float | None = None
+    benchmark_return: float | None = None
+    amplification_ratio: float | None = None
+    crisis_beta: RegressedBeta | None = None
+    calm_beta: RegressedBeta | None = None
+    predicted_return: float | None = None
+    unavailable_reason: str | None = None
+
+    @property
+    def prediction_gap(self) -> float | None:
+        """Réalisé − prédit par le beta calme, en points de rendement."""
+        if self.portfolio_return is None or self.predicted_return is None:
+            return None
+        return self.portfolio_return - self.predicted_return
+
+    @property
+    def ratio_beta_divergence(self) -> float | None:
+        if self.amplification_ratio is None or self.crisis_beta is None:
+            return None
+        return self.amplification_ratio - self.crisis_beta.beta
+
+    def summary(self) -> str:
+        if self.unavailable_reason is not None:
+            return (
+                f"{self.scenario.name} : comparaison impossible — "
+                f"{self.unavailable_reason}"
+            )
+        ratio = (
+            "indéfini (benchmark quasi immobile)"
+            if self.amplification_ratio is None
+            else f"{self.amplification_ratio:.2f}"
+        )
+        lignes = [
+            f"{self.scenario.name} : portefeuille {self.portfolio_return:+.1%}, "
+            f"{self.benchmark} {self.benchmark_return:+.1%}",
+            f"  ratio d'amplification réalisé : {ratio} "
+            "(rapport de rendements log, pas un beta)",
+            f"  beta régressé dans la fenêtre : {self.crisis_beta}",
+            f"  beta de régime calme : {self.calm_beta}",
+            f"  le beta calme prédisait {self.predicted_return:+.1%}, "
+            f"perte réelle {self.portfolio_return:+.1%} : écart "
+            f"{self.prediction_gap * 100:+.1f} pts",
+        ]
+        if not self.coverage.is_complete:
+            lignes.append(
+                f"  portée : {self.coverage.value_share:.1%} de la valeur "
+                "seulement, perte probablement sous-estimée"
+            )
+        return "\n".join(lignes)
+
+
+def _regressed(
+    brut: covariance.Beta, rendements: pd.Series | pd.DataFrame
+) -> RegressedBeta:
+    return RegressedBeta(
+        beta=brut.beta,
+        r_squared=brut.r_squared,
+        standard_error=brut.standard_error,
+        observations=brut.observations,
+        start=rendements.index[0],
+        end=rendements.index[-1],
+    )
+
+
+def compare_regimes(
+    conn: sqlite3.Connection,
+    portfolio_id: int,
+    scenario: Scenario,
+    *,
+    window: int = DEFAULT_WINDOW,
+) -> RegimeComparison:
+    """Confronte le beta de régime calme à la perte réellement subie en crise."""
+    poids = market_value_weights(conn, portfolio_id)
+    couverture = _coverage_for(conn, poids, scenario)
+    benchmark = scenario.benchmark
+    base = RegimeComparison(scenario=scenario, coverage=couverture, benchmark=benchmark)
+
+    if not couverture.has_any:
+        return replace(
+            base,
+            unavailable_reason=(
+                "aucune ligne du portefeuille n'a d'historique couvrant "
+                f"{scenario.start} → {scenario.end}"
+            ),
+        )
+
+    # Poids renormalisés sur les lignes couvertes. Indispensable pour le beta :
+    # une série construite avec des poids sommant à 0,5 aurait une pente deux
+    # fois trop faible.
+    total = sum(poids.weights[t] for t in couverture.covered)
+    poids_couverts = {t: poids.weights[t] / total for t in couverture.covered}
+    tickers = list(poids_couverts)
+    colonnes = tickers + ([benchmark] if benchmark not in poids_couverts else [])
+
+    # ---- Crise : benchmark aligné dans le MÊME panel que les lignes détenues.
+    brut_crise = load_price_panel(conn, colonnes, scenario.start, scenario.end)
+    if benchmark not in brut_crise.columns:
+        return replace(
+            base,
+            unavailable_reason=f"aucun cours du benchmark {benchmark} sur la fenêtre",
+        )
+    crise = align_panel(brut_crise)
+    if len(crise) < 4:
+        return replace(
+            base,
+            unavailable_reason=(
+                f"{len(crise)} séances communes seulement sur la fenêtre : "
+                "trop peu pour une régression"
+            ),
+        )
+
+    trajectoire = stress.buy_and_hold_value(crise[tickers], poids_couverts)
+    rendement_portefeuille = stress.end_to_end_return(trajectoire)
+    rendement_benchmark = float(crise[benchmark].iloc[-1] / crise[benchmark].iloc[0] - 1.0)
+
+    quotidiens_portefeuille = simple_returns(trajectoire)
+    beta_crise = _regressed(
+        covariance.beta(quotidiens_portefeuille, simple_returns(crise[benchmark])),
+        quotidiens_portefeuille,
+    )
+
+    # ---- Régime calme : fenêtre d'estimation récente, poids constants (Phase 4).
+    calme = align_panel(load_price_panel(conn, colonnes))
+    rendements_calmes = simple_returns(calme).tail(window)
+    serie_calme = portfolio_returns(rendements_calmes[tickers], poids_couverts)
+    beta_calme = _regressed(
+        covariance.beta(serie_calme, rendements_calmes[benchmark]),
+        serie_calme,
+    )
+
+    return replace(
+        base,
+        portfolio_return=rendement_portefeuille,
+        benchmark_return=rendement_benchmark,
+        amplification_ratio=regime.amplification_ratio(
+            rendement_portefeuille, rendement_benchmark
+        ),
+        crisis_beta=beta_crise,
+        calm_beta=beta_calme,
+        predicted_return=regime.beta_implied_return(beta_calme.beta, rendement_benchmark),
+    )
+
+
+def compare_all_regimes(
+    conn: sqlite3.Connection,
+    portfolio_id: int,
+    scenarios: tuple[Scenario, ...] = SCENARIOS,
+    *,
+    window: int = DEFAULT_WINDOW,
+) -> list[RegimeComparison]:
+    """Comparaison calme / crise pour chaque scénario du catalogue."""
+    return [
+        compare_regimes(conn, portfolio_id, s, window=window) for s in scenarios
+    ]
+
+
 # ----------------------------------------------------------------- Rapport --
 
 
@@ -824,13 +1139,18 @@ def analyse_portfolio(
     """Toutes les mesures des blocs 4A et 4B sur un portefeuille.
 
     `benchmark=None` désactive le beta, pour un portefeuille dont l'indice de
-    référence n'est pas en base. `monte_carlo=False` par défaut : la simulation
-    est déterministe (graine fixe) mais reste un calcul qu'on ne paie que si on
-    le demande.
+    référence n'est pas en base.
+
+    `monte_carlo=True` ajoute les simulations — normale et Student — ainsi que
+    l'ajustement de ν par maximum de vraisemblance et la VaR Student en forme
+    fermée. Désactivé par défaut : les simulations sont déterministes (graine
+    fixe), mais restent un calcul qu'on ne paie que si on le demande. Lève
+    `ValueError` si ν estimé est ≤ 2 (variance infinie).
     """
     serie = build_portfolio_series(
         conn, portfolio_id, window=window, benchmark=benchmark
     )
+    ajustement = student_fit(serie) if monte_carlo else None
     return RiskReport(
         portfolio_id=portfolio_id,
         as_of=serie.weights.as_of,
@@ -853,6 +1173,17 @@ def analyse_portfolio(
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(
             {c: monte_carlo_var(serie, c) for c in confidence_levels}
+            if monte_carlo
+            else None
+        ),
+        student_fit=ajustement,
+        student_parametric_var=(
+            {c: student_parametric_var(serie, c, ajustement) for c in confidence_levels}
+            if monte_carlo
+            else None
+        ),
+        student_monte_carlo_var=(
+            {c: student_monte_carlo_var(serie, c, ajustement) for c in confidence_levels}
             if monte_carlo
             else None
         ),

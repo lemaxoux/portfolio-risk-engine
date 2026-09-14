@@ -20,11 +20,18 @@ from .config import DDOF, TRADING_DAYS_PER_YEAR
 
 @dataclass(frozen=True)
 class Beta:
-    """Sensibilité au marché et part de variance qu'il explique."""
+    """Sensibilité au marché et part de variance qu'il explique.
+
+    `standard_error` est l'erreur type de la pente MCO. C'est ce qui distingue
+    un beta estimé d'un simple rapport de deux nombres : il a une incertitude
+    mesurable, qui croît quand l'échantillon rétrécit ou que l'ajustement se
+    dégrade. None en dessous de trois observations, où elle n'est pas définie.
+    """
 
     beta: float
     r_squared: float
     observations: int
+    standard_error: float | None = None
 
 
 def _validate_panel(asset_returns: pd.DataFrame, ddof: int) -> pd.DataFrame:
@@ -221,11 +228,28 @@ def beta(
         # carrées et rendrait 0,9999999999999998.
         r_carre = pente**2 * var_marche / var_portefeuille
 
+    r_carre = min(r_carre, 1.0)
+    n = len(panel)
+
+    # Erreur type de la pente : SE² = Var(p)·(1 − R²) / ((n − 2)·Var(m)).
+    # La convention de ddof s'annule dans le rapport des deux variances ; seuls
+    # les n − 2 degrés de liberté résiduels de la régression comptent.
+    erreur_type = None
+    if n > 2:
+        erreur_type = float(
+            np.sqrt(
+                max(var_portefeuille * (1.0 - r_carre), 0.0)
+                / ((n - 2) * var_marche)
+            )
+        )
+
     return Beta(
         beta=float(pente),
-        r_squared=float(min(r_carre, 1.0)),
-        observations=len(panel),
+        r_squared=float(r_carre),
+        observations=n,
+        standard_error=erreur_type,
     )
+
 
 def smallest_eigenvalue(cov: pd.DataFrame) -> float:
     """Plus petite valeur propre de la matrice, signée."""

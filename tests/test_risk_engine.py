@@ -695,3 +695,32 @@ def test_le_monte_carlo_est_optionnel_et_reproductible(conn):
 
     assert avec.monte_carlo_var[0.95].value == encore.monte_carlo_var[0.95].value
     assert "graine" in avec.monte_carlo_var[0.95].detail
+
+
+def test_le_rapport_porte_l_ajustement_student_et_nu_dans_chaque_var(conn):
+    j = seances(300)
+    peupler(
+        conn,
+        {
+            "A": cours(j, 100.0, 0.011, graine=21),
+            "B": cours(j, 70.0, 0.013, graine=22),
+            "SPY": cours(j, 400.0, 0.009, graine=23),
+        },
+        {"A": 10, "B": 12},
+    )
+    sans = analyse_portfolio(conn, 1, window=250)
+    assert sans.student_fit is None and sans.student_monte_carlo_var is None
+
+    rapport = analyse_portfolio(conn, 1, window=250, monte_carlo=True)
+    ajustement = rapport.student_fit
+
+    assert ajustement.observations == 250
+    for niveau in (0.95, 0.99):
+        for famille in (rapport.student_parametric_var, rapport.student_monte_carlo_var):
+            assert famille[niveau].nu == ajustement.nu, "ν est une donnée du résultat"
+            assert famille[niveau].window.observations == 250
+        assert "Σ·(ν−2)/ν" in rapport.student_monte_carlo_var[niveau].detail
+        assert rapport.parametric_var[niveau].nu is None
+        assert rapport.student_monte_carlo_var[niveau].value == pytest.approx(
+            rapport.student_parametric_var[niveau].value, rel=0.03
+        )

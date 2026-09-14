@@ -58,6 +58,7 @@ app/
 │   │   ├── var.py       #   pur : VaR, Expected Shortfall, Monte Carlo
 │   │   ├── scenarios.py #   catalogue des épisodes — données seules
 │   │   ├── stress.py    #   pur : trajectoire achat-conservation
+│   │   ├── regime.py    #   pur : ratio d'amplification, prédiction du beta
 │   │   ├── returns.py   #   rendements et alignement des dates
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
@@ -205,6 +206,7 @@ Aucun chiffre ne doit être ininterprétable isolément.
 | VaR paramétrique | `−(μ + z_α·σ_p)`, `σ_p = √(wᵀΣw)` | normalité ; `μ = 0` par défaut |
 | CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue |
 | Monte Carlo | Cholesky + tirages normaux, graine fixe | même hypothèse de normalité que la VaR paramétrique |
+| Monte Carlo Student | ν par maximum de vraisemblance, échelle `S = Σ·(ν−2)/ν` | queues épaisses à covariance inchangée ; `ν ≤ 2` refusé |
 
 **Une seule convention de degrés de liberté : `config.DDOF = 1`.** numpy n'est
 pas cohérent avec lui-même — `np.cov` utilise `ddof=1`, `np.std` et `np.var`
@@ -233,6 +235,39 @@ normalité, il doit converger vers la VaR paramétrique quand les tirages
 augmentent. Un écart persistant signalerait une erreur dans l'une des deux
 implémentations. Graine fixe : un chiffre de risque qui change à chaque
 exécution n'est ni auditable ni comparable à celui de la veille.
+
+**Le Monte Carlo en loi de Student chiffre le coût de l'hypothèse de
+normalité.** Le Monte Carlo normal converge vers la VaR paramétrique par
+construction : il valide le Cholesky, pas le modèle. Tirer en Student
+multivariée donne à la simulation une raison d'exister. Activé par
+`analyse_portfolio(..., monte_carlo=True)`.
+
+- **ν par maximum de vraisemblance**, sur la série du portefeuille — sous une
+  Student multivariée à ν commun, toute combinaison linéaire est une Student de
+  même ν. Pas par la méthode des moments : `ν = 6/κ + 4` n'est définie que pour
+  ν > 4 et ne peut structurellement jamais descendre en dessous, alors que les
+  rendements actions quotidiens se situent entre 3 et 6. Et pas par
+  `scipy.stats.t.fit` tel quel : sur la série réelle du portefeuille de
+  démonstration, son optimisation par défaut s'arrête à ν = 2,01, treize unités
+  de log-vraisemblance sous le vrai maximum (ν ≈ 4,07). L'estimateur retenu
+  standardise les données et part de plusieurs valeurs de ν ; un test de
+  non-régression sur cette série figée vérifie qu'il ne fait jamais moins bien
+  que scipy.
+- **Le piège de mise à l'échelle.** Une Student multivariée de matrice d'échelle
+  S a pour covariance `S·ν/(ν−2)`, pas S. Passer la covariance empirique comme
+  échelle rendrait les simulations plus volatiles d'un facteur `√(ν/(ν−2))` —
+  +29 % à ν = 5 — et gonflerait la VaR pour une raison sans rapport avec les
+  queues épaisses. D'où `S = Σ·(ν−2)/ν` : la covariance simulée égale Σ, et
+  l'écart avec le Monte Carlo normal mesure la forme des queues, et rien d'autre.
+  `ν ≤ 2` lève une erreur : la covariance n'existe pas.
+- **La géométrie attendue se vérifie.** À variance égale, une loi leptokurtique
+  a des épaules plus minces et des extrêmes plus lourds. Sur le portefeuille de
+  démonstration (ν = 4,07, fenêtre au 9 septembre 2026), la VaR Student est moins
+  sévère que la normale à 95 % (1,27 % contre 1,38 %) et plus sévère à 99 %
+  (2,22 % contre 1,95 %) — la même géométrie que la VaR historique face à la
+  paramétrique. Près de ν = 2, cette géométrie s'inverse : l'ajustement de
+  variance y écrase les quantiles modérés. Un ν estimé à peine au-dessus de 2 est
+  donc d'abord le symptôme probable d'un ajustement raté.
 
 Le refus d'un poids négatif est délibérément une exception levée par le moteur :
 rendre un nombre ininterprétable serait pire qu'échouer. Il revient à la couche
@@ -288,11 +323,15 @@ référence, description. En ajouter un ne demande de toucher à aucune logique.
 
 Les fenêtres sont bornées **pic à creux**, pas par année civile : un scénario
 « 2008 » calé sur le 1er janvier commencerait trois mois après le sommet et
-manquerait le premier quart de la baisse. Ces dates sont **vérifiées par un
-test** contre l'historique en base — il recalcule le drawdown du benchmark dans
-la fenêtre et exige que le pic tombe à la date de début et le creux à la date de
-fin. Une borne fausse ne se verrait pas autrement : le calcul rendrait un
-chiffre plausible pour un épisode qui n'est pas celui annoncé.
+manquerait le premier quart de la baisse. Ces dates sont **vérifiées par des
+tests** contre l'historique en base : la date de début doit être le plus haut du
+benchmark et la date de fin son plus bas, chacune sur une fenêtre élargie de trois
+mois de part et d'autre. Vérifier le sommet à l'intérieur de la seule fenêtre ne
+prouverait rien — le pic courant du premier jour est ce premier jour par
+construction : un faux début placé le 11 août 2008, en pleine baisse, passait ce
+contrôle naïf, et il est rejeté par le contrôle élargi. Une borne fausse ne se
+verrait pas autrement : le calcul rendrait un chiffre plausible pour un épisode
+qui n'est pas celui annoncé.
 
 **Le portefeuille actuel entre dans l'épisode.** Au premier jour de la fenêtre,
 chaque ligne pèse son poids d'aujourd'hui en valeur de marché ; les quantités qui
@@ -330,9 +369,69 @@ une valeur non rejouée. `summary()` ne peut pas présenter un chiffre comme
 couvrant l'ensemble quand ce n'est pas le cas, et sans aucune ligne couverte
 aucun chiffre n'est produit.
 
+> **Direction du biais.** Les deux options disponibles sous-estiment la perte,
+> par des mécanismes différents. Supposer les lignes exclues stables dilue la
+> perte. Les exclure et renormaliser — l'option retenue — décrit la partie la
+> plus établie du portefeuille : une ligne absente de l'historique d'une crise
+> est par construction cotée plus récemment, donc en moyenne plus jeune et plus
+> spéculative, précisément le profil qui aurait le plus souffert. Le biais
+> s'aggrave quand la couverture baisse. La renormalisation reste le bon choix,
+> puisqu'elle ne fabrique aucun rendement, mais la perte réelle aurait
+> vraisemblablement été plus lourde ; `summary()` le rappelle.
+
 Chaque scénario décompose la perte **ligne par ligne** : les contributions somment
 exactement au rendement de bout en bout, et distinguent le rendement propre du
 titre de son poids dans la perte — une petite ligne peut s'effondrer sans peser.
+
+### Régime calme, régime de crise
+
+```python
+from backend.risk_engine import compare_all_regimes
+
+for c in compare_all_regimes(conn, portfolio_id=1):
+    print(c.summary())
+```
+
+Le résultat central de l'enchaînement Phase 4 → Phase 5 : le beta estimé en
+régime calme, celui de la gestion courante, prédit-il la perte subie quand la
+crise arrive ? Pour chaque scénario, trois grandeurs à ne pas confondre.
+
+| Grandeur | Définition | Nature |
+|---|---|---|
+| Ratio d'amplification réalisé | `ln(1+R_p) / ln(1+R_b)` sur la fenêtre | un **rapport** de deux nombres : ni régression, ni résidu, ni erreur type |
+| Beta régressé de crise | pente des rendements quotidiens dans la fenêtre | une **estimation** : R², erreur type, observations, drapeau d'échantillon mince |
+| Prédiction du beta calme | `exp(β_calme · ln(1+R_b)) − 1` | ce que la gestion courante laissait attendre |
+
+Le ratio n'est volontairement **pas** appelé « beta 2008 » : ce nom laisserait
+croire à une estimation qui n'a pas eu lieu. Les deux premiers sont en log parce
+qu'on met à l'échelle un rendement multi-périodes (bloc 4A : les log s'agrègent
+dans le temps). Un beta régressé sur moins de 60 séances est signalé comme
+reposant sur un échantillon trop mince : les 23 rendements du krach COVID ne
+suffisent pas à une pente stable, et le chiffre ne doit pas en avoir l'apparence.
+
+**L'écart entre la prédiction et la perte réelle est le livrable.** Quand le
+ratio et le beta de crise divergent, c'est un résultat, pas une anomalie : la
+régression mesure la co-variation quotidienne autour des moyennes, et une dérive
+propre au portefeuille pendant l'épisode change le rendement cumulé sans changer
+la pente. En couverture partielle, perte, ratio, beta de crise et beta calme
+portent tous sur les mêmes lignes couvertes, pour que l'écart ne mélange pas un
+effet de couverture à un effet de régime.
+
+Illustration sur le portefeuille de démonstration (six titres, beta calme 0,57
+sur la fenêtre au 9 septembre 2026) :
+
+| Scénario | Perte réelle | Prédite par β calme | Écart | Ratio | β de crise |
+|---|---|---|---|---|---|
+| Crise 2008 | −44,0 % | −36,6 % | −7,4 pts | 0,72 | 0,96 ± 0,02 (355 séances) |
+| COVID | −35,8 % | −20,8 % | −15,0 pts | 1,08 | 1,07 ± 0,03 (23 séances, **trop mince**) |
+| Resserrement 2022 | −8,7 % | −14,7 % | +6,0 pts | 0,32 | 0,73 ± 0,03 (195 séances) |
+
+En 2008 et en 2020, la crise a coûté bien plus que ce qu'annonçait le beta calme :
+la co-variation avec le marché monte en crise (0,96 contre 0,57). En 2022, le
+portefeuille a fait mieux que prévu, et la divergence entre un ratio de 0,32 et
+un beta de 0,73 dit pourquoi : jour après jour il suivait le marché, mais une
+dérive propre — celle d'une ligne énergie en forte hausse — a amorti la perte
+cumulée.
 
 ### 7. Tests
 
@@ -392,8 +491,9 @@ l'ordre chronologique.
   Monte Carlo, CVaR avec taille de queue
 - [x] **Phase 5A — Mécanique des scénarios** : catalogue déclaratif, bornes
   auto-vérifiées, achat-conservation, couverture déclarée, contributions
-  - [ ] **Phase 5B** : Monte Carlo en loi de Student
-- [ ] **Phase 5 — Stress testing** : scénarios historiques
+- [x] **Phase 5B — Régimes et queues épaisses** : comparaison régime calme /
+  crise, Monte Carlo en loi de Student, biais de couverture documenté, bornes
+  vérifiées sur fenêtre élargie
 - [ ] **Phase 6 — Recommandations** : règles de détection
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie

@@ -55,6 +55,17 @@ EWMA_LAMBDA = 0.94
 # qu'un défaut répété à chaque appel — et un test qui verrouille l'identité.
 DDOF = 1
 
+# ------------------------------------------- Taille minimale d'une régression --
+#
+# En dessous de 60 séances (≈ 3 mois), un beta régressé est signalé comme reposant
+# sur un échantillon trop mince. Seuil de convention, pas loi statistique : son
+# rôle est d'empêcher qu'un beta estimé sur les 23 rendements du krach COVID soit
+# présenté avec la même apparence de solidité qu'un beta sur 355 séances. Sur une
+# fenêtre aussi courte, quelques jours extrêmes dictent la pente à eux seuls.
+# L'erreur type, portée par chaque beta, chiffre l'incertitude quel que soit le
+# seuil.
+MIN_REGRESSION_OBSERVATIONS = 60
+
 # ------------------------------------------------------------ Monte Carlo --
 #
 # Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas

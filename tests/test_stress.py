@@ -67,7 +67,11 @@ def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(scenario: Scenari
     Une borne fausse ne se verrait pas autrement : le calcul tournerait et
     rendrait un chiffre plausible pour un épisode qui n'est pas celui annoncé.
     Le drawdown du benchmark est recalculé DANS la fenêtre ; son creux doit
-    tomber à la date de fin déclarée, et son pic à la date de début.
+    tomber à la date de fin déclarée.
+
+    Le sommet n'est pas contrôlé ici : dans une fenêtre qui commence à la date
+    déclarée, le pic glissant du premier jour est ce premier jour par
+    construction. Sa vérification réelle se fait sur fenêtre élargie, ci-dessous.
     """
     resultat = max_drawdown(cours_du_benchmark(scenario))
 
@@ -75,9 +79,44 @@ def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(scenario: Scenari
         f"{scenario.key} : le creux du benchmark tombe le {resultat.trough_date}, "
         f"pas le {scenario.end} déclaré"
     )
-    assert resultat.peak_date == scenario.start, (
-        f"{scenario.key} : le sommet du benchmark tombe le {resultat.peak_date}, "
-        f"pas le {scenario.start} déclaré"
+
+
+MARGE_EXTREMUM = pd.DateOffset(months=3)
+
+
+def cours_autour(scenario: Scenario, borne: date) -> pd.Series:
+    debut = (pd.Timestamp(borne) - MARGE_EXTREMUM).date()
+    fin = (pd.Timestamp(borne) + MARGE_EXTREMUM).date()
+    with closing(connect(BASE_REELLE)) as conn:
+        return load_price_panel(conn, [scenario.benchmark], debut, fin)[scenario.benchmark]
+
+
+@besoin_de_la_base
+@pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
+def test_le_debut_declare_est_un_vrai_sommet_local(scenario: Scenario):
+    """Maximum sur trois mois de part et d'autre, pas simplement le premier point.
+
+    Un cours plus haut dans les semaines précédant la date déclarée signifierait
+    que la fenêtre démarre en cours de baisse et manque le début de l'épisode.
+    """
+    cours = cours_autour(scenario, scenario.start)
+    assert cours.index[0] < scenario.start < cours.index[-1]
+    assert cours.idxmax() == scenario.start, (
+        f"{scenario.key} : le plus haut de la fenêtre élargie est le "
+        f"{cours.idxmax()}, pas le {scenario.start} déclaré"
+    )
+
+
+@besoin_de_la_base
+@pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
+def test_la_fin_declaree_est_un_vrai_creux_local(scenario: Scenario):
+    """Minimum sur trois mois de part et d'autre : la baisse ne s'est pas
+    poursuivie après la date déclarée."""
+    cours = cours_autour(scenario, scenario.end)
+    assert cours.index[0] < scenario.end < cours.index[-1]
+    assert cours.idxmin() == scenario.end, (
+        f"{scenario.key} : le plus bas de la fenêtre élargie est le "
+        f"{cours.idxmin()}, pas le {scenario.end} déclaré"
     )
 
 
@@ -358,6 +397,7 @@ def test_une_couverture_complete_est_signalee_comme_telle(conn):
     assert resultat.coverage.covered_count == resultat.coverage.total_count == 2
     assert resultat.coverage.value_share == pytest.approx(1.0)
     assert "portefeuille complet" in resultat.summary()
+    assert "sous-estimée" not in resultat.summary()
 
 
 def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn):
@@ -390,6 +430,7 @@ def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn)
     assert resultat.end_to_end_return is not None
     assert couverture.value_share == pytest.approx(910.0 / (910.0 + 2000.0))
     assert "de la valeur seulement" in resultat.summary()
+    assert "sous-estimée" in resultat.summary(), "la direction du biais doit se lire"
     assert "portefeuille complet" not in resultat.summary()
 
 

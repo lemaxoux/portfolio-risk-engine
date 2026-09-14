@@ -24,7 +24,9 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import minimize
 from scipy.stats import norm
+from scipy.stats import t as student_t
 
 from .config import DDOF, MONTE_CARLO_SEED, MONTE_CARLO_SIMULATIONS
 from .covariance import _aligned_weights, is_positive_definite
@@ -67,6 +69,7 @@ class MonteCarloEstimate:
     value: float
     simulations: int
     seed: int
+    nu: float | None = None
 
 
 def _alpha(confidence: float) -> float:
@@ -256,3 +259,209 @@ def annualise_daily_loss(daily_loss: float, horizon_days: int) -> float:
     if horizon_days < 1:
         raise ValueError(f"Horizon en séances ≥ 1 attendu (reçu : {horizon_days}).")
     return daily_loss * math.sqrt(horizon_days)
+
+
+# ======================================================== Loi de Student ==
+#
+# POURQUOI — le Monte Carlo normal converge vers la VaR paramétrique par
+# construction : il valide la décomposition de Cholesky, pas le modèle. Tirer en
+# loi de Student lui donne une raison d'exister : l'écart entre les deux chiffre
+# le coût de l'hypothèse de normalité.
+#
+# MODÈLE — Student multivariée à ν commun. Toute combinaison linéaire `w·X` d'une
+# telle loi est une Student univariée de MÊME ν : la série de rendements du
+# portefeuille identifie donc directement ν, et c'est justement la quantité dont
+# la queue nous intéresse. Les paramètres de position et d'échelle ajustés sont
+# des paramètres de nuisance : la dispersion reste ancrée sur la matrice de
+# covariance empirique (convention DDOF commune), si bien qu'entre la VaR normale
+# et la VaR Student seule la FORME des queues diffère.
+
+STUDENT_FIT_STARTS = (2.5, 4.0, 8.0, 30.0)
+STUDENT_MIN_OBSERVATIONS = 30
+
+
+@dataclass(frozen=True)
+class StudentFit:
+    """Loi de Student ajustée par maximum de vraisemblance."""
+
+    nu: float
+    loc: float
+    scale: float
+    log_likelihood: float
+    observations: int
+
+
+def fit_student_t(returns) -> StudentFit:
+    """Degrés de liberté ν par MAXIMUM DE VRAISEMBLANCE.
+
+    POURQUOI PAS LA MÉTHODE DES MOMENTS — la relation `ν = 6/κ + 4`, où κ est le
+    kurtosis en excès, n'est définie que pour ν > 4 : en dessous, le kurtosis
+    théorique est infini. Elle ne peut structurellement jamais rendre ν ≤ 4, or
+    les rendements actions quotidiens se situent typiquement entre 3 et 6.
+    L'estimateur s'effondre donc exactement là où on en a besoin — et le
+    kurtosis empirique d'une série à queues épaisses est de toute façon dominé
+    par une poignée d'observations.
+
+    POURQUOI PAS `scipy.stats.t.fit` TEL QUEL — sur la série réelle d'un
+    portefeuille de six titres, son optimisation par défaut s'est arrêtée à
+    ν = 2,01, avec une log-vraisemblance inférieure de 13 unités au vrai maximum
+    situé vers ν = 4,1. Un ν aussi proche de 2 aurait fait s'effondrer la VaR
+    Student (voir `student_t_var`) pour une raison purement numérique.
+
+    D'où l'optimisation retenue : données standardisées par médiane et écart
+    absolu médian (conditionnement), ν paramétré en log — ce qui laisse
+    l'optimiseur trouver ν ≤ 2 si les données l'imposent, pour que ce cas soit
+    signalé et non masqué par une contrainte —, Nelder-Mead depuis plusieurs
+    valeurs de départ, meilleure vraisemblance retenue.
+    """
+    donnees = _as_array(returns)
+    if donnees.size < STUDENT_MIN_OBSERVATIONS:
+        raise ValueError(
+            f"Au moins {STUDENT_MIN_OBSERVATIONS} observations sont nécessaires "
+            f"pour estimer ν (reçu : {donnees.size})."
+        )
+
+    centre = float(np.median(donnees))
+    echelle = float(np.median(np.abs(donnees - centre))) * 1.4826
+    if echelle <= 0.0:
+        echelle = float(np.std(donnees, ddof=DDOF))
+    if echelle <= 0.0:
+        raise ValueError("Série constante : aucune loi de Student n'est ajustable.")
+
+    z = (donnees - centre) / echelle
+
+    def log_vraisemblance_negative(parametres: np.ndarray) -> float:
+        nu = math.exp(parametres[0])
+        valeur = -float(
+            np.sum(student_t.logpdf(z, nu, parametres[1], math.exp(parametres[2])))
+        )
+        return valeur if math.isfinite(valeur) else 1e300
+
+    meilleur = None
+    for nu_depart in STUDENT_FIT_STARTS:
+        essai = minimize(
+            log_vraisemblance_negative,
+            x0=np.array([math.log(nu_depart), 0.0, 0.0]),
+            method="Nelder-Mead",
+            options={"maxiter": 20_000, "maxfev": 20_000, "xatol": 1e-10, "fatol": 1e-10},
+        )
+        if meilleur is None or essai.fun < meilleur.fun:
+            meilleur = essai
+
+    nu = math.exp(meilleur.x[0])
+    loc_z, echelle_z = meilleur.x[1], math.exp(meilleur.x[2])
+    return StudentFit(
+        nu=nu,
+        loc=centre + echelle * loc_z,
+        scale=echelle * echelle_z,
+        # Changement de variable : la densité de x vaut celle de z divisée par
+        # l'échelle de standardisation, d'où le terme −n·ln(échelle).
+        log_likelihood=-meilleur.fun - donnees.size * math.log(echelle),
+        observations=int(donnees.size),
+    )
+
+
+def _require_finite_variance(nu: float) -> None:
+    if not nu > 2.0:
+        raise ValueError(
+            f"ν = {nu:.3f} ≤ 2 : la loi de Student n'a pas de variance finie. "
+            "Aucune matrice d'échelle ne peut reproduire la covariance observée, "
+            "et une VaR « à variance ajustée » n'a pas de sens. Vérifier d'abord "
+            "l'ajustement — un ν à peine supérieur à 2 est lui-même suspect."
+        )
+
+
+def student_scale_matrix(cov: pd.DataFrame, nu: float) -> pd.DataFrame:
+    """Matrice d'échelle `S = Σ·(ν − 2)/ν`.
+
+    LE PIÈGE — une Student multivariée de matrice d'échelle S a pour covariance
+    `S·ν/(ν − 2)`, pas S. Passer directement la covariance empirique comme
+    matrice d'échelle rendrait les simulations plus volatiles que les données
+    d'un facteur `√(ν/(ν − 2))` : +29 % pour ν = 5, +41 % pour ν = 4. La VaR
+    ressortirait gonflée pour une raison qui n'a rien à voir avec les queues
+    épaisses, et l'on attribuerait à la forme de la loi ce qui n'est qu'une
+    erreur d'échelle. Avec ce S, la covariance simulée égale Σ.
+    """
+    _require_finite_variance(nu)
+    return cov * ((nu - 2.0) / nu)
+
+
+def student_t_var(
+    sigma_daily: float,
+    nu: float,
+    confidence: float = 0.95,
+    mean_daily: float = 0.0,
+) -> float:
+    """VaR Student à variance ajustée, en forme fermée, en perte positive.
+
+    `VaR = −(μ + σ·√((ν − 2)/ν)·t_ν⁻¹(α))`. C'est la limite vers laquelle le
+    Monte Carlo Student doit converger — même rôle de vérification croisée que
+    la VaR paramétrique pour le Monte Carlo normal.
+
+    GÉOMÉTRIE ATTENDUE — à variance égale, une loi leptokurtique a des épaules
+    plus minces et des extrêmes plus lourds. Le quantile à 95 % est une épaule :
+    la VaR Student y est MOINS sévère que la normale. Le quantile à 99 % est déjà
+    dans la queue : elle y est PLUS sévère.
+
+    PRÈS DE ν = 2 — l'ajustement de variance concentre la masse au centre à mesure
+    que ν décroît vers 2 : les quantiles modérés s'effondrent vers zéro tandis
+    que les extrêmes lointains explosent. Un ν estimé à peine au-dessus de 2
+    produit ainsi des VaR 95 % et 99 % très inférieures à la normale, à rebours
+    de la géométrie attendue.
+    """
+    _require_finite_variance(nu)
+    if sigma_daily < 0.0:
+        raise ValueError(f"Volatilité négative : {sigma_daily}")
+    quantile = float(student_t.ppf(_alpha(confidence), nu)) * math.sqrt((nu - 2.0) / nu)
+    return -(mean_daily + quantile * sigma_daily)
+
+
+def simulate_student_returns(
+    cov: pd.DataFrame,
+    nu: float,
+    simulations: int = MONTE_CARLO_SIMULATIONS,
+    seed: int = MONTE_CARLO_SEED,
+) -> np.ndarray:
+    """Tirages de rendements Student multivariés dont la covariance vaut `cov`.
+
+    `X = Z·√(ν/W)` avec `Z ~ N(0, S)` et `W ~ χ²_ν` indépendants. Le même W
+    multiplie toutes les composantes d'un tirage : c'est ce qui fait que les
+    titres subissent ENSEMBLE les jours extrêmes, comme dans une crise réelle —
+    ce qu'un tirage indépendant par titre ne reproduirait pas.
+    """
+    if simulations < 2:
+        raise ValueError(f"Au moins 2 simulations (reçu : {simulations}).")
+    echelle = student_scale_matrix(cov, nu)
+    if not is_positive_definite(echelle):
+        raise ValueError(
+            "Matrice de covariance non définie positive : simulation Student "
+            "impossible. Voir monte_carlo_var pour les causes habituelles."
+        )
+    facteur = np.linalg.cholesky(echelle.to_numpy())
+    generateur = np.random.default_rng(seed)
+    normaux = generateur.standard_normal((simulations, facteur.shape[0])) @ facteur.T
+    melange = np.sqrt(nu / generateur.chisquare(nu, simulations))
+    return normaux * melange[:, None]
+
+
+def monte_carlo_student_var(
+    weights: Mapping[str, float],
+    cov: pd.DataFrame,
+    nu: float,
+    confidence: float = 0.95,
+    simulations: int = MONTE_CARLO_SIMULATIONS,
+    seed: int = MONTE_CARLO_SEED,
+    mean_daily: float = 0.0,
+    method: str = QUANTILE_METHOD,
+) -> MonteCarloEstimate:
+    """VaR par simulation Student multivariée, graine fixe, en perte positive.
+
+    La covariance simulée égale celle des données (voir `student_scale_matrix`) :
+    l'écart avec le Monte Carlo normal mesure donc la forme des queues, et rien
+    d'autre.
+    """
+    vecteur, sous_matrice = _aligned_weights(weights, cov)
+    tirages = simulate_student_returns(sous_matrice, nu, simulations, seed)
+    rendements = tirages @ vecteur + mean_daily
+    quantile = float(np.quantile(rendements, _alpha(confidence), method=method))
+    return MonteCarloEstimate(value=-quantile, simulations=simulations, seed=seed, nu=nu)
