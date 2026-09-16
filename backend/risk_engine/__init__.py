@@ -25,12 +25,19 @@ from .config import (
     EWMA_LAMBDA,
     MIN_REGRESSION_OBSERVATIONS,
     RISK_FREE_RATE_OBSERVED_ON,
+    THIN_TAIL_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     daily_risk_free_rate,
     risk_free_observation_date,
     risk_free_rate,
 )
-from .covariance import Beta, beta, correlation_matrix, covariance_matrix
+from .covariance import (
+    Beta,
+    beta,
+    correlation_matrix,
+    covariance_matrix,
+    variance_contributions,
+)
 from .engine import (
     BetaResult,
     ConcentrationResult,
@@ -49,6 +56,7 @@ from .engine import (
     ScenarioCoverage,
     ScenarioResult,
     VarResult,
+    VarianceContributionResult,
     analyse_portfolio,
     assess_scenario_coverage,
     compare_all_regimes,
@@ -122,6 +130,7 @@ __all__ = [
     "RISK_FREE_RATE_OBSERVED_ON",
     "SCENARIOS",
     "SCENARIOS_BY_KEY",
+    "THIN_TAIL_OBSERVATIONS",
     "TRADING_DAYS_PER_YEAR",
     "Beta",
     "BetaResult",
@@ -146,6 +155,7 @@ __all__ = [
     "SortinoResult",
     "StudentFit",
     "VarResult",
+    "VarianceContributionResult",
     "VolatilityResult",
     "Window",
     "align_panel",
@@ -198,5 +208,6 @@ __all__ = [
     "student_parametric_var",
     "student_scale_matrix",
     "student_t_var",
+    "variance_contributions",
     "wealth_curve",
 ]

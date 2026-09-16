@@ -142,6 +142,38 @@ def portfolio_variance(weights: Mapping[str, float], cov: pd.DataFrame) -> float
     return float(vecteur @ sous_matrice.to_numpy() @ vecteur)
 
 
+def variance_contributions(
+    weights: Mapping[str, float], cov: pd.DataFrame
+) -> dict[str, float]:
+    """Part de chaque ligne dans la variance du portefeuille.
+
+    `cᵢ = wᵢ·(Σw)ᵢ / (wᵀΣw)` — décomposition d'Euler de la variance.
+
+    Là où le poids ne dit que la part du CAPITAL, la contribution dit la part du
+    RISQUE, parce que `(Σw)ᵢ` fait intervenir la covariance de la ligne avec
+    tout le reste du portefeuille. Une ligne de 10 % très corrélée aux autres
+    contribue davantage qu'une ligne de 10 % décorrélée, ce que le poids seul ne
+    montre pas.
+
+    Les contributions somment exactement à 1 : ce sont les termes d'une même
+    somme `Σ wᵢ·(Σw)ᵢ = wᵀΣw`, divisés par leur total. Une contribution peut être
+    NÉGATIVE : la ligne a alors évolué, en moyenne sur la fenêtre, à rebours du
+    reste du portefeuille, et sa présence réduit la variance totale.
+
+    Appariement poids / matrice par ÉTIQUETTE, jamais par position.
+    """
+    vecteur, sous_matrice = _aligned_weights(weights, cov)
+    marginales = sous_matrice.to_numpy() @ vecteur
+    variance = float(vecteur @ marginales)
+    if variance <= 0.0:
+        raise ValueError(
+            "Variance du portefeuille nulle : la part de chaque ligne dans une "
+            "variance nulle n'est pas définie."
+        )
+    parts = vecteur * marginales / variance
+    return {ticker: float(part) for ticker, part in zip(weights, parts, strict=True)}
+
+
 def parametric_volatility(
     weights: Mapping[str, float],
     cov: pd.DataFrame,

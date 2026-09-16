@@ -66,6 +66,14 @@ DDOF = 1
 # seuil.
 MIN_REGRESSION_OBSERVATIONS = 60
 
+# ------------------------------------------------- Queue trop courte (CVaR) --
+#
+# Un Expected Shortfall moyenné sur moins de 10 observations de queue est signalé
+# comme fragile. Nombre rond CHOISI à la main, pas dérivé des données : il marque
+# le passage d'une moyenne sur quelques dizaines de journées à une moyenne sur une
+# poignée. Les règles de la Phase 6 le citent comme tel.
+THIN_TAIL_OBSERVATIONS = 10
+
 # ------------------------------------------------------------ Monte Carlo --
 #
 # Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas

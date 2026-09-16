@@ -23,6 +23,7 @@ from .config import (
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
     MIN_REGRESSION_OBSERVATIONS,
+    THIN_TAIL_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     MONTE_CARLO_SEED,
     MONTE_CARLO_SIMULATIONS,
@@ -150,6 +151,23 @@ class CovarianceResult:
 
 
 @dataclass(frozen=True)
+class VarianceContributionResult:
+    """Part de chaque ligne dans la variance du portefeuille, sur la fenêtre.
+
+    `contributions` somme à 1. À lire à côté de `weights` : l'écart entre la
+    part du risque et la part du capital est ce que le poids seul ne montre pas.
+    """
+
+    contributions: dict[str, float]
+    weights: dict[str, float]
+    window: Window
+
+    def excess_over_weight(self, ticker: str) -> float:
+        """Part de variance − part de valeur, en points."""
+        return self.contributions[ticker] - self.weights[ticker]
+
+
+@dataclass(frozen=True)
 class BetaResult:
     """Sensibilité au marché et décomposition du risque.
 
@@ -207,8 +225,11 @@ class ExpectedShortfallResult:
 
     @property
     def thin_tail(self) -> bool:
-        """Vrai quand la queue est trop courte pour une moyenne stable."""
-        return self.tail_observations < 10
+        """Vrai quand la queue est trop courte pour une moyenne stable.
+
+        Seuil `config.THIN_TAIL_OBSERVATIONS`, choisi à la main.
+        """
+        return self.tail_observations < THIN_TAIL_OBSERVATIONS
 
 
 @dataclass(frozen=True)
@@ -248,6 +269,7 @@ class RiskReport:
     historical_var: dict[float, VarResult]
     parametric_var: dict[float, VarResult]
     expected_shortfall: dict[float, ExpectedShortfallResult]
+    variance_contributions: VarianceContributionResult
     beta: BetaResult | None = None
     monte_carlo_var: dict[float, VarResult] | None = None
     student_fit: var.StudentFit | None = None
@@ -447,6 +469,16 @@ def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
     return CovarianceResult(
         covariance=covariance.covariance_matrix(serie.asset_returns),
         correlation=covariance.correlation_matrix(serie.asset_returns),
+        window=serie.window,
+    )
+
+
+def variance_contributions(serie: PortfolioSeries) -> VarianceContributionResult:
+    """Contribution de chaque ligne à la variance, sur la fenêtre d'estimation."""
+    matrice = covariance.covariance_matrix(serie.asset_returns)
+    return VarianceContributionResult(
+        contributions=covariance.variance_contributions(serie.weights.weights, matrice),
+        weights=dict(serie.weights.weights),
         window=serie.window,
     )
 
@@ -1188,6 +1220,7 @@ def analyse_portfolio(
         expected_shortfall={
             c: expected_shortfall(serie, c) for c in confidence_levels
         },
+        variance_contributions=variance_contributions(serie),
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(
             {c: monte_carlo_var(serie, c) for c in confidence_levels}

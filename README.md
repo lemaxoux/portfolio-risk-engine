@@ -63,6 +63,10 @@ app/
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
 │   │   └── config.py    #   taux sans risque, fenêtre, ddof, λ EWMA
+│   ├── rules/           # Moteur de règles — décrit, ne prescrit pas
+│   │   ├── rules.py     #   les sept règles et leurs observations
+│   │   ├── thresholds.py#   seuils et provenance
+│   │   └── disclaimer.py#   texte du bandeau d'acceptation
 │   ├── api/             # Endpoints FastAPI
 │   └── db/              # Schéma SQLite et initialisation
 │       ├── schema.sql
@@ -205,6 +209,7 @@ Aucun chiffre ne doit être ininterprétable isolément.
 | VaR historique | quantile empirique, `method="lower"` | aucune hypothèse de loi ; ne peut rien dire d'un choc pire que la fenêtre |
 | VaR paramétrique | `−(μ + z_α·σ_p)`, `σ_p = √(wᵀΣw)` | normalité ; `μ = 0` par défaut |
 | CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue |
+| Contribution à la variance | `wᵢ·(Σw)ᵢ / (wᵀΣw)` | somme exactement à 100 % ; poids ET corrélation ; peut être négative |
 | Monte Carlo | Cholesky + tirages normaux, graine fixe | même hypothèse de normalité que la VaR paramétrique |
 | Monte Carlo Student | ν par maximum de vraisemblance, échelle `S = Σ·(ν−2)/ν` | queues épaisses à covariance inchangée ; `ν ≤ 2` refusé |
 
@@ -459,7 +464,103 @@ avait augmenté.
 > disponible en crise, et un épisode où une ligne a sauvé le portefeuille ne dit
 > rien du suivant.
 
-### 7. Tests
+### 7. Moteur de règles
+
+```python
+from backend.rules import evaluate_portfolio
+
+rapport = evaluate_portfolio(conn, portfolio_id=1)
+print(rapport.render())       # observations, seuils et provenance
+print(rapport.disclaimer)     # texte du bandeau d'acceptation
+```
+
+Le moteur de règles s'appuie sur les sorties des Phases 4 et 5 **et ne recalcule
+rien** : chaque règle lit un résultat déjà produit et le met en mots. Un test
+vérifie que le module n'importe aucun module de calcul.
+
+**Il décrit des propriétés, il ne prescrit pas d'actions.** « Cette ligne pèse
+35 % de la variance de ton portefeuille » est un fait vérifiable ; « tu devrais
+l'alléger » est un conseil en investissement, que rien dans ce projet ne permet de
+donner — le moteur ignore l'horizon de placement, les objectifs, la fiscalité et le
+reste du patrimoine. C'est la position honnête, et la seule défendable
+juridiquement. La preuve que ça compte est dans les chiffres du projet : une règle
+« réduis la ligne énergie » aurait visé précisément la ligne qui a apporté +9,4
+points au portefeuille en 2022, pendant que le marché perdait un quart de sa
+valeur. La
+concentration amplifie la variance dans les deux sens, et les observations disent
+les deux. Une garde lexicale vérifie qu'aucune observation ne contient de
+formulation prescriptive ; ce n'est pas une preuve, mais un filet.
+
+**Pas de score de risque global.** C'est la sortie la plus tentante pour un outil
+grand public et la plus mauvaise : elle comprime des grandeurs non commensurables
+— une concentration, une part systématique, une fragilité de queue — en un nombre
+dont l'échelle ne veut rien dire, et elle invite exactement à la lecture
+prescriptive qu'on évite. Un tel chiffre fonctionne quand un conseiller humain
+l'interprète ; sans cet intermédiaire, il a l'air d'une autorité sans en être une.
+Le résultat est une liste d'observations, et rien d'autre.
+
+**Une mesure ajoutée avant les règles : la contribution de chaque ligne à la
+variance**, `cᵢ = wᵢ·(Σw)ᵢ / (wᵀΣw)`. Elle tient compte du poids *et* de la
+corrélation : une ligne de 10 % très corrélée au reste contribue davantage qu'une
+ligne de 10 % décorrélée, ce que le poids seul ne dit pas. Les contributions
+somment exactement à 100 %, ce qu'un test vérifie à la tolérance flottante ; une
+contribution négative signale une ligne qui a évolué à rebours du reste.
+
+| Règle | Ce qu'elle décrit | Seuil |
+|---|---|---|
+| 1. Concentration effective | « tes N lignes se comportent comme M lignes effectives » (1/HHI) | aucun |
+| 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne |
+| 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille |
+| 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun |
+| 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée | 60 séances **choisies** pour signaler un échantillon trop mince |
+| 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 50 %, aucun chiffre principal | 50 % **choisi** |
+| 7. Fragilité de la queue | CVaR moyenné sur une poignée de séances, et le poids de chacune | 10 observations **choisies** |
+
+**Les seuils sont traités explicitement**, car ils sont le point faible de tout
+moteur de règles. Par ordre de préférence : pas de seuil du tout quand la mesure
+parle d'elle-même ; un seuil dérivé d'une référence calculée ; un seuil relatif au
+portefeuille lui-même ; en dernier recours seulement, un nombre rond choisi à la
+main. Chaque observation porte ses seuils et leur provenance, et un seuil choisi
+le dit en toutes lettres — « seuil CHOISI à la main, non dérivé des données » —,
+selon la même règle de provenance que les fenêtres d'estimation et les dates de
+valorisation.
+
+Illustration sur le portefeuille de démonstration (données au 9 septembre 2026) :
+
+> Tes 6 lignes se comportent comme 5,7 lignes effectives en valeur (inverse de l'indice de Herfindahl-Hirschman, 0,177). À poids égaux, elles en vaudraient 6.
+>
+> JPM pèse 25,6 % de la valeur du portefeuille et 35,4 % de sa variance. Sa part du risque dépasse sa part du capital de 9,8 points. Plus une ligne pèse dans la variance, plus elle pèse sur le résultat du portefeuille, dans les deux sens : à la baisse comme à la hausse. Dans les crises rejouées, la contribution de JPM au résultat du portefeuille a été négative à chaque fois, de −16,6 pts (Crise financière 2008) à −8,7 pts (Resserrement monétaire 2022).
+>
+> XOM pèse 15,8 % de la valeur du portefeuille et 13,9 % de sa variance. Sa part du risque est inférieure à sa part du capital de 1,9 point. Dans les crises rejouées, XOM a pesé dans les deux sens : −7,6 pts (Krach COVID), mais +9,4 pts (Resserrement monétaire 2022).
+>
+> Sur 504 séances, 49 % de la variance du portefeuille s'explique par les mouvements de SPY (R² 0,49). Cette part est du risque de marché : elle est commune aux actions américaines, et en détenir davantage ne la dilue pas. Les 51 % restants sont propres aux lignes détenues ; c'est sur eux seuls que la diversification entre lignes a prise.
+>
+> La part systématique du risque passe de 49 % en régime calme à 86 % (Crise financière 2008), 98 % (Krach COVID — échantillon trop mince) et 79 % (Resserrement monétaire 2022) dans les crises rejouées. Elle augmente dans les 3 crises rejouées : la diversification entre lignes s'est affaiblie précisément pendant les épisodes où elle aurait servi. Un R² de crise estimé sur moins de 60 séances repose sur un échantillon trop mince (Krach COVID).
+>
+> Le CVaR à 99 % (3,00 % de perte moyenne au-delà du quantile de VaR) est la moyenne de 6 séances seulement, sur une fenêtre de 504. Le chiffre reste calculable, mais chacune de ces journées y pèse pour 17 %.
+
+### Texte du bandeau d'acceptation
+
+Seulement le texte ; l'écran qui le portera relève de la Phase 7. Sa source est
+`backend/rules/disclaimer.py`, qui tire la taille de la fenêtre de la configuration
+du moteur : le texte ne peut pas annoncer 504 séances le jour où le calcul en
+utiliserait un autre nombre. Ce texte n'a pas été relu par un juriste.
+
+> **Avant d'utiliser Mx Risk MGT**
+>
+> **Un outil informatif, pas un conseil.** Mx Risk MGT décrit des propriétés statistiques de ton portefeuille. Il ne constitue pas un conseil en investissement réglementé, ni une recommandation d'acheter, de vendre ou de conserver un titre. Il ne connaît ni ton horizon de placement, ni tes objectifs, ni ta situation fiscale, ni le reste de ton patrimoine : aucune de ses observations ne peut en tenir compte.
+>
+> **Aucune garantie d'exactitude.** Les données de marché proviennent d'un fournisseur tiers et peuvent comporter des erreurs, des retards ou des omissions. Les calculs reposent sur des hypothèses statistiques et peuvent eux-mêmes être erronés. Aucune garantie n'est donnée sur l'exactitude, l'exhaustivité ou l'actualité des données ni des calculs.
+>
+> **Les mesures décrivent un régime, pas un avenir.** Les mesures de risque courantes — volatilité, VaR, CVaR, beta, corrélations — sont estimées sur les 504 dernières séances de bourse, soit environ 2 ans. Elles décrivent le comportement du portefeuille pendant cette période. Elles ne prédisent pas son comportement futur, qui peut s'en écarter fortement, en particulier lors d'une crise.
+>
+> **Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines.** Les scénarios de stress appliquent à ton portefeuille actuel les mouvements réellement observés pendant des crises passées. Ils ne prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine crise, qui ne ressemblera pas nécessairement à celles-ci.
+>
+> **Utilisation à tes risques.** Tu utilises cet outil à tes propres risques, et les décisions que tu prends relèvent de ta seule responsabilité. La responsabilité de l'auteur de l'outil ne peut être engagée pour les conséquences de décisions fondées sur les informations qu'il affiche.
+>
+> *J'ai lu ces limites, je les comprends, et j'utilise cet outil en connaissance de cause.*
+
+### 8. Tests
 
 ```powershell
 pytest
@@ -469,7 +570,7 @@ Aucun test ne sort sur le réseau : la session HTTP et le fournisseur sont
 remplacés par des doubles. La suite passe hors ligne et ne consomme pas de
 quota.
 
-### 8. API
+### 9. API
 
 ```powershell
 uvicorn backend.api.main:app --reload
@@ -520,7 +621,9 @@ l'ordre chronologique.
 - [x] **Phase 5B — Régimes et queues épaisses** : comparaison régime calme /
   crise, Monte Carlo en loi de Student, biais de couverture documenté, bornes
   vérifiées sur fenêtre élargie
-- [ ] **Phase 6 — Recommandations** : règles de détection
+- [x] **Phase 6 — Moteur de règles** : sept règles descriptives, contribution
+  à la variance, seuils à provenance déclarée, aucun score global, texte du
+  bandeau d'acceptation
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
@@ -536,4 +639,6 @@ les métriques de risque calculées, pas les séries de prix brutes.
 
 Ce projet est un outil personnel d'analyse. Il ne constitue pas un conseil en
 investissement au sens réglementaire, et les mesures qu'il produit reposent sur
-des hypothèses statistiques dont les limites sont documentées.
+des hypothèses statistiques dont les limites sont documentées. Le texte complet
+présenté à l'utilisateur figure dans la section « Texte du bandeau
+d'acceptation ».
