@@ -8,8 +8,9 @@ La taille de la fenêtre d'estimation n'est pas écrite en dur : elle vient de l
 configuration du moteur, pour que le texte ne puisse pas dire « 504 séances » le
 jour où le calcul en utiliserait un autre nombre.
 
-Le tutoiement suit le ton des observations. Ce texte n'a pas été relu par un
-juriste.
+Ce texte VOUVOIE, là où les observations tutoient : c'est le seul endroit du
+projet à portée quasi juridique, et un registre formel l'y distingue du reste.
+Ce texte n'a pas été relu par un juriste.
 """
 
 from __future__ import annotations
@@ -45,11 +46,11 @@ def acceptance_sections(window: int = DEFAULT_WINDOW) -> tuple[DisclaimerSection
         DisclaimerSection(
             title="Un outil informatif, pas un conseil",
             body=(
-                "Mx Risk MGT décrit des propriétés statistiques de ton portefeuille. "
+                "Mx Risk MGT décrit des propriétés statistiques de votre portefeuille. "
                 "Il ne constitue pas un conseil en investissement réglementé, ni une "
                 "recommandation d'acheter, de vendre ou de conserver un titre. Il ne "
-                "connaît ni ton horizon de placement, ni tes objectifs, ni ta "
-                "situation fiscale, ni le reste de ton patrimoine : aucune de ses "
+                "connaît ni votre horizon de placement, ni vos objectifs, ni votre "
+                "situation fiscale, ni le reste de votre patrimoine : aucune de ses "
                 "observations ne peut en tenir compte."
             ),
         ),
@@ -77,17 +78,17 @@ def acceptance_sections(window: int = DEFAULT_WINDOW) -> tuple[DisclaimerSection
         DisclaimerSection(
             title="Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines",
             body=(
-                "Les scénarios de stress appliquent à ton portefeuille actuel les "
+                "Les scénarios de stress appliquent à votre portefeuille actuel les "
                 "mouvements réellement observés pendant des crises passées. Ils ne "
                 "prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine "
                 "crise, qui ne ressemblera pas nécessairement à celles-ci."
             ),
         ),
         DisclaimerSection(
-            title="Utilisation à tes risques",
+            title="Utilisation à vos risques",
             body=(
-                "Tu utilises cet outil à tes propres risques, et les décisions que "
-                "tu prends relèvent de ta seule responsabilité. La responsabilité "
+                "Vous utilisez cet outil à vos propres risques, et les décisions que "
+                "vous prenez relèvent de votre seule responsabilité. La responsabilité "
                 "de l'auteur de l'outil ne peut être engagée pour les conséquences "
                 "de décisions fondées sur les informations qu'il affiche."
             ),

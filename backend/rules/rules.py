@@ -56,7 +56,6 @@ from .thresholds import (
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
-    THIN_TAIL,
     Threshold,
     capital_share,
     most_correlated_pair,
@@ -70,7 +69,6 @@ class RuleId(Enum):
     SYSTEMATIC_SHARE = "part systématique"
     CRISIS_DEGRADATION = "dégradation en crise"
     SCENARIO_COVERAGE = "couverture d'un scénario"
-    TAIL_FRAGILITY = "fragilité de la queue"
 
 
 @dataclass(frozen=True)
@@ -157,31 +155,70 @@ def _lignes(nombre: int) -> str:
 
 
 def effective_concentration(report: RiskReport) -> Observation:
-    """« Tes N lignes se comportent comme M lignes effectives. » Aucun seuil."""
+    """« Tes N lignes se comportent comme M lignes effectives », en capital ET en
+    risque. Aucun seuil.
+
+    La version en capital (`1/Σwᵢ²`) seule est la plus flatteuse des deux quand
+    le risque se concentre davantage que la valeur : un portefeuille équilibré en
+    montants peut porter l'essentiel de sa variance sur quelques lignes volatiles
+    et corrélées. L'écart entre les deux nombres est l'observation la plus utile
+    de la règle — le risque ne se répartit pas comme le capital.
+    """
     c = report.concentration
+    vc = report.variance_contributions
+    en_capital = c.effective_positions
+    en_risque = vc.effective_positions
+
     if c.n_positions == 1:
         texte = (
             "Ton portefeuille compte une seule ligne : il se comporte comme une "
-            "seule ligne effective."
+            "seule ligne effective, en capital comme en risque."
         )
     else:
-        texte = (
-            f"Tes {c.n_positions} lignes se comportent comme "
-            f"{_decimal(c.effective_positions, 1)} lignes effectives en valeur "
-            f"(inverse de l'indice de Herfindahl-Hirschman, {_decimal(c.hhi, 3)}). "
-            f"À poids égaux, elles en vaudraient {c.n_positions}."
+        capital_affiche = _decimal(en_capital, 1)
+        risque_affiche = _decimal(en_risque, 1)
+        ecart = round(en_risque, 1) - round(en_capital, 1)
+        liaison = "mais" if ecart < 0 else "et"
+        phrases = [
+            f"Tes {c.n_positions} lignes se comportent comme {capital_affiche} lignes "
+            f"effectives en capital, {liaison} comme {risque_affiche} en risque "
+            "(inverse de la somme des carrés des poids, puis des contributions à la "
+            "variance)."
+        ]
+        phrases.append(
+            f"En capital, l'équipondération en donnerait {c.n_positions}."
         )
+        if ecart < 0:
+            phrases.append(
+                "Le risque se concentre davantage que le capital : la lecture en "
+                "capital seule est la plus flatteuse des deux."
+            )
+        elif ecart > 0:
+            phrases.append("Le risque se répartit plus également que le capital.")
+        else:
+            phrases.append("Le risque se répartit comme le capital.")
+        if vc.has_negative_contribution:
+            phrases.append(
+                "Une contribution négative à la variance rend la lecture en risque "
+                "approximative."
+            )
+        texte = " ".join(phrases)
+
     return Observation(
         rule=RuleId.EFFECTIVE_CONCENTRATION,
         subject="portefeuille",
         statement=texte,
         facts={
             "lignes": c.n_positions,
-            "lignes_effectives": c.effective_positions,
+            "lignes_effectives_capital": en_capital,
+            "lignes_effectives_risque": en_risque,
             "hhi": c.hhi,
             "reference_equiponderee": c.equal_weight_reference,
         },
-        provenance=f"valorisation au {c.as_of}",
+        provenance=(
+            f"capital : valorisation au {c.as_of} ; risque : fenêtre d'estimation "
+            f"de {vc.window}"
+        ),
     )
 
 
@@ -572,40 +609,6 @@ def scenario_coverage(
     return observations
 
 
-# ------------------------------------------------- 7. Fragilité de la queue --
-
-
-def tail_fragility(report: RiskReport) -> list[Observation]:
-    """CVaR moyennés sur une poignée d'observations de queue."""
-    observations = []
-    for niveau in sorted(report.expected_shortfall):
-        es = report.expected_shortfall[niveau]
-        if not es.thin_tail:
-            continue
-        observations.append(
-            Observation(
-                rule=RuleId.TAIL_FRAGILITY,
-                subject=f"CVaR {_pct(niveau, 0)}",
-                statement=(
-                    f"Le CVaR à {_pct(niveau, 0)} ({_pct(es.value, 2)} de perte moyenne "
-                    "au-delà du quantile de VaR) est la moyenne de "
-                    f"{es.tail_observations} séances seulement, sur une fenêtre de "
-                    f"{es.window.observations}. Le chiffre reste calculable, mais "
-                    f"chacune de ces journées y pèse pour {_pct(1.0 / es.tail_observations, 0)}."
-                ),
-                facts={
-                    "niveau": niveau,
-                    "cvar": es.value,
-                    "observations_de_queue": es.tail_observations,
-                    "seances": es.window.observations,
-                },
-                provenance=f"fenêtre d'estimation : {es.window}",
-                thresholds=(THIN_TAIL,),
-            )
-        )
-    return observations
-
-
 # ------------------------------------------------------------ Évaluation --
 
 
@@ -614,7 +617,7 @@ def evaluate(
     scenarios: Sequence[ScenarioResult] = (),
     regimes: Sequence[RegimeComparison] = (),
 ) -> RulesReport:
-    """Applique les sept règles aux résultats déjà produits. Fonction pure."""
+    """Applique les six règles aux résultats déjà produits. Fonction pure."""
     observations = [
         effective_concentration(report),
         *variance_contribution(report, scenarios),
@@ -622,7 +625,6 @@ def evaluate(
         *systematic_share(report),
         *crisis_degradation(regimes),
         *scenario_coverage(scenarios),
-        *tail_fragility(report),
     ]
     return RulesReport(
         portfolio_id=report.portfolio_id,

@@ -21,10 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from backend.risk_engine.config import (
-    MIN_REGRESSION_OBSERVATIONS,
-    THIN_TAIL_OBSERVATIONS,
-)
+from backend.risk_engine.config import MIN_REGRESSION_OBSERVATIONS
 
 
 class ThresholdKind(Enum):
@@ -75,22 +72,15 @@ STRONG_CORRELATION = Threshold(
 MIN_SCENARIO_COVERAGE = Threshold(
     name="couverture minimale d'un scénario",
     kind=ThresholdKind.CHOSEN,
-    value=0.50,
+    value=0.80,
     rationale=(
-        "en dessous, la partie rejouée devient minoritaire dans la valeur du "
-        "portefeuille et son résultat ne peut plus tenir lieu de chiffre principal"
+        "le biais de la renormalisation est orienté — la partie exclue est plus "
+        "récente, donc en moyenne plus spéculative —, un seuil plus strict qu'un "
+        "pile ou face s'impose ; à 80 %, même si la partie exclue avait perdu deux "
+        "fois plus que la partie couverte, la perte de l'ensemble ne dépasserait le "
+        "chiffre affiché que d'un cinquième, contre moitié plus à 50 %"
     ),
     percent=True,
-)
-
-THIN_TAIL = Threshold(
-    name="nombre minimal d'observations de queue d'un CVaR",
-    kind=ThresholdKind.CHOSEN,
-    value=float(THIN_TAIL_OBSERVATIONS),
-    rationale=(
-        "marque le passage d'une moyenne sur quelques dizaines de journées à une "
-        "moyenne sur une poignée"
-    ),
 )
 
 MIN_REGRESSION_SAMPLE = Threshold(

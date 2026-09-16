@@ -631,12 +631,13 @@ def test_le_rapport_expose_les_var_aux_deux_niveaux(conn):
         assert es.tail_observations > 0
 
 
-def test_la_queue_fine_est_signalee_dans_le_resultat(conn):
-    """La fragilité du CVaR à 99 % doit se voir dans la sortie.
+def test_le_cvar_a_99_porte_son_avertissement_en_permanence(conn):
+    """La fragilité du CVaR à 99 % est lisible dans la sortie, attachée au chiffre.
 
     Sur 250 séances, le 95 % moyenne une douzaine de points quand le 99 % n'en
-    moyenne que trois. Le second reste calculable, mais son incertitude n'a rien
-    à voir avec celle du premier.
+    moyenne que trois. À 99 %, la queue est courte par construction : ce n'est
+    pas une anomalie à détecter, l'avertissement accompagne donc toujours le
+    chiffre plutôt que de se déclencher.
     """
     j = seances(300)
     peupler(
@@ -650,8 +651,8 @@ def test_la_queue_fine_est_signalee_dans_le_resultat(conn):
     large = rapport.expected_shortfall[0.95]
 
     assert fin.tail_observations < large.tail_observations
-    assert fin.thin_tail, "moins de dix points : estimation fragile"
-    assert not large.thin_tail
+    assert fin.caveat.startswith(f"Moyenne de {fin.tail_observations} séances seulement")
+    assert large.caveat is None
 
 
 def test_les_matrices_du_rapport_sont_coherentes(conn):

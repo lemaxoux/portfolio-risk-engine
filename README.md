@@ -64,7 +64,7 @@ app/
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
 │   │   └── config.py    #   taux sans risque, fenêtre, ddof, λ EWMA
 │   ├── rules/           # Moteur de règles — décrit, ne prescrit pas
-│   │   ├── rules.py     #   les sept règles et leurs observations
+│   │   ├── rules.py     #   les six règles et leurs observations
 │   │   ├── thresholds.py#   seuils et provenance
 │   │   └── disclaimer.py#   texte du bandeau d'acceptation
 │   ├── api/             # Endpoints FastAPI
@@ -230,10 +230,11 @@ nombres plausibles qui ne se contredisent que dans les inégalités. Une valeur
 négative signifie donc un gain à ce niveau de confiance, pas une erreur.
 
 **Le CVaR porte sa taille de queue.** À 99 % sur 504 séances, la moyenne ne
-repose que sur ~5 points : le chiffre reste calculable mais son incertitude n'a
-rien à voir avec celle du même calcul à 95 %. `tail_observations` et le drapeau
-`thin_tail` rendent cette fragilité lisible dans la sortie, au même titre que la
-fenêtre ou la date de valorisation.
+repose que sur 6 séances : le chiffre reste calculable, mais son incertitude n'a
+rien à voir avec celle du même calcul à 95 %. `tail_observations` est porté par le
+résultat, et à 99 % un avertissement y est attaché en permanence (`caveat`) : la
+queue y est courte par construction, ce n'est pas une anomalie qu'un seuil
+détecterait.
 
 **Le Monte Carlo est une vérification croisée**, pas une redondance : sous
 normalité, il doit converger vers la VaR paramétrique quand les tirages
@@ -486,15 +487,14 @@ reste du patrimoine. C'est la position honnête, et la seule défendable
 juridiquement. La preuve que ça compte est dans les chiffres du projet : une règle
 « réduis la ligne énergie » aurait visé précisément la ligne qui a apporté +9,4
 points au portefeuille en 2022, pendant que le marché perdait un quart de sa
-valeur. La
-concentration amplifie la variance dans les deux sens, et les observations disent
-les deux. Une garde lexicale vérifie qu'aucune observation ne contient de
-formulation prescriptive ; ce n'est pas une preuve, mais un filet.
+valeur. La concentration amplifie la variance dans les deux sens, et les
+observations disent les deux. Une garde lexicale vérifie qu'aucune observation ne
+contient de formulation prescriptive ; ce n'est pas une preuve, mais un filet.
 
 **Pas de score de risque global.** C'est la sortie la plus tentante pour un outil
 grand public et la plus mauvaise : elle comprime des grandeurs non commensurables
-— une concentration, une part systématique, une fragilité de queue — en un nombre
-dont l'échelle ne veut rien dire, et elle invite exactement à la lecture
+— une concentration, une part systématique, une couverture de scénario — en un
+nombre dont l'échelle ne veut rien dire, et elle invite exactement à la lecture
 prescriptive qu'on évite. Un tel chiffre fonctionne quand un conseiller humain
 l'interprète ; sans cet intermédiaire, il a l'air d'une autorité sans en être une.
 Le résultat est une liste d'observations, et rien d'autre.
@@ -508,13 +508,35 @@ contribution négative signale une ligne qui a évolué à rebours du reste.
 
 | Règle | Ce qu'elle décrit | Seuil |
 |---|---|---|
-| 1. Concentration effective | « tes N lignes se comportent comme M lignes effectives » (1/HHI) | aucun |
+| 1. Concentration effective | lignes effectives en capital (`1/Σwᵢ²`) **et** en risque (`1/Σcᵢ²`), et l'écart entre les deux | aucun |
 | 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne |
 | 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille |
 | 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun |
 | 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée | 60 séances **choisies** pour signaler un échantillon trop mince |
-| 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 50 %, aucun chiffre principal | 50 % **choisi** |
-| 7. Fragilité de la queue | CVaR moyenné sur une poignée de séances, et le poids de chacune | 10 observations **choisies** |
+| 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
+
+**La concentration se dit en capital et en risque.** Le nombre de lignes
+effectives en capital seul est la plus flatteuse des deux lectures : un
+portefeuille équilibré en montants peut porter l'essentiel de sa variance sur
+quelques lignes volatiles et corrélées. L'écart entre les deux nombres est
+l'observation la plus utile de la règle — le risque ne se répartit pas comme le
+capital.
+
+**Une couverture de scénario minimale à 80 %, choisie à la main.** Le biais de la
+renormalisation est orienté : une ligne absente de l'historique d'une crise est
+cotée plus récemment, donc en moyenne plus spéculative, et le chiffre calculé sur
+le reste décrit la partie la plus solide du portefeuille. Un seuil plus strict
+qu'un pile ou face s'impose. À 80 %, même si la partie exclue avait perdu deux
+fois plus que la partie couverte, la perte de l'ensemble ne dépasserait le chiffre
+affiché que d'un cinquième — contre moitié plus à 50 %.
+
+**Le CVaR à 99 % porte un avertissement permanent, pas une règle.** À 99 %, la
+queue ne compte que 1 % de la fenêtre : 6 séances sur 504. Un seuil « moins de 10
+observations » serait allumé à chaque calcul, et une alerte permanente n'informe
+plus. L'avertissement est donc attaché au chiffre lui-même
+(`ExpectedShortfallResult.caveat`), plutôt que présenté comme une anomalie
+détectée. Sur le portefeuille de démonstration, le CVaR à 99 % de 3,00 %
+est accompagné de : « Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre. »
 
 **Les seuils sont traités explicitement**, car ils sont le point faible de tout
 moteur de règles. Par ordre de préférence : pas de seuil du tout quand la mesure
@@ -527,7 +549,7 @@ valorisation.
 
 Illustration sur le portefeuille de démonstration (données au 9 septembre 2026) :
 
-> Tes 6 lignes se comportent comme 5,7 lignes effectives en valeur (inverse de l'indice de Herfindahl-Hirschman, 0,177). À poids égaux, elles en vaudraient 6.
+> Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque (inverse de la somme des carrés des poids, puis des contributions à la variance). En capital, l'équipondération en donnerait 6. Le risque se concentre davantage que le capital : la lecture en capital seule est la plus flatteuse des deux.
 >
 > JPM pèse 25,6 % de la valeur du portefeuille et 35,4 % de sa variance. Sa part du risque dépasse sa part du capital de 9,8 points. Plus une ligne pèse dans la variance, plus elle pèse sur le résultat du portefeuille, dans les deux sens : à la baisse comme à la hausse. Dans les crises rejouées, la contribution de JPM au résultat du portefeuille a été négative à chaque fois, de −16,6 pts (Crise financière 2008) à −8,7 pts (Resserrement monétaire 2022).
 >
@@ -536,27 +558,27 @@ Illustration sur le portefeuille de démonstration (données au 9 septembre 2026
 > Sur 504 séances, 49 % de la variance du portefeuille s'explique par les mouvements de SPY (R² 0,49). Cette part est du risque de marché : elle est commune aux actions américaines, et en détenir davantage ne la dilue pas. Les 51 % restants sont propres aux lignes détenues ; c'est sur eux seuls que la diversification entre lignes a prise.
 >
 > La part systématique du risque passe de 49 % en régime calme à 86 % (Crise financière 2008), 98 % (Krach COVID — échantillon trop mince) et 79 % (Resserrement monétaire 2022) dans les crises rejouées. Elle augmente dans les 3 crises rejouées : la diversification entre lignes s'est affaiblie précisément pendant les épisodes où elle aurait servi. Un R² de crise estimé sur moins de 60 séances repose sur un échantillon trop mince (Krach COVID).
->
-> Le CVaR à 99 % (3,00 % de perte moyenne au-delà du quantile de VaR) est la moyenne de 6 séances seulement, sur une fenêtre de 504. Le chiffre reste calculable, mais chacune de ces journées y pèse pour 17 %.
 
 ### Texte du bandeau d'acceptation
 
 Seulement le texte ; l'écran qui le portera relève de la Phase 7. Sa source est
 `backend/rules/disclaimer.py`, qui tire la taille de la fenêtre de la configuration
 du moteur : le texte ne peut pas annoncer 504 séances le jour où le calcul en
-utiliserait un autre nombre. Ce texte n'a pas été relu par un juriste.
+utiliserait un autre nombre. Le bandeau **vouvoie** alors que les observations
+tutoient : c'est le seul texte du projet à portée quasi juridique, et un registre
+formel l'y distingue du reste. Ce texte n'a pas été relu par un juriste.
 
 > **Avant d'utiliser Mx Risk MGT**
 >
-> **Un outil informatif, pas un conseil.** Mx Risk MGT décrit des propriétés statistiques de ton portefeuille. Il ne constitue pas un conseil en investissement réglementé, ni une recommandation d'acheter, de vendre ou de conserver un titre. Il ne connaît ni ton horizon de placement, ni tes objectifs, ni ta situation fiscale, ni le reste de ton patrimoine : aucune de ses observations ne peut en tenir compte.
+> **Un outil informatif, pas un conseil.** Mx Risk MGT décrit des propriétés statistiques de votre portefeuille. Il ne constitue pas un conseil en investissement réglementé, ni une recommandation d'acheter, de vendre ou de conserver un titre. Il ne connaît ni votre horizon de placement, ni vos objectifs, ni votre situation fiscale, ni le reste de votre patrimoine : aucune de ses observations ne peut en tenir compte.
 >
 > **Aucune garantie d'exactitude.** Les données de marché proviennent d'un fournisseur tiers et peuvent comporter des erreurs, des retards ou des omissions. Les calculs reposent sur des hypothèses statistiques et peuvent eux-mêmes être erronés. Aucune garantie n'est donnée sur l'exactitude, l'exhaustivité ou l'actualité des données ni des calculs.
 >
 > **Les mesures décrivent un régime, pas un avenir.** Les mesures de risque courantes — volatilité, VaR, CVaR, beta, corrélations — sont estimées sur les 504 dernières séances de bourse, soit environ 2 ans. Elles décrivent le comportement du portefeuille pendant cette période. Elles ne prédisent pas son comportement futur, qui peut s'en écarter fortement, en particulier lors d'une crise.
 >
-> **Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines.** Les scénarios de stress appliquent à ton portefeuille actuel les mouvements réellement observés pendant des crises passées. Ils ne prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine crise, qui ne ressemblera pas nécessairement à celles-ci.
+> **Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines.** Les scénarios de stress appliquent à votre portefeuille actuel les mouvements réellement observés pendant des crises passées. Ils ne prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine crise, qui ne ressemblera pas nécessairement à celles-ci.
 >
-> **Utilisation à tes risques.** Tu utilises cet outil à tes propres risques, et les décisions que tu prends relèvent de ta seule responsabilité. La responsabilité de l'auteur de l'outil ne peut être engagée pour les conséquences de décisions fondées sur les informations qu'il affiche.
+> **Utilisation à vos risques.** Vous utilisez cet outil à vos propres risques, et les décisions que vous prenez relèvent de votre seule responsabilité. La responsabilité de l'auteur de l'outil ne peut être engagée pour les conséquences de décisions fondées sur les informations qu'il affiche.
 >
 > *J'ai lu ces limites, je les comprends, et j'utilise cet outil en connaissance de cause.*
 
@@ -621,9 +643,10 @@ l'ordre chronologique.
 - [x] **Phase 5B — Régimes et queues épaisses** : comparaison régime calme /
   crise, Monte Carlo en loi de Student, biais de couverture documenté, bornes
   vérifiées sur fenêtre élargie
-- [x] **Phase 6 — Moteur de règles** : sept règles descriptives, contribution
-  à la variance, seuils à provenance déclarée, aucun score global, texte du
-  bandeau d'acceptation
+- [x] **Phase 6 — Moteur de règles** : six règles descriptives, contribution
+  à la variance et lignes effectives en risque, seuils à provenance déclarée,
+  avertissement permanent sur le CVaR à 99 %, aucun score global, texte du
+  bandeau d'acceptation (vouvoyé)
 - [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**

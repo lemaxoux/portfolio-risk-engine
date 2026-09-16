@@ -23,7 +23,6 @@ from .config import (
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
     MIN_REGRESSION_OBSERVATIONS,
-    THIN_TAIL_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     MONTE_CARLO_SEED,
     MONTE_CARLO_SIMULATIONS,
@@ -166,6 +165,15 @@ class VarianceContributionResult:
         """Part de variance − part de valeur, en points."""
         return self.contributions[ticker] - self.weights[ticker]
 
+    @property
+    def effective_positions(self) -> float:
+        """Lignes effectives en risque, `1/Σcᵢ²` (voir `covariance.effective_risk_positions`)."""
+        return covariance.effective_risk_positions(self.contributions)
+
+    @property
+    def has_negative_contribution(self) -> bool:
+        return any(c < 0.0 for c in self.contributions.values())
+
 
 @dataclass(frozen=True)
 class BetaResult:
@@ -211,10 +219,17 @@ class VarResult:
 class ExpectedShortfallResult:
     """Perte moyenne au-delà du quantile de VaR, en perte positive.
 
-    `tail_observations` est porté par le résultat et non relegué aux logs : à
-    99 % sur 504 séances, la moyenne ne porte que sur ~5 points. Le chiffre
-    reste calculable mais son incertitude n'a rien à voir avec celle du même
-    calcul à 95 %, et cela doit se voir dans la sortie.
+    `tail_observations` est porté par le résultat et non relégué aux logs : le
+    CVaR est une moyenne, et le nombre de séances qu'elle moyenne fait partie du
+    chiffre.
+
+    `caveat` porte, en PERMANENCE à 99 % et au-delà, l'avertissement qui va avec
+    ce chiffre. À 99 %, la queue ne compte que 1 % de la fenêtre — 6 séances sur
+    504 à la fenêtre par défaut. Ce n'est pas une anomalie qu'un seuil
+    détecterait : c'est la structure même du chiffre. Un seuil « moins de 10
+    observations » serait allumé à chaque calcul, et une alerte permanente
+    n'informe plus. L'avertissement est donc attaché au chiffre plutôt que
+    déclenché par lui.
     """
 
     value: float
@@ -224,13 +239,14 @@ class ExpectedShortfallResult:
     window: Window
 
     @property
-    def thin_tail(self) -> bool:
-        """Vrai quand la queue est trop courte pour une moyenne stable.
-
-        Seuil `config.THIN_TAIL_OBSERVATIONS`, choisi à la main.
-        """
-        return self.tail_observations < THIN_TAIL_OBSERVATIONS
-
+    def caveat(self) -> str | None:
+        if self.confidence < 0.99:
+            return None
+        poids = round(100 / self.tail_observations)
+        return (
+            f"Moyenne de {self.tail_observations} séances seulement, sur une fenêtre "
+            f"de {self.window.observations} : chacune pèse pour {poids} % du chiffre."
+        )
 
 @dataclass(frozen=True)
 class PortfolioSeries:

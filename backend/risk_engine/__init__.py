@@ -25,7 +25,6 @@ from .config import (
     EWMA_LAMBDA,
     MIN_REGRESSION_OBSERVATIONS,
     RISK_FREE_RATE_OBSERVED_ON,
-    THIN_TAIL_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     daily_risk_free_rate,
     risk_free_observation_date,
@@ -36,6 +35,7 @@ from .covariance import (
     beta,
     correlation_matrix,
     covariance_matrix,
+    effective_risk_positions,
     variance_contributions,
 )
 from .engine import (
@@ -130,7 +130,6 @@ __all__ = [
     "RISK_FREE_RATE_OBSERVED_ON",
     "SCENARIOS",
     "SCENARIOS_BY_KEY",
-    "THIN_TAIL_OBSERVATIONS",
     "TRADING_DAYS_PER_YEAR",
     "Beta",
     "BetaResult",
@@ -175,6 +174,7 @@ __all__ = [
     "covariance_matrix",
     "daily_risk_free_rate",
     "downside_deviation",
+    "effective_risk_positions",
     "end_to_end_return",
     "equal_weight_reference",
     "ewma_volatility",

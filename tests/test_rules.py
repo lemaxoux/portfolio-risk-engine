@@ -20,8 +20,7 @@ import pandas as pd
 import pytest
 
 from backend.db.init_db import connect, init_db
-from backend.risk_engine.config import THIN_TAIL_OBSERVATIONS
-from backend.risk_engine.covariance import variance_contributions
+from backend.risk_engine.covariance import effective_risk_positions, variance_contributions
 from backend.risk_engine.engine import (
     ConcentrationResult,
     ExcludedPosition,
@@ -41,7 +40,6 @@ from backend.rules import (
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
-    THIN_TAIL,
     Observation,
     RuleId,
     RulesReport,
@@ -54,7 +52,6 @@ from backend.rules import (
     evaluate_portfolio,
     scenario_coverage,
     systematic_share,
-    tail_fragility,
     variance_contribution,
 )
 
@@ -128,6 +125,19 @@ def test_lignes_independantes_de_meme_volatilite_contribuent_selon_le_carre_du_p
     parts = variance_contributions({"A": 0.5, "B": 0.3, "C": 0.2}, cov)
     total = 0.5**2 + 0.3**2 + 0.2**2
     assert parts["A"] == pytest.approx(0.25 / total)
+
+
+def test_lignes_effectives_en_risque_aux_bornes():
+    assert effective_risk_positions({"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}) == pytest.approx(4.0)
+    assert effective_risk_positions({"A": 1.0}) == pytest.approx(1.0)
+
+
+def test_lignes_effectives_en_risque_jamais_au_dela_de_n_meme_avec_une_contribution_negative():
+    # Les contributions sommant à 1, 1/Σc² ≤ N ; une forte contribution négative
+    # peut en revanche faire descendre le nombre sous 1.
+    for parts in ({"A": 0.7, "B": 0.4, "C": -0.1}, {"A": 1.2, "B": -0.2}):
+        assert effective_risk_positions(parts) <= len(parts) + 1e-12
+    assert effective_risk_positions({"A": 1.2, "B": -0.2}) < 1.0
 
 
 def test_les_poids_sont_apparies_a_la_matrice_par_etiquette():
@@ -241,7 +251,7 @@ def rapport(entrees) -> RulesReport:
 # ================================================================ Principes ==
 
 
-def test_les_sept_regles_s_expriment_sur_un_portefeuille_qui_les_declenche(rapport):
+def test_les_six_regles_s_expriment_sur_un_portefeuille_qui_les_declenche(rapport):
     assert {o.rule for o in rapport.observations} == set(RuleId)
 
 
@@ -293,19 +303,67 @@ def concentration(n: int, effectives: float) -> ConcentrationResult:
     )
 
 
-def test_la_concentration_effective_se_dit_sans_seuil(risque):
-    obs = effective_concentration(replace(risque, concentration=concentration(6, 5.65)))
+DEMO_POIDS = {"JPM": 0.256, "JNJ": 0.161, "XOM": 0.158, "AAPL": 0.152, "MSFT": 0.148, "KO": 0.125}
+DEMO_PARTS = {"JPM": 0.354, "AAPL": 0.221, "MSFT": 0.154, "XOM": 0.139, "JNJ": 0.079, "KO": 0.053}
 
-    assert obs.statement.startswith("Tes 6 lignes se comportent comme 5,7 lignes effectives")
-    assert "À poids égaux, elles en vaudraient 6" in obs.statement
+
+def test_la_concentration_se_dit_en_capital_et_en_risque_sans_seuil(risque):
+    """Le risque ne se répartit pas comme le capital, et la version en capital
+    seule est la plus flatteuse des deux."""
+    base = replace(
+        risque,
+        concentration=concentration(6, 5.65),
+        variance_contributions=_contributions(DEMO_PARTS, DEMO_POIDS),
+    )
+    obs = effective_concentration(base)
+
+    assert obs.statement.startswith(
+        "Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque"
+    )
+    assert "En capital, l'équipondération en donnerait 6." in obs.statement
+    assert "la lecture en capital seule est la plus flatteuse des deux" in obs.statement
+    assert obs.facts["lignes_effectives_risque"] == pytest.approx(1.0 / sum(v * v for v in DEMO_PARTS.values()))
     assert obs.thresholds == ()
     assert "Aucun seuil" in obs.render()
-    assert obs.provenance == "valorisation au 2026-09-09"
+    assert obs.provenance.startswith("capital : valorisation au 2026-09-09 ; risque : fenêtre")
+
+
+def test_un_risque_mieux_reparti_que_le_capital_est_dit_tel_quel(risque):
+    base = replace(
+        risque,
+        concentration=concentration(3, 1.0 / (0.6**2 + 0.2**2 + 0.2**2)),
+        variance_contributions=_contributions(
+            {"A": 0.34, "B": 0.33, "C": 0.33}, {"A": 0.6, "B": 0.2, "C": 0.2}
+        ),
+    )
+    obs = effective_concentration(base)
+
+    assert "et comme 3,0 en risque" in obs.statement
+    assert "se répartit plus également que le capital" in obs.statement
+    assert "flatteuse" not in obs.statement
+
+
+def test_une_contribution_negative_rend_la_lecture_en_risque_approximative(risque):
+    base = replace(
+        risque,
+        concentration=concentration(2, 1.0 / (0.8**2 + 0.2**2)),
+        variance_contributions=_contributions({"A": 1.1, "B": -0.1}, {"A": 0.8, "B": 0.2}),
+    )
+    assert "approximative" in effective_concentration(base).statement
 
 
 def test_la_concentration_d_une_ligne_unique(risque):
-    obs = effective_concentration(replace(risque, concentration=concentration(1, 1.0)))
-    assert "une seule ligne" in obs.statement
+    base = replace(
+        risque,
+        concentration=concentration(1, 1.0),
+        variance_contributions=_contributions({"A": 1.0}, {"A": 1.0}),
+    )
+    assert "une seule ligne effective, en capital comme en risque" in effective_concentration(base).statement
+
+
+def test_le_nombre_en_risque_du_rapport_est_celui_de_la_mesure(risque):
+    vc = risque.variance_contributions
+    assert vc.effective_positions == pytest.approx(effective_risk_positions(vc.contributions))
 
 
 # ================================================ 2. Contribution à la variance ==
@@ -382,7 +440,7 @@ def test_le_parcours_en_crise_est_dit_dans_les_deux_sens(entrees):
 def test_un_scenario_sous_le_seuil_de_couverture_n_alimente_pas_le_parcours(entrees):
     risque, (modele,), _ = entrees
 
-    mince = _scenario(modele, "mince", "Mince", {"A": -0.40}, part_couverte=0.30)
+    mince = _scenario(modele, "mince", "Mince", {"A": -0.40}, part_couverte=0.70)
     obs = {o.subject: o for o in variance_contribution(risque, (mince,))}
 
     assert "scenario:mince" not in obs["A"].facts
@@ -492,20 +550,25 @@ def test_un_scenario_complet_ne_produit_pas_d_observation(entrees):
     assert scenario_coverage([complet]) == []
 
 
-def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee_et_son_biais(rapport):
-    (obs,) = rapport.of_rule(RuleId.SCENARIO_COVERAGE)
+def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee_et_son_biais(conn):
+    peupler(conn, part_de_c=0.10)
+    (obs,) = evaluer(conn).of_rule(RuleId.SCENARIO_COVERAGE)
 
-    assert obs.facts["part_couverte"] == pytest.approx(0.70, abs=0.01)
+    assert obs.facts["part_couverte"] == pytest.approx(0.90, abs=0.01)
     assert "resultat_partie_couverte" in obs.facts
-    assert "couvre 70 % de la valeur" in obs.statement
+    assert "couvre 90 % de la valeur" in obs.statement
     assert "sous-estime probablement" in obs.statement
     assert obs.thresholds == (MIN_SCENARIO_COVERAGE,)
 
 
 def test_sous_le_seuil_aucun_chiffre_principal(conn):
-    peupler(conn, part_de_c=0.70)
+    """70 % de couverture : un chiffre aurait été produit sous l'ancien seuil de
+    50 %, il ne l'est plus. Le chiffre décrirait la partie la plus établie du
+    portefeuille, et la partie exclue pèse trop pour que le biais reste borné."""
+    peupler(conn, part_de_c=0.30)
     (obs,) = evaluer(conn).of_rule(RuleId.SCENARIO_COVERAGE)
 
+    assert obs.facts["part_couverte"] == pytest.approx(0.70, abs=0.01)
     assert obs.facts["part_couverte"] < MIN_SCENARIO_COVERAGE.value
     assert "resultat_partie_couverte" not in obs.facts
     assert "aucun chiffre principal n'est donné" in obs.statement
@@ -523,7 +586,7 @@ def test_sans_ligne_couverte_aucun_chiffre(entrees):
     assert "Aucun chiffre n'est produit" in obs.statement
 
 
-# ================================================== 7. Fragilité de la queue ==
+# ============================================ Avertissement attaché au CVaR 99 % ==
 
 
 def queue(niveau, observations):
@@ -532,36 +595,34 @@ def queue(niveau, observations):
     )
 
 
-def test_une_queue_mince_est_signalee_avec_son_seuil_choisi(risque):
-    base = replace(risque, expected_shortfall={0.95: queue(0.95, 26), 0.99: queue(0.99, 6)})
-    (obs,) = tail_fragility(base)
-
-    assert obs.subject == "CVaR 99 %"
-    assert "est la moyenne de 6 séances seulement, sur une fenêtre de 504" in obs.statement
-    assert "chacune de ces journées y pèse pour 17 %" in obs.statement
-    assert obs.thresholds == (THIN_TAIL,)
-    assert THIN_TAIL.chosen
-
-
-def test_une_queue_suffisante_ne_produit_pas_d_observation(risque):
-    base = replace(risque, expected_shortfall={0.95: queue(0.95, 26)})
-    assert tail_fragility(base) == []
+def test_le_cvar_a_99_porte_en_permanence_son_avertissement():
+    """Attaché au chiffre, pas déclenché par lui : présent quelle que soit la
+    taille de la queue, y compris quand elle serait « suffisante »."""
+    assert queue(0.99, 6).caveat == (
+        "Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre."
+    )
+    assert "50 séances" in queue(0.99, 50).caveat
+    assert queue(0.95, 26).caveat is None
 
 
-def test_le_seuil_de_queue_est_le_meme_que_celui_du_moteur():
-    assert THIN_TAIL.value == THIN_TAIL_OBSERVATIONS
-    assert queue(0.99, THIN_TAIL_OBSERVATIONS - 1).thin_tail
-    assert not queue(0.99, THIN_TAIL_OBSERVATIONS).thin_tail
+def test_la_fragilite_de_la_queue_n_est_plus_une_regle_qui_se_declenche(rapport):
+    assert "fragilité de la queue" not in {r.value for r in RuleId}
+    assert all("CVaR" not in o.statement for o in rapport.observations)
 
 
 # ================================================================== Seuils ==
 
 
 def test_chaque_seuil_choisi_dit_qu_il_a_ete_choisi():
-    for seuil in (STRONG_CORRELATION, MIN_SCENARIO_COVERAGE, THIN_TAIL, MIN_REGRESSION_SAMPLE):
+    for seuil in (STRONG_CORRELATION, MIN_SCENARIO_COVERAGE, MIN_REGRESSION_SAMPLE):
         assert seuil.kind is ThresholdKind.CHOSEN
         assert "CHOISI à la main, non dérivé des données" in str(seuil)
-    assert "= 50 %" in str(MIN_SCENARIO_COVERAGE)
+
+
+def test_la_couverture_minimale_est_plus_stricte_qu_un_pile_ou_face():
+    assert MIN_SCENARIO_COVERAGE.value == 0.80
+    assert "= 80 %" in str(MIN_SCENARIO_COVERAGE)
+    assert "d'un cinquième" in MIN_SCENARIO_COVERAGE.rationale
 
 
 def test_un_seuil_calcule_ne_se_presente_pas_comme_choisi(rapport):
@@ -581,9 +642,20 @@ def test_le_bandeau_couvre_les_points_attendus():
         "504 dernières séances de bourse, soit environ 2 ans",
         "Elles ne prédisent pas son comportement futur",
         "ne prédisent ni la survenue, ni l'ampleur, ni la forme",
-        "à tes propres risques",
+        "à vos propres risques",
     ):
         assert attendu in texte, attendu
+
+
+def test_le_bandeau_vouvoie_et_les_observations_tutoient(rapport):
+    """Registre formel pour le seul texte à portée quasi juridique."""
+    tutoiement = re.compile(r"\b(tu|ton|ta|tes|toi)\b", re.IGNORECASE)
+    vouvoiement = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
+
+    assert tutoiement.search(rapport.disclaimer) is None
+    assert vouvoiement.search(rapport.disclaimer)
+    concentration_obs = rapport.of_rule(RuleId.EFFECTIVE_CONCENTRATION)[0]
+    assert tutoiement.search(concentration_obs.statement)
 
 
 def test_le_bandeau_suit_la_fenetre_reellement_utilisee(rapport):

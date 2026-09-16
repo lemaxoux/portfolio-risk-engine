@@ -5,7 +5,7 @@ des propriétés du portefeuille, il ne prescrit jamais d'action, il ne produit
 aucun score global, et il ne recalcule rien.
 
 * `thresholds` — les seuils et leur provenance (calculée, relative, ou choisie) ;
-* `rules` — les sept règles et l'évaluation d'un portefeuille ;
+* `rules` — les six règles et l'évaluation d'un portefeuille ;
 * `disclaimer` — le texte du bandeau d'acceptation.
 """
 
@@ -30,14 +30,12 @@ from .rules import (
     evaluate_portfolio,
     scenario_coverage,
     systematic_share,
-    tail_fragility,
     variance_contribution,
 )
 from .thresholds import (
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
-    THIN_TAIL,
     Threshold,
     ThresholdKind,
 )
@@ -49,7 +47,6 @@ __all__ = [
     "MIN_REGRESSION_SAMPLE",
     "MIN_SCENARIO_COVERAGE",
     "STRONG_CORRELATION",
-    "THIN_TAIL",
     "DisclaimerSection",
     "Observation",
     "RuleId",
@@ -65,6 +62,5 @@ __all__ = [
     "evaluate_portfolio",
     "scenario_coverage",
     "systematic_share",
-    "tail_fragility",
     "variance_contribution",
 ]

@@ -174,6 +174,26 @@ def variance_contributions(
     return {ticker: float(part) for ticker, part in zip(weights, parts, strict=True)}
 
 
+def effective_risk_positions(contributions: Mapping[str, float]) -> float:
+    """Nombre de lignes effectives en RISQUE : `1 / Σ cᵢ²`.
+
+    Même formule que le nombre de lignes effectives en capital (`1/HHI`, avec
+    `HHI = Σ wᵢ²`), appliquée aux contributions à la variance au lieu des poids.
+    L'écart entre les deux dit que le risque ne se répartit pas comme le
+    capital : un portefeuille équilibré en valeur peut concentrer sa variance
+    sur deux ou trois lignes volatiles et corrélées entre elles.
+
+    Les contributions sommant à 1, le résultat ne dépasse jamais N, même avec
+    des contributions négatives (inégalité de Cauchy-Schwarz). Il peut en
+    revanche descendre sous 1 quand une ligne a une contribution négative
+    importante : la lecture en « nombre de lignes » devient alors approximative.
+    """
+    somme_des_carres = sum(c * c for c in contributions.values())
+    if somme_des_carres <= 0.0:
+        raise ValueError("Aucune contribution : nombre de lignes effectives indéfini.")
+    return 1.0 / somme_des_carres
+
+
 def parametric_volatility(
     weights: Mapping[str, float],
     cov: pd.DataFrame,
