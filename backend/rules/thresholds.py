@@ -8,7 +8,10 @@ par ordre de préférence :
    sans seuil porte un tuple vide ; c'est le cas de la concentration effective
    (« tes 6 lignes se comportent comme 5,7 ») et de la part systématique.
 2. **Un seuil dérivé d'une référence calculée**, comme l'équipondération 1/N ou
-   la part de capital d'une ligne.
+   la part de capital d'une ligne. Entre aussi dans cette catégorie le seuil
+   qui vient de l'ALGÈBRE de l'estimateur et non d'une convention : le nombre
+   d'observations en deçà duquel une statistique cesse d'être une mesure n'a
+   pas été choisi, il se démontre (voir `MIN_ESTIMABLE_OBSERVATIONS`).
 3. **Un seuil relatif au portefeuille lui-même**, comme la corrélation de sa paire
    la plus corrélée.
 4. **En dernier recours seulement, un nombre rond choisi à la main.** Le résultat
@@ -95,6 +98,38 @@ MIN_REGRESSION_SAMPLE = Threshold(
 
 
 # --------------------------------------------- Seuils calculés ou relatifs --
+
+# Le seul seuil du projet qui ne soit pas une convention : il se démontre.
+#
+# Une régression avec constante a n − 2 degrés de liberté RÉSIDUELS. À deux
+# observations il n'en reste aucun : la droite passe exactement par les deux
+# points, son R² vaut 1, et le coefficient de corrélation vaut ±1 — quelles que
+# soient les données. Le chiffre serait identique pour deux titres pris au
+# hasard, ou pour le même titre comparé à lui-même.
+#
+# C'est ce qui sépare ce seuil de `MIN_REGRESSION_SAMPLE`. À 40 séances, un R²
+# est une estimation BRUYANTE : le chiffre dit quelque chose, mal. À 2 séances,
+# ce n'est pas une estimation du tout, c'est une identité arithmétique — et
+# aucune mention d'« échantillon mince » ne répare une phrase qui affirme
+# l'identité comme si elle décrivait le portefeuille. D'où deux régimes : en
+# deçà de ce seuil la règle REFUSE de chiffrer, au-dessus elle chiffre en
+# signalant.
+#
+# Le moteur connaît déjà cette frontière : `covariance.Beta.standard_error` est
+# documenté « None en dessous de trois observations, où elle n'est pas définie ».
+MIN_ESTIMABLE_OBSERVATIONS = Threshold(
+    name="nombre minimal de séances estimables",
+    kind=ThresholdKind.DERIVED,
+    value=3.0,
+    rationale=(
+        "une régression avec constante a n − 2 degrés de liberté résiduels ; à "
+        "deux observations il n'en reste aucun, la droite passe exactement par "
+        "les deux points (R² = 1) et la corrélation vaut ±1 quelles que soient "
+        "les données — en deçà, la statistique n'est pas une estimation mais une "
+        "identité arithmétique"
+    ),
+)
+
 
 
 def capital_share(ticker: str, weight: float) -> Threshold:

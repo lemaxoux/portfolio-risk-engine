@@ -29,7 +29,11 @@ import sqlite3
 from fastapi import APIRouter, Depends, Query, status
 
 from backend.db import portfolios as store
-from backend.risk_engine.config import DEFAULT_BENCHMARK, DEFAULT_WINDOW
+from backend.risk_engine.config import (
+    DEFAULT_BENCHMARK,
+    DEFAULT_WINDOW,
+    MIN_REGRESSION_OBSERVATIONS,
+)
 from backend.risk_engine.engine import (
     RiskReport,
     analyse_portfolio,
@@ -93,11 +97,22 @@ def analyse(
     portfolio_id: int,
     window: int = Query(
         DEFAULT_WINDOW,
-        ge=2,
+        # Le plancher vient du moteur (`MIN_REGRESSION_OBSERVATIONS`), pas d'un
+        # littéral : deux séances suffisaient à obtenir un rapport en 200 où le
+        # R² valait 1 et toutes les corrélations ±1, par construction.
+        #
+        # Ce n'est PAS ce plancher qui protège. La fenêtre effective est celle
+        # de l'intersection des dates : une ligne cotée depuis peu fait tomber
+        # une demande de 504 séances à quelques dizaines d'observations sans
+        # qu'aucun paramètre ait changé. Le contrôle qui compte porte sur
+        # `window.observations`, dans le moteur de règles. Celui-ci évite
+        # seulement qu'un rapport à moitié dégénéré soit demandé exprès.
+        ge=MIN_REGRESSION_OBSERVATIONS,
         le=10_000,
         description=(
             "Fenêtre d'estimation demandée, en séances. Le nombre réellement "
-            "obtenu se lit sur `window.observations` de chaque mesure."
+            "obtenu se lit sur `window.observations` de chaque mesure, et peut "
+            "être bien inférieur si une ligne a un historique court."
         ),
     ),
     benchmark: str | None = Query(

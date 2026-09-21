@@ -37,6 +37,7 @@ from backend.risk_engine.engine import (
 from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.rules import (
+    MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
@@ -690,3 +691,173 @@ def test_regles_sur_un_portefeuille_reel(tmp_path):
     for observation in resultat.observations:
         assert PRESCRIPTIF.search(observation.render()) is None
     assert "504 dernières séances" in resultat.disclaimer
+
+
+# ================================================ Taille de l'échantillon ==
+#
+# Deux régimes, et la frontière entre les deux n'est pas une convention.
+#
+# Sous trois observations, une corrélation vaut ±1 et un R² vaut 1 — par
+# construction, quelles que soient les données : une régression avec constante
+# n'a plus aucun degré de liberté résiduel. Une phrase qui affirme ces valeurs
+# décrit une identité arithmétique en la faisant passer pour une propriété du
+# portefeuille, et aucune mention d'« échantillon mince » ne répare ça.
+#
+# Entre trois séances et le seuil de régression, le chiffre est une estimation
+# réelle mais fragile : il est rendu, et signalé.
+
+
+def fenetre_de(observations: int) -> Window:
+    return Window(
+        requested=504,
+        observations=observations,
+        start=date(2026, 9, 8),
+        end=date(2026, 9, 9),
+    )
+
+
+def avec_correlation(report, valeurs, tickers, observations: int):
+    return replace(
+        report,
+        matrices=replace(
+            report.matrices,
+            correlation=matrice(valeurs, tickers),
+            window=fenetre_de(observations),
+        ),
+    )
+
+
+# ------------------------------------------------- Refus sous trois séances --
+
+
+def test_sous_trois_seances_aucune_correlation_n_est_chiffree(risque):
+    """Deux points sont toujours alignés : |ρ| = 1 n'est pas une mesure."""
+    base = avec_correlation(risque, [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], 2)
+    (obs,) = apparent_diversification(base)
+
+    assert obs.subject == "portefeuille"
+    assert "corrélation de 1,00" not in obs.statement
+    assert "aucune corrélation n'est estimable" in obs.statement
+    assert obs.facts["correlation_max"] is None
+    assert obs.facts["seances"] == 2
+
+
+def test_sous_trois_seances_la_part_systematique_n_est_pas_chiffree(risque):
+    base = replace(risque, beta=replace(risque.beta, r_squared=1.0, window=fenetre_de(2)))
+    (obs,) = systematic_share(base)
+
+    assert "R² 1,00" not in obs.statement
+    assert "100 %" not in obs.statement
+    assert "n'est pas estimable" in obs.statement
+    assert obs.facts["r2"] is None
+    assert obs.facts["part_propre"] is None
+
+
+def test_le_refus_porte_un_seuil_derive_et_non_choisi(risque):
+    """Le 3 se démontre, il ne se choisit pas.
+
+    Une régression avec constante a n − 2 degrés de liberté résiduels. Le
+    « pourquoi » doit être lisible par la machine — via `kind` — et pas
+    seulement dans la phrase.
+    """
+    refus = [
+        apparent_diversification(
+            avec_correlation(risque, [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], 2)
+        )[0],
+        systematic_share(replace(risque, beta=replace(risque.beta, window=fenetre_de(2))))[0],
+    ]
+    for obs in refus:
+        (seuil,) = obs.thresholds
+        assert seuil is MIN_ESTIMABLE_OBSERVATIONS
+        assert seuil.kind is ThresholdKind.DERIVED
+        assert seuil.value == 3.0
+        assert obs.uses_chosen_threshold is False
+        assert "degrés de liberté résiduels" in seuil.rationale
+
+
+# ---------------------------------------- Signalement de trois à soixante --
+
+
+def test_a_trois_seances_la_correlation_est_chiffree_et_signalee_mince(risque):
+    """À trois observations le coefficient mesure enfin quelque chose, mal."""
+    base = avec_correlation(risque, [[1.0, 0.95], [0.95, 1.0]], ["A", "B"], 3)
+    (obs,) = apparent_diversification(base)
+
+    assert obs.facts["correlation"] == pytest.approx(0.95)
+    assert "Estimation mince : 3 séances" in obs.statement
+    assert MIN_REGRESSION_SAMPLE in obs.thresholds
+    assert obs.uses_chosen_threshold
+
+
+def test_a_trois_seances_la_part_systematique_est_chiffree_et_signalee_mince(risque):
+    base = replace(risque, beta=replace(risque.beta, window=fenetre_de(3)))
+    (obs,) = systematic_share(base)
+
+    assert obs.facts["r2"] is not None
+    assert "Estimation mince : 3 séances" in obs.statement
+    assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
+
+
+def test_la_paire_la_plus_correlee_est_aussi_signalee_mince(risque):
+    base = avec_correlation(risque, [[1.0, 0.42], [0.42, 1.0]], ["A", "B"], 40)
+    (obs,) = apparent_diversification(base)
+
+    assert "Estimation mince : 40 séances" in obs.statement
+    kinds = [s.kind for s in obs.thresholds]
+    assert kinds == [
+        ThresholdKind.CHOSEN,
+        ThresholdKind.PORTFOLIO_RELATIVE,
+        ThresholdKind.CHOSEN,
+    ]
+
+
+@pytest.mark.parametrize("observations", [60, 100, 504])
+def test_au_dela_du_seuil_aucune_mention_ni_seuil_supplementaire(risque, observations):
+    """Le seuil est franchi À 60, pas au-dessus : la borne est inclusive."""
+    base = replace(risque, beta=replace(risque.beta, window=fenetre_de(observations)))
+    (obs,) = systematic_share(base)
+
+    assert "Estimation mince" not in obs.statement
+    assert obs.thresholds == ()
+
+
+# ------------------------------------------------------ Garde lexicale --
+
+
+@pytest.mark.parametrize("observations", [2, 3, 10, 40, 59])
+def test_aucune_valeur_degeneree_n_est_affirmee_sans_signalement(risque, observations):
+    """La garde qui résume les deux régimes.
+
+    Sous soixante séances, une phrase ne peut porter « 1,00 » qu'à deux
+    conditions : que la valeur ait été réellement estimée (trois observations
+    au moins) et qu'elle soit accompagnée du seuil CHOISI. Sous trois
+    observations, la valeur n'apparaît pas du tout.
+
+    L'arrondi compte ici : `_decimal(rho, 2)` rend « 1,00 » pour 0,9987, ce qui
+    est légitime sur quarante séances et ne l'est pas sur deux.
+    """
+    parfait = avec_correlation(
+        risque, [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], observations
+    )
+    parfait = replace(
+        parfait, beta=replace(parfait.beta, r_squared=1.0, window=fenetre_de(observations))
+    )
+    observations_rendues = apparent_diversification(parfait) + systematic_share(parfait)
+    assert observations_rendues
+
+    for obs in observations_rendues:
+        degeneree = "corrélation de 1,00" in obs.statement or "R² 1,00" in obs.statement
+        if observations < 3:
+            assert not degeneree, obs.statement
+            assert obs.thresholds == (MIN_ESTIMABLE_OBSERVATIONS,)
+        elif degeneree:
+            assert MIN_REGRESSION_SAMPLE in obs.thresholds, obs.statement
+            assert "Estimation mince" in obs.statement
+
+
+def test_les_refus_ne_prescrivent_rien_non_plus(risque):
+    """La garde lexicale du module vaut aussi pour les phrases de refus."""
+    base = avec_correlation(risque, [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], 2)
+    base = replace(base, beta=replace(base.beta, window=fenetre_de(2)))
+    for obs in apparent_diversification(base) + systematic_share(base):
+        assert PRESCRIPTIF.search(obs.render()) is None, obs.render()

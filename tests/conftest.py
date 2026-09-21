@@ -209,3 +209,85 @@ def portefeuille_synthetique(client_synthetique) -> int:
     )
     assert reponse.status_code == 200, reponse.text
     return identifiant
+
+
+@pytest.fixture
+def base_historique_court(tmp_path):
+    """Fabrique une base où une ligne n'a qu'un historique récent.
+
+    C'est le chemin par lequel une fenêtre EFFECTIVE tombe sous les seuils sans
+    qu'aucun paramètre ait changé : le panel aligné se réduit à l'intersection
+    des dates, donc une demande de 504 séances rend `observations` égal à
+    l'historique de la ligne la plus courte, moins un.
+
+    Un plancher sur le paramètre `window` ne protège pas de ce cas — d'où le
+    contrôle sur `window.observations` dans le moteur de règles.
+    """
+
+    def _fabriquer(seances_courtes: int, seances: int = 300) -> Path:
+        generateur = np.random.default_rng(5)
+        chemin = construire_base(
+            tmp_path / f"court{seances_courtes}.sqlite",
+            {
+                "LONG": (
+                    "Long Inc",
+                    "Energy",
+                    _series_prix(generateur.normal(0.0004, 0.011, seances), 100.0),
+                ),
+                "SPY": (
+                    "S&P 500 ETF",
+                    None,
+                    _series_prix(generateur.normal(0.0004, 0.009, seances), 400.0),
+                ),
+            },
+            seances,
+        )
+        conn = connect(chemin)
+        dates = [
+            ligne[0]
+            for ligne in conn.execute(
+                "SELECT DISTINCT date FROM prices ORDER BY date"
+            )
+        ]
+        cours = _series_prix(
+            generateur.normal(0.0004, 0.013, seances_courtes), 60.0
+        )
+        with conn:
+            conn.execute(
+                "INSERT INTO securities (ticker, name, sector) "
+                "VALUES ('COURT', 'Court Ltd', 'Health Care')"
+            )
+            conn.executemany(
+                "INSERT INTO prices (ticker, date, close, adj_close) "
+                "VALUES ('COURT', ?, ?, ?)",
+                [
+                    (date, valeur, valeur)
+                    for date, valeur in zip(dates[-seances_courtes:], cours)
+                ],
+            )
+        conn.close()
+        return chemin
+
+    return _fabriquer
+
+
+@pytest.fixture
+def analyse_historique_court(base_historique_court, client_factory):
+    """Analyse d'un portefeuille dont une ligne a `seances_courtes` cotations."""
+
+    def _analyser(seances_courtes: int):
+        chemin = base_historique_court(seances_courtes)
+        with client_factory(chemin) as client:
+            identifiant = client.post("/api/portfolios", json={}).json()["id"]
+            client.put(
+                f"/api/portfolios/{identifiant}/positions",
+                json={
+                    "positions": [
+                        {"ticker": "LONG", "quantity": 10},
+                        {"ticker": "COURT", "quantity": 20},
+                    ]
+                },
+            )
+            return client.get(f"/api/portfolios/{identifiant}/analysis?window=504")
+
+    return _analyser

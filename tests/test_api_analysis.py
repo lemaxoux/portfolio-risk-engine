@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 
+import numpy as np
 import pytest
 
 from backend.db.init_db import connect
@@ -725,3 +726,204 @@ def test_la_reponse_porte_le_portefeuille_qu_elle_decrit(
     ).json()
     assert corps["portfolio_id"] == portefeuille_synthetique
     assert corps["portfolio"]["name"] == "Synthétique"
+
+
+# ══════════════════════════════ 12. Taille effective de l'échantillon ══
+#
+# La 7A a rendu atteignable un trou du moteur : en ouvrant `window`, un rapport
+# servi en 200 affirmait « 100 % de la variance s'explique par SPY (R² 1,00) »
+# et « corrélation de 1,00 » pour les dix paires — sur deux séances, où ces
+# valeurs sont des identités arithmétiques.
+#
+# Deux verrous, et un seul des deux protège vraiment.
+
+
+def test_une_fenetre_sous_le_minimum_du_moteur_est_refusee(
+    client_synthetique, portefeuille_synthetique
+):
+    """Le plancher vient de `MIN_REGRESSION_OBSERVATIONS`, pas d'un littéral."""
+    for fenetre in (2, 10, 59):
+        reponse = client_synthetique.get(
+            f"/api/portfolios/{portefeuille_synthetique}/analysis?window={fenetre}"
+        )
+        assert reponse.status_code == 422, fenetre
+        assert reponse.json()["problems"][0]["field"] == "window"
+
+    assert (
+        client_synthetique.get(
+            f"/api/portfolios/{portefeuille_synthetique}/analysis?window=60"
+        ).status_code
+        == 200
+    )
+
+
+def test_le_plancher_de_fenetre_suit_la_constante_du_moteur(client_synthetique):
+    """S'il était écrit en dur, il dériverait le jour où le moteur change d'avis."""
+    from backend.risk_engine.config import MIN_REGRESSION_OBSERVATIONS
+
+    parametres = client_synthetique.get("/openapi.json").json()["paths"][
+        "/api/portfolios/{portfolio_id}/analysis"
+    ]["get"]["parameters"]
+    fenetre = next(p for p in parametres if p["name"] == "window")
+    assert fenetre["schema"]["minimum"] == MIN_REGRESSION_OBSERVATIONS
+
+
+def test_une_ligne_a_l_historique_court_fait_tomber_la_fenetre_effective(
+    analyse_historique_court,
+):
+    """Le plancher sur le paramètre ne protège PAS de ce cas.
+
+    Le panel aligné se réduit à l'intersection des dates : une ligne cotée
+    depuis quarante séances rend `observations` égal à 39, alors que la fenêtre
+    demandée valait 504 et que rien dans la requête ne l'annonçait.
+    """
+    reponse = analyse_historique_court(40)
+    assert reponse.status_code == 200, reponse.text
+
+    corps = reponse.json()
+    assert corps["parameters"]["window"] == 504
+    assert corps["risk"]["volatility"]["window"]["observations"] == 39
+    assert corps["risk"]["volatility"]["window"]["complete"] is False
+
+
+def test_sur_un_echantillon_mince_les_deux_observations_portent_le_seuil_choisi(
+    analyse_historique_court,
+):
+    """Ce que `crisis_degradation` faisait déjà pour le R² de crise."""
+    corps = analyse_historique_court(40).json()
+    concernees = [
+        o
+        for o in corps["observations"]
+        if o["rule"] in ("systematic_share", "apparent_diversification")
+    ]
+    assert len(concernees) >= 2
+    assert {o["rule"] for o in concernees} == {
+        "systematic_share",
+        "apparent_diversification",
+    }
+
+    for observation in concernees:
+        assert "Estimation mince : 39 séances" in observation["statement"]
+        assert observation["uses_chosen_threshold"] is True
+        minimum = [
+            s
+            for s in observation["thresholds"]
+            if s["name"] == "nombre minimal de séances d'une régression"
+        ]
+        assert minimum, observation["rule"]
+        assert minimum[0]["kind"] == "chosen"
+        assert minimum[0]["value"] == 60.0
+
+
+def test_sous_trois_seances_l_api_refuse_de_chiffrer_et_dit_pourquoi(
+    analyse_historique_court,
+):
+    """Trois cotations en commun donnent deux rendements : le régime dégénéré.
+
+    Le rapport reste servi — les autres mesures existent —, mais ces deux
+    observations ne portent aucun chiffre, et le seuil qui l'explique est
+    DÉRIVÉ : il se démontre, il n'a pas été choisi.
+    """
+    reponse = analyse_historique_court(3)
+    assert reponse.status_code == 200, reponse.text
+
+    corps = reponse.json()
+    assert corps["risk"]["volatility"]["window"]["observations"] == 2
+
+    concernees = [
+        o
+        for o in corps["observations"]
+        if o["rule"] in ("systematic_share", "apparent_diversification")
+    ]
+    assert {o["rule"] for o in concernees} == {
+        "systematic_share",
+        "apparent_diversification",
+    }
+
+    for observation in concernees:
+        assert "estimable" in observation["statement"]
+        assert observation["uses_chosen_threshold"] is False
+        (seuil,) = observation["thresholds"]
+        assert seuil["kind"] == "derived"
+        assert seuil["value"] == 3.0
+        assert "degrés de liberté résiduels" in seuil["rationale"]
+        assert seuil["chosen"] is False
+
+
+@pytest.mark.parametrize("seances_courtes", [3, 4, 40])
+def test_aucune_valeur_degeneree_n_est_affirmee_dans_la_reponse(
+    analyse_historique_court, seances_courtes
+):
+    """La garde de bout en bout, sur le JSON réellement servi.
+
+    Sous soixante séances, une phrase ne peut porter « 1,00 » que si la valeur
+    a été réellement estimée — trois observations au moins — et qu'elle est
+    accompagnée du seuil CHOISI qui dit l'échantillon mince.
+    """
+    corps = analyse_historique_court(seances_courtes).json()
+    seances = corps["risk"]["volatility"]["window"]["observations"]
+    assert seances < 60
+
+    for observation in corps["observations"]:
+        if observation["rule"] not in (
+            "systematic_share",
+            "apparent_diversification",
+        ):
+            continue
+        phrase = observation["statement"]
+        degeneree = "corrélation de 1,00" in phrase or "R² 1,00" in phrase
+        if seances < 3:
+            assert not degeneree, phrase
+        elif degeneree:
+            assert observation["uses_chosen_threshold"], phrase
+
+
+def test_une_ligne_a_variance_nulle_est_refusee_par_le_moteur_pas_par_un_nan(
+    tmp_path, client_factory
+):
+    """Un cours inchangé rend la corrélation indéfinie — ni ±1, ni 0.
+
+    Ce cas n'atteint jamais les règles ni les schémas : `correlation_matrix` le
+    refuse d'abord, avec un message qui nomme la ligne fautive. Il ressort donc
+    en 422 lisible, et non en 500 sur un NaN que les schémas auraient rejeté à
+    la construction. Test de non-régression sur ce chemin.
+    """
+    from .conftest import _series_prix, construire_base
+
+    generateur = np.random.default_rng(11)
+    seances = 200
+    chemin = construire_base(
+        tmp_path / "fige.sqlite",
+        {
+            "BOUGE": (
+                "Bouge Inc",
+                "Energy",
+                _series_prix(generateur.normal(0.0004, 0.011, seances), 100.0),
+            ),
+            "FIGE": ("Figé SA", "Utilities", [50.0] * seances),
+            "SPY": (
+                "S&P 500 ETF",
+                None,
+                _series_prix(generateur.normal(0.0004, 0.009, seances), 400.0),
+            ),
+        },
+        seances,
+    )
+
+    with client_factory(chemin) as client:
+        identifiant = client.post("/api/portfolios", json={}).json()["id"]
+        client.put(
+            f"/api/portfolios/{identifiant}/positions",
+            json={
+                "positions": [
+                    {"ticker": "BOUGE", "quantity": 10},
+                    {"ticker": "FIGE", "quantity": 10},
+                ]
+            },
+        )
+        reponse = client.get(f"/api/portfolios/{identifiant}/analysis?window=150")
+
+    assert reponse.status_code == 422
+    detail = reponse.json()["detail"]
+    assert "Variance nulle" in detail
+    assert "FIGE" in detail

@@ -53,6 +53,7 @@ from backend.risk_engine.engine import (
 
 from .disclaimer import acceptance_text
 from .thresholds import (
+    MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
@@ -149,6 +150,46 @@ def _enumeration(elements: Sequence[str]) -> str:
 
 def _lignes(nombre: int) -> str:
     return f"{nombre} ligne" if nombre == 1 else f"{nombre} lignes"
+
+
+# --------------------------------------------- Taille de l'échantillon --
+#
+# Deux régimes, parce que ce sont deux problèmes différents.
+#
+# `_non_estimable` — en deçà de trois observations, une corrélation et un R²
+# ne sont pas des mesures bruyantes, ce sont des identités arithmétiques : la
+# droite passe par les deux points, R² vaut 1, |ρ| vaut 1, quelles que soient
+# les données. La règle REFUSE alors de chiffrer. Y attacher une mention
+# d'échantillon mince ne réparerait rien : la phrase affirmerait toujours,
+# sur le portefeuille, quelque chose que le nombre ne peut pas porter.
+#
+# `_echantillon_mince` — entre trois séances et le seuil de régression, le
+# chiffre est une estimation réelle mais fragile. La règle chiffre et le dit,
+# exactement comme `crisis_degradation` le fait déjà pour le R² de crise.
+#
+# Le contrôle porte sur `window.observations` et jamais sur la fenêtre
+# DEMANDÉE : le panel aligné se réduit à l'intersection des dates, et une seule
+# ligne cotée depuis peu fait tomber une fenêtre de 504 séances à quelques
+# dizaines d'observations sans que le paramètre ait changé.
+
+
+def _non_estimable(seances: int) -> bool:
+    return seances < MIN_ESTIMABLE_OBSERVATIONS.value
+
+
+def _echantillon_mince(seances: int) -> bool:
+    return seances < MIN_REGRESSION_SAMPLE.value
+
+
+def _mention_mince(quoi: str, seances: int) -> str:
+    """Phrase ajoutée à une estimation fragile, vide sinon."""
+    if not _echantillon_mince(seances):
+        return ""
+    return (
+        f" Estimation mince : {seances} séances, moins que les "
+        f"{int(MIN_REGRESSION_SAMPLE.value)} en deçà desquelles quelques "
+        f"journées extrêmes suffisent à porter {quoi}."
+    )
 
 
 # ------------------------------------------- 1. Concentration effective --
@@ -364,6 +405,28 @@ def apparent_diversification(
 
     seances = report.matrices.window.observations
     provenance = f"fenêtre d'estimation : {report.matrices.window}"
+
+    if _non_estimable(seances):
+        return [
+            Observation(
+                rule=RuleId.APPARENT_DIVERSIFICATION,
+                subject="portefeuille",
+                statement=(
+                    f"Sur {seances} séances, aucune corrélation n'est estimable : "
+                    "trois observations sont nécessaires pour qu'un coefficient "
+                    "mesure quelque chose. En deçà, la droite d'ajustement passe "
+                    "exactement par les points et la corrélation vaut ±1 quelles que "
+                    "soient les données — le chiffre serait le même pour deux titres "
+                    "pris au hasard. Aucune paire n'est donc décrite ici."
+                ),
+                facts={"seances": seances, "correlation_max": None},
+                provenance=provenance,
+                thresholds=(MIN_ESTIMABLE_OBSERVATIONS,),
+            )
+        ]
+
+    mince = _mention_mince("le coefficient", seances)
+    seuils_mince = (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
     paires = sorted(
         (
             (float(correlation.loc[a, b]), a, b)
@@ -382,11 +445,12 @@ def apparent_diversification(
                 statement=(
                     f"{a} et {b} ont une corrélation de {_decimal(rho, 2)} sur "
                     f"{seances} séances : elles ont largement évolué ensemble, et "
-                    "apportent moins de diversification que leur nombre ne le suggère."
+                    "apportent moins de diversification que leur nombre ne le "
+                    f"suggère.{mince}"
                 ),
                 facts={"correlation": rho, "seances": seances},
                 provenance=provenance,
-                thresholds=(threshold,),
+                thresholds=(threshold, *seuils_mince),
             )
             for rho, a, b in fortes
         ]
@@ -399,11 +463,15 @@ def apparent_diversification(
             statement=(
                 "Aucune paire de lignes n'atteint une corrélation de "
                 f"{_decimal(threshold.value, 2)} sur {seances} séances. La paire la "
-                f"plus corrélée est {a}–{b}, à {_decimal(rho, 2)}."
+                f"plus corrélée est {a}–{b}, à {_decimal(rho, 2)}.{mince}"
             ),
             facts={"correlation_max": rho, "paire": f"{a}–{b}", "seances": seances},
             provenance=provenance,
-            thresholds=(threshold, most_correlated_pair(a, b, rho)),
+            thresholds=(
+                threshold,
+                most_correlated_pair(a, b, rho),
+                *seuils_mince,
+            ),
         )
     ]
 
@@ -419,6 +487,31 @@ def systematic_share(report: RiskReport) -> list[Observation]:
 
     r2 = beta.r_squared
     seances = beta.window.observations
+    provenance = f"fenêtre d'estimation : {beta.window}"
+
+    if _non_estimable(seances):
+        return [
+            Observation(
+                rule=RuleId.SYSTEMATIC_SHARE,
+                subject="portefeuille",
+                statement=(
+                    f"Sur {seances} séances, la part systématique n'est pas "
+                    "estimable : une régression avec constante n'a plus aucun degré "
+                    "de liberté résiduel en deçà de trois observations, et son R² "
+                    "vaut 1 quelles que soient les données. Aucune part expliquée "
+                    f"par {beta.benchmark} n'est donc avancée ici."
+                ),
+                facts={
+                    "r2": None,
+                    "part_propre": None,
+                    "benchmark": beta.benchmark,
+                    "seances": seances,
+                },
+                provenance=provenance,
+                thresholds=(MIN_ESTIMABLE_OBSERVATIONS,),
+            )
+        ]
+
     return [
         Observation(
             rule=RuleId.SYSTEMATIC_SHARE,
@@ -430,7 +523,7 @@ def systematic_share(report: RiskReport) -> list[Observation]:
                 "commune aux actions américaines, et en détenir davantage ne la dilue "
                 f"pas. Les {_pct(1.0 - r2, 0)} restants sont propres aux lignes "
                 "détenues ; c'est sur eux seuls que la diversification entre lignes a "
-                "prise."
+                f"prise.{_mention_mince('le R²', seances)}"
             ),
             facts={
                 "r2": r2,
@@ -438,7 +531,10 @@ def systematic_share(report: RiskReport) -> list[Observation]:
                 "benchmark": beta.benchmark,
                 "seances": seances,
             },
-            provenance=f"fenêtre d'estimation : {beta.window}",
+            provenance=provenance,
+            thresholds=(
+                (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
+            ),
         )
     ]
 

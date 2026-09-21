@@ -540,10 +540,41 @@ contribution négative signale une ligne qui a évolué à rebours du reste.
 |---|---|---|
 | 1. Concentration effective | lignes effectives en capital (`1/Σwᵢ²`) **et** en risque (`1/Σcᵢ²`), et l'écart entre les deux | aucun |
 | 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne |
-| 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille |
-| 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun |
+| 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
+| 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun en régime normal ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée | 60 séances **choisies** pour signaler un échantillon trop mince |
 | 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
+
+**Deux régimes de taille d'échantillon, et la frontière entre eux n'est pas une
+convention.** Les règles 3 et 4 lisent `window.observations` — le nombre de
+séances RÉELLEMENT utilisées — et non la fenêtre demandée.
+
+- **Sous 3 observations, la règle refuse de chiffrer.** Une régression avec
+  constante a `n − 2` degrés de liberté résiduels : à deux observations il n'en
+  reste aucun, la droite passe exactement par les deux points, son R² vaut 1 et
+  la corrélation vaut ±1 — *quelles que soient les données*. Ce ne sont pas des
+  estimations bruyantes, ce sont des identités arithmétiques, et le chiffre
+  serait le même pour deux titres pris au hasard. Aucune mention d'« échantillon
+  mince » ne répare une phrase qui affirme une identité comme si elle décrivait
+  le portefeuille. L'observation dit donc que la mesure n'est pas estimable, et
+  pourquoi.
+- **De 3 à 59 observations, la règle chiffre et le signale**, avec le seuil
+  `MIN_REGRESSION_SAMPLE` attaché — exactement ce que la règle 5 faisait déjà
+  pour le R² de crise. Le chiffre dit quelque chose, mal.
+
+`MIN_ESTIMABLE_OBSERVATIONS` est le seul seuil du projet déclaré **`DERIVED`
+sans venir d'une référence du portefeuille** : il ne se choisit pas, il se
+démontre. Le `kind` porte cette différence pour une machine, pas seulement la
+phrase. Le moteur connaissait déjà la frontière :
+`covariance.Beta.standard_error` est documenté « None en dessous de trois
+observations, où elle n'est pas définie ».
+
+**Pourquoi le contrôle est dans les règles et pas sur le paramètre.** L'API
+plafonne `window` à `MIN_REGRESSION_OBSERVATIONS`, mais ce plancher ne protège
+pas : le panel aligné se réduit à l'INTERSECTION des dates, et une seule ligne
+cotée depuis peu — un titre chargé par `ingestion add` — fait tomber une demande
+de 504 séances à 39 observations sans qu'aucun paramètre ait changé. Seul un
+contrôle sur `window.observations` voit ce cas.
 
 **La concentration se dit en capital et en risque.** Le nombre de lignes
 effectives en capital seul est la plus flatteuse des deux lectures : un
@@ -747,6 +778,14 @@ une Student — ν ≤ 2, série trop courte —, les champs sortent à `null` e
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
 rapport étant servi normalement. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
+
+**Le plancher de `window` vient du moteur.** Le paramètre est borné par
+`MIN_REGRESSION_OBSERVATIONS` (60), pas par un littéral : `window=2` servait
+auparavant un rapport en 200 où le R² valait 1 et toutes les corrélations ±1,
+par construction. Ce plancher n'est pas la protection — la fenêtre effective
+peut tomber bien plus bas à cause d'une ligne à l'historique court —, il évite
+seulement qu'un rapport à moitié dégénéré soit demandé exprès. Le contrôle qui
+compte est dans le moteur de règles, sur `window.observations`.
 
 **`as_of` ne s'invente pas.** Celui de `/api/meta` est la dernière séance
 présente en base. Celui d'une analyse est la date de valorisation du
