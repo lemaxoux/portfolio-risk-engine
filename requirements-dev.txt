@@ -1,0 +1,9 @@
+# Dépendances de DÉVELOPPEMENT, en plus de requirements.txt.
+# Installation : pip install -r requirements.txt -r requirements-dev.txt
+
+pytest==9.1.1
+
+# Client HTTP dont dépend `fastapi.testclient.TestClient`. Starlette 1.6
+# déprécie httpx au profit de httpx2 ; aucun test ne sort sur le réseau, le
+# client parle directement à l'application ASGI en mémoire.
+httpx2==2.13.0

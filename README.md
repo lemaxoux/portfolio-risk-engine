@@ -67,15 +67,25 @@ app/
 │   │   ├── rules.py     #   les six règles et leurs observations
 │   │   ├── thresholds.py#   seuils et provenance
 │   │   └── disclaimer.py#   texte du bandeau d'acceptation
-│   ├── api/             # Endpoints FastAPI
-│   └── db/              # Schéma SQLite et initialisation
+│   ├── api/             # HTTP — ne calcule rien, ne fait aucun SQL
+│   │   ├── app.py       #   application FastAPI, liée à 127.0.0.1
+│   │   ├── schemas.py   #   schémas pydantic, champ par champ
+│   │   ├── validation.py#   contrôle des positions soumises
+│   │   ├── csv_import.py#   lecture CSV (Excel français compris)
+│   │   ├── errors.py    #   exceptions → codes HTTP utilisables
+│   │   ├── dependencies.py # connexion SQLite par requête
+│   │   └── routes/      #   méta, univers, portefeuilles, analyse
+│   └── db/              # Schéma SQLite, initialisation, écritures
 │       ├── schema.sql
-│       └── init_db.py
+│       ├── init_db.py
+│       ├── migrate.py   #   ALTER TABLE explicites, idempotents
+│       └── portfolios.py#   écriture des portefeuilles et positions
 ├── data/                # Base SQLite locale (non versionnée)
 ├── frontend/            # Interface
 ├── tests/               # Tests unitaires
 ├── .env.example
-└── requirements.txt
+├── requirements.txt         # exécution
+└── requirements-dev.txt     # pytest, httpx2
 ```
 
 ## Lancer le projet en local
@@ -90,7 +100,13 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1        # Windows PowerShell
 # source venv/bin/activate         # macOS / Linux
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # seulement pour lancer les tests
 ```
+
+`requirements.txt` ne contient que ce dont l'application a besoin pour
+tourner. Le client HTTP dont dépend le `TestClient` de FastAPI est dans
+`requirements-dev.txt` : une application qui n'émet aucun appel sortant en
+dehors de l'ingestion n'a pas à embarquer un client HTTP en production.
 
 ### 2. Configuration
 
@@ -109,6 +125,20 @@ python -m backend.db.init_db
 
 Crée `data/mx_risk.sqlite` avec les quatre tables du schéma. La commande est
 idempotente : la relancer ne détruit aucune donnée.
+
+**Base déjà existante :** `init_db` crée en `IF NOT EXISTS`, il ne migre donc
+pas. Les colonnes ajoutées à `portfolios` en phase 7A (`name`, `updated_at`)
+demandent un passage explicite :
+
+```powershell
+python -m backend.db.migrate
+```
+
+Idempotent lui aussi, et sans écriture de données : `updated_at` reste `NULL`
+sur les lignes antérieures, parce que leur date de modification n'est pas
+connue. L'API refuse de démarrer sur une base non migrée, en indiquant la
+commande — plutôt que d'échouer à la première requête sur un
+« no such column ».
 
 ### 4. Ingestion des prix
 
@@ -589,17 +619,200 @@ pytest
 ```
 
 Aucun test ne sort sur le réseau : la session HTTP et le fournisseur sont
-remplacés par des doubles. La suite passe hors ligne et ne consomme pas de
+remplacés par des doubles, et le client de test de FastAPI parle directement à
+l'application ASGI en mémoire. La suite passe hors ligne et ne consomme pas de
 quota.
+
+Les tests d'API n'écrivent jamais dans `data/mx_risk.sqlite` : chacun travaille
+sur une copie jetable ou sur une base synthétique construite pour le cas
+étudié. Ceux qui ont besoin des vraies séries — la forme des queues, la
+couverture réelle d'un scénario de 2008 — sont ignorés si la base locale est
+absente.
+
+`tests/test_api_discipline.py` ne teste aucun comportement : il inspecte l'arbre
+syntaxique de `backend/api/` pour vérifier qu'aucun module n'y fait
+d'arithmétique, n'y écrit de SQL, n'y appelle `asdict()` ni n'y supprime les
+champs nuls. Une règle écrite dans un README se contourne sans bruit.
 
 ### 9. API
 
 ```powershell
-uvicorn backend.api.main:app --reload
+python -m backend.api
 ```
 
 Documentation interactive sur <http://127.0.0.1:8000/docs>.
-**Pas encore disponible** — l'API sera construite après le moteur de risque.
+
+L'adresse d'écoute est **écrite dans le point d'entrée**, pas laissée en option
+de ligne de commande. L'application est mono-utilisateur et locale : elle n'a ni
+authentification, ni notion d'utilisateur, ni contrôle d'accès. Une API sans
+authentification exposée sur une interface réseau donnerait à quiconque partage
+le réseau le droit de lire et de supprimer les portefeuilles — et un défaut
+qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/meta` | dernière séance en base, taille de l'univers |
+| GET | `/api/securities` | univers : ticker, nom, secteur, première et dernière date de prix |
+| POST | `/api/portfolios` | crée un portefeuille, renvoie son `id` |
+| GET | `/api/portfolios` | liste, positions valorisées |
+| GET | `/api/portfolios/{id}` | un portefeuille, positions valorisées |
+| PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions |
+| POST | `/api/portfolios/{id}/positions/csv` | import CSV (multipart) |
+| DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
+| GET | `/api/portfolios/{id}/analysis` | rapport, scénarios, régimes, observations, bandeau |
+
+#### L'analyse est un seul endpoint, et c'est une décision
+
+Le rapport de risque, les scénarios de stress, la comparaison de régimes, les
+observations et le bandeau d'acceptation sortent d'un **unique** appel plutôt
+que de quatre.
+
+La raison est la cohérence temporelle. Si la base était rafraîchie entre deux
+appels, la section « volatilité » et la section « scénarios » décriraient deux
+états différents de la base, et **rien dans les réponses ne le signalerait** :
+chacune serait juste, l'assemblage serait faux. Une seule réponse garantit un
+seul `as_of` pour toute la page.
+
+L'objection habituelle — « le Monte Carlo coûte trop cher pour être dans la
+réponse par défaut » — ne tient pas ici, mesures à l'appui sur six titres :
+analyse avec Monte Carlo à 100 000 tirages 0,28 s, scénarios 0,05 s, régimes
+0,25 s, règles négligeable. Moins d'une seconde pour la page entière. Découper
+paierait un risque d'incohérence pour une économie qui n'existe pas.
+
+#### Ce que la couche API ne fait pas
+
+**Elle ne calcule rien.** Aucune arithmétique dans `backend/api/` — la règle est
+vérifiée en inspectant l'arbre syntaxique des modules
+(`tests/test_api_discipline.py`), pas seulement écrite ici. Chaque nombre publié
+sort d'un attribut, d'une propriété ou d'une méthode du moteur, déjà testés. Si
+une valeur manque, elle s'ajoute au moteur avec son test.
+
+**Elle ne fait aucun SQL.** Les lectures sur les données de marché vivent dans
+`risk_engine/portfolio.py`, les écritures de données utilisateur dans
+`db/portfolios.py`. Une requête dans la couche HTTP créerait une troisième
+frontière avec la base, et obligerait une future commande en ligne à importer
+la couche HTTP pour écrire une position.
+
+**Elle ne formate rien.** Les valeurs restent des **fractions** : une VaR de
+1,38 % se sérialise `0.0138`. Le pourcentage, la virgule décimale et l'arrondi
+sont décidés à un seul endroit, côté frontend (`frontend/DESIGN.md` §6).
+
+#### Les choix de sérialisation qui comptent
+
+**Pas de `dataclasses.asdict()`.** Il copie les champs et ignore silencieusement
+les `@property` et les méthodes. Un convertisseur générique aurait publié une
+API d'où manqueraient, sans la moindre erreur, `prediction_gap` — que le moteur
+décrit comme « le livrable » de la comparaison de régimes —,
+`systematic_share_change`, le `caveat` permanent du CVaR à 99 %,
+`Threshold.chosen`, `value_share`, `summary()` et `render()`. Chaque schéma
+énumère donc ses champs à la main.
+
+**Un indéfini se dit.** Quand `SortinoResult.annualised` vaut `None`, la réponse
+porte `annualised: null` **et** `undefined_reason`. `response_model_exclude_none`
+est banni de cette API : il supprimerait exactement le champ qui explique le
+blanc, et le client afficherait un vide au lieu d'une raison.
+
+**Pas de NaN ni d'Infinity.** Ce ne sont pas du JSON valide, et `JSON.parse`
+plante dessus. Deux gardes : les schémas les refusent à la construction en
+nommant le champ fautif, et le rendu de Starlette refuse de les écrire. Un test
+relit les **octets** d'une vraie réponse avec un analyseur strict.
+
+**Les matrices portent leur ordre.** `correlation` et `covariance` sortent en
+`{ "tickers": [...], "values": [[...]] }`, et la **même** liste gouverne les
+poids et les contributions à la variance. Chaque cellule est extraite par son
+couple d'étiquettes : l'alignement n'est pas vérifié après coup, il est
+impossible à rater. Une matrice de corrélation est symétrique et de diagonale
+1 — des libellés décalés d'un cran donneraient une carte de chaleur plausible et
+fausse.
+
+**Chaque mesure garde sa fenêtre.** Aucune fenêtre au niveau du document : le
+beta est régressé sous une contrainte d'échantillon qui lui est propre, un
+scénario à couverture partielle a sa propre portée. Seule la fenêtre *demandée*
+figure en tête, sous `parameters`, nommée comme telle.
+
+**Les seuils sont lisibles par une machine.** Chaque seuil sort avec
+`kind: "chosen" | "derived" | "portfolio_relative"`, sa valeur, son
+`rationale` et sa phrase rendue. Le client distingue un seuil choisi à la main
+d'un seuil dérivé sans chercher le mot « CHOISI » dans du texte français.
+
+**Un scénario, c'est trois chiffres indissociables :** `end_to_end_return`,
+`max_drawdown` (le pire moment traversé, souvent plus profond) et
+`coverage.value_share`. Ils sont trois champs requis du même objet ; les deux
+premiers valent `null` ensemble, avec la raison, quand aucune ligne n'est
+couverte.
+
+**Le volet Student accompagne toujours la VaR normale.** L'écart entre les deux
+chiffre le coût de l'hypothèse de normalité. Quand le moteur refuse d'ajuster
+une Student — ν ≤ 2, série trop courte —, les champs sortent à `null` et
+`student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
+rapport étant servi normalement. La route passe `monte_carlo=True` là où le
+moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
+
+**`as_of` ne s'invente pas.** Celui de `/api/meta` est la dernière séance
+présente en base. Celui d'une analyse est la date de valorisation du
+portefeuille — la plus **ancienne** des dernières clôtures de ses lignes, seule
+date à laquelle la valorisation est vraie pour toutes. Les deux peuvent
+différer, et c'est voulu. Aucun des deux n'est `date.today()`.
+
+#### Codes d'erreur
+
+Les messages du moteur sont **relayés mot pour mot** : `PortfolioError` porte
+déjà « Aucun prix en base pour ['SPY']. Lancer : `python -m backend.ingestion
+add SPY` », et l'écraser en 500 générique remplacerait une instruction par un
+aveu d'impuissance.
+
+| Code | Quand | Exemple |
+|---|---|---|
+| 404 | le portefeuille n'existe pas | vérifié par une lecture explicite, jamais en cherchant un mot dans un message |
+| 409 | il existe mais n'est pas analysable | aucune position, aucun prix pour une ligne, benchmark absent |
+| 422 | la requête est refusée | ticker inconnu, quantité négative, doublon, CSV illisible, fenêtre hors domaine |
+
+Un refus porte toujours la même forme, y compris pour les rejets de validation
+de FastAPI :
+
+```json
+{
+  "detail": "Ticker inconnu : XYZ. Titres disponibles : AAPL, … Pour en ajouter un : python -m backend.ingestion add XYZ",
+  "problems": [{"line": 3, "field": "ticker", "value": "XYZ", "problem": "…"}]
+}
+```
+
+Rien n'est écrit tant que tout n'est pas valide : les problèmes sont accumulés
+et rendus ensemble, jamais levés au premier rencontré. Un import à moitié
+appliqué produirait une valorisation plausible et fausse.
+
+#### Import CSV
+
+```
+ticker;quantity;cost_basis
+AAPL;40;185,20
+MSFT;25;
+```
+
+L'en-tête est requis ; `cost_basis` est facultatif. L'import **remplace toutes**
+les positions, comme le `PUT` : le fichier déposé *est* le portefeuille, et un
+import qui ajouterait doublerait les quantités à chaque dépôt du même fichier.
+
+« Un CSV » n'est pas un format. Sur un Windows français, « Enregistrer sous →
+CSV » produit du **point-virgule**, du **CP1252** et des **décimales à la
+virgule**. Trois choses sont donc déduites des octets, puis **rendues dans la
+réponse**, parce que c'est de la provenance :
+
+```json
+"source": {"filename": "portefeuille.csv", "encoding": "cp1252",
+           "delimiter": ";", "decimal_separator": ",", "rows_read": 6}
+```
+
+Encodages acceptés : UTF-8 avec BOM, UTF-8, CP1252 — la marque d'octets est
+cherchée explicitement plutôt que tentée en premier, sans quoi un fichier sans
+BOM serait annoncé « utf-8-sig », ce qui serait une provenance fausse. Les
+espaces de milliers d'un tableur (fine insécable, insécable, ordinaire) sont
+admis. La virgule décimale n'est acceptée qu'avec le séparateur `;` : avec `,`
+en séparateur de champs, une virgule dans un nombre est une fin de colonne.
+Fichiers limités à 1 Mo — un portefeuille fait quelques kilo-octets.
+
+Sont refusés avec un message situé à la ligne : ticker inconnu, ticker sans
+historique de prix, quantité nulle ou négative, doublon, en-tête absent.
 
 ## Schéma de données
 
@@ -609,7 +822,7 @@ Quatre tables (`backend/db/schema.sql`) :
 |---|---|---|
 | `securities` | Univers de titres suivis | `ticker` |
 | `prices` | Historique quotidien OHLC + clôture ajustée + volume | `(ticker, date)` |
-| `portfolios` | Portefeuilles et leur propriétaire | `id` |
+| `portfolios` | Portefeuilles : nom, propriétaire, date de dernière modification des positions | `id` |
 | `positions` | Lignes d'un portefeuille (quantité, prix de revient optionnel) | `id`, unique sur `(portfolio_id, ticker)` |
 
 Deux points de conception qui comptent pour la suite :
@@ -619,6 +832,12 @@ Deux points de conception qui comptent pour la suite :
   séries à chaque détachement de dividende.
 - **La clé primaire `(ticker, date)` rend l'ingestion idempotente.** Un backfill
   rejoué ne crée pas de doublons.
+- **`portfolios.updated_at` date les POSITIONS, pas l'enregistrement.** Il est
+  écrit à chaque remplacement des positions, et jamais à la création : c'est la
+  fraîcheur des positions qui informe, pas l'âge de la ligne. `NULL` se lit
+  « jamais modifié depuis l'application » — vrai d'un portefeuille encore vide,
+  et vrai des lignes antérieures à la migration, dont la date de modification
+  n'est pas connue.
 
 Les dates sont stockées en TEXT au format ISO-8601 `YYYY-MM-DD` : SQLite n'a pas
 de type date natif, et pour ce format l'ordre lexicographique coïncide avec
@@ -647,7 +866,13 @@ l'ordre chronologique.
   à la variance et lignes effectives en risque, seuils à provenance déclarée,
   avertissement permanent sur le CVaR à 99 %, aucun score global, texte du
   bandeau d'acceptation (vouvoyé)
-- [ ] **Phase 7 — Frontend** : saisie, dashboard, vue stress test
+- [x] **Phase 7A — API HTTP** : huit endpoints, analyse en une seule réponse,
+  schémas pydantic explicites (aucun `asdict`), indéfinis rendus avec leur
+  raison, matrices étiquetées, seuils à `kind` machine, import CSV résistant à
+  Excel français, erreurs du moteur relayées en 4xx utilisables
+  - Migration `portfolios` : `name` et `updated_at`, idempotente
+  - Zéro arithmétique et zéro SQL dans `backend/api/`, vérifiés par test
+- [ ] **Phase 7B — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
 

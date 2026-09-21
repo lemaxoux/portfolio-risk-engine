@@ -30,7 +30,9 @@ from backend.risk_engine.engine import (
 from backend.risk_engine.measures import max_drawdown
 from backend.risk_engine.portfolio import (
     PortfolioError,
+    latest_price_date,
     load_price_panel,
+    load_securities,
     market_value_weights,
 )
 from backend.risk_engine.returns import simple_returns, wealth_curve
@@ -725,3 +727,91 @@ def test_le_rapport_porte_l_ajustement_student_et_nu_dans_chaque_var(conn):
         assert rapport.student_monte_carlo_var[niveau].value == pytest.approx(
             rapport.student_parametric_var[niveau].value, rel=0.03
         )
+
+
+# ------------------------------------------------ Catalogue de la base --
+#
+# Deux lectures ajoutées pour la phase 7A. Elles ne produisent aucun chiffre de
+# risque, mais elles répondent à la même question que `price_coverage` — quel
+# titre a quelque chose à dire, et sur quelle période — posée sur l'univers
+# entier plutôt que sur les lignes d'un portefeuille.
+
+
+def test_le_catalogue_donne_les_bornes_de_couverture_de_chaque_titre(conn):
+    j = seances(5)
+    peupler(conn, {"A": cours(j), "B": cours(j[2:], 50.0)}, {"A": 1})
+
+    catalogue = {t.ticker: t for t in load_securities(conn)}
+    assert catalogue["A"].first_price_date == j[0]
+    assert catalogue["A"].last_price_date == j[-1]
+    # B est entré en cotation plus tard : ses bornes le disent, plutôt que
+    # d'être comblées.
+    assert catalogue["B"].first_price_date == j[2]
+    assert catalogue["B"].has_prices is True
+
+
+def test_un_titre_sans_aucun_prix_reste_au_catalogue_avec_des_bornes_nulles(conn):
+    """« Présent mais jamais ingéré » et « absent de l'univers » n'appellent pas
+    la même action : les confondre ferait chercher au mauvais endroit."""
+    j = seances(3)
+    peupler(conn, {"A": cours(j)}, {"A": 1})
+    conn.execute("INSERT INTO securities (ticker, name) VALUES ('VIDE', 'Sans prix')")
+    conn.commit()
+
+    catalogue = {t.ticker: t for t in load_securities(conn)}
+    assert catalogue["VIDE"].first_price_date is None
+    assert catalogue["VIDE"].last_price_date is None
+    assert catalogue["VIDE"].has_prices is False
+
+
+def test_le_catalogue_est_trie_par_ticker(conn):
+    j = seances(3)
+    peupler(conn, {"Z": cours(j), "A": cours(j)}, {"A": 1})
+    assert [t.ticker for t in load_securities(conn)] == ["A", "Z"]
+
+
+def test_le_catalogue_porte_le_nom_et_le_secteur_eventuellement_nul(conn):
+    j = seances(3)
+    peupler(conn, {"A": cours(j)}, {"A": 1})
+    conn.execute("UPDATE securities SET name = 'Alfa Inc', sector = 'Energy'")
+    conn.execute(
+        "INSERT INTO securities (ticker, name, sector) VALUES ('IDX', 'Indice', NULL)"
+    )
+    conn.commit()
+
+    catalogue = {t.ticker: t for t in load_securities(conn)}
+    assert catalogue["A"].name == "Alfa Inc"
+    assert catalogue["A"].sector == "Energy"
+    # Un indice n'a pas de secteur propre : il les contient tous.
+    assert catalogue["IDX"].sector is None
+
+
+def test_l_as_of_de_la_base_est_la_derniere_seance_presente(conn):
+    """Jamais `date.today()`.
+
+    Un week-end, un jour férié ou une ingestion en panne laissent la base en
+    arrière, et c'est exactement cet écart que l'utilisateur doit pouvoir voir.
+    """
+    j = seances(5)
+    peupler(conn, {"A": cours(j), "B": cours(j[:3], 50.0)}, {"A": 1})
+    assert latest_price_date(conn) == j[-1]
+
+
+def test_l_as_of_d_une_base_sans_prix_est_nul(conn):
+    """Pas de date plutôt qu'une date fausse."""
+    assert latest_price_date(conn) is None
+
+
+def test_l_as_of_de_la_base_peut_devancer_celui_d_un_portefeuille(conn):
+    """Deux dates distinctes, et volontairement.
+
+    Celle de la base est la dernière séance tous titres confondus ; celle du
+    portefeuille retient la plus ANCIENNE des dernières clôtures de ses lignes,
+    seule date à laquelle la valorisation est vraie pour TOUTES. Les confondre
+    annoncerait un portefeuille valorisé à une date où une ligne est périmée.
+    """
+    j = seances(6)
+    peupler(conn, {"A": cours(j), "B": cours(j[:4], 50.0)}, {"A": 10, "B": 5})
+
+    assert latest_price_date(conn) == j[-1]
+    assert market_value_weights(conn, 1).as_of == j[3]

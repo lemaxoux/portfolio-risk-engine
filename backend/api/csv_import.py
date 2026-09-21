@@ -1,0 +1,272 @@
+"""Lecture d'un CSV de positions, y compris celui qu'exporte un Excel français.
+
+═══ CE QU'EXPORTE VRAIMENT EXCEL ═══
+
+« Un CSV » n'est pas un format. Sur un Windows français, « Enregistrer sous →
+CSV » produit un fichier en séparateur POINT-VIRGULE, encodé en CP1252, avec la
+VIRGULE comme séparateur décimal. Un lecteur qui suppose `,` et UTF-8 — c'est
+à dire le lecteur par défaut de tout le monde — n'y voit qu'une seule colonne,
+ou plante sur le premier accent. L'utilisateur, lui, a exporté depuis le tableur
+qu'il avait, et il a raison.
+
+Trois choses sont donc DEVINÉES à partir des octets, puis RENDUES dans la
+réponse : l'encodage, le séparateur de champs, le séparateur décimal. Les
+afficher est de la provenance, au même titre qu'une fenêtre d'estimation : un
+utilisateur qui lit « cp1252, séparateur `;`, décimale `,` » comprend un
+résultat inattendu au lieu de le subir.
+
+═══ ORDRE DE DÉCODAGE ═══
+
+utf-8-sig, puis utf-8, puis cp1252 — mais la marque d'ordre des octets (BOM) est
+cherchée explicitement plutôt que tentée en premier. `bytes.decode("utf-8-sig")`
+réussit sur n'importe quel UTF-8 valide, avec ou sans BOM : l'essayer d'abord
+ferait annoncer « utf-8-sig » pour un fichier qui n'a pas de BOM. Ce serait une
+provenance fausse, et ce projet n'en publie pas.
+
+CP1252 en dernier recours seulement : il décode presque n'importe quelle suite
+d'octets sans lever, et le placer plus haut masquerait un vrai UTF-8.
+
+═══ CE QUE CE MODULE NE FAIT PAS ═══
+
+Il ne valide pas les tickers ni les quantités — c'est `validation.validate`, qui
+sert aussi au `PUT` JSON. Il ne touche pas la base. Il ne convertit aucune unité.
+"""
+
+from __future__ import annotations
+
+import codecs
+import csv
+import io
+from dataclasses import dataclass
+from typing import Literal
+
+from .errors import Problem
+from .validation import SubmittedPosition
+
+# Un portefeuille tient en quelques kilo-octets. La borne existe pour qu'un
+# fichier arbitraire ne se retrouve pas en mémoire, pas pour limiter l'usage.
+MAX_BYTES = 1_000_000
+
+# Un octet de plus que la limite : c'est tout ce qu'il faut lire pour savoir
+# qu'un fichier la dépasse. L'appelant lit jusque-là plutôt que d'aspirer le
+# fichier entier avant de le refuser.
+#
+# Portée exacte de cette borne : le serveur ASGI a déjà reçu le corps de la
+# requête quand la route s'exécute, et Starlette l'a déversé dans un fichier
+# temporaire au-delà de son propre seuil. Ce qui est évité ici, c'est de
+# matérialiser ce corps en un objet `bytes` de taille arbitraire. Un vrai
+# plafond de charge utile relèverait du serveur, pas de ce module.
+PROBE_BYTES = 1_000_001
+
+DELIMITERS: tuple[str, ...] = (";", ",")
+COLONNE_TICKER = "ticker"
+COLONNE_QUANTITE = "quantity"
+COLONNE_PRIX_REVIENT = "cost_basis"
+
+EN_TETE_ATTENDU = "ticker;quantity[;cost_basis]"
+
+# Espaces qu'un tableur glisse dans les milliers : fine insécable, insécable,
+# ordinaire. Retirées avant lecture d'un nombre.
+ESPACES = (" ", " ", " ")
+
+
+@dataclass(frozen=True)
+class CsvSource:
+    """Comment le fichier a été lu."""
+
+    filename: str | None
+    encoding: Literal["utf-8", "utf-8-sig", "cp1252"]
+    delimiter: Literal[",", ";"]
+    decimal_separator: Literal[".", ","]
+    rows_read: int
+
+
+@dataclass(frozen=True)
+class CsvReading:
+    positions: tuple[SubmittedPosition, ...]
+    source: CsvSource
+    problems: tuple[Problem, ...]
+
+
+class CsvError(Exception):
+    """Le fichier n'est pas lisible du tout : ni encodage, ni en-tête exploitable.
+
+    Distinct d'une liste de problèmes ligne à ligne : ici il n'y a pas de lignes
+    à commenter, seulement un fichier qu'on ne peut pas ouvrir.
+    """
+
+
+def decode(payload: bytes) -> tuple[str, str]:
+    """Texte et nom de l'encodage retenu. Lève `CsvError` si aucun ne convient."""
+    if payload.startswith(codecs.BOM_UTF8):
+        return payload.decode("utf-8-sig"), "utf-8-sig"
+    for encodage in ("utf-8", "cp1252"):
+        try:
+            return payload.decode(encodage), encodage
+        except UnicodeDecodeError:
+            continue
+    raise CsvError(
+        "Fichier illisible : ni UTF-8 ni CP1252. Le réenregistrer depuis le "
+        "tableur en « CSV UTF-8 »."
+    )
+
+
+def sniff_delimiter(entete: str) -> str:
+    """Séparateur de champs, d'après la seule ligne d'en-tête.
+
+    Le plus fréquent des deux l'emporte. `csv.Sniffer` est écarté : il inspecte
+    tout le fichier et se laisse tromper par une virgule décimale dans une
+    colonne de nombres, ce qui est exactement le cas que ce module doit gérer.
+    """
+    occurrences = {separateur: entete.count(separateur) for separateur in DELIMITERS}
+    meilleur = max(DELIMITERS, key=lambda separateur: occurrences[separateur])
+    if occurrences[meilleur] == 0:
+        raise CsvError(
+            "Aucun séparateur `;` ni `,` dans la première ligne. En-tête "
+            f"attendu : {EN_TETE_ATTENDU}"
+        )
+    return meilleur
+
+
+def _nombre(brut: str, decimale: str) -> float:
+    """Lit un nombre, virgule décimale et espaces de milliers admis.
+
+    La virgule n'est acceptée comme décimale que lorsque le séparateur de champs
+    est `;`. Avec `,` en séparateur de champs, une virgule dans un nombre est une
+    fin de colonne, pas une décimale : accepter les deux sens du même caractère
+    dans le même fichier rendrait `1,5` indécidable.
+    """
+    texte = brut.strip()
+    for espace in ESPACES:
+        texte = texte.replace(espace, "")
+    if decimale == ",":
+        texte = texte.replace(",", ".")
+    return float(texte)
+
+
+def _colonnes(entete: list[str]) -> dict[str, int]:
+    noms = [champ.strip().lower().lstrip("﻿") for champ in entete]
+    index = {nom: position for position, nom in enumerate(noms)}
+    manquantes = [
+        nom for nom in (COLONNE_TICKER, COLONNE_QUANTITE) if nom not in index
+    ]
+    if manquantes:
+        raise CsvError(
+            f"Colonnes manquantes dans l'en-tête : {', '.join(manquantes)}. "
+            f"En-tête attendu : {EN_TETE_ATTENDU} "
+            f"(lu : {', '.join(noms) if noms else 'ligne vide'})"
+        )
+    return index
+
+
+def read(payload: bytes, filename: str | None = None) -> CsvReading:
+    """Lit le fichier et rend les positions soumises, sans rien valider d'autre.
+
+    Lève `CsvError` quand le fichier est inexploitable dans son ensemble
+    (trop gros, encodage inconnu, en-tête absent) ; rend des `Problem` quand ce
+    sont des lignes précises qui sont en cause.
+    """
+    if len(payload) > MAX_BYTES:
+        # La taille reçue n'est pas annoncée : l'appelant n'a lu que
+        # `PROBE_BYTES` octets, et citer ce nombre décrirait la sonde plutôt
+        # que le fichier.
+        raise CsvError(
+            f"Fichier trop volumineux : maximum {MAX_BYTES} octets. "
+            "Un portefeuille tient en quelques kilo-octets."
+        )
+    if not payload.strip():
+        raise CsvError("Fichier vide.")
+
+    texte, encodage = decode(payload)
+    premiere = texte.splitlines()[0] if texte.splitlines() else ""
+    separateur = sniff_delimiter(premiere)
+    decimale = "," if separateur == ";" else "."
+
+    lecteur = csv.reader(io.StringIO(texte), delimiter=separateur)
+    lignes = [ligne for ligne in lecteur]
+    if not lignes:
+        raise CsvError("Fichier vide.")
+
+    index = _colonnes(lignes[0])
+    positions: list[SubmittedPosition] = []
+    problemes: list[Problem] = []
+
+    # `start=2` : la première ligne de données est la ligne 2 du fichier, en-tête
+    # compris — le numéro que l'utilisateur lit dans son tableur.
+    for numero, ligne in enumerate(lignes[1:], start=2):
+        if not any(champ.strip() for champ in ligne):
+            continue
+
+        if len(ligne) <= index[COLONNE_QUANTITE]:
+            problemes.append(
+                Problem(
+                    line=numero,
+                    problem=(
+                        f"Ligne incomplète : {len(ligne)} colonne(s) lue(s) avec "
+                        f"le séparateur `{separateur}`. En-tête attendu : "
+                        f"{EN_TETE_ATTENDU}"
+                    ),
+                )
+            )
+            continue
+
+        ticker = ligne[index[COLONNE_TICKER]].strip()
+        brut_quantite = ligne[index[COLONNE_QUANTITE]]
+        try:
+            quantite = _nombre(brut_quantite, decimale)
+        except ValueError:
+            problemes.append(
+                Problem(
+                    line=numero,
+                    field=COLONNE_QUANTITE,
+                    value=brut_quantite.strip(),
+                    problem=(
+                        f"Quantité illisible : {brut_quantite.strip()!r}. "
+                        f"Décimale attendue : `{decimale}`."
+                    ),
+                )
+            )
+            continue
+
+        prix_revient: float | None = None
+        position_prix = index.get(COLONNE_PRIX_REVIENT)
+        if position_prix is not None and len(ligne) > position_prix:
+            brut_prix = ligne[position_prix].strip()
+            if brut_prix:
+                try:
+                    prix_revient = _nombre(brut_prix, decimale)
+                except ValueError:
+                    problemes.append(
+                        Problem(
+                            line=numero,
+                            field=COLONNE_PRIX_REVIENT,
+                            value=brut_prix,
+                            problem=(
+                                f"Prix de revient illisible : {brut_prix!r}. "
+                                f"Décimale attendue : `{decimale}`."
+                            ),
+                        )
+                    )
+                    continue
+
+        positions.append(
+            SubmittedPosition(
+                ticker=ticker,
+                quantity=quantite,
+                cost_basis=prix_revient,
+                line=numero,
+            )
+        )
+
+    lues = len(positions)
+    return CsvReading(
+        positions=tuple(positions),
+        source=CsvSource(
+            filename=filename,
+            encoding=encodage,
+            delimiter=separateur,
+            decimal_separator=decimale,
+            rows_read=lues,
+        ),
+        problems=tuple(problemes),
+    )

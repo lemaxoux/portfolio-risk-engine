@@ -26,6 +26,29 @@ class Position:
 
 
 @dataclass(frozen=True)
+class Security:
+    """Un titre de l'univers et la période sur laquelle il est analysable.
+
+    Les bornes viennent de la table des prix, pas d'une colonne descriptive :
+    un titre inscrit à l'univers mais jamais ingéré ressort avec deux dates
+    nulles, ce qui se lit « aucun historique » et non « historique vide de
+    longueur zéro ». C'est la même question que `price_coverage` — quel titre a
+    quelque chose à dire sur quelle période —, posée sur l'univers entier plutôt
+    que sur les lignes d'un portefeuille.
+    """
+
+    ticker: str
+    name: str
+    sector: str | None
+    first_price_date: date | None
+    last_price_date: date | None
+
+    @property
+    def has_prices(self) -> bool:
+        return self.first_price_date is not None
+
+
+@dataclass(frozen=True)
 class PortfolioWeights:
     """Poids en valeur de marché, et de quoi les auditer.
 
@@ -43,6 +66,54 @@ class PortfolioWeights:
     @property
     def tickers(self) -> list[str]:
         return list(self.weights)
+
+
+def load_securities(conn: sqlite3.Connection) -> list[Security]:
+    """Univers complet, avec la couverture de prix de chaque titre.
+
+    LEFT JOIN et non JOIN : un titre sans aucun prix doit apparaître dans la
+    liste avec des bornes nulles. Le faire disparaître le rendrait indiscernable
+    d'un titre absent de l'univers, alors que les deux situations appellent des
+    actions différentes — ingérer l'historique, ou ajouter le titre.
+    """
+    lignes = conn.execute(
+        """
+        SELECT s.ticker, s.name, s.sector,
+               MIN(p.date) AS debut, MAX(p.date) AS fin
+        FROM securities s
+        LEFT JOIN prices p ON p.ticker = s.ticker
+        GROUP BY s.ticker, s.name, s.sector
+        ORDER BY s.ticker
+        """
+    ).fetchall()
+
+    return [
+        Security(
+            ticker=r["ticker"],
+            name=r["name"],
+            sector=r["sector"],
+            first_price_date=None if r["debut"] is None else date.fromisoformat(r["debut"]),
+            last_price_date=None if r["fin"] is None else date.fromisoformat(r["fin"]),
+        )
+        for r in lignes
+    ]
+
+
+def latest_price_date(conn: sqlite3.Connection) -> date | None:
+    """Dernière séance présente en base, tous titres confondus. None si vide.
+
+    C'est la seule définition acceptable de la fraîcheur de la base : la date du
+    jour dirait que les données sont d'aujourd'hui alors qu'un week-end, un jour
+    férié ou une ingestion en panne l'auraient laissée sur une séance plus
+    ancienne. L'écart entre les deux est précisément ce que l'utilisateur doit
+    voir.
+
+    À ne pas confondre avec `PortfolioWeights.as_of`, qui est la date de
+    valorisation d'un PORTEFEUILLE : celle-ci retient la plus ANCIENNE des
+    dernières clôtures de ses lignes, et peut donc être antérieure.
+    """
+    brut = conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+    return None if brut is None else date.fromisoformat(brut)
 
 
 def load_positions(conn: sqlite3.Connection, portfolio_id: int) -> list[Position]:

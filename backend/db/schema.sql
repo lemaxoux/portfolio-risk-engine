@@ -47,9 +47,26 @@ CREATE TABLE IF NOT EXISTS prices (
 CREATE INDEX IF NOT EXISTS idx_prices_date ON prices(date);
 
 -- Un portefeuille = un ensemble de positions appartenant à quelqu'un.
+--
+-- `name` est le libellé affiché ; `owner` reste l'identité du propriétaire et ne
+-- doit pas être détourné pour tenir lieu de nom — l'application est
+-- mono-utilisateur en v1 ('local'), elle ne le sera pas forcément toujours.
+--
+-- `updated_at` date le dernier REMPLACEMENT DES POSITIONS, pas la création de
+-- l'enregistrement : c'est la fraîcheur des positions qui informe, pas l'âge de
+-- la ligne. Il reste NULL tant que les positions n'ont pas été écrites par
+-- l'application, ce qui se lit « jamais modifié depuis » — et non une date de
+-- modification qu'on ne connaît pas.
+--
+-- L'ordre des colonnes reproduit celui qu'obtient une base migrée (ALTER TABLE
+-- ADD COLUMN ajoute en fin de table) : une base neuve et une base migrée doivent
+-- être indiscernables, sinon les tests ne valident pas la base réellement
+-- utilisée. Voir backend/db/migrate.py.
 CREATE TABLE IF NOT EXISTS portfolios (
-    id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner TEXT    NOT NULL
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner      TEXT    NOT NULL,
+    name       TEXT    NOT NULL DEFAULT 'Portefeuille',
+    updated_at TEXT
 );
 
 -- cost_basis est le prix de revient unitaire, optionnel : il ne sert pas au
