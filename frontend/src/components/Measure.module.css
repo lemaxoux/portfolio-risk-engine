@@ -1,0 +1,88 @@
+/*
+ * Bloc mesure — §9.1.
+ *
+ * C'est le seul endroit où l'audace visuelle est dépensée (§3.3). Pas d'ombre,
+ * pas de dégradé, pas de tuile identique répétée en grille (§12) : une bordure
+ * d'1 px et la surface surélevée du thème suffisent.
+ */
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.libelle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * Réserve méthodologique (§5.3) : un point plein de 6 px, jamais un fond
+ * coloré ni une icône d'alerte. C'est un élément à part entière et non une
+ * couleur de texte, pour qu'en niveaux de gris il reste un point visible.
+ */
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+}
+
+/*
+ * TOUS les chiffres à droite, sans exception (§7) : c'est ce qui rend deux
+ * mesures comparables d'un coup d'œil vertical.
+ */
+.valeur {
+  margin-block: var(--space-3) 0;
+  color: var(--text-1);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-figure);
+  text-align: end;
+}
+
+.principal .valeur {
+  font-size: var(--text-2xl);
+}
+
+.secondaire .valeur {
+  font-size: var(--text-xl);
+}
+
+/* La phrase de lecture — « perte attendue une séance sur vingt ». Elle suit le
+ * chiffre, donc elle s'aligne avec lui. */
+.lecture {
+  margin-block: var(--space-1) var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  line-height: var(--leading-ui);
+  text-align: end;
+  text-wrap: pretty;
+}
+
+/* Filet de séparation avant la provenance, comme dans la maquette de §9.1. */
+.bloc :global(dl) {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+/* La phrase de réserve, sous le bloc de provenance. Elle est RÉDIGÉE par le
+ * backend : serif, comme tout ce que le moteur affirme (§6.1). */
+.reserve {
+  margin-block-start: var(--space-3);
+  color: var(--caveat);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}

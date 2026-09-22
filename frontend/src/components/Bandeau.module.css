@@ -1,0 +1,116 @@
+/*
+ * Bandeau permanent — §8.1.
+ *
+ * Collant, sur --surface-1, bordure basse d'1 px. C'est la SEULE exception que
+ * §12 accorde à l'interdiction de l'ombre portée, et elle est une bordure.
+ * Sa hauteur suit son contenu : il passe à deux, trois ou quatre lignes selon
+ * ce qu'il a à dire, et rien ne la fixe.
+ */
+
+.bandeau {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--gutter);
+  border-block-end: 1px solid var(--border);
+  background-color: var(--surface-1);
+}
+
+.identite {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.marque {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.portefeuille {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.conditions {
+  flex: 1 1 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ligne {
+  color: var(--text-2);
+}
+
+.libelle {
+  color: var(--text-2);
+}
+
+.valeur {
+  color: var(--text-1);
+  font-weight: var(--weight-medium);
+}
+
+/* Séparateur de conditions : une barre fine, pas un point médian — §12
+ * interdit les chaînes de méta jointes par des points médians. */
+.separateur {
+  display: inline-block;
+  inline-size: 1px;
+  block-size: 0.85em;
+  margin-inline: var(--space-3);
+  background-color: var(--border);
+  vertical-align: -0.1em;
+}
+
+/* Fenêtre réduite : point de réserve et cause, en clair. */
+.reduite {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  max-inline-size: var(--prose-width);
+  color: var(--caveat);
+  text-wrap: pretty;
+}
+
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  /* Aligne le point sur la ligne de base du texte plutôt que sur le haut. */
+  transform: translateY(-0.15em);
+}
+
+.total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-inline-start: auto;
+}
+
+.montant {
+  color: var(--text-1);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sous 900 px, le bandeau reste lisible en s'empilant : la valeur passe sous
+ * les conditions plutôt que de les écraser. */
+@media (width < 900px) {
+  .total {
+    margin-inline-start: 0;
+    inline-size: 100%;
+    justify-content: space-between;
+  }
+}

@@ -1,0 +1,28 @@
+/* Provenance — §9.1. En --text-2, jamais en --text-muted. */
+
+.grille {
+  display: grid;
+  /* Le libellé prend la largeur du plus long, la valeur le reste. Les valeurs
+   * s'alignent donc verticalement d'un bloc à l'autre du même type. */
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-micro);
+  line-height: var(--leading-ui);
+}
+
+/* `display: contents` fait remonter dt et dd dans la grille du parent : la
+ * paire reste liée sémantiquement dans le `<dl>` sans créer de piste. */
+.ligne {
+  display: contents;
+}
+
+.libelle {
+  color: var(--text-2);
+  font-weight: var(--weight-medium);
+}
+
+.valeur {
+  margin: 0;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}

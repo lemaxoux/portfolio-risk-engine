@@ -1,0 +1,103 @@
+/*
+ * Écran d'acceptation — §15, §7 (colonne de lecture), §12 (interdits).
+ *
+ * Aucune ombre, aucun dégradé, aucun fond assombri : ce n'est pas une modale
+ * posée sur un tableau de bord, c'est la page.
+ */
+
+.page {
+  padding: var(--space-7) var(--gutter) var(--space-8);
+}
+
+.colonne {
+  /* Cible de §6.3 : moins de 80 caractères par ligne, 66 visés. */
+  max-inline-size: var(--prose-width);
+  margin-inline: auto;
+}
+
+.titre {
+  margin-block-end: var(--space-6);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+}
+
+.section {
+  margin-block-end: var(--space-5);
+}
+
+.sousTitre {
+  margin-block-end: var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* Le corps des sections est de la PROSE rédigée par le backend : Spectral,
+ * interlignage 1,6 (§6.3). */
+.corps {
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+.confirmation {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--border);
+}
+
+/*
+ * L'étiquette EST la phrase de confirmation : toute la ligne est cliquable, et
+ * la case reçoit son nom accessible sans `aria-label` recopié à la main.
+ */
+.case {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  cursor: pointer;
+}
+
+.case input {
+  /* Une case native : elle suit `accent-color` et `color-scheme`, elle répond
+   * à la barre d'espace, et elle est annoncée correctement. La redessiner ne
+   * rapporterait qu'une perte. */
+  flex: none;
+  inline-size: 18px;
+  block-size: 18px;
+  /* Recentre la case sur la première ligne du texte plutôt que sur le haut de
+   * la boîte, sans figer une valeur de décalage. */
+  margin-block-start: calc((1em * var(--leading-prose) - 18px) / 2);
+}
+
+.bouton {
+  margin-block-start: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--motion-hover);
+}
+
+.bouton:hover:enabled {
+  background-color: var(--surface-2);
+}
+
+/* `--text-muted` est réservé au désactivé : c'est ici, et seulement ici, qu'il
+ * a le droit d'apparaître (§5.3). */
+.bouton:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.condition {
+  margin-block-start: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}

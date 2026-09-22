@@ -12,6 +12,15 @@
       bonne couleur au lieu de la corriger après coup.
     -->
     <meta name="color-scheme" content="light dark" />
+
+    <!--
+      Pas d'icône, et c'est dit explicitement. Sans cette ligne, le navigateur
+      demande /favicon.ico à chaque chargement et inscrit un 404 dans la
+      console — un bruit permanent qui use l'attention qu'on doit garder pour
+      les vraies erreurs. §12 interdit les icônes décoratives : il n'y a donc
+      rien à mettre ici tant que le produit n'a pas de marque.
+    -->
+    <link rel="icon" href="data:," />
     <title>Mx Risk MGT</title>
 
     <!--

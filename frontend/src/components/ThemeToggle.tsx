@@ -37,25 +37,28 @@ export function ThemeToggle() {
   const affiche = fige ?? systeme
   // Les deux états : « comme le système », et l'autre — figé littéralement.
   const cible: Theme | null = fige === null ? contraire(systeme) : null
-  const libelle =
-    cible === null ? 'Suivre le système' : `Thème ${NOM[cible]}`
+  const libelle = cible === null ? 'Suivre le système' : `Thème ${NOM[cible]}`
+  const etat =
+    fige === null
+      ? `thème ${NOM[affiche]}, comme le système`
+      : `thème ${NOM[affiche]}, figé`
 
   return (
     <button
       type="button"
       className={styles.bascule}
+      // Le nom accessible COMMENCE par le libellé visible (WCAG 2.5.3) : un
+      // utilisateur de commande vocale doit pouvoir dire ce qu'il lit. L'état
+      // courant le complète, parce qu'un bouton qui ne dit que l'action laisse
+      // ignorer d'où l'on part.
+      aria-label={`${libelle} — actuellement ${etat}`}
       onClick={() => {
         appliquerTheme(cible)
         setFige(cible)
       }}
-      aria-describedby="bascule-theme-etat"
     >
-      {libelle}
-      <span id="bascule-theme-etat" className={styles.etat}>
-        {fige === null
-          ? `thème ${NOM[affiche]}, comme le système`
-          : `thème ${NOM[affiche]}, figé`}
-      </span>
+      <span>{libelle}</span>
+      <span className={styles.etat}>{etat}</span>
     </button>
   )
 }

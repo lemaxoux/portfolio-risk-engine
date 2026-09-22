@@ -1,0 +1,94 @@
+/*
+ * Section 2 — §8.2.
+ *
+ * Une colonne de lecture qui déroule un raisonnement, pas une grille de
+ * tuiles identiques (§3.2, §12). Les blocs mesure se suivent par groupes de
+ * sens, et chaque groupe porte une phrase qui dit pourquoi il est là.
+ */
+
+.section {
+  margin-block-end: var(--space-8);
+}
+
+.titre {
+  margin-block-end: var(--space-5);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+/* La seule numérotation autorisée (§12) : les sections de la page d'analyse
+ * SONT une séquence de raisonnement. Le numéro reste discret — ce n'est pas
+ * un marqueur « 01 / 02 / 03 ». */
+.numero {
+  color: var(--text-2);
+}
+
+.sousTitre {
+  margin-block: var(--space-6) var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* Le chapeau est de la prose : il explique un choix de méthode. Serif, à 66
+ * caractères, interlignage de prose (§6.3). */
+.chapeau {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-4);
+  color: var(--text-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+/*
+ * Les blocs d'un même groupe. `auto-fit` plutôt qu'un nombre de colonnes fixé :
+ * deux niveaux de confiance aujourd'hui, trois demain sans toucher au CSS, et
+ * une colonne unique sous 390 px sans requête de média.
+ */
+.rangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* Le couple normale / Student : les deux côte à côte, même taille, même
+ * traitement. Jamais l'un sans l'autre (§11.5). */
+.couple {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+  margin-block-end: var(--space-4);
+}
+
+/*
+ * La place de la Student quand elle est indisponible.
+ *
+ * Elle occupe la colonne, à la même largeur que le bloc qu'elle remplace : la
+ * normale ne doit jamais s'élargir pour prendre toute la ligne, sans quoi
+ * l'absence deviendrait invisible.
+ */
+.absenceStudent {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--caveat);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  transform: translateY(-0.15em);
+}

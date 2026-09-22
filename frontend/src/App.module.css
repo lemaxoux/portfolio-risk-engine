@@ -1,13 +1,13 @@
-/* Coquille — DESIGN.md §7 (grille), §8.1 (bandeau), §13 (lien d'évitement). */
+/* Coquille — DESIGN.md §7 (grille), §13 (états). */
 
 /*
- * Lien « aller au contenu » (§13). Il n'est pas caché à l'écran : il est hors
- * cadre tant qu'il n'a pas le focus, et il revient dès qu'on l'atteint au
- * clavier. `display: none` le retirerait aussi de l'ordre de tabulation, ce
- * qui le rendrait inutile.
+ * Lien « aller au contenu » (§13). Il n'est pas caché : il est hors cadre tant
+ * qu'il n'a pas le focus, et il revient dès qu'on l'atteint au clavier.
+ * `display: none` le retirerait de l'ordre de tabulation, ce qui le rendrait
+ * exactement inutile.
  */
 .evitement {
-  position: absolute;
+  position: fixed;
   inset-block-start: var(--space-2);
   inset-inline-start: var(--space-2);
   z-index: 2;
@@ -17,7 +17,8 @@
   background-color: var(--surface-1);
   color: var(--text-1);
   font-size: var(--text-sm);
-  transform: translateY(-200%);
+  text-decoration: none;
+  transform: translateY(-300%);
 }
 
 .evitement:focus-visible {
@@ -25,35 +26,124 @@
 }
 
 /*
- * Bandeau permanent (§8.1) — collant, sur --surface-1.
- *
- * Sa hauteur suit son contenu : il passe à deux ou trois lignes selon ce
- * qu'il a à dire, et rien ne la fixe. Bordure basse d'1 px, JAMAIS d'ombre
- * portée (§12) : c'est la seule exception que §12 accorde, et elle est une
- * bordure.
+ * Colonne de lecture centrée, et un rail de 220 px à sa gauche (§7).
+ * Le rail s'escamote sous 900 px : sur un téléphone, une navigation de section
+ * coûte plus de place qu'elle n'en fait gagner.
  */
-.bandeau {
+.page {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  gap: var(--space-6);
+  max-inline-size: var(--reading-width);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+@media (width < 900px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rail {
   position: sticky;
-  inset-block-start: 0;
-  z-index: 1;
+  /* Sous le bandeau collant, dont la hauteur suit son contenu : `align-self`
+   * et une position relative à la grille évitent d'inscrire une hauteur. */
+  inset-block-start: var(--space-8);
+  align-self: start;
+  padding-block-start: var(--space-6);
+  font-size: var(--text-sm);
+}
+
+@media (width < 900px) {
+  .rail {
+    display: none;
+  }
+}
+
+.rail ul {
+  list-style: none;
+}
+
+.rail a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 2px solid var(--border);
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--motion-hover), border-color var(--motion-hover);
+}
+
+.rail a:hover {
+  border-inline-start-color: var(--border-strong);
+  color: var(--text-1);
+}
+
+.contenu {
+  padding-block: var(--space-6) var(--space-8);
+  min-inline-size: 0;
+}
+
+/* ─────────────────────────────────────────────────────── État en cours ── */
+
+.squelette {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-3) var(--gutter);
-  border-block-end: 1px solid var(--border);
+}
+
+.squeletteTitre {
+  inline-size: 18rem;
+  max-inline-size: 100%;
+  block-size: var(--text-lg);
+  border-radius: var(--radius-sm);
   background-color: var(--surface-1);
 }
 
-.marque {
-  font-family: var(--font-serif);
+.squeletteRangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+}
+
+/* La FORME de ce qui arrive : un bloc mesure, à sa hauteur, avec sa bordure.
+ * Aucune animation — §10 interdit le mouvement au chargement. */
+.squeletteBloc {
+  block-size: 12rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+/* ────────────────────────────────────────────────────────── État vide ── */
+
+.vide {
+  max-inline-size: var(--prose-width);
+}
+
+.videTitre {
+  margin-block-end: var(--space-3);
   font-size: var(--text-lg);
   font-weight: var(--weight-medium);
 }
 
-.contenu {
-  max-inline-size: var(--reading-width);
-  margin-inline: auto;
-  padding: var(--space-6) var(--gutter);
+.videTexte {
+  margin-block-end: var(--space-4);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+.videCommande {
+  display: block;
+  margin-block-end: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  user-select: all;
 }
