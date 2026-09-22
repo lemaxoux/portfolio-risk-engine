@@ -34,3 +34,4 @@ export type Disclaimer = S['DisclaimerOut']
 export type DisclaimerSection = S['DisclaimerSectionOut']
 
 export type Meta = S['MetaOut']
+export type PortfolioDetail = S['PortfolioDetailOut']

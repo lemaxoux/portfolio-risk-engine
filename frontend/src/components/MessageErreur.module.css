@@ -1,0 +1,46 @@
+/* Message d'erreur — §12 : ni fond coloré, ni icône d'alerte. */
+
+.bloc {
+  max-inline-size: var(--prose-width);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+/* La phrase du moteur, en prose : c'est un texte rédigé, pas une étiquette. */
+.phrase {
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+/*
+ * La commande est un BLOC, pas un fragment en ligne : elle se recopie dans un
+ * terminal, et une commande coupée en deux par une fin de ligne se recopie de
+ * travers. `display: block` la sort du flux de la phrase, `user-select: all`
+ * la sélectionne entièrement d'un clic.
+ */
+.commande {
+  display: block;
+  margin-block: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  user-select: all;
+}
+
+/* Les refus ligne à ligne d'un 422. Liste à puces simple, pas de badge. */
+.problemes {
+  margin-block-start: var(--space-3);
+  padding-inline-start: var(--space-5);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  list-style: disc;
+}
