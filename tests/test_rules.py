@@ -94,8 +94,8 @@ def test_les_contributions_somment_exactement_a_un():
 def test_une_ligne_correlee_contribue_plus_qu_une_ligne_decorrelee_de_meme_poids():
     """Ce que le poids seul ne dit pas.
 
-    B et C pèsent chacune 10 % et ont la même volatilité. B est très corrélée à
-    la grosse ligne A, C ne l'est pas : B porte bien plus que 10 % de la variance,
+    B et C pèsent chacune 10 % et ont la même volatilité. B est très corrélée à
+    la grosse ligne A, C ne l'est pas : B porte bien plus que 10 % de la variance,
     C bien moins.
     """
     v = 0.01**2
@@ -319,7 +319,7 @@ def test_la_concentration_se_dit_en_capital_et_en_risque_sans_seuil(risque):
     obs = effective_concentration(base)
 
     assert obs.statement.startswith(
-        "Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque"
+        "Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque"
     )
     assert "En capital, l'équipondération en donnerait 6." in obs.statement
     assert "la lecture en capital seule est la plus flatteuse des deux" in obs.statement
@@ -396,7 +396,7 @@ def test_la_part_du_risque_est_comparee_a_la_part_du_capital(risque):
     )
     obs = {o.subject: o for o in variance_contribution(base)}
 
-    assert "dépasse sa part du capital de 20,0 points" in obs["A"].statement
+    assert "dépasse sa part du capital de 20,0 points" in obs["A"].statement
     assert "correspond à sa part du capital" in obs["B"].statement
     assert "contribution est négative" in obs["C"].statement
 
@@ -433,7 +433,7 @@ def test_le_parcours_en_crise_est_dit_dans_les_deux_sens(entrees):
     gain = _scenario(modele, "resserrement", "Resserrement", {"A": 0.094, "B": -0.02})
     obs = {o.subject: o for o in variance_contribution(risque, (perte, gain))}
 
-    assert "A a pesé dans les deux sens : −7,6 pts (Krach), mais +9,4 pts (Resserrement)" in obs["A"].statement
+    assert "A a pesé dans les deux sens : −7,6 pts (Krach), mais +9,4 pts (Resserrement)" in obs["A"].statement
     assert "négative à chaque fois" in obs["B"].statement
     assert obs["A"].facts["scenario:resserrement"] == pytest.approx(0.094)
 
@@ -486,7 +486,7 @@ def test_la_part_systematique_se_dit_sans_seuil(rapport):
     (obs,) = rapport.of_rule(RuleId.SYSTEMATIC_SHARE)
     r2 = obs.facts["r2"]
 
-    assert f"{round(r2 * 100)} % de la variance du portefeuille s'explique" in obs.statement
+    assert f"{round(r2 * 100)} % de la variance du portefeuille s'explique" in obs.statement
     assert "risque de marché" in obs.statement and "ne la dilue pas" in obs.statement
     assert obs.facts["part_propre"] == pytest.approx(1.0 - r2)
     assert obs.thresholds == ()
@@ -521,8 +521,8 @@ def test_la_part_systematique_monte_dans_les_trois_crises():
     ])
 
     assert (
-        "passe de 49 % en régime calme à 86 % (Crise 2008), 98 % (COVID — échantillon "
-        "trop mince) et 79 % (Resserrement 2022)"
+        "passe de 49 % en régime calme à 86 % (Crise 2008), 98 % (COVID — échantillon "
+        "trop mince) et 79 % (Resserrement 2022)"
     ) in obs.statement
     assert "Elle augmente dans les 3 crises rejouées" in obs.statement
     assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
@@ -557,14 +557,14 @@ def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee_et_son_biais(c
 
     assert obs.facts["part_couverte"] == pytest.approx(0.90, abs=0.01)
     assert "resultat_partie_couverte" in obs.facts
-    assert "couvre 90 % de la valeur" in obs.statement
+    assert "couvre 90 % de la valeur" in obs.statement
     assert "sous-estime probablement" in obs.statement
     assert obs.thresholds == (MIN_SCENARIO_COVERAGE,)
 
 
 def test_sous_le_seuil_aucun_chiffre_principal(conn):
-    """70 % de couverture : un chiffre aurait été produit sous l'ancien seuil de
-    50 %, il ne l'est plus. Le chiffre décrirait la partie la plus établie du
+    """70 % de couverture : un chiffre aurait été produit sous l'ancien seuil de
+    50 %, il ne l'est plus. Le chiffre décrirait la partie la plus établie du
     portefeuille, et la partie exclue pèse trop pour que le biais reste borné."""
     peupler(conn, part_de_c=0.30)
     (obs,) = evaluer(conn).of_rule(RuleId.SCENARIO_COVERAGE)
@@ -587,7 +587,7 @@ def test_sans_ligne_couverte_aucun_chiffre(entrees):
     assert "Aucun chiffre n'est produit" in obs.statement
 
 
-# ============================================ Avertissement attaché au CVaR 99 % ==
+# ============================================ Avertissement attaché au CVaR 99 % ==
 
 
 def queue(niveau, observations):
@@ -600,9 +600,9 @@ def test_le_cvar_a_99_porte_en_permanence_son_avertissement():
     """Attaché au chiffre, pas déclenché par lui : présent quelle que soit la
     taille de la queue, y compris quand elle serait « suffisante »."""
     assert queue(0.99, 6).caveat == (
-        "Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre."
+        "Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre."
     )
-    assert "50 séances" in queue(0.99, 50).caveat
+    assert "50 séances" in queue(0.99, 50).caveat
     assert queue(0.95, 26).caveat is None
 
 
@@ -622,7 +622,7 @@ def test_chaque_seuil_choisi_dit_qu_il_a_ete_choisi():
 
 def test_la_couverture_minimale_est_plus_stricte_qu_un_pile_ou_face():
     assert MIN_SCENARIO_COVERAGE.value == 0.80
-    assert "= 80 %" in str(MIN_SCENARIO_COVERAGE)
+    assert "= 80 %" in str(MIN_SCENARIO_COVERAGE)
     assert "d'un cinquième" in MIN_SCENARIO_COVERAGE.rationale
 
 
@@ -640,7 +640,7 @@ def test_le_bandeau_couvre_les_points_attendus():
     for attendu in (
         "pas un conseil en investissement réglementé",
         "Aucune garantie",
-        "504 dernières séances de bourse, soit environ 2 ans",
+        "504 dernières séances de bourse, soit environ 2 ans",
         "Elles ne prédisent pas son comportement futur",
         "ne prédisent ni la survenue, ni l'ampleur, ni la forme",
         "à vos propres risques",
@@ -660,8 +660,8 @@ def test_le_bandeau_vouvoie_et_les_observations_tutoient(rapport):
 
 
 def test_le_bandeau_suit_la_fenetre_reellement_utilisee(rapport):
-    assert "252 dernières séances de bourse, soit environ 1 an" in acceptance_text(252)
-    assert "100 dernières séances" in rapport.disclaimer
+    assert "252 dernières séances de bourse, soit environ 1 an" in acceptance_text(252)
+    assert "100 dernières séances" in rapport.disclaimer
 
 
 # ====================================================== Données réelles ==
@@ -690,7 +690,7 @@ def test_regles_sur_un_portefeuille_reel(tmp_path):
     assert contributions["XOM"].facts["scenario:tightening_2022"] > 0
     for observation in resultat.observations:
         assert PRESCRIPTIF.search(observation.render()) is None
-    assert "504 dernières séances" in resultat.disclaimer
+    assert "504 dernières séances" in resultat.disclaimer
 
 
 # ================================================ Taille de l'échantillon ==
@@ -747,7 +747,7 @@ def test_sous_trois_seances_la_part_systematique_n_est_pas_chiffree(risque):
     (obs,) = systematic_share(base)
 
     assert "R² 1,00" not in obs.statement
-    assert "100 %" not in obs.statement
+    assert "100 %" not in obs.statement
     assert "n'est pas estimable" in obs.statement
     assert obs.facts["r2"] is None
     assert obs.facts["part_propre"] is None
@@ -772,7 +772,10 @@ def test_le_refus_porte_un_seuil_derive_et_non_choisi(risque):
         assert seuil.kind is ThresholdKind.DERIVED
         assert seuil.value == 3.0
         assert obs.uses_chosen_threshold is False
-        assert "degrés de liberté résiduels" in seuil.rationale
+        # La rationale couvre les TROIS mesures : elle ne peut donc invoquer ni
+        # une régression, ni un coefficient à ±1.
+        assert "le centrage ne laisse qu'une seule direction" in seuil.rationale
+        assert "régression" not in seuil.rationale
 
 
 # ---------------------------------------- Signalement de trois à soixante --
@@ -784,7 +787,7 @@ def test_a_trois_seances_la_correlation_est_chiffree_et_signalee_mince(risque):
     (obs,) = apparent_diversification(base)
 
     assert obs.facts["correlation"] == pytest.approx(0.95)
-    assert "Estimation mince : 3 séances" in obs.statement
+    assert "Estimation mince : 3 séances" in obs.statement
     assert MIN_REGRESSION_SAMPLE in obs.thresholds
     assert obs.uses_chosen_threshold
 
@@ -794,7 +797,7 @@ def test_a_trois_seances_la_part_systematique_est_chiffree_et_signalee_mince(ris
     (obs,) = systematic_share(base)
 
     assert obs.facts["r2"] is not None
-    assert "Estimation mince : 3 séances" in obs.statement
+    assert "Estimation mince : 3 séances" in obs.statement
     assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
 
 
@@ -802,7 +805,7 @@ def test_la_paire_la_plus_correlee_est_aussi_signalee_mince(risque):
     base = avec_correlation(risque, [[1.0, 0.42], [0.42, 1.0]], ["A", "B"], 40)
     (obs,) = apparent_diversification(base)
 
-    assert "Estimation mince : 40 séances" in obs.statement
+    assert "Estimation mince : 40 séances" in obs.statement
     kinds = [s.kind for s in obs.thresholds]
     assert kinds == [
         ThresholdKind.CHOSEN,
@@ -896,7 +899,7 @@ def test_sous_trois_seances_les_lignes_effectives_en_risque_ne_sont_pas_dites(ri
     """La moitié EN CAPITAL survit : c'est une mesure ponctuelle, sans fenêtre.
 
     Seule la lecture en risque disparaît, et elle dit pourquoi — plutôt que de
-    laisser croire que le risque se concentre sur 1,4 ligne.
+    laisser croire que le risque se concentre sur 1,4 ligne.
     """
     obs = effective_concentration(avec_fenetre_de_variance(risque, 2))
 
@@ -914,14 +917,14 @@ def test_a_trois_seances_les_deux_regles_chiffrent_et_signalent(risque):
 
     concentration_obs = effective_concentration(base)
     assert concentration_obs.facts["lignes_effectives_risque"] is not None
-    assert "Estimation mince : 3 séances" in concentration_obs.statement
+    assert "Estimation mince : 3 séances" in concentration_obs.statement
     assert concentration_obs.thresholds == (MIN_REGRESSION_SAMPLE,)
 
     contributions = variance_contribution(base)
     assert len(contributions) == len(risque.variance_contributions.contributions)
     for obs in contributions:
         assert obs.facts["part_de_variance"] is not None
-        assert "Estimation mince : 3 séances" in obs.statement
+        assert "Estimation mince : 3 séances" in obs.statement
         assert MIN_REGRESSION_SAMPLE in obs.thresholds
         assert obs.uses_chosen_threshold
 
@@ -943,7 +946,7 @@ def test_au_dela_du_seuil_les_deux_regles_ne_signalent_rien(risque, observations
 def test_les_quatre_regles_portent_le_seuil_choisi_sur_un_echantillon_mince(risque):
     """Les quatre règles qui lisent la covariance, d'un coup.
 
-    C'était le trou : le minimum de 60 séances ne s'appliquait qu'aux
+    C'était le trou : le minimum de 60 séances ne s'appliquait qu'aux
     régressions de crise, alors que quatre règles reposent sur la même matrice.
     """
     base = avec_fenetre_de_variance(risque, 40)

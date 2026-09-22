@@ -68,22 +68,33 @@ MIN_REGRESSION_OBSERVATIONS = 60
 
 # ------------------------------------- Taille minimale d'une ESTIMATION --
 #
-# En deçà de trois observations, une corrélation et un R² cessent d'être des
-# estimations. Ce n'est pas une convention comme `MIN_REGRESSION_OBSERVATIONS` :
-# c'est de l'algèbre, et c'est le seul seuil du projet qui se démontre.
+# En deçà de trois observations, corrélation, beta et contributions à la variance
+# cessent d'être des estimations. Ce n'est pas une convention comme
+# `MIN_REGRESSION_OBSERVATIONS` : c'est de l'algèbre, et c'est le seul seuil du
+# projet qui se démontre.
 #
-# Une régression avec constante a n − 2 degrés de liberté RÉSIDUELS. À deux
-# observations il n'en reste aucun : la droite passe exactement par les deux
-# points, son R² vaut 1, la corrélation vaut ±1 — quelles que soient les
-# données. Le chiffre serait identique pour deux titres pris au hasard. C'est
-# déjà écrit ailleurs dans le moteur : `covariance.Beta.standard_error` est
-# documenté « None en dessous de trois observations, où elle n'est pas définie ».
+# CE QUI EST VRAI DES TROIS — à deux observations, le centrage ne laisse qu'une
+# SEULE direction. Les deux écarts à la moyenne valent ±δ/2, où δ est la
+# différence entre les deux rendements : tout ce qui se calcule sur l'échantillon
+# centré est une fonction de ce seul δ, et ne porte donc aucune information que δ
+# ne porte déjà.
 #
-# La matrice de covariance dégénère au même endroit, et seulement là. À n = 2
-# elle est de rang 1 — Σ ∝ δδᵀ, où δ est l'écart entre les deux rendements —, et
-# les contributions à la variance s'y réduisent à `wᵢδᵢ / (wᵀδ)` : la part de
-# chaque ligne dans UNE différence journalière, présentée comme une décomposition
-# de variance. Vérifié à 1e-16 près.
+# CE QUI EST PROPRE À CHACUNE — elles dégénèrent sous le même seuil, pas de la
+# même façon, et il ne faut pas leur prêter la même raison :
+#
+#   * corrélation — deux points centrés sont colinéaires, donc |ρ| = 1 par
+#     construction, quelles que soient les données ;
+#   * beta — une régression avec constante a n − 2 degrés de liberté RÉSIDUELS ;
+#     à deux points il n'en reste aucun, la droite passe exactement par eux et la
+#     pente n'a pas d'erreur type. Elle ne vaut PAS ±1 pour autant : elle vaut
+#     n'importe quoi, ce qui ne la rend pas plus estimée. C'est déjà écrit
+#     ailleurs — `covariance.Beta.standard_error` est documenté « None en dessous
+#     de trois observations, où elle n'est pas définie » ;
+#   * contributions à la variance — il n'y a ici aucune régression. Une covariance
+#     d'échantillon sur n observations est de rang au plus n − 1, le centrage
+#     retirant une dimension : à n = 2 elle est de rang 1, Σ ∝ δδᵀ, et
+#     `cᵢ = wᵢδᵢ / (wᵀδ)` est la part de chaque ligne dans cette seule différence
+#     journalière. Vérifié à 1e-16 près.
 #
 # La singularité de Σ quand n ≤ k (nombre de lignes) ne produit PAS de seconde
 # rupture, contrairement à ce qu'on pourrait craindre : les contributions n'ont

@@ -244,8 +244,8 @@ def test_le_drawdown_est_celui_du_portefeuille_pas_la_somme_des_pires_points():
 
     Composer les pires points individuels fabriquerait un épisode où toutes les
     lignes s'effondrent le même jour — ce qui n'arrive jamais et surestime la
-    perte. Ici chaque titre perd 20 % à son propre creux, mais le portefeuille
-    n'a jamais perdu plus de 10 %.
+    perte. Ici chaque titre perd 20 % à son propre creux, mais le portefeuille
+    n'a jamais perdu plus de 10 %.
     """
     panel = pd.DataFrame(
         {
@@ -358,8 +358,8 @@ def test_le_rejeu_en_base_part_des_poids_actuels_en_valeur_de_marche(conn):
     """Le test qui attrape l'erreur de convention sur données en base.
 
     A valait 10 au début de la fenêtre et vaut 100 aujourd'hui ; B est stable.
-    Avec des quantités égales, A pèse aujourd'hui ~91 %. Le rejeu doit partir
-    de ces 91 %, et non des ~50 % que donneraient les quantités d'aujourd'hui
+    Avec des quantités égales, A pèse aujourd'hui ~91 %. Le rejeu doit partir
+    de ces 91 %, et non des ~50 % que donneraient les quantités d'aujourd'hui
     appliquées aux cours de début de fenêtre.
     """
     j = seances(10)
@@ -437,10 +437,10 @@ def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn)
 def test_une_ligne_exclue_n_est_pas_supposee_stable(conn):
     """La perte ne doit pas être diluée dans une valeur non rejouée.
 
-    A (couverte) perd 50 % ; B (exclue) pèse la moitié du portefeuille. Prêter à
-    B un rendement nul afficherait −25 % pour tout le portefeuille : une
+    A (couverte) perd 50 % ; B (exclue) pèse la moitié du portefeuille. Prêter à
+    B un rendement nul afficherait −25 % pour tout le portefeuille : une
     sous-estimation silencieuse. Le résultat porte sur la partie couverte
-    (−50 %), avec sa portée déclarée (50 % de la valeur).
+    (−50 %), avec sa portée déclarée (50 % de la valeur).
     """
     j = seances(10)
     peupler(
@@ -458,8 +458,8 @@ def test_une_ligne_exclue_n_est_pas_supposee_stable(conn):
 
 
 def test_la_couverture_se_compte_en_valeur_pas_en_nombre_de_lignes(conn):
-    # Une ligne exclue sur deux, mais elle pèse ~95 % de la valeur : dire
-    # « 1 ligne sur 2 » masquerait la portée réelle du trou.
+    # Une ligne exclue sur deux, mais elle pèse ~95 % de la valeur : dire
+    # « 1 ligne sur 2 » masquerait la portée réelle du trou.
     j = seances(10)
     peupler(
         conn,
@@ -488,9 +488,9 @@ def test_sans_aucune_ligne_couverte_aucun_chiffre_n_est_produit(conn):
 
 
 def test_le_scenario_utilise_adj_close_et_non_close(conn):
-    """Sur la fenêtre, close reste plat pendant qu'adj_close baisse de 45 %.
+    """Sur la fenêtre, close reste plat pendant qu'adj_close baisse de 45 %.
 
-    Un calcul fondé sur close rendrait 0 % ; seul adj_close donne la trajectoire
+    Un calcul fondé sur close rendrait 0 % ; seul adj_close donne la trajectoire
     de performance totale attendue.
     """
     j = seances(10)

@@ -107,7 +107,7 @@ def test_la_volatilite_parametrique_egale_celle_de_la_serie():
     √(wᵀΣw) et l'écart-type de la série w·r sont la MÊME quantité calculée par
     deux chemins. Ce n'est pas une approximation, donc la tolérance est celle du
     flottant. Une incohérence ddof=0 / ddof=1 introduirait un écart de
-    N/(N−1) ≈ 0,1 % sur 504 séances : invisible à l'œil, faux quand même.
+    N/(N−1) ≈ 0,1 % sur 504 séances : invisible à l'œil, faux quand même.
     """
     panel = panel_aleatoire(n=504, k=4)
     poids = {"T0": 0.4, "T1": 0.3, "T2": 0.2, "T3": 0.1}
@@ -186,7 +186,7 @@ def test_un_portefeuille_deux_fois_plus_volatil_a_un_beta_de_deux():
     resultat = beta(2.0 * marche, marche)
 
     assert resultat.beta == pytest.approx(2.0)
-    assert resultat.r_squared == pytest.approx(1.0), "toujours 100 % systématique"
+    assert resultat.r_squared == pytest.approx(1.0), "toujours 100 % systématique"
 
 
 def test_un_portefeuille_independant_du_marche_a_un_beta_proche_de_zero():
@@ -276,7 +276,7 @@ def test_la_var_parametrique_suit_la_formule():
 
 
 def test_le_quantile_normal_vient_de_scipy_pas_d_une_table():
-    # 1,6449 et 2,3263 : les valeurs de référence à 95 % et 99 %.
+    # 1,6449 et 2,3263 : les valeurs de référence à 95 % et 99 %.
     assert parametric_var(1.0, 0.95) == pytest.approx(1.6449, abs=1e-4)
     assert parametric_var(1.0, 0.99) == pytest.approx(2.3263, abs=1e-4)
 
@@ -308,8 +308,8 @@ def test_le_cvar_depasse_la_var_en_magnitude():
 def test_le_cvar_porte_le_nombre_d_observations_de_queue():
     """La fragilité de la queue doit être visible dans la sortie.
 
-    À 99 % sur 504 séances, la moyenne ne porte que sur une poignée de points —
-    une estimation d'une nature différente de celle du 95 %, et le chiffre seul
+    À 99 % sur 504 séances, la moyenne ne porte que sur une poignée de points —
+    une estimation d'une nature différente de celle du 95 %, et le chiffre seul
     ne le dirait pas.
     """
     rendements = panel_aleatoire(n=504, k=1)["T0"]

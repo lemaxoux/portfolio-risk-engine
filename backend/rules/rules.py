@@ -41,6 +41,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 
+from backend import typography
 from backend.risk_engine.config import DEFAULT_WINDOW
 from backend.risk_engine.engine import (
     RegimeComparison,
@@ -127,19 +128,20 @@ def _decimal(valeur: float, decimales: int) -> str:
 
 
 def _pct(valeur: float, decimales: int = 1) -> str:
-    return f"{_decimal(valeur * 100.0, decimales)} %"
+    """Pourcentage, espace FINE insécable avant le signe (voir `typography`)."""
+    return f"{_decimal(valeur * 100.0, decimales)} %"
 
 
 def _points(ecart: float, decimales: int = 1) -> str:
     """Magnitude d'un écart entre deux parts, en points (singulier sous 2)."""
     valeur = abs(ecart) * 100.0
     unite = "points" if round(valeur, decimales) >= 2 else "point"
-    return f"{_decimal(valeur, decimales)} {unite}"
+    return f"{_decimal(valeur, decimales)} {unite}"
 
 
 def _signed_points(valeur: float, decimales: int = 1) -> str:
     signe = "+" if valeur > 0 else ("−" if valeur < 0 else "")
-    return f"{signe}{_decimal(abs(valeur) * 100.0, decimales)} pts"
+    return f"{signe}{_decimal(abs(valeur) * 100.0, decimales)} pts"
 
 
 def _enumeration(elements: Sequence[str]) -> str:
@@ -149,19 +151,25 @@ def _enumeration(elements: Sequence[str]) -> str:
 
 
 def _lignes(nombre: int) -> str:
-    return f"{nombre} ligne" if nombre == 1 else f"{nombre} lignes"
+    return typography.lines(nombre)
+
+
+def _seances(nombre: int) -> str:
+    """« 504 séances », insécable. Un seul endroit pour ce lien-là aussi."""
+    return typography.sessions(nombre)
 
 
 # --------------------------------------------- Taille de l'échantillon --
 #
 # Deux régimes, parce que ce sont deux problèmes différents.
 #
-# `_non_estimable` — en deçà de trois observations, une corrélation et un R²
-# ne sont pas des mesures bruyantes, ce sont des identités arithmétiques : la
-# droite passe par les deux points, R² vaut 1, |ρ| vaut 1, quelles que soient
-# les données. La règle REFUSE alors de chiffrer. Y attacher une mention
-# d'échantillon mince ne réparerait rien : la phrase affirmerait toujours,
-# sur le portefeuille, quelque chose que le nombre ne peut pas porter.
+# `_non_estimable` — en deçà de trois observations, le centrage ne laisse qu'une
+# seule direction : corrélation, beta et contributions à la variance s'y
+# calculent tous à partir d'un unique écart journalier. Ce ne sont plus des
+# mesures bruyantes, ce sont des identités arithmétiques. La règle REFUSE alors
+# de chiffrer. Y attacher une mention d'échantillon mince ne réparerait rien :
+# la phrase affirmerait toujours, sur le portefeuille, quelque chose que le
+# nombre ne peut pas porter.
 #
 # LA MÊME FRONTIÈRE VAUT POUR LES CONTRIBUTIONS À LA VARIANCE, et pour les
 # lignes effectives « en risque » qui s'en déduisent. À n = 2 la covariance est
@@ -202,7 +210,7 @@ def _mention_mince(quoi: str, seances: int) -> str:
     if not _echantillon_mince(seances):
         return ""
     return (
-        f" Estimation mince : {seances} séances, moins que les "
+        f" Estimation mince : {_seances(seances)}, moins que les "
         f"{int(MIN_REGRESSION_SAMPLE.value)} en deçà desquelles quelques "
         f"journées extrêmes suffisent à porter {quoi}."
     )
@@ -238,11 +246,11 @@ def effective_concentration(report: RiskReport) -> Observation:
             rule=RuleId.EFFECTIVE_CONCENTRATION,
             subject="portefeuille",
             statement=(
-                f"Tes {c.n_positions} lignes se comportent comme "
-                f"{_decimal(en_capital, 1)} lignes effectives en capital "
+                f"Tes {_lignes(c.n_positions)} se comportent comme "
+                f"{_decimal(en_capital, 1)} lignes effectives en capital "
                 "(inverse de la somme des carrés des poids) ; l'équipondération "
                 f"en donnerait {c.n_positions}. La lecture en risque n'est pas "
-                f"disponible : sur {seances} séances, la covariance est de rang "
+                f"disponible : sur {_seances(seances)}, la covariance est de rang "
                 "1 et les contributions à la variance s'y ramènent à la part de "
                 "chaque ligne dans une seule différence journalière."
             ),
@@ -271,8 +279,9 @@ def effective_concentration(report: RiskReport) -> Observation:
         ecart = round(en_risque, 1) - round(en_capital, 1)
         liaison = "mais" if ecart < 0 else "et"
         phrases = [
-            f"Tes {c.n_positions} lignes se comportent comme {capital_affiche} lignes "
-            f"effectives en capital, {liaison} comme {risque_affiche} en risque "
+            f"Tes {_lignes(c.n_positions)} se comportent comme "
+            f"{capital_affiche} lignes effectives en capital, {liaison} "
+            f"comme {risque_affiche} en risque "
             "(inverse de la somme des carrés des poids, puis des contributions à la "
             "variance)."
         ]
@@ -396,7 +405,7 @@ def variance_contribution(
                 rule=RuleId.VARIANCE_CONTRIBUTION,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {seances} séances, la variance du portefeuille ne se "
+                    f"Sur {_seances(seances)}, la variance du portefeuille ne se "
                     "décompose pas : la matrice de covariance est de rang 1, et "
                     "la part de chaque ligne s'y ramène à sa part dans une seule "
                     "différence journalière. Aucune contribution n'est donc "
@@ -502,7 +511,7 @@ def apparent_diversification(
                 rule=RuleId.APPARENT_DIVERSIFICATION,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {seances} séances, aucune corrélation n'est estimable : "
+                    f"Sur {_seances(seances)}, aucune corrélation n'est estimable : "
                     "trois observations sont nécessaires pour qu'un coefficient "
                     "mesure quelque chose. En deçà, la droite d'ajustement passe "
                     "exactement par les points et la corrélation vaut ±1 quelles que "
@@ -535,7 +544,7 @@ def apparent_diversification(
                 subject=f"{a}–{b}",
                 statement=(
                     f"{a} et {b} ont une corrélation de {_decimal(rho, 2)} sur "
-                    f"{seances} séances : elles ont largement évolué ensemble, et "
+                    f"{_seances(seances)} : elles ont largement évolué ensemble, et "
                     "apportent moins de diversification que leur nombre ne le "
                     f"suggère.{mince}"
                 ),
@@ -553,7 +562,7 @@ def apparent_diversification(
             subject="portefeuille",
             statement=(
                 "Aucune paire de lignes n'atteint une corrélation de "
-                f"{_decimal(threshold.value, 2)} sur {seances} séances. La paire la "
+                f"{_decimal(threshold.value, 2)} sur {_seances(seances)}. La paire la "
                 f"plus corrélée est {a}–{b}, à {_decimal(rho, 2)}.{mince}"
             ),
             facts={"correlation_max": rho, "paire": f"{a}–{b}", "seances": seances},
@@ -586,7 +595,7 @@ def systematic_share(report: RiskReport) -> list[Observation]:
                 rule=RuleId.SYSTEMATIC_SHARE,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {seances} séances, la part systématique n'est pas "
+                    f"Sur {_seances(seances)}, la part systématique n'est pas "
                     "estimable : une régression avec constante n'a plus aucun degré "
                     "de liberté résiduel en deçà de trois observations, et son R² "
                     "vaut 1 quelles que soient les données. Aucune part expliquée "
@@ -608,7 +617,7 @@ def systematic_share(report: RiskReport) -> list[Observation]:
             rule=RuleId.SYSTEMATIC_SHARE,
             subject="portefeuille",
             statement=(
-                f"Sur {seances} séances, {_pct(r2, 0)} de la variance du portefeuille "
+                f"Sur {_seances(seances)}, {_pct(r2, 0)} de la variance du portefeuille "
                 f"s'explique par les mouvements de {beta.benchmark} "
                 f"(R² {_decimal(r2, 2)}). Cette part est du risque de marché : elle est "
                 "commune aux actions américaines, et en détenir davantage ne la dilue "
@@ -683,8 +692,9 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
     minces = [c for c in valides if c.crisis_beta.sample_too_thin]
     if minces:
         phrases.append(
-            f"Un R² de crise estimé sur moins de {int(MIN_REGRESSION_SAMPLE.value)} "
-            "séances repose sur un échantillon trop mince ("
+            f"Un R² de crise estimé sur moins de "
+            f"{_seances(int(MIN_REGRESSION_SAMPLE.value))} repose sur un "
+            "échantillon trop mince ("
             + _enumeration([c.scenario.name for c in minces])
             + ")."
         )
@@ -714,10 +724,10 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
             statement=" ".join(phrases),
             facts=faits,
             provenance=(
-                f"régime calme : {calme.observations} séances, {calme.start} → "
+                f"régime calme : {_seances(calme.observations)}, {calme.start} → "
                 f"{calme.end} ; crises : "
                 + " ; ".join(
-                    f"{c.scenario.name}, {c.crisis_beta.observations} séances"
+                    f"{c.scenario.name}, {_seances(c.crisis_beta.observations)}"
                     for c in valides
                 )
             ),

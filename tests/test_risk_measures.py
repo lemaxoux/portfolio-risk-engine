@@ -54,10 +54,10 @@ def test_rendement_simple_et_log_different_sur_les_grandes_variations():
 def test_l_agregation_entre_titres_exige_des_rendements_simples():
     """La correction de la spec, verrouillée par un test.
 
-    Deux lignes de 50, l'une +10 %, l'autre −10 %. La valeur passe de 100 à
+    Deux lignes de 50, l'une +10 %, l'autre −10 %. La valeur passe de 100 à
     55 + 45 = 100 : le rendement du portefeuille est exactement zéro. La moyenne
     pondérée des rendements SIMPLES le retrouve. Celle des rendements LOG rend
-    −0,50 %, une perte qui n'a pas eu lieu.
+    −0,50 %, une perte qui n'a pas eu lieu.
     """
     rendements = pd.DataFrame(
         {"A": [0.10], "B": [-0.10]}, index=jours(1)
@@ -166,8 +166,8 @@ def test_une_serie_strictement_decroissante_a_pour_drawdown_sa_baisse_totale():
 def test_le_pic_est_glissant_et_non_global():
     """Le point que le pic global ferait rater.
 
-    [100, 90, 80, 200] : la perte réellement subie est −20 % (de 100 à 80). Un
-    maximum global pris à 200 rendrait −60 %, une perte impossible puisqu'on ne
+    [100, 90, 80, 200] : la perte réellement subie est −20 % (de 100 à 80). Un
+    maximum global pris à 200 rendrait −60 %, une perte impossible puisqu'on ne
     peut pas décrocher d'un sommet atteint plus tard.
     """
     niveaux = serie([100.0, 90.0, 80.0, 200.0])
@@ -221,7 +221,7 @@ def test_une_serie_constante_n_a_pas_de_sharpe_defini():
 def test_la_deviation_a_la_baisse_divise_par_le_nombre_total_de_periodes():
     """L'erreur classique, verrouillée.
 
-    Une seule baisse de −10 % sur quatre séances. Diviser par N=4 donne 0,05 ;
+    Une seule baisse de −10 % sur quatre séances. Diviser par N=4 donne 0,05 ;
     diviser par le seul compte des séances négatives (1) donnerait 0,10, soit un
     Sortino deux fois trop favorable.
     """
@@ -247,7 +247,7 @@ def test_sortino_sans_rendement_negatif_rend_none_et_pas_nan():
 
 def test_sortino_utilise_la_cible_fournie():
     rendements = [0.01, 0.02, 0.03]
-    # Avec une cible à 2 %, deux observations passent sous la cible.
+    # Avec une cible à 2 %, deux observations passent sous la cible.
     assert sortino_ratio(rendements, target_daily=0.02) is not None
     assert downside_deviation(rendements, target_daily=0.02) > 0.0
 
@@ -274,7 +274,7 @@ def test_un_portefeuille_concentre_tend_vers_un():
 
 
 def test_l_inverse_du_hhi_donne_le_nombre_de_positions_effectives():
-    # Dix lignes dont une pèse 80 % : la diversification affichée est un leurre.
+    # Dix lignes dont une pèse 80 % : la diversification affichée est un leurre.
     poids = {"GROSSE": 0.8, **{f"T{i}": 0.2 / 9 for i in range(9)}}
     assert 1.0 / herfindahl_index(poids) == pytest.approx(1.55, abs=0.02)
 

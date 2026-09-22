@@ -63,6 +63,7 @@ app/
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
 │   │   └── config.py    #   taux sans risque, fenêtre, ddof, λ EWMA
+│   ├── typography.py    # Espaces insécables du texte rédigé côté serveur
 │   ├── rules/           # Moteur de règles — décrit, ne prescrit pas
 │   │   ├── rules.py     #   les six règles et leurs observations
 │   │   ├── thresholds.py#   seuils et provenance
@@ -775,6 +776,25 @@ la couche HTTP pour écrire une position.
 1,38 % se sérialise `0.0138`. Le pourcentage, la virgule décimale et l'arrondi
 sont décidés à un seul endroit, côté frontend (`frontend/DESIGN.md` §6).
 
+**Mais le backend RÉDIGE du texte**, et ce texte-là est affiché tel quel :
+observations du moteur de règles, `summary()` des scénarios, `caveat` du CVaR,
+`rendered` des seuils, bandeau d'acceptation. Il suit donc la typographie
+française, avec des espaces **insécables** (`backend/typography.py`) :
+
+| | Où | Pourquoi |
+|---|---|---|
+| **U+202F** espace fine | avant `%`, séparateur de milliers | sinon « 25,6 % » se coupe et le `%` part seul à la ligne |
+| **U+00A0** espace insécable | entre un nombre et le mot qu'il compte | sinon « 504 séances » devient « 504 » puis « séances » |
+
+Deux tests balaient la réponse `/analysis` entière et refusent toute espace
+ordinaire dans ces deux positions ; un troisième vérifie en sens inverse que les
+caractères sont bien présents, sans quoi les deux premiers surveilleraient une
+absence vide.
+
+Le frontend applique la même convention de son côté pour les nombres qu'il
+formate lui-même. Les messages d'erreur de validation de l'API n'y sont pas
+soumis : ce sont des diagnostics, pas du texte de rapport.
+
 #### Les choix de sérialisation qui comptent
 
 **Pas de `dataclasses.asdict()`.** Il copie les champs et ignore silencieusement
@@ -802,20 +822,24 @@ seule sa qualité d'ajustement manque. `risk.beta` valant `null` garde un sens
 distinct : aucun benchmark demandé.
 
 **Chaque refus n'affirme que ce qui est vrai de SA mesure.** Les trois refusent
-sous le même *seuil*, pas pour la même *raison*, et elles partagent donc la
-démonstration — `n − 2` degrés de liberté résiduels, aucun à `n = 2` — puis
-divergent :
+sous le même *seuil*, pas pour la même *raison*. La partie commune se limite
+donc à ce qui vaut des trois — **à deux observations, le centrage ne laisse
+qu'une seule direction** : les écarts à la moyenne valent ±δ/2, et tout se
+calcule à partir de ce seul δ. Chacune dégénère ensuite à sa manière :
 
-| Mesure | Ce qui dégénère |
-|---|---|
-| corrélation | le coefficient vaut ±1 par construction, quelles que soient les données |
-| beta | la pente est fixée par un seul écart journalier, sans résidu donc **sans erreur type** ; elle peut prendre n'importe quelle valeur |
-| contributions | la covariance est de rang 1 — `Σ ∝ δδᵀ` — et la part de chaque ligne vaut `wᵢδᵢ / (wᵀδ)` |
+| Mesure | Ce qui dégénère | Pourquoi |
+|---|---|---|
+| corrélation | le coefficient vaut ±1, quelles que soient les données | deux points centrés sont colinéaires |
+| beta | la pente n'a pas d'erreur type et prend n'importe quelle valeur | une régression avec constante a `n − 2` degrés de liberté résiduels, aucun à `n = 2` |
+| contributions | `Σ` est de rang 1 et la part de chaque ligne vaut `wᵢδᵢ / (wᵀδ)` | une covariance d'échantillon est de rang au plus `n − 1`, le centrage retirant une dimension |
 
-Un texte commun serait faux pour deux d'entre elles : à `n = 2` un beta ne vaut
-pas ±1, il vaut n'importe quoi — 11,84 puis 8,65 sur deux fenêtres de la base
-réelle. Une explication fausse attachée à un refus juste est pire qu'un refus
-sans explication : le lecteur en tire une conclusion sur ses données.
+Un texte commun serait faux pour deux d'entre elles. « Le coefficient vaut ±1 »
+est vrai d'une corrélation et faux d'une pente : à `n = 2` un beta vaut
+n'importe quoi — 11,84 puis 8,65 sur deux fenêtres de la base réelle. Et
+« une régression avec constante » est **hors sujet** pour une décomposition de
+variance, où il n'y a aucune régression. Une explication fausse attachée à un
+refus juste est pire qu'un refus sans explication : le lecteur en tire une
+conclusion sur ses données.
 
 #### Où s'arrête le refus
 

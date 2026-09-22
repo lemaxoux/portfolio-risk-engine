@@ -16,6 +16,9 @@ from datetime import date
 
 import pandas as pd
 
+from backend import typography
+from backend.typography import NARROW_NBSP, NBSP
+
 from . import covariance, measures, regime, stress, var
 from .config import (
     DDOF,
@@ -42,6 +45,18 @@ from .scenarios import SCENARIOS, Scenario
 from .returns import align_panel, portfolio_returns, simple_returns, wealth_curve
 
 
+def _pourcent(valeur: float, signe: bool = False) -> str:
+    """Fraction en pourcentage, espace FINE insécable avant le signe.
+
+    Le séparateur décimal reste le POINT dans ces résumés, là où le moteur de
+    règles écrit une virgule : deux conventions coexistent, et seule la seconde
+    est française. L'écart est antérieur à cette passe et n'est pas corrigé ici
+    — il se règle en une fois, pas mesure par mesure.
+    """
+    brut = f"{valeur:+.1%}" if signe else f"{valeur:.1%}"
+    return brut.replace("%", f"{NARROW_NBSP}%")
+
+
 @dataclass(frozen=True)
 class Window:
     """Fenêtre d'estimation effectivement utilisée.
@@ -66,7 +81,10 @@ class Window:
 
     def __str__(self) -> str:
         etat = "" if self.complete else f" (demandé : {self.requested})"
-        return f"{self.observations} séances, {self.start} → {self.end}{etat}"
+        return (
+            f"{typography.sessions(self.observations)}, "
+            f"{self.start} → {self.end}{etat}"
+        )
 
 
 @dataclass(frozen=True)
@@ -292,8 +310,9 @@ class ExpectedShortfallResult:
             return None
         poids = round(100 / self.tail_observations)
         return (
-            f"Moyenne de {self.tail_observations} séances seulement, sur une fenêtre "
-            f"de {self.window.observations} : chacune pèse pour {poids} % du chiffre."
+            f"Moyenne de {typography.sessions(self.tail_observations)} seulement, "
+            f"sur une fenêtre de {self.window.observations} : chacune pèse pour "
+            f"{poids}{NARROW_NBSP}% du chiffre."
         )
 
 @dataclass(frozen=True)
@@ -390,7 +409,9 @@ def build_portfolio_series(
     le beta comparérait des intervalles différents sans que rien ne le signale.
     """
     if window < 2:
-        raise ValueError(f"Fenêtre trop courte : {window} (minimum 2 séances).")
+        raise ValueError(
+            f"Fenêtre trop courte : {window} (minimum {typography.sessions(2)})."
+        )
 
     poids = market_value_weights(conn, portfolio_id)
     tickers = poids.tickers
@@ -416,7 +437,7 @@ def build_portfolio_series(
     aligne = align_panel(panel)
     if len(aligne) < 2:
         raise PortfolioError(
-            "Moins de deux séances communes à tous les titres : impossible de "
+            f"Moins de deux séances communes à tous les titres : impossible de "
             "calculer un rendement. Vérifier la couverture avec "
             "`python -m backend.ingestion status`."
         )
@@ -584,30 +605,42 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
-# Conséquence PROPRE À CHAQUE MESURE de l'absence de degré de liberté résiduel.
+# Conséquence PROPRE À CHAQUE MESURE de la dégénérescence de l'échantillon.
 #
 # Les trois mesures refusent sous le même SEUIL, pas pour la même RAISON, et un
-# texte commun affirmerait de chacune ce qui n'est vrai que d'une seule. Le
-# coefficient de corrélation vaut ±1 par construction ; la pente d'un beta, elle,
-# vaut n'importe quoi — 11,84 puis 8,65 sur deux fenêtres de deux séances de la
-# base réelle. Écrire « le coefficient vaut ±1 » à propos d'un beta serait une
-# explication fausse attachée à un refus juste, ce qui est pire qu'un refus sans
-# explication : le lecteur en tirerait une conclusion sur ses données.
+# texte commun affirmerait de chacune ce qui n'est vrai que d'une seule :
+#
+#   * « le coefficient vaut ±1 » est vrai d'une corrélation et FAUX d'une pente —
+#     à deux séances un beta vaut n'importe quoi, 11,84 puis 8,65 sur deux
+#     fenêtres de la base réelle ;
+#   * « une régression avec constante a n − 2 degrés de liberté » est hors sujet
+#     pour une décomposition de variance, où il n'y a aucune régression.
+#
+# Une explication fausse attachée à un refus juste est pire qu'un refus sans
+# explication : le lecteur en tire une conclusion sur ses données.
+#
+# La partie commune est donc réduite à ce qui vaut des trois — à deux
+# observations, le centrage ne laisse qu'une seule direction —, et chaque
+# conséquence porte sa propre justification.
 CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
     "correlation": (
-        "Le coefficient vaut alors ±1 par construction, quelles que soient les "
-        "données : deux points sont toujours alignés."
+        "Deux points centrés sont colinéaires : le coefficient vaut alors ±1 par "
+        "construction, quelles que soient les données."
     ),
+    # Ce texte ne mentionne PAS « ±1 », pas même pour le nier : ce serait
+    # répondre à une objection que le lecteur d'un beta ne se pose pas, et
+    # remettre en circulation le mot qui n'a rien à faire ici.
     "beta": (
-        "La pente est alors entièrement fixée par un seul écart journalier, sans "
-        "résidu donc sans erreur type. Elle peut prendre n'importe quelle valeur "
-        "— ce qui n'en fait pas une estimation, mais une construction "
-        "géométrique."
+        "Une régression avec constante a n − 2 degrés de liberté résiduels ; à "
+        "deux points il n'en reste aucun, et la pente n'a pas d'erreur type. "
+        "Elle prend alors n'importe quelle valeur, ce qui ne la rend pas "
+        "davantage estimée."
     ),
     "contributions": (
-        "La matrice de covariance est alors de rang 1 — Σ ∝ δδᵀ, où δ est l'écart "
-        "entre les deux rendements — et la part de chaque ligne s'y ramène à "
-        "wᵢδᵢ / (wᵀδ) : sa part dans une seule différence journalière."
+        "Une covariance d'échantillon sur n observations est de rang au plus "
+        "n − 1, le centrage retirant une dimension : à deux observations elle est "
+        "de rang 1, Σ ∝ δδᵀ, et la part de chaque ligne s'y ramène à "
+        "wᵢδᵢ / (wᵀδ) — sa part dans ce seul écart."
     ),
 }
 
@@ -615,17 +648,21 @@ CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
 def _non_estimable(window: Window, quoi: str, mesure: str) -> str | None:
     """Raison du refus d'estimer, ou None si la fenêtre le permet.
 
-    Une partie commune — le seuil et sa démonstration — puis la conséquence
-    propre à `mesure`. Le partage s'arrête au point où les mesures cessent de
-    dégénérer de la même façon.
+    Une partie commune — le seuil, et le fait dont les trois mesures découlent —
+    puis la justification propre à `mesure`. Le partage s'arrête exactement là où
+    les mesures cessent de dégénérer de la même façon : la corrélation par
+    colinéarité, le beta par absence de résidu, les contributions par perte de
+    rang.
     """
     if window.observations >= MIN_ESTIMABLE_OBSERVATIONS:
         return None
     return (
-        f"{window.observations} séances seulement : {quoi} n'est pas estimable "
-        f"en deçà de {MIN_ESTIMABLE_OBSERVATIONS} observations. Une régression "
-        "avec constante a n − 2 degrés de liberté résiduels ; à deux points il "
-        f"n'en reste aucun. {CONSEQUENCES_NON_ESTIMABLE[mesure]}"
+        f"{typography.sessions(window.observations)} seulement : {quoi} n'est "
+        "pas estimable "
+        f"en deçà de {MIN_ESTIMABLE_OBSERVATIONS} observations. À deux "
+        "observations, le centrage ne laisse qu'une seule direction : tout se "
+        "calcule à partir d'un unique écart journalier. "
+        f"{CONSEQUENCES_NON_ESTIMABLE[mesure]}"
     )
 
 
@@ -781,7 +818,10 @@ def monte_carlo_var(
         confidence=confidence,
         method="Monte Carlo",
         window=serie.window,
-        detail=f"{brut.simulations} tirages normaux corrélés, graine {brut.seed}",
+        detail=(
+            f"{typography.grouped(brut.simulations, 'tirage')} "
+            f"normaux corrélés, graine {brut.seed}"
+        ),
     )
 
 
@@ -808,8 +848,8 @@ def student_parametric_var(
         method="Student paramétrique",
         window=serie.window,
         detail=(
-            f"ν = {ajustement.nu:.2f} (MLE sur {ajustement.observations} séances), "
-            "variance ajustée sur Σ"
+            f"ν = {ajustement.nu:.2f} (MLE sur "
+            f"{typography.sessions(ajustement.observations)}), variance ajustée sur Σ"
         ),
         nu=ajustement.nu,
     )
@@ -839,8 +879,10 @@ def student_monte_carlo_var(
         method="Monte Carlo Student",
         window=serie.window,
         detail=(
-            f"ν = {ajustement.nu:.2f} (MLE sur {ajustement.observations} séances), "
-            f"échelle S = Σ·(ν−2)/ν, {brut.simulations} tirages, graine {brut.seed}"
+            f"ν = {ajustement.nu:.2f} (MLE sur "
+            f"{typography.sessions(ajustement.observations)}), échelle S = Σ·(ν−2)/ν, "
+            f"{typography.grouped(brut.simulations, 'tirage')}, "
+            f"graine {brut.seed}"
         ),
         nu=ajustement.nu,
     )
@@ -902,10 +944,10 @@ class ScenarioCoverage:
 
     def __str__(self) -> str:
         if self.is_complete:
-            return f"{self.covered_count} lignes, 100 % de la valeur"
+            return f"{typography.lines(self.covered_count)}, 100{NARROW_NBSP}% de la valeur"
         return (
-            f"{self.covered_count}/{self.total_count} lignes, "
-            f"{self.value_share:.1%} de la valeur "
+            f"{self.covered_count}/{typography.lines(self.total_count)}, "
+            f"{_pourcent(self.value_share)} de la valeur "
             f"(exclues : {', '.join(e.ticker for e in self.excluded)})"
         )
 
@@ -966,14 +1008,15 @@ class ScenarioResult:
             "portefeuille complet"
             if self.coverage.is_complete
             else (
-                f"{self.coverage.value_share:.1%} de la valeur seulement, "
+                f"{_pourcent(self.coverage.value_share)} de la valeur seulement, "
                 "perte probablement sous-estimée"
             )
         )
         return (
-            f"{self.scenario.name} : {self.end_to_end_return:+.1%} de bout en bout, "
-            f"pire moment {self.max_drawdown.value:+.1%} "
-            f"({self.observations} séances, {portee})"
+            f"{self.scenario.name} : {_pourcent(self.end_to_end_return, signe=True)} "
+            f"de bout en bout, pire moment "
+            f"{_pourcent(self.max_drawdown.value, signe=True)} "
+            f"({typography.sessions(self.observations)}, {portee})"
         )
 
 
@@ -1147,11 +1190,12 @@ class RegressedBeta:
         )
         texte = (
             f"{self.beta:.2f}{incertitude}, R² {self.r_squared:.2f} "
-            f"({self.observations} séances)"
+            f"({typography.sessions(self.observations)})"
         )
         if self.sample_too_thin:
             texte += (
-                f" — ÉCHANTILLON TROP MINCE (< {self.min_observations} séances), "
+                f" — ÉCHANTILLON TROP MINCE (< "
+                f"{typography.sessions(self.min_observations)}), "
                 "non fiable"
             )
         return texte
@@ -1236,8 +1280,9 @@ class RegimeComparison:
             else f"{self.amplification_ratio:.2f}"
         )
         lignes = [
-            f"{self.scenario.name} : portefeuille {self.portfolio_return:+.1%}, "
-            f"{self.benchmark} {self.benchmark_return:+.1%}",
+            f"{self.scenario.name} : portefeuille "
+            f"{_pourcent(self.portfolio_return, signe=True)}, "
+            f"{self.benchmark} {_pourcent(self.benchmark_return, signe=True)}",
             f"  ratio d'amplification réalisé : {ratio} "
             "(rapport de rendements log, pas un beta)",
             f"  beta régressé dans la fenêtre : {self.crisis_beta}",
@@ -1246,13 +1291,14 @@ class RegimeComparison:
             f"en régime calme → {self.crisis_beta.r_squared:.2f} en crise "
             f"({self.systematic_share_change:+.2f})"
             + (" — échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
-            f"  le beta calme prédisait {self.predicted_return:+.1%}, "
-            f"perte réelle {self.portfolio_return:+.1%} : écart "
-            f"{self.prediction_gap * 100:+.1f} pts",
+            f"  le beta calme prédisait "
+            f"{_pourcent(self.predicted_return, signe=True)}, perte réelle "
+            f"{_pourcent(self.portfolio_return, signe=True)} : écart "
+            f"{self.prediction_gap * 100:+.1f}{NBSP}pts",
         ]
         if not self.coverage.is_complete:
             lignes.append(
-                f"  portée : {self.coverage.value_share:.1%} de la valeur "
+                f"  portée : {_pourcent(self.coverage.value_share)} de la valeur "
                 "seulement, perte probablement sous-estimée"
             )
         return "\n".join(lignes)
@@ -1313,7 +1359,8 @@ def compare_regimes(
         return replace(
             base,
             unavailable_reason=(
-                f"{len(crise)} séances communes seulement sur la fenêtre : "
+                f"{typography.sessions(len(crise))} communes seulement sur la "
+                "fenêtre : "
                 "trop peu pour une régression"
             ),
         )

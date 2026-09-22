@@ -68,7 +68,8 @@ def acceptance_sections(window: int = DEFAULT_WINDOW) -> tuple[DisclaimerSection
             title="Les mesures décrivent un régime, pas un avenir",
             body=(
                 "Les mesures de risque courantes — volatilité, VaR, CVaR, beta, "
-                f"corrélations — sont estimées sur les {window} dernières séances de "
+                f"corrélations — sont estimées sur les {window} dernières "
+                "séances de "
                 f"bourse, soit {_duree(window)}. Elles décrivent le comportement du "
                 "portefeuille pendant cette période. Elles ne prédisent pas son "
                 "comportement futur, qui peut s'en écarter fortement, en particulier "

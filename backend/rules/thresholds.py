@@ -52,7 +52,10 @@ class Threshold:
 
     def __str__(self) -> str:
         if self.percent:
-            valeur = f"{self.value * 100:.1f}".replace(".", ",").removesuffix(",0") + " %"
+            valeur = (
+                f"{self.value * 100:.1f}".replace(".", ",").removesuffix(",0")
+                + " %"
+            )
         else:
             valeur = f"{self.value:g}".replace(".", ",")
         if self.chosen:
@@ -104,11 +107,14 @@ MIN_REGRESSION_SAMPLE = Threshold(
 
 # Le seul seuil du projet qui ne soit pas une convention : il se démontre.
 #
-# Une régression avec constante a n − 2 degrés de liberté RÉSIDUELS. À deux
-# observations il n'en reste aucun : la droite passe exactement par les deux
-# points, son R² vaut 1, et le coefficient de corrélation vaut ±1 — quelles que
-# soient les données. Le chiffre serait identique pour deux titres pris au
-# hasard, ou pour le même titre comparé à lui-même.
+# À deux observations, le centrage ne laisse qu'une SEULE direction — les deux
+# écarts à la moyenne valent ±δ/2, où δ est la différence entre les deux
+# rendements. Corrélation, beta et contributions à la variance s'y calculent donc
+# tous à partir de ce seul δ, et ne portent aucune information que δ ne porte
+# déjà. Chacun dégénère ensuite à sa manière : |ρ| = 1 par colinéarité, une pente
+# sans erreur type faute de résidu, une covariance de rang 1 dont les
+# contributions valent `wᵢδᵢ / (wᵀδ)`. Voir `MIN_ESTIMABLE_OBSERVATIONS` dans la
+# configuration du moteur pour le détail des trois.
 #
 # C'est ce qui sépare ce seuil de `MIN_REGRESSION_SAMPLE`. À 40 séances, un R²
 # est une estimation BRUYANTE : le chiffre dit quelque chose, mal. À 2 séances,
@@ -127,11 +133,11 @@ MIN_ESTIMABLE_SAMPLE = Threshold(
     kind=ThresholdKind.DERIVED,
     value=float(MIN_ESTIMABLE_OBSERVATIONS),
     rationale=(
-        "une régression avec constante a n − 2 degrés de liberté résiduels ; à "
-        "deux observations il n'en reste aucun, la droite passe exactement par "
-        "les deux points (R² = 1) et la corrélation vaut ±1 quelles que soient "
-        "les données — en deçà, la statistique n'est pas une estimation mais une "
-        "identité arithmétique"
+        "à deux observations, le centrage ne laisse qu'une seule direction : "
+        "corrélation, beta et contributions à la variance s'y calculent tous à "
+        "partir d'un unique écart journalier et ne portent aucune information "
+        "qu'il ne porte déjà — ce ne sont plus des statistiques bruyantes mais "
+        "des identités arithmétiques"
     ),
 )
 

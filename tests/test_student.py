@@ -137,7 +137,7 @@ def test_la_covariance_simulee_retombe_sur_sigma():
 
 
 def test_passer_sigma_comme_echelle_gonflerait_la_volatilite():
-    """Le piège, chiffré : √(ν/(ν−2)) de trop, soit +29 % à ν = 5."""
+    """Le piège, chiffré : √(ν/(ν−2)) de trop, soit +29 % à ν = 5."""
     nu, n = 5.0, 400_000
     vecteur = np.array(list(POIDS.values()))
     rng = np.random.default_rng(7)
@@ -206,14 +206,14 @@ def test_le_monte_carlo_student_converge_vers_la_forme_fermee():
 
 @pytest.mark.parametrize("nu", [3.0, 4.0, 5.0, 6.0, 10.0, 30.0])
 def test_epaules_plus_minces_et_extremes_plus_lourds(nu):
-    """À variance égale : Student moins sévère à 95 % (épaule), plus à 99 % (queue)."""
+    """À variance égale : Student moins sévère à 95 % (épaule), plus à 99 % (queue)."""
     sigma = 0.01
     assert student_t_var(sigma, nu, 0.95) < parametric_var(sigma, 0.95)
     assert student_t_var(sigma, nu, 0.99) > parametric_var(sigma, 0.99)
 
 
 def test_pres_de_nu_deux_les_quantiles_moderes_s_effondrent():
-    # L'artefact qu'aurait produit l'échec de scipy (ν = 2,01) : même à 99 %,
+    # L'artefact qu'aurait produit l'échec de scipy (ν = 2,01) : même à 99 %,
     # la VaR Student passerait très en dessous de la normale.
     sigma = 0.01
     assert student_t_var(sigma, 2.012, 0.99) < 0.5 * parametric_var(sigma, 0.99)

@@ -10,9 +10,12 @@ existent pour qu'elles fassent du bruit.
 from __future__ import annotations
 
 import json
+import re
 
 import numpy as np
 import pytest
+
+from backend.typography import NARROW_NBSP, NBSP
 
 from backend.db.init_db import connect
 from backend.risk_engine.engine import analyse_portfolio
@@ -157,7 +160,7 @@ def test_le_beta_regresse_de_crise_porte_ses_propres_observations(analyse_reelle
     assert crise["observations"] > 0
     assert crise["start"] < crise["end"]
     assert crise["min_observations"] == 60
-    # Le krach COVID tient en 23 séances : l'échantillon est trop mince et la
+    # Le krach COVID tient en 23 séances : l'échantillon est trop mince et la
     # réponse doit le dire plutôt que de présenter la pente comme solide.
     assert crise["sample_too_thin"] is True
 
@@ -409,8 +412,8 @@ def test_prediction_gap_et_systematic_share_change_sont_publies(analyse_reelle):
 
 
 def test_l_avertissement_permanent_du_cvar_a_99_est_publie(analyse_reelle):
-    """`caveat` est une propriété, allumée en permanence à 99 % : à ce niveau la
-    queue ne compte que 1 % de la fenêtre. Ce n'est pas une anomalie, c'est la
+    """`caveat` est une propriété, allumée en permanence à 99 % : à ce niveau la
+    queue ne compte que 1 % de la fenêtre. Ce n'est pas une anomalie, c'est la
     structure du chiffre."""
     niveaux = {
         n["confidence"]: n for n in analyse_reelle.json()["risk"]["tail_risk"]["levels"]
@@ -516,7 +519,7 @@ def test_la_couverture_publie_ses_parts_et_ses_exclusions(analyse_reelle):
 
 
 def test_les_valeurs_restent_des_fractions(analyse_reelle):
-    """Une VaR de 1,38 % se sérialise 0.0138.
+    """Une VaR de 1,38 % se sérialise 0.0138.
 
     Le formatage — pourcentage, virgule décimale, arrondi — est décidé à un seul
     endroit, côté frontend. Deux conventions dans un même produit finiraient par
@@ -530,7 +533,7 @@ def test_les_valeurs_restent_des_fractions(analyse_reelle):
 
 
 def test_aucune_valeur_numerique_n_est_une_chaine_formatee(analyse_reelle):
-    """Un « 1,38 % » publié comme chaîne serait un formatage déguisé en donnée."""
+    """Un « 1,38 % » publié comme chaîne serait un formatage déguisé en donnée."""
     risque = analyse_reelle.json()["risk"]
     for mesure in ("volatility", "ewma_volatility", "parametric_volatility"):
         assert isinstance(risque[mesure]["annualised"], float)
@@ -551,7 +554,7 @@ def test_les_dates_sont_en_iso(analyse_reelle):
 def test_la_var_normale_et_la_var_student_voyagent_ensemble(analyse_reelle):
     """L'écart entre les deux chiffre le coût de l'hypothèse de normalité.
 
-    À 99 %, le quantile est déjà dans la queue : la Student y est plus sévère
+    À 99 %, le quantile est déjà dans la queue : la Student y est plus sévère
     que la normale. Publier la normale seule la ferait passer pour le dernier
     mot.
     """
@@ -621,7 +624,7 @@ def test_une_erreur_qui_n_est_pas_celle_de_student_remonte_en_4xx(
     from backend.api.routes import analysis as module
 
     def faux(conn, portfolio_id, *, monte_carlo=False, **reste):
-        raise ValueError("Fenêtre trop courte : 1 (minimum 2 séances).")
+        raise ValueError("Fenêtre trop courte : 1 (minimum 2 séances).")
 
     monkeypatch.setattr(module, "analyse_portfolio", faux)
 
@@ -681,7 +684,7 @@ def test_le_bandeau_est_structure_et_cite_la_fenetre_demandee(analyse_reelle):
     assert len(bandeau["sections"]) == 5
     assert all(s["title"] and s["body"] for s in bandeau["sections"])
     assert "connaissance de cause" in bandeau["confirmation"]
-    assert "504 dernières séances" in bandeau["text"]
+    assert "504 dernières séances" in bandeau["text"]
 
 
 def test_le_bandeau_suit_la_fenetre_reellement_demandee(
@@ -691,7 +694,7 @@ def test_le_bandeau_suit_la_fenetre_reellement_demandee(
     bandeau = client_synthetique.get(
         f"/api/portfolios/{portefeuille_synthetique}/analysis?window=250"
     ).json()["disclaimer"]
-    assert "250 dernières séances" in bandeau["text"]
+    assert "250 dernières séances" in bandeau["text"]
     assert "504" not in bandeau["text"]
 
 
@@ -731,7 +734,7 @@ def test_la_reponse_porte_le_portefeuille_qu_elle_decrit(
 # ══════════════════════════════ 12. Taille effective de l'échantillon ══
 #
 # La 7A a rendu atteignable un trou du moteur : en ouvrant `window`, un rapport
-# servi en 200 affirmait « 100 % de la variance s'explique par SPY (R² 1,00) »
+# servi en 200 affirmait « 100 % de la variance s'explique par SPY (R² 1,00) »
 # et « corrélation de 1,00 » pour les dix paires — sur deux séances, où ces
 # valeurs sont des identités arithmétiques.
 #
@@ -803,7 +806,7 @@ def test_sur_un_echantillon_mince_les_deux_observations_portent_le_seuil_choisi(
     }
 
     for observation in concernees:
-        assert "Estimation mince : 39 séances" in observation["statement"]
+        assert "Estimation mince : 39 séances" in observation["statement"]
         assert observation["uses_chosen_threshold"] is True
         minimum = [
             s
@@ -846,7 +849,7 @@ def test_sous_trois_seances_l_api_refuse_de_chiffrer_et_dit_pourquoi(
         (seuil,) = observation["thresholds"]
         assert seuil["kind"] == "derived"
         assert seuil["value"] == 3.0
-        assert "degrés de liberté résiduels" in seuil["rationale"]
+        assert "le centrage ne laisse qu'une seule direction" in seuil["rationale"]
         assert seuil["chosen"] is False
 
 
@@ -958,7 +961,7 @@ def test_la_convention_de_signe_du_seuil_est_dans_le_schema(analyse_reelle):
     """Un champ dont le signe surprend doit porter sa convention.
 
     Sans description, un client qui lirait `threshold` comme une perte
-    afficherait « −1,73 % » là où la perte vaut 1,73 %, et le signe passerait
+    afficherait « −1,73 % » là où la perte vaut 1,73 %, et le signe passerait
     pour une erreur de saisie.
     """
     from backend.api.schemas import ExpectedShortfallOut
@@ -1018,8 +1021,9 @@ def test_sous_trois_seances_la_correlation_et_le_beta_sortent_null(
 
     matrices = corps["risk"]["matrices"]
     assert matrices["correlation"] is None
-    assert "2 séances seulement" in matrices["correlation_undefined_reason"]
-    assert "degrés de liberté résiduels" in matrices["correlation_undefined_reason"]
+    raison = matrices["correlation_undefined_reason"]
+    assert f"2 séances seulement" in raison
+    assert "le centrage ne laisse qu'une seule direction" in raison
     # La covariance reste publiée : wᵀΣw porte la volatilité et la VaR.
     assert matrices["covariance"]["values"]
 
@@ -1090,7 +1094,7 @@ def test_les_quatre_regles_portent_le_seuil_choisi_sur_quarante_seances(
         "systematic_share",
     }
     for observation in concernees:
-        assert "Estimation mince : 39 séances" in observation["statement"], (
+        assert "Estimation mince : 39 séances" in observation["statement"], (
             observation["rule"]
         )
         minimum = [
@@ -1135,7 +1139,7 @@ def test_une_ligne_limitante_est_nommee_des_que_la_fenetre_est_incomplete(
 def test_a_fenetre_pleine_la_reponse_est_inchangee_et_sans_ligne_limitante(
     analyse_reelle,
 ):
-    """Le portefeuille de démonstration, 504 séances : rien ne bouge.
+    """Le portefeuille de démonstration, 504 séances : rien ne bouge.
 
     Aucune ligne limitante, aucun seuil de taille d'échantillon nulle part, et
     les chiffres sont ceux d'avant cette passe — les champs ajoutés
@@ -1205,13 +1209,19 @@ def test_chaque_raison_de_refus_n_affirme_que_ce_qui_la_concerne(
     assert "±1" not in beta
     assert "±1" not in contributions
 
-    assert "sans erreur type" in beta
+    assert "pas d'erreur type" in beta
     assert "n'importe quelle valeur" in beta
-    assert "rang 1" in contributions
+    assert "rang au plus n − 1" in contributions
 
-    # La partie commune — le seuil et sa démonstration — est bien partagée.
+    # « régression » n'est vrai que du beta : une décomposition de variance n'en
+    # comporte aucune, et l'invoquer serait emprunter la raison d'une autre
+    # mesure.
+    assert "régression" in beta
+    assert "régression" not in contributions
+
+    # La partie commune ne dit que ce qui vaut des trois.
     for raison in (correlation, beta, contributions):
-        assert "degrés de liberté résiduels" in raison
+        assert "le centrage ne laisse qu'une seule direction" in raison
 
 
 def test_les_contributions_a_la_variance_sortent_null_sous_trois_seances(
@@ -1252,7 +1262,7 @@ def test_la_volatilite_et_la_var_restent_publiees_sous_trois_seances(
 
     On refuse ce qui ne dépend plus des données ; on signale ce qui en dépend
     mal. Une volatilité sur deux observations est mauvaise, pas dégénérée — et
-    `window.observations`, `limiting_positions` et le seuil de 60 séances la
+    `window.observations`, `limiting_positions` et le seuil de 60 séances la
     couvrent.
     """
     risque = analyse_historique_court(3).json()["risk"]
@@ -1273,3 +1283,128 @@ def test_a_fenetre_pleine_les_contributions_sont_completes(analyse_reelle):
     assert contributions["has_negative_contribution"] in (True, False)
     total = sum(c["contribution"] for c in contributions["contributions"])
     assert total == pytest.approx(1.0)
+
+# ═══════════════════════════════ 16. Typographie du texte rédigé côté serveur ══
+#
+# Le backend ne rend pas que des nombres : il rédige des phrases — observations,
+# `summary()` des scénarios, `caveat` du CVaR, provenance des seuils, bandeau.
+# Ces phrases sont affichées telles quelles, et une espace ordinaire y laisse le
+# « % » partir seul à la ligne suivante. Voir `backend/typography.py`.
+
+MOTS_COMPTES = ("points", "point", "pts", "séances", "séance", "lignes", "ligne")
+
+ESPACE_AVANT_POURCENT = re.compile(r".{0,45}\u0020%")
+ESPACE_AVANT_MOT = re.compile(
+    rf".{{0,45}}\d\u0020(?:{'|'.join(MOTS_COMPTES)})\b"
+)
+
+
+def toutes_les_chaines(noeud, chemin=""):
+    """Chaque chaîne de la réponse, avec son chemin — pour nommer la fautive."""
+    if isinstance(noeud, str):
+        yield chemin, noeud
+    elif isinstance(noeud, dict):
+        for cle, valeur in noeud.items():
+            yield from toutes_les_chaines(valeur, f"{chemin}.{cle}")
+    elif isinstance(noeud, list):
+        for rang, valeur in enumerate(noeud):
+            yield from toutes_les_chaines(valeur, f"{chemin}[{rang}]")
+
+
+def test_aucune_espace_secable_avant_un_pourcent(analyse_reelle):
+    """U+202F, espace FINE insécable, sinon le « % » se retrouve seul en tête
+    de ligne."""
+    fautes = [
+        (chemin, extrait)
+        for chemin, texte in toutes_les_chaines(analyse_reelle.json())
+        for extrait in ESPACE_AVANT_POURCENT.findall(texte)
+    ]
+    assert not fautes, f"{len(fautes)} espace(s) sécable(s) avant % : {fautes[:3]}"
+
+
+def test_aucune_espace_secable_entre_un_nombre_et_le_mot_qu_il_compte(
+    analyse_reelle,
+):
+    """U+00A0 : « 504 séances » ne se coupe pas en « 504 » puis « séances »."""
+    fautes = [
+        (chemin, extrait)
+        for chemin, texte in toutes_les_chaines(analyse_reelle.json())
+        for extrait in ESPACE_AVANT_MOT.findall(texte)
+    ]
+    assert not fautes, f"{len(fautes)} lien(s) sécable(s) : {fautes[:3]}"
+
+
+def test_le_texte_contient_bien_les_deux_caracteres_attendus(analyse_reelle):
+    """Contrôle en sens inverse.
+
+    Les deux tests ci-dessus passeraient sur une réponse qui ne contiendrait
+    aucun pourcentage et aucun décompte — ils vérifient une absence. Celui-ci
+    vérifie que les caractères sont bien là, donc que les deux autres ont
+    quelque chose à surveiller.
+    """
+    textes = [texte for _, texte in toutes_les_chaines(analyse_reelle.json())]
+    assemble = " ".join(textes)
+
+    assert f"{NARROW_NBSP}%" in assemble
+    assert f"{NBSP}séances" in assemble
+    assert f"{NBSP}lignes" in assemble
+
+
+def test_les_observations_du_moteur_de_regles_suivent_la_convention(
+    analyse_reelle,
+):
+    """Contrôle ciblé sur ce que l'utilisateur lit en premier."""
+    for observation in analyse_reelle.json()["observations"]:
+        for champ in ("statement", "rendered", "provenance"):
+            texte = observation[champ]
+            assert not ESPACE_AVANT_POURCENT.findall(texte), (
+                observation["rule"],
+                champ,
+                texte,
+            )
+            assert not ESPACE_AVANT_MOT.findall(texte), (
+                observation["rule"],
+                champ,
+                texte,
+            )
+
+
+def test_les_resumes_de_scenarios_et_de_regimes_suivent_la_convention(
+    analyse_reelle,
+):
+    corps = analyse_reelle.json()
+    resumes = [s["summary"] for s in corps["scenarios"]]
+    resumes += [r["summary"] for r in corps["regimes"]]
+    assert resumes
+
+    for resume in resumes:
+        assert not ESPACE_AVANT_POURCENT.findall(resume), resume
+        assert not ESPACE_AVANT_MOT.findall(resume), resume
+
+
+def test_le_bandeau_et_les_seuils_suivent_la_convention(analyse_reelle):
+    corps = analyse_reelle.json()
+    textes = [corps["disclaimer"]["text"]]
+    textes += [s["body"] for s in corps["disclaimer"]["sections"]]
+    textes += [
+        seuil["rendered"]
+        for observation in corps["observations"]
+        for seuil in observation["thresholds"]
+    ]
+
+    for texte in textes:
+        assert not ESPACE_AVANT_POURCENT.findall(texte), texte
+        assert not ESPACE_AVANT_MOT.findall(texte), texte
+
+
+def test_les_grands_nombres_sont_groupes_a_l_espace_fine(analyse_reelle):
+    """« 100 000 tirages » et non « 100000 tirages »."""
+    details = [
+        niveau[champ]["detail"]
+        for niveau in analyse_reelle.json()["risk"]["tail_risk"]["levels"]
+        for champ in ("monte_carlo_var", "student_monte_carlo_var")
+        if niveau[champ] is not None
+    ]
+    assert details
+    for detail in details:
+        assert f"100{NARROW_NBSP}000{NBSP}tirages" in detail, detail

@@ -236,6 +236,9 @@ def test_tous_les_refus_sont_rendus_d_un_coup(
     )
     assert reponse.status_code == 422
     assert len(reponse.json()["problems"]) == 3
+    # Les messages d'erreur de l'API ne sont pas du texte de rapport : la
+    # convention typographique du backend (`backend/typography.py`) porte sur
+    # ce que les mesures RÉDIGENT, pas sur les diagnostics de validation.
     assert "3 lignes refusées" in reponse.json()["detail"]
 
 

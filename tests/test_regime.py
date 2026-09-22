@@ -46,7 +46,7 @@ def test_le_ratio_vaut_un_quand_le_portefeuille_suit_le_marche():
 
 def test_le_ratio_est_un_rapport_de_rendements_log():
     # Un portefeuille dont le rendement log est le double de celui du marché :
-    # (1 − 0,30)² − 1 = −51 %. Le ratio vaut exactement 2 en log, alors que le
+    # (1 − 0,30)² − 1 = −51 %. Le ratio vaut exactement 2 en log, alors que le
     # rapport des rendements simples vaudrait 1,7.
     marche = -0.30
     portefeuille = (1.0 + marche) ** 2 - 1.0
@@ -69,7 +69,7 @@ def test_une_perte_totale_n_a_pas_de_rendement_log():
 
 
 def test_la_prediction_du_beta_se_fait_en_log():
-    # β = 0,5 face à −50 % : √0,5 − 1 = −29,3 %, et non −25 % en linéaire.
+    # β = 0,5 face à −50 % : √0,5 − 1 = −29,3 %, et non −25 % en linéaire.
     assert beta_implied_return(0.5, -0.50) == pytest.approx(math.sqrt(0.5) - 1.0)
     assert beta_implied_return(0.5, -0.50) != pytest.approx(-0.25, abs=0.01)
 
@@ -195,7 +195,7 @@ def test_un_portefeuille_100_pct_benchmark(conn):
 def test_ratio_et_beta_divergent_quand_le_portefeuille_derive_seul(conn):
     """La divergence est un résultat, pas une anomalie.
 
-    A reproduit chaque jour le rendement du marché, plus 0,3 %. La co-variation
+    A reproduit chaque jour le rendement du marché, plus 0,3 %. La co-variation
     quotidienne est parfaite — beta 1, R² 1 —, mais la dérive se compose sur
     cent séances : A perd beaucoup moins que le marché, et le ratio
     d'amplification tombe nettement sous 1. Le beta seul ne le dirait pas.
@@ -307,7 +307,7 @@ def test_le_r2_est_affiche_a_cote_de_l_erreur_type():
         beta=0.96, r_squared=0.86, standard_error=0.02, observations=355,
         start=date(2007, 10, 10), end=date(2009, 3, 9),
     )
-    assert str(b) == "0.96 ± 0.02, R² 0.86 (355 séances)"
+    assert str(b) == "0.96 ± 0.02, R² 0.86 (355 séances)"
 
 
 def test_le_resume_ne_presente_pas_le_ratio_comme_un_beta(conn):

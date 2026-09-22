@@ -171,7 +171,7 @@ TEMOINS_LEGITIMES = (
     ("indice négatif", "dernier = noms[-1]"),
     ("tranche", "court = texte[:117]"),
     ("comparaison", "trop = len(payload) > MAX_BYTES"),
-    ("f-string", "texte = f'{ticker} sur {seances} séances'"),
+    ("f-string", "texte = f'{ticker} sur {seances} séances'"),
     ("sélection", "meilleur = max(options, key=len)"),
     ("somme d'un attribut", "total = sum(p.weight for p in positions)"),
     ("appel du moteur", "part = resultat.excess_over_weight(ticker)"),

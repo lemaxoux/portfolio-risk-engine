@@ -283,10 +283,10 @@ def test_une_fenetre_trop_courte_est_refusee(conn):
 def test_les_poids_actuels_s_appliquent_a_tout_l_historique(conn):
     """Hypothèse de poids constants (rééquilibrage quotidien).
 
-    A est plat à 100, B monte de 1 % par séance et finit à 100 × 1,01⁹. Les
+    A est plat à 100, B monte de 1 % par séance et finit à 100 × 1,01⁹. Les
     poids d'AUJOURD'HUI s'appliquent à toute la série, y compris aux dates
     anciennes où B pesait moins qu'aujourd'hui. Le rendement de chaque séance
-    vaut donc w_A × 0 % + w_B × 1 %, avec les mêmes poids partout.
+    vaut donc w_A × 0 % + w_B × 1 %, avec les mêmes poids partout.
     """
     j = seances(10)
     prix_final_b = 100.0 * (1.01**9)
@@ -380,7 +380,7 @@ def test_le_taux_sans_risque_est_un_parametre_pas_une_constante_enfouie(conn):
 def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct():
     """Ancrage sur l'histoire réelle, pas sur une valeur inventée.
 
-    Le S&P 500 a perdu environ 34 % entre son sommet du 19 février 2020 et son
+    Le S&P 500 a perdu environ 34 % entre son sommet du 19 février 2020 et son
     creux du 23 mars. Ce test traverse toute la chaîne — lecture des cours
     ajustés, rendements simples, courbe de valeur, drawdown à pic glissant — et
     tombera si l'une de ces étapes est modifiée de travers, même de façon
@@ -534,7 +534,7 @@ def test_la_volatilite_parametrique_egale_celle_de_la_serie(conn):
 
     √(wᵀΣw) et l'écart-type de la série du portefeuille sont la même quantité
     calculée par deux chemins. Une divergence de convention entre 4A et 4B
-    introduirait un écart de N/(N−1) — 0,1 % sur 504 séances, indétectable à
+    introduirait un écart de N/(N−1) — 0,1 % sur 504 séances, indétectable à
     l'œil et faux quand même.
     """
     j = seances(120)
@@ -624,7 +624,7 @@ def test_le_rapport_expose_les_var_aux_deux_niveaux(conn):
     rapport = analyse_portfolio(conn, 1, window=150)
 
     for famille in (rapport.historical_var, rapport.parametric_var):
-        assert famille[0.99].value >= famille[0.95].value, "99 % ≥ 95 % en perte"
+        assert famille[0.99].value >= famille[0.95].value, "99 % ≥ 95 % en perte"
         assert famille[0.95].window.observations == 150
         assert famille[0.95].value > 0.0, "convention : perte positive"
 
@@ -635,10 +635,10 @@ def test_le_rapport_expose_les_var_aux_deux_niveaux(conn):
 
 
 def test_le_cvar_a_99_porte_son_avertissement_en_permanence(conn):
-    """La fragilité du CVaR à 99 % est lisible dans la sortie, attachée au chiffre.
+    """La fragilité du CVaR à 99 % est lisible dans la sortie, attachée au chiffre.
 
-    Sur 250 séances, le 95 % moyenne une douzaine de points quand le 99 % n'en
-    moyenne que trois. À 99 %, la queue est courte par construction : ce n'est
+    Sur 250 séances, le 95 % moyenne une douzaine de points quand le 99 % n'en
+    moyenne que trois. À 99 %, la queue est courte par construction : ce n'est
     pas une anomalie à détecter, l'avertissement accompagne donc toujours le
     chiffre plutôt que de se déclencher.
     """
@@ -654,7 +654,7 @@ def test_le_cvar_a_99_porte_son_avertissement_en_permanence(conn):
     large = rapport.expected_shortfall[0.95]
 
     assert fin.tail_observations < large.tail_observations
-    assert fin.caveat.startswith(f"Moyenne de {fin.tail_observations} séances seulement")
+    assert fin.caveat.startswith(f"Moyenne de {fin.tail_observations} séances seulement")
     assert large.caveat is None
 
 
@@ -834,8 +834,8 @@ def test_la_correlation_n_est_pas_estimee_sous_trois_seances(conn):
     assert rapport.matrices.window.observations == 2
     assert rapport.matrices.correlation is None
     raison = rapport.matrices.correlation_undefined_reason
-    assert "2 séances seulement" in raison
-    assert "degrés de liberté résiduels" in raison
+    assert f"2 séances seulement" in raison
+    assert "le centrage ne laisse qu'une seule direction" in raison
     # La covariance reste publiée : wᵀΣw est la variance de la série du
     # portefeuille, estimable dès deux observations, et elle porte la VaR.
     assert rapport.matrices.covariance is not None
@@ -893,7 +893,7 @@ def test_la_ligne_qui_borne_la_fenetre_est_nommee_avec_sa_premiere_date(conn):
     """`Window.complete` dit que la fenêtre est courte, pas à cause de qui.
 
     C'est pourtant la seule information sur laquelle l'utilisateur peut agir :
-    une ligne à 5 % du portefeuille, cotée depuis peu, ramène TOUTES les mesures
+    une ligne à 5 % du portefeuille, cotée depuis peu, ramène TOUTES les mesures
     à son propre historique.
     """
     j = seances(120)
@@ -1012,24 +1012,34 @@ def test_la_raison_du_beta_ne_parle_pas_de_coefficient_a_plus_ou_moins_un(conn):
     """
     raison = base_a_deux_seances(conn).beta.undefined_reason
 
+    # Pas même pour le nier : « ±1 » n'a rien à faire dans la raison d'un beta.
     assert "±1" not in raison
-    assert "sans erreur type" in raison
+    assert "pas d'erreur type" in raison
     assert "n'importe quelle valeur" in raison
+    # Le beta est la seule des trois à naître d'une régression.
+    assert "régression" in raison
 
 
 def test_la_raison_de_la_correlation_parle_bien_du_coefficient_a_plus_ou_moins_un(conn):
     raison = base_a_deux_seances(conn).matrices.correlation_undefined_reason
 
     assert "±1" in raison
-    assert "deux points sont toujours alignés" in raison
+    assert "Deux points centrés sont colinéaires" in raison
+    # La colinéarité est propre à la corrélation : le beta, lui, n'a pas de
+    # résidu, ce qui est une autre façon de dégénérer.
+    assert "erreur type" not in raison
 
 
 def test_la_raison_des_contributions_parle_du_rang_de_la_covariance(conn):
     raison = base_a_deux_seances(conn).variance_contributions.undefined_reason
 
     assert "rang 1" in raison
+    assert "rang au plus n − 1" in raison
     assert "±1" not in raison
-    assert "sans erreur type" not in raison
+    assert "erreur type" not in raison
+    # Il n'y a AUCUNE régression dans une décomposition de variance : l'invoquer
+    # serait une justification empruntée à une autre mesure.
+    assert "régression" not in raison
 
 
 def test_les_trois_raisons_partagent_la_demonstration_et_rien_de_plus(conn):
@@ -1041,13 +1051,18 @@ def test_les_trois_raisons_partagent_la_demonstration_et_rien_de_plus(conn):
         rapport.variance_contributions.undefined_reason,
     ]
 
+    # La partie commune ne dit que ce qui vaut des trois : à deux observations,
+    # le centrage ne laisse qu'une direction. Elle ne parle NI de régression —
+    # il n'y en a pas dans une décomposition de variance — NI de coefficient à
+    # ±1, qui n'est vrai que de la corrélation.
+    commun = "le centrage ne laisse qu'une seule direction"
     for raison in raisons:
-        assert "2 séances seulement" in raison
-        assert "degrés de liberté résiduels" in raison
-        assert "n'en reste aucun" in raison
+        assert f"2 séances seulement" in raison
+        assert commun in raison
+        assert "un unique écart journalier" in raison
 
     # Et les conséquences, elles, sont toutes différentes.
-    consequences = [raison.split("n'en reste aucun.")[1] for raison in raisons]
+    consequences = [raison.split("unique écart journalier.")[1] for raison in raisons]
     assert len(set(consequences)) == 3
 
 
