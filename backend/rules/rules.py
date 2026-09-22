@@ -402,7 +402,7 @@ def variance_contribution(
                     "différence journalière. Aucune contribution n'est donc "
                     "chiffrée ici."
                 ),
-                facts={"seances": seances, "lignes": len(vc.contributions)},
+                facts={"seances": seances, "lignes": len(vc.weights)},
                 provenance=f"fenêtre d'estimation : {vc.window}",
                 thresholds=(MIN_ESTIMABLE_SAMPLE,),
             )

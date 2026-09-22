@@ -28,11 +28,6 @@ from backend.db.init_db import connect, init_db
 RACINE = Path(__file__).resolve().parents[1]
 BASE_REELLE = RACINE / "data" / "mx_risk.sqlite"
 
-besoin_base_reelle = pytest.mark.skipif(
-    not BASE_REELLE.exists(), reason="base locale absente"
-)
-
-
 @pytest.fixture
 def client_factory(tmp_path, monkeypatch):
     """Fabrique un client de test sur une base donnée.
@@ -52,22 +47,6 @@ def client_factory(tmp_path, monkeypatch):
     return _fabriquer
 
 
-@pytest.fixture
-def base_copiee(tmp_path) -> Path:
-    """Copie de la base réelle, jetable."""
-    if not BASE_REELLE.exists():
-        pytest.skip("base locale absente")
-    copie = tmp_path / "copie.sqlite"
-    shutil.copy(BASE_REELLE, copie)
-    return copie
-
-
-@pytest.fixture
-def client_reel(base_copiee, client_factory) -> Iterator:
-    with client_factory(base_copiee) as client:
-        yield client
-
-
 PORTEFEUILLE_DEMO = {
     "AAPL": 40,
     "MSFT": 25,
@@ -78,33 +57,58 @@ PORTEFEUILLE_DEMO = {
 }
 
 
-@pytest.fixture
-def portefeuille_reel(client_reel) -> int:
-    """Portefeuille de six titres sur la base réelle ; renvoie son identifiant."""
-    identifiant = client_reel.post(
-        "/api/portfolios", json={"name": "Démo"}
-    ).json()["id"]
-    reponse = client_reel.put(
-        f"/api/portfolios/{identifiant}/positions",
-        json={
-            "positions": [
-                {"ticker": ticker, "quantity": quantite}
-                for ticker, quantite in PORTEFEUILLE_DEMO.items()
-            ]
-        },
-    )
-    assert reponse.status_code == 200, reponse.text
-    return identifiant
-
-
-@pytest.fixture
-def analyse_reelle(client_reel, portefeuille_reel):
+@pytest.fixture(scope="session")
+def analyse_reelle(tmp_path_factory):
     """Réponse brute de `/analysis` : l'objet `httpx`, pas le dict.
 
     Les octets comptent autant que le contenu — c'est sur eux que se vérifie
     l'absence de NaN.
+
+    SESSION-SCOPED, et c'est sûr : ce qui est partagé est une réponse HTTP DÉJÀ
+    REÇUE, que les tests se contentent de lire. Aucun d'eux ne la modifie, et
+    aucun n'écrit dans la base qui l'a produite — celle-ci est fermée avant même
+    que le premier test ne s'exécute. La calculer par test coûtait 2,7 s (copie
+    de 9 Mo, analyse complète, scénarios, régimes) répétés une vingtaine de
+    fois, pour un résultat identique à chaque tour.
+
+    Un test qui ÉCRIRAIT sur la base réelle ne doit pas réutiliser cette
+    fixture : il se copie la base dans son propre `tmp_path` et passe par
+    `client_factory`, comme le font déjà les trois tests « sur un portefeuille
+    réel » de `test_regime`, `test_rules` et `test_stress`. La frontière est
+    là : lire une réponse se partage, toucher une base ne se partage pas.
+
+    `monkeypatch` étant function-scoped, la variable d'environnement est posée
+    dans un `MonkeyPatch.context()` qui la retire dès la réponse obtenue : elle
+    ne fuit pas sur les tests suivants, qui ont leur propre base.
     """
-    reponse = client_reel.get(f"/api/portfolios/{portefeuille_reel}/analysis")
+    if not BASE_REELLE.exists():
+        pytest.skip("base locale absente")
+
+    from fastapi.testclient import TestClient
+
+    copie = tmp_path_factory.mktemp("analyse_reelle") / "copie.sqlite"
+    shutil.copy(BASE_REELLE, copie)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("MX_RISK_DB_PATH", str(copie))
+        from backend.api.app import create_app
+
+        with TestClient(create_app()) as client:
+            identifiant = client.post(
+                "/api/portfolios", json={"name": "Démo"}
+            ).json()["id"]
+            ecriture = client.put(
+                f"/api/portfolios/{identifiant}/positions",
+                json={
+                    "positions": [
+                        {"ticker": ticker, "quantity": quantite}
+                        for ticker, quantite in PORTEFEUILLE_DEMO.items()
+                    ]
+                },
+            )
+            assert ecriture.status_code == 200, ecriture.text
+            reponse = client.get(f"/api/portfolios/{identifiant}/analysis")
+
     assert reponse.status_code == 200, reponse.text
     return reponse
 

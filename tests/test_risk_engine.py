@@ -984,3 +984,117 @@ def test_les_lignes_limitantes_voyagent_jusqu_au_rapport(conn):
     rapport = analyse_portfolio(conn, 1, window=504)
 
     assert [p.ticker for p in rapport.limiting_positions] == ["RECENT"]
+
+# ---------------------- Chaque refus n'affirme que ce qui est vrai de LUI --
+#
+# Les trois mesures refusent sous le même SEUIL, pas pour la même RAISON. Un
+# texte commun affirmerait de chacune ce qui n'est vrai que d'une seule — et une
+# explication fausse attachée à un refus juste est pire qu'un refus sans
+# explication : le lecteur en tire une conclusion sur ses données.
+
+
+def base_a_deux_seances(conn):
+    j = seances(3)
+    peupler(
+        conn,
+        {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)},
+        {"A": 10, "B": 5},
+    )
+    return analyse_portfolio(conn, 1, window=504)
+
+
+def test_la_raison_du_beta_ne_parle_pas_de_coefficient_a_plus_ou_moins_un(conn):
+    """« ±1 » est vrai d'une corrélation, faux d'une pente.
+
+    À deux séances le beta vaut n'importe quoi — 11,84 puis 8,65 sur deux
+    fenêtres de la base réelle. Ce qui le disqualifie n'est pas sa valeur, c'est
+    l'absence de résidu.
+    """
+    raison = base_a_deux_seances(conn).beta.undefined_reason
+
+    assert "±1" not in raison
+    assert "sans erreur type" in raison
+    assert "n'importe quelle valeur" in raison
+
+
+def test_la_raison_de_la_correlation_parle_bien_du_coefficient_a_plus_ou_moins_un(conn):
+    raison = base_a_deux_seances(conn).matrices.correlation_undefined_reason
+
+    assert "±1" in raison
+    assert "deux points sont toujours alignés" in raison
+
+
+def test_la_raison_des_contributions_parle_du_rang_de_la_covariance(conn):
+    raison = base_a_deux_seances(conn).variance_contributions.undefined_reason
+
+    assert "rang 1" in raison
+    assert "±1" not in raison
+    assert "sans erreur type" not in raison
+
+
+def test_les_trois_raisons_partagent_la_demonstration_et_rien_de_plus(conn):
+    """Le partage s'arrête où les mesures cessent de dégénérer pareil."""
+    rapport = base_a_deux_seances(conn)
+    raisons = [
+        rapport.matrices.correlation_undefined_reason,
+        rapport.beta.undefined_reason,
+        rapport.variance_contributions.undefined_reason,
+    ]
+
+    for raison in raisons:
+        assert "2 séances seulement" in raison
+        assert "degrés de liberté résiduels" in raison
+        assert "n'en reste aucun" in raison
+
+    # Et les conséquences, elles, sont toutes différentes.
+    consequences = [raison.split("n'en reste aucun.")[1] for raison in raisons]
+    assert len(set(consequences)) == 3
+
+
+# ------------------------ Les contributions refusent dans la MESURE aussi --
+
+
+def test_les_contributions_ne_sont_pas_estimees_sous_trois_seances(conn):
+    """À n = 2 elles valent exactement wᵢδᵢ/(wᵀδ) : une identité arithmétique."""
+    vc = base_a_deux_seances(conn).variance_contributions
+
+    assert vc.contributions is None
+    assert vc.effective_positions is None
+    assert vc.excess_over_weight("A") is None
+    # `False` affirmerait qu'aucune ligne n'a évolué à rebours des autres, alors
+    # que rien n'a été mesuré.
+    assert vc.has_negative_contribution is None
+    # Les poids restent : ils sont ponctuels, lus sur la dernière valorisation.
+    assert set(vc.weights) == {"A", "B"}
+    assert sum(vc.weights.values()) == pytest.approx(1.0)
+
+
+def test_les_contributions_reviennent_des_trois_seances(conn):
+    j = seances(4)
+    peupler(
+        conn,
+        {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)},
+        {"A": 10, "B": 5},
+    )
+    vc = analyse_portfolio(conn, 1, window=504).variance_contributions
+
+    assert vc.contributions is not None
+    assert vc.undefined_reason is None
+    assert sum(vc.contributions.values()) == pytest.approx(1.0)
+    assert vc.effective_positions is not None
+    assert vc.has_negative_contribution in (True, False)
+
+
+def test_la_volatilite_et_la_var_restent_publiees_a_deux_seances(conn):
+    """La ligne de partage : on refuse ce qui ne dépend plus des données.
+
+    Une volatilité sur deux observations est une estimation à un seul degré de
+    liberté — très mauvaise, mais elle BOUGE avec les données, contrairement à
+    une corrélation qui vaut ±1 quoi qu'il arrive.
+    """
+    rapport = base_a_deux_seances(conn)
+
+    assert rapport.volatility.annualised > 0.0
+    assert rapport.matrices.covariance is not None
+    assert rapport.historical_var[0.95].value is not None
+    assert rapport.drawdown.value <= 0.0

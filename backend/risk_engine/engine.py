@@ -169,23 +169,45 @@ class VarianceContributionResult:
 
     `contributions` somme à 1. À lire à côté de `weights` : l'écart entre la
     part du risque et la part du capital est ce que le poids seul ne montre pas.
+
+    `contributions` vaut None en deçà de `MIN_ESTIMABLE_OBSERVATIONS`, avec sa
+    raison — même convention que `CovarianceResult.correlation` et
+    `SortinoResult.annualised`. À deux observations la covariance est de rang 1
+    et la part de chaque ligne s'y ramène exactement à `wᵢδᵢ / (wᵀδ)`, sa part
+    dans une seule différence journalière : une identité arithmétique, pas une
+    décomposition de variance.
+
+    `weights` reste publié : les poids sont une mesure PONCTUELLE, lue sur la
+    dernière valorisation, que la brièveté de l'historique ne touche pas.
     """
 
-    contributions: dict[str, float]
+    contributions: dict[str, float] | None
     weights: dict[str, float]
     window: Window
+    undefined_reason: str | None = None
 
-    def excess_over_weight(self, ticker: str) -> float:
-        """Part de variance − part de valeur, en points."""
+    def excess_over_weight(self, ticker: str) -> float | None:
+        """Part de variance − part de valeur, en points. None si non estimable."""
+        if self.contributions is None:
+            return None
         return self.contributions[ticker] - self.weights[ticker]
 
     @property
-    def effective_positions(self) -> float:
+    def effective_positions(self) -> float | None:
         """Lignes effectives en risque, `1/Σcᵢ²` (voir `covariance.effective_risk_positions`)."""
+        if self.contributions is None:
+            return None
         return covariance.effective_risk_positions(self.contributions)
 
     @property
-    def has_negative_contribution(self) -> bool:
+    def has_negative_contribution(self) -> bool | None:
+        """None quand les contributions ne sont pas estimables.
+
+        `False` y serait un mensonge tranquille : il affirmerait qu'aucune ligne
+        n'a évolué à rebours des autres, alors que rien n'a été mesuré.
+        """
+        if self.contributions is None:
+            return None
         return any(c < 0.0 for c in self.contributions.values())
 
 
@@ -562,11 +584,40 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
-def _non_estimable(window: Window, quoi: str) -> str | None:
+# Conséquence PROPRE À CHAQUE MESURE de l'absence de degré de liberté résiduel.
+#
+# Les trois mesures refusent sous le même SEUIL, pas pour la même RAISON, et un
+# texte commun affirmerait de chacune ce qui n'est vrai que d'une seule. Le
+# coefficient de corrélation vaut ±1 par construction ; la pente d'un beta, elle,
+# vaut n'importe quoi — 11,84 puis 8,65 sur deux fenêtres de deux séances de la
+# base réelle. Écrire « le coefficient vaut ±1 » à propos d'un beta serait une
+# explication fausse attachée à un refus juste, ce qui est pire qu'un refus sans
+# explication : le lecteur en tirerait une conclusion sur ses données.
+CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
+    "correlation": (
+        "Le coefficient vaut alors ±1 par construction, quelles que soient les "
+        "données : deux points sont toujours alignés."
+    ),
+    "beta": (
+        "La pente est alors entièrement fixée par un seul écart journalier, sans "
+        "résidu donc sans erreur type. Elle peut prendre n'importe quelle valeur "
+        "— ce qui n'en fait pas une estimation, mais une construction "
+        "géométrique."
+    ),
+    "contributions": (
+        "La matrice de covariance est alors de rang 1 — Σ ∝ δδᵀ, où δ est l'écart "
+        "entre les deux rendements — et la part de chaque ligne s'y ramène à "
+        "wᵢδᵢ / (wᵀδ) : sa part dans une seule différence journalière."
+    ),
+}
+
+
+def _non_estimable(window: Window, quoi: str, mesure: str) -> str | None:
     """Raison du refus d'estimer, ou None si la fenêtre le permet.
 
-    Un seul texte pour toutes les mesures concernées : elles refusent pour la
-    même raison, et deux formulations divergeraient.
+    Une partie commune — le seuil et sa démonstration — puis la conséquence
+    propre à `mesure`. Le partage s'arrête au point où les mesures cessent de
+    dégénérer de la même façon.
     """
     if window.observations >= MIN_ESTIMABLE_OBSERVATIONS:
         return None
@@ -574,14 +625,13 @@ def _non_estimable(window: Window, quoi: str) -> str | None:
         f"{window.observations} séances seulement : {quoi} n'est pas estimable "
         f"en deçà de {MIN_ESTIMABLE_OBSERVATIONS} observations. Une régression "
         "avec constante a n − 2 degrés de liberté résiduels ; à deux points il "
-        "n'en reste aucun, la droite passe exactement par eux et le coefficient "
-        "vaut ±1 quelles que soient les données."
+        f"n'en reste aucun. {CONSEQUENCES_NON_ESTIMABLE[mesure]}"
     )
 
 
 def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
     """Covariance et corrélation des titres détenus, sur la fenêtre."""
-    refus = _non_estimable(serie.window, "une corrélation")
+    refus = _non_estimable(serie.window, "une corrélation", "correlation")
     return CovarianceResult(
         covariance=covariance.covariance_matrix(serie.asset_returns),
         correlation=(
@@ -594,6 +644,17 @@ def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
 
 def variance_contributions(serie: PortfolioSeries) -> VarianceContributionResult:
     """Contribution de chaque ligne à la variance, sur la fenêtre d'estimation."""
+    refus = _non_estimable(
+        serie.window, "une décomposition de la variance", "contributions"
+    )
+    if refus:
+        return VarianceContributionResult(
+            contributions=None,
+            weights=dict(serie.weights.weights),
+            window=serie.window,
+            undefined_reason=refus,
+        )
+
     matrice = covariance.covariance_matrix(serie.asset_returns)
     return VarianceContributionResult(
         contributions=covariance.variance_contributions(serie.weights.weights, matrice),
@@ -626,7 +687,7 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
             "`build_portfolio_series(..., benchmark=\"SPY\")`."
         )
     base = "rendements bruts (non excédentaires)"
-    refus = _non_estimable(serie.window, "un beta")
+    refus = _non_estimable(serie.window, "un beta", "beta")
     if refus:
         return BetaResult(
             beta=None,

@@ -522,10 +522,24 @@ class ContributionOut(Schema):
 
 
 class VarianceContributionsOut(Schema):
+    """Décomposition de la variance, qui peut manquer avec sa raison.
+
+    Sous trois observations la covariance est de rang 1 et la part de chaque
+    ligne s'y ramène à `wᵢδᵢ / (wᵀδ)`, sa part dans une seule différence
+    journalière. Le refus vit donc dans la MESURE : en 7B un graphe à barres
+    lira `contributions`, pas la phrase du moteur de règles, et des parts qui
+    somment à 1 auront l'air d'une décomposition quel que soit leur contenu.
+
+    `has_negative_contribution` vaut `null` et non `false` dans ce cas : `false`
+    affirmerait qu'aucune ligne n'a évolué à rebours des autres, alors que rien
+    n'a été mesuré.
+    """
+
     tickers: list[str]
-    contributions: list[ContributionOut]
-    effective_positions: float
-    has_negative_contribution: bool
+    contributions: list[ContributionOut] | None
+    undefined_reason: str | None
+    effective_positions: float | None
+    has_negative_contribution: bool | None
     window: WindowOut
 
     @classmethod
@@ -534,15 +548,20 @@ class VarianceContributionsOut(Schema):
     ) -> VarianceContributionsOut:
         return cls(
             tickers=tickers,
-            contributions=[
-                ContributionOut(
-                    ticker=ticker,
-                    contribution=result.contributions[ticker],
-                    weight=result.weights[ticker],
-                    excess_over_weight=result.excess_over_weight(ticker),
-                )
-                for ticker in tickers
-            ],
+            contributions=(
+                None
+                if result.contributions is None
+                else [
+                    ContributionOut(
+                        ticker=ticker,
+                        contribution=result.contributions[ticker],
+                        weight=result.weights[ticker],
+                        excess_over_weight=result.excess_over_weight(ticker),
+                    )
+                    for ticker in tickers
+                ]
+            ),
+            undefined_reason=result.undefined_reason,
             effective_positions=result.effective_positions,
             has_negative_contribution=result.has_negative_contribution,
             window=WindowOut.of(result.window),

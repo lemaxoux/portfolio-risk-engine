@@ -1182,3 +1182,94 @@ def test_les_contributions_a_la_variance_restent_completes_a_fenetre_pleine(
     assert len(contributions) == 6
     total = sum(o["facts"]["part_de_variance"] for o in contributions)
     assert total == pytest.approx(1.0)
+
+# ═══════════════ 15. Une raison par mesure, et le refus des contributions ══
+
+
+def test_chaque_raison_de_refus_n_affirme_que_ce_qui_la_concerne(
+    analyse_historique_court,
+):
+    """Une explication fausse attachée à un refus juste est pire qu'un refus nu.
+
+    « Le coefficient vaut ±1 » est vrai d'une corrélation et faux d'une pente :
+    à deux séances le beta prend n'importe quelle valeur, et c'est l'absence de
+    résidu qui le disqualifie, pas sa valeur.
+    """
+    corps = analyse_historique_court(3).json()
+
+    correlation = corps["risk"]["matrices"]["correlation_undefined_reason"]
+    beta = corps["risk"]["beta"]["undefined_reason"]
+    contributions = corps["risk"]["variance_contributions"]["undefined_reason"]
+
+    assert "±1" in correlation
+    assert "±1" not in beta
+    assert "±1" not in contributions
+
+    assert "sans erreur type" in beta
+    assert "n'importe quelle valeur" in beta
+    assert "rang 1" in contributions
+
+    # La partie commune — le seuil et sa démonstration — est bien partagée.
+    for raison in (correlation, beta, contributions):
+        assert "degrés de liberté résiduels" in raison
+
+
+def test_les_contributions_a_la_variance_sortent_null_sous_trois_seances(
+    analyse_historique_court,
+):
+    """En 7B, un graphe à barres lira `contributions`, pas la phrase.
+
+    Des parts qui somment à 1 ont l'air d'une décomposition quel que soit leur
+    contenu — exactement le même piège que la carte de chaleur.
+    """
+    contributions = analyse_historique_court(3).json()["risk"][
+        "variance_contributions"
+    ]
+
+    assert contributions["contributions"] is None
+    assert contributions["effective_positions"] is None
+    assert contributions["has_negative_contribution"] is None
+    assert "rang 1" in contributions["undefined_reason"]
+    # L'ordre canonique reste publié : il ne dépend pas de la fenêtre.
+    assert contributions["tickers"]
+
+
+def test_les_poids_restent_publies_quand_les_contributions_refusent(
+    analyse_historique_court,
+):
+    """Les poids sont ponctuels : la brièveté de l'historique ne les touche pas."""
+    corps = analyse_historique_court(3).json()
+
+    assert corps["weights"]
+    assert sum(w["weight"] for w in corps["weights"]) == pytest.approx(1.0)
+    assert corps["risk"]["concentration"]["hhi"] > 0.0
+
+
+def test_la_volatilite_et_la_var_restent_publiees_sous_trois_seances(
+    analyse_historique_court,
+):
+    """La ligne de partage, vue du client.
+
+    On refuse ce qui ne dépend plus des données ; on signale ce qui en dépend
+    mal. Une volatilité sur deux observations est mauvaise, pas dégénérée — et
+    `window.observations`, `limiting_positions` et le seuil de 60 séances la
+    couvrent.
+    """
+    risque = analyse_historique_court(3).json()["risk"]
+
+    assert risque["volatility"]["annualised"] > 0.0
+    assert risque["matrices"]["covariance"]["values"]
+    assert risque["tail_risk"]["levels"][0]["historical_var"]["value"] is not None
+    assert risque["volatility"]["window"]["observations"] == 2
+
+
+def test_a_fenetre_pleine_les_contributions_sont_completes(analyse_reelle):
+    """Non-régression : rien de tout ça ne touche le cas nominal."""
+    contributions = analyse_reelle.json()["risk"]["variance_contributions"]
+
+    assert contributions["undefined_reason"] is None
+    assert len(contributions["contributions"]) == 6
+    assert contributions["effective_positions"] > 1.0
+    assert contributions["has_negative_contribution"] in (True, False)
+    total = sum(c["contribution"] for c in contributions["contributions"])
+    assert total == pytest.approx(1.0)

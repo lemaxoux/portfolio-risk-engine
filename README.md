@@ -685,6 +685,15 @@ sur une copie jetable ou sur une base synthétique construite pour le cas
 couverture réelle d'un scénario de 2008 — sont ignorés si la base locale est
 absente.
 
+La réponse `/analysis` de référence est calculée **une fois par session** :
+c'est un objet HTTP déjà reçu, que la vingtaine de tests concernés se contentent
+de lire, et la base qui l'a produite est fermée avant le premier d'entre eux. La
+recalculer par test coûtait 2,7 s — copie de 9 Mo, analyse complète, scénarios,
+régimes — pour un résultat identique à chaque tour. Un test qui ÉCRIRAIT sur la
+base réelle ne réutilise pas cette fixture : il se copie la base dans son propre
+`tmp_path`. La frontière est là — lire une réponse se partage, toucher une base
+ne se partage pas.
+
 `tests/test_api_discipline.py` ne teste aucun comportement : il inspecte l'arbre
 syntaxique de `backend/api/` pour vérifier qu'aucun module n'y fait
 d'arithmétique, n'y écrit de SQL, n'y appelle `asdict()` ni n'y supprime les
@@ -777,11 +786,13 @@ décrit comme « le livrable » de la comparaison de régimes —,
 énumère donc ses champs à la main.
 
 **Le refus vit dans la MESURE, pas seulement dans la phrase.** Sous trois
-observations, `matrices.correlation` et `beta` sortent `null` avec leur raison,
-dans le moteur. Un moteur de règles qui refuserait de commenter des valeurs
-encore publiées ne protégerait de rien : une carte de chaleur lit la matrice, et
-une matrice de corrélations toutes à ±1 reste symétrique, de diagonale 1, donc
-parfaitement plausible et entièrement fausse.
+observations, `matrices.correlation`, `beta` et `variance_contributions`
+sortent `null` avec leur raison, dans le moteur. Un moteur de règles qui
+refuserait de commenter des valeurs encore publiées ne protégerait de rien : en
+7B, une carte de chaleur lit la matrice et un graphe à barres lit les
+contributions — pas les phrases. Une matrice de corrélations toutes à ±1 reste
+symétrique et de diagonale 1 ; des contributions dégénérées somment quand même
+à 1. Les deux ont l'air de ce qu'elles prétendent être.
 
 **La pente du beta est `null` aussi, pas seulement son R².** À zéro degré de
 liberté résiduel la droite passe exactement par les points : elle n'a pas
@@ -790,9 +801,43 @@ seul R² laisserait croire que la sensibilité au marché a été mesurée et qu
 seule sa qualité d'ajustement manque. `risk.beta` valant `null` garde un sens
 distinct : aucun benchmark demandé.
 
-`matrices.covariance` reste publiée dans les deux cas — `wᵀΣw` est la variance
-de la série du portefeuille, estimable dès deux observations, et c'est elle qui
-porte la volatilité paramétrique et la VaR.
+**Chaque refus n'affirme que ce qui est vrai de SA mesure.** Les trois refusent
+sous le même *seuil*, pas pour la même *raison*, et elles partagent donc la
+démonstration — `n − 2` degrés de liberté résiduels, aucun à `n = 2` — puis
+divergent :
+
+| Mesure | Ce qui dégénère |
+|---|---|
+| corrélation | le coefficient vaut ±1 par construction, quelles que soient les données |
+| beta | la pente est fixée par un seul écart journalier, sans résidu donc **sans erreur type** ; elle peut prendre n'importe quelle valeur |
+| contributions | la covariance est de rang 1 — `Σ ∝ δδᵀ` — et la part de chaque ligne vaut `wᵢδᵢ / (wᵀδ)` |
+
+Un texte commun serait faux pour deux d'entre elles : à `n = 2` un beta ne vaut
+pas ±1, il vaut n'importe quoi — 11,84 puis 8,65 sur deux fenêtres de la base
+réelle. Une explication fausse attachée à un refus juste est pire qu'un refus
+sans explication : le lecteur en tire une conclusion sur ses données.
+
+#### Où s'arrête le refus
+
+**On refuse ce qui ne dépend plus des données ; on signale ce qui en dépend
+mal.** C'est toute la ligne de partage, et elle explique pourquoi la volatilité
+et la VaR restent publiées à `n = 2` alors que la corrélation disparaît.
+
+| | À `n = 2` | Traitement |
+|---|---|---|
+| corrélation, beta, contributions | **identités arithmétiques** — la valeur ne bouge plus avec les données | `null` + raison |
+| covariance, volatilité, VaR, drawdown | **estimations à un degré de liberté** — très mauvaises, mais elles bougent | publiées |
+
+Une volatilité sur deux observations est un mauvais chiffre, pas un faux
+chiffre : changez les données, elle change. Une corrélation sur deux
+observations vaut ±1 quoi qu'on fasse — elle ne mesure rien. Les mauvaises
+estimations sont couvertes par les trois dispositifs qui existent déjà pour ça :
+`window.observations` sur chaque mesure, `limiting_positions` qui nomme la ligne
+responsable, et le seuil de 60 séances qui les signale dans les observations.
+
+`matrices.covariance` reste publiée pour une raison de plus : `wᵀΣw` est la
+variance de la série du portefeuille, estimable dès deux observations, et c'est
+elle qui porte la volatilité paramétrique et la VaR.
 
 **Un indéfini se dit.** Quand `SortinoResult.annualised` vaut `None`, la réponse
 porte `annualised: null` **et** `undefined_reason`. `response_model_exclude_none`
@@ -1023,8 +1068,9 @@ l'ordre chronologique.
   - Migration `portfolios` : `name` et `updated_at`, idempotente
   - Zéro arithmétique et zéro SQL dans `backend/api/`, vérifiés par test
   - Taille d'échantillon appliquée aux quatre règles qui lisent la covariance,
-    sur la fenêtre EFFECTIVE ; refus des mesures dégénérées dans le moteur
-    (corrélation et beta `null` avec leur raison) ; ligne limitante nommée
+    sur la fenêtre EFFECTIVE ; refus des mesures dégénérées dans le moteur —
+    corrélation, beta et contributions à la variance `null` avec une raison
+    propre à chacune ; ligne limitante nommée avec sa première date
 - [ ] **Phase 7B — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
