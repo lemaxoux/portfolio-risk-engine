@@ -34,8 +34,11 @@ livrable, au même titre que le code.
 | Base | SQLite | Suffisant pour un projet solo, aucun setup |
 | Données de marché | Tiingo (plan gratuit) | 30+ ans d'historique quotidien ajusté, 1000 appels/jour |
 | Planification | Planificateur de tâches Windows | `refresh` est un script à lancer, pas un démon à surveiller |
-| Tests | pytest | Priorité aux tests du moteur de risque |
+| Tests | pytest, Vitest | Priorité aux tests du moteur de risque |
 | Config | python-dotenv | Clé API hors du code |
+| Frontend | Vite + React + TypeScript | Six vues en lecture seule : ni SSR, ni routes serveur, ni SEO. Next.js ajouterait une toolchain complète pour rien |
+| Styles | CSS Modules + variables CSS | L'intérêt d'un framework utilitaire est le stylage ad hoc — c'est-à-dire ce qui éroderait le jeu de tokens de `DESIGN.md` |
+| Types de l'API | openapi-typescript | Engendrés depuis un schéma commité, jamais écrits à la main |
 
 Le fournisseur de prix est isolé derrière le module `backend/data_provider` :
 aucun appel direct à l'API Tiingo ailleurs dans le code, pour qu'un changement
@@ -82,7 +85,15 @@ app/
 │       ├── migrate.py   #   ALTER TABLE explicites, idempotents
 │       └── portfolios.py#   écriture des portefeuilles et positions
 ├── data/                # Base SQLite locale (non versionnée)
-├── frontend/            # Interface
+├── frontend/            # Interface — Vite + React + TypeScript
+│   ├── DESIGN.md        #   spécification visuelle, à lire avant tout CSS
+│   ├── src/styles/      #   tokens.css : SEUL fichier avec des valeurs brutes
+│   ├── src/api/         #   openapi.json commité + types ENGENDRÉS
+│   ├── src/lib/         #   format.ts : seul endroit qui écrit un nombre
+│   ├── src/components/  #   Measure, Provenance, Bandeau, ThemeToggle
+│   └── src/views/       #   écran d'acceptation, sections de l'analyse
+├── tools/               # Outils de développement, hors application
+│   └── openapi_schema.py#   écrit le schéma OpenAPI que le frontend compile
 ├── tests/               # Tests unitaires
 ├── .env.example
 ├── requirements.txt         # exécution
@@ -1033,6 +1044,79 @@ la main.
 Sont refusés avec un message situé à la ligne : ticker inconnu, ticker sans
 historique de prix, quantité nulle ou négative, doublon, en-tête absent.
 
+### 10. Frontend
+
+La spécification visuelle est `frontend/DESIGN.md`, écrite avant la première
+ligne de CSS. Elle fixe les tokens et les règles d'affichage ; elle se lit
+intégralement avant d'y toucher.
+
+```powershell
+cd frontend
+npm install                 # versions FIGÉES, package-lock.json commité
+npm run dev                 # http://localhost:5173
+npm test                    # Vitest
+npm run build               # contrôle de types puis bundle dans dist/
+```
+
+**Deux processus en développement, un seul en production.** `npm run dev` sert
+la page et relaie `/api` vers `python -m backend.api` sur 127.0.0.1:8000 ; en
+production, FastAPI sert `frontend/dist` à la racine. Dans les deux cas le
+navigateur ne voit qu'une origine, et **le backend n'a aucun middleware CORS** :
+une permission qui ne servirait jamais en production est une permission qu'on
+finit par élargir.
+
+Sans `frontend/dist`, l'application démarre quand même et sert l'API seule : la
+suite Python tourne sur une machine où Node n'a jamais été installé. Et le repli
+sur `index.html` ne masque jamais l'API — `GET /api/nexiste-pas` rend un 404
+JSON, pas la page, sans quoi une faute de frappe dans une URL deviendrait
+indébogable (`backend/api/static.py`).
+
+#### Les types de l'API sont engendrés, jamais écrits à la main
+
+```powershell
+python -m tools.openapi_schema      # écrit frontend/src/api/openapi.json
+cd frontend; npm run api:types      # en dérive src/api/schema.ts
+```
+
+Le schéma est **commité**, et `tests/test_openapi_schema.py` le compare octet
+pour octet à ce que l'application publie. Un champ ajouté à un schéma pydantic
+sans régénération fait échouer la suite Python — du côté qui a changé, pas six
+mois plus tard dans le navigateur. La génération lit ce fichier et non un
+serveur en marche : un `npm run build` ne doit dépendre ni d'un uvicorn allumé
+ni d'une base à jour, et en relisant un commit on doit pouvoir dire quel schéma
+le frontend compilait.
+
+#### Ce que le frontend ne fait pas
+
+Il ne calcule **aucune mesure** — symétrique de la règle d'or de l'API. Ni
+somme, ni écart, ni moyenne côté client : une valeur manquante s'ajoute au
+moteur avec son test, puis au schéma. L'écart entre la VaR normale et la VaR
+Student n'est donc pas soustrait, les deux chiffres sont posés côte à côte.
+
+Deux disciplines sont vérifiées mécaniquement par `src/styles/tokens.test.ts` :
+aucun code hexadécimal de couleur hors de `tokens.css`, aucune taille de police
+en `px`. Comme `tests/test_api_discipline.py`, la garde porte sur le code et non
+sur le texte brut — sinon elle se déclencherait sur sa propre explication.
+
+`src/lib/format.ts` est le seul endroit qui écrit un nombre. Les caractères y
+sont **fixés**, pas laissés à `Intl` : U+202F pour les milliers et avant « % »,
+U+00A0 entre un nombre et le mot qu'il compte, U+2212 pour le signe négatif —
+exactement ceux de `backend/typography.py`. La sortie d'`Intl` pour `fr-FR` a
+changé d'espace selon les versions d'ICU, et Node et le navigateur en embarquent
+de différents : un test écrit contre `Intl` passerait sans rien prouver.
+`tests/test_typographie_partagee.py` tient les deux moitiés ensemble depuis la
+suite Python, parce que c'est le backend qui bouge.
+
+#### Acceptation
+
+L'écran d'acceptation est une **page entière**, pas une modale : une modale se
+clique sans lire. Le texte vient de `GET /api/disclaimer`, en lecture seule et
+sans portefeuille — il précède l'existence du moindre portefeuille, et une copie
+embarquée dans le bundle deviendrait le texte réellement lu le jour où le
+bandeau changerait. L'acceptation est mémorisée dans le navigateur sous
+l'**empreinte du texte** : on ne mémorise pas « a accepté » mais « a accepté ce
+texte-là », et une limite reformulée fait revenir l'écran.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -1095,7 +1179,18 @@ l'ordre chronologique.
     sur la fenêtre EFFECTIVE ; refus des mesures dégénérées dans le moteur —
     corrélation, beta et contributions à la variance `null` avec une raison
     propre à chacune ; ligne limitante nommée avec sa première date
-- [ ] **Phase 7B — Frontend** : saisie, dashboard, vue stress test
+- [ ] **Phase 7B — Frontend**
+  - [x] **7B.1 — Fondations** : Vite + React + TypeScript à versions figées,
+    tokens et thème de `DESIGN.md` §4–§7, polices auto-hébergées, `format.ts`
+    aux points de code fixés, client d'API, écran d'acceptation, bandeau
+    permanent, `<Measure>` / `<Provenance>`, section 2 « Ce qu'il perd un jour
+    ordinaire »
+    - Publication de `estimation_window` : la fenêtre du panel de régime
+      courant, sous son propre nom — le bandeau ne la déduit pas d'une mesure
+    - `GET /api/disclaimer` en lecture seule, pour l'écran d'acceptation
+    - FastAPI sert `frontend/dist` sans jamais masquer l'API ; aucun CORS
+  - [ ] 7B.2 — Graphiques
+  - [ ] 7B.3 — Saisie et import du portefeuille
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
 
