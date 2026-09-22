@@ -1,0 +1,2534 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mx Risk MGT",
+    "description": "\nMoteur de risque de portefeuille, exposé en lecture et en écriture locale.\n\n**Toutes les valeurs sont des fractions**, jamais des pourcentages : une VaR de\n1,38 % se lit `0.0138`. Le formatage — pourcentage, virgule décimale, arrondi —\nest décidé côté client, à un seul endroit.\n\n**Chaque mesure porte sa propre fenêtre d'estimation.** Il n'y a délibérément\naucune fenêtre au niveau du document : le beta est régressé sous une contrainte\nd'échantillon qui lui est propre, et un scénario à couverture partielle a sa\npropre portée.\n\n**L'analyse est un seul endpoint.** Une page assemblée à partir de plusieurs\nappels pourrait mélanger deux états de la base sans le signaler.\n",
+    "version": "0.7.0"
+  },
+  "paths": {
+    "/api/meta": {
+      "get": {
+        "tags": [
+          "méta"
+        ],
+        "summary": "Read Meta",
+        "description": "Dernière séance en base et taille de l'univers.\n\n`as_of` vient de la table des prix, jamais de l'horloge : c'est la seule\ndéfinition de fraîcheur qui ne mente pas un lundi matin, un jour férié, ou\naprès une ingestion en panne.",
+        "operationId": "read_meta_api_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/securities": {
+      "get": {
+        "tags": [
+          "univers"
+        ],
+        "summary": "Read Securities",
+        "description": "Tous les titres suivis, avec leur première et dernière séance en base.\n\nUn titre sans aucun prix apparaît avec deux dates nulles et `has_prices` à\nfaux, plutôt que de disparaître : « présent mais jamais ingéré » et « absent\nde l'univers » appellent deux actions différentes.",
+        "operationId": "read_securities_api_securities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SecurityOut"
+                  },
+                  "type": "array",
+                  "title": "Response Read Securities Api Securities Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolios": {
+      "get": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "List Portfolios",
+        "operationId": "list_portfolios_api_portfolios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PortfolioDetailOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Portfolios Api Portfolios Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "Create Portfolio",
+        "description": "Crée un portefeuille vide et renvoie son identifiant.\n\n`updated_at` reste nul : aucune position n'a encore été écrite, et dater la\ncréation annoncerait une fraîcheur de positions qui n'existe pas.",
+        "operationId": "create_portfolio_api_portfolios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PortfolioCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolios/{portfolio_id}": {
+      "get": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "Read Portfolio",
+        "operationId": "read_portfolio_api_portfolios__portfolio_id__get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "Delete Portfolio",
+        "description": "Supprime le portefeuille et ses positions (cascade du schéma).",
+        "operationId": "delete_portfolio_api_portfolios__portfolio_id__delete",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolios/{portfolio_id}/positions": {
+      "put": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "Replace Positions",
+        "description": "Remplace TOUTES les positions du portefeuille.",
+        "operationId": "replace_positions_api_portfolios__portfolio_id__positions_put",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionsReplace"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionsWrittenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolios/{portfolio_id}/positions/csv": {
+      "post": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "Import Positions Csv",
+        "description": "Importe un CSV de positions, y compris celui d'un Excel français.\n\nLe fichier est lu en OCTETS, jamais décodé implicitement : l'encodage, le\nséparateur de champs et le séparateur décimal sont déduits des octets, puis\nrendus dans la réponse. Voir `api.csv_import` pour le raisonnement.",
+        "operationId": "import_positions_csv_api_portfolios__portfolio_id__positions_csv_post",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_positions_csv_api_portfolios__portfolio_id__positions_csv_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolios/{portfolio_id}/analysis": {
+      "get": {
+        "tags": [
+          "analyse"
+        ],
+        "summary": "Analyse",
+        "description": "Rapport de risque, scénarios, régimes, observations et bandeau.",
+        "operationId": "analyse_api_portfolios__portfolio_id__analysis_get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Portfolio Id"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 60,
+              "description": "Fenêtre d'estimation demandée, en séances. Le nombre réellement obtenu se lit sur `window.observations` de chaque mesure, et peut être bien inférieur si une ligne a un historique court.",
+              "default": 504,
+              "title": "Window"
+            },
+            "description": "Fenêtre d'estimation demandée, en séances. Le nombre réellement obtenu se lit sur `window.observations` de chaque mesure, et peut être bien inférieur si une ligne a un historique court."
+          },
+          {
+            "name": "benchmark",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Indice de référence du beta, insensible à la casse. Chaîne vide pour désactiver le beta, lorsque l'indice n'est pas en base.",
+              "default": "SPY",
+              "title": "Benchmark"
+            },
+            "description": "Indice de référence du beta, insensible à la casse. Chaîne vide pour désactiver le beta, lorsque l'indice n'est pas en base."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisOut": {
+        "properties": {
+          "portfolio_id": {
+            "type": "integer",
+            "title": "Portfolio Id"
+          },
+          "portfolio": {
+            "$ref": "#/components/schemas/PortfolioOut"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "total_value": {
+            "type": "number",
+            "title": "Total Value"
+          },
+          "tickers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tickers"
+          },
+          "weights": {
+            "items": {
+              "$ref": "#/components/schemas/WeightOut"
+            },
+            "type": "array",
+            "title": "Weights"
+          },
+          "estimation_window": {
+            "$ref": "#/components/schemas/WindowOut",
+            "description": "Fenêtre du panel de régime courant. Les mesures calculées sur ce panel la partagent ; chacune porte néanmoins la sienne, et une mesure peut en avoir une autre."
+          },
+          "limiting_positions": {
+            "items": {
+              "$ref": "#/components/schemas/LimitingPositionOut"
+            },
+            "type": "array",
+            "title": "Limiting Positions"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ParametersOut"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskOut"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioOut"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          },
+          "regimes": {
+            "items": {
+              "$ref": "#/components/schemas/RegimeOut"
+            },
+            "type": "array",
+            "title": "Regimes"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationOut"
+            },
+            "type": "array",
+            "title": "Observations"
+          },
+          "disclaimer": {
+            "$ref": "#/components/schemas/DisclaimerOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "portfolio",
+          "as_of",
+          "total_value",
+          "tickers",
+          "weights",
+          "estimation_window",
+          "limiting_positions",
+          "parameters",
+          "risk",
+          "scenarios",
+          "regimes",
+          "observations",
+          "disclaimer"
+        ],
+        "title": "AnalysisOut",
+        "description": "Rapport complet d'un portefeuille : UNE réponse, UN `as_of`.\n\nDécouper l'analyse en quatre endpoints ferait décrire deux dates différentes\nà la section « volatilité » et à la section « scénarios » si la base était\nrafraîchie entre deux appels, sans que rien ne le signale. Une seule réponse\ngarantit que toute la page parle du même instant.\n\n`as_of` est la date de VALORISATION de ce portefeuille : la plus ancienne des\ndernières clôtures de ses lignes, jamais la date du jour. Elle peut être\nantérieure à l'`as_of` de la base (`GET /api/meta`) si une ligne a cessé\nd'être mise à jour.\n\n`tickers` est l'ordre canonique de la réponse : celui des matrices, des poids\net des contributions à la variance.\n\n`estimation_window` est la fenêtre du PANEL de régime courant\n(`PortfolioSeries.window`). Ce n'est pas une fenêtre hissée au niveau du\ndocument : c'est un objet du moteur, avec son propre nom et son propre sens.\nLes mesures calculées sur ce panel la partagent par construction ; chacune\ncontinue de porter la sienne, et une mesure peut en avoir une autre — le\nbeta est régressé sous une contrainte d'échantillon qui lui est propre, un\nscénario a ses propres dates. Un client qui l'afficherait à la place des\nfenêtres de mesure mentirait sur celles-là ; publier le panel sous son vrai\nnom vaut mieux que de le laisser déduire d'une mesure choisie au hasard.\n\n`limiting_positions` nomme la ou les lignes dont l'historique a borné la\nfenêtre de TOUTES les mesures. Vide quand la fenêtre est pleine.\n\nCONVENTION v1, ASSUMÉE — une ligne sans historique suffisant est traitée\ndifféremment selon l'endroit, et les deux traitements sont honnêtes à\ncondition d'être dits. Les SCÉNARIOS l'EXCLUENT et déclarent leur couverture\n(`coverage.value_share`) ; le RÉGIME COURANT TRONQUE toute l'analyse à\nl'historique commun. La troncature est retenue en v1 parce qu'elle n'écarte\naucune ligne détenue — tout le portefeuille est décrit, sur une période plus\ncourte. L'exclusion avec renormalisation, qui décrirait la période complète\nsur une partie du portefeuille, est au backlog v2."
+      },
+      "BetaOut": {
+        "properties": {
+          "beta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beta"
+          },
+          "r_squared": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R Squared"
+          },
+          "idiosyncratic_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idiosyncratic Share"
+          },
+          "undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undefined Reason"
+          },
+          "benchmark": {
+            "type": "string",
+            "title": "Benchmark"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "beta",
+          "r_squared",
+          "idiosyncratic_share",
+          "undefined_reason",
+          "benchmark",
+          "basis",
+          "window"
+        ],
+        "title": "BetaOut",
+        "description": "Sensibilité au marché, éventuellement indéfinie — et alors elle le dit.\n\nLA PENTE AUSSI est `null` sous trois observations, pas seulement le R². À\nzéro degré de liberté résiduel la droite passe exactement par les points :\nelle n'a pas d'erreur type, ce n'est plus une estimation. Publier la pente\nen nullifiant le seul R² laisserait croire que la sensibilité au marché a\nété mesurée et que seule sa qualité d'ajustement manque.\n\nLe résultat garde son `benchmark` et sa `window` : ce qui manque est le\nchiffre, pas la provenance. Distinct de `risk.beta` valant `null`, qui\nsignifie « aucun benchmark demandé »."
+      },
+      "Body_import_positions_csv_api_portfolios__portfolio_id__positions_csv_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Fichier CSV. En-tête attendu : ticker;quantity[;cost_basis]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_positions_csv_api_portfolios__portfolio_id__positions_csv_post"
+      },
+      "ConcentrationOut": {
+        "properties": {
+          "hhi": {
+            "type": "number",
+            "title": "Hhi"
+          },
+          "effective_positions": {
+            "type": "number",
+            "title": "Effective Positions"
+          },
+          "equal_weight_reference": {
+            "type": "number",
+            "title": "Equal Weight Reference"
+          },
+          "n_positions": {
+            "type": "integer",
+            "title": "N Positions"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hhi",
+          "effective_positions",
+          "equal_weight_reference",
+          "n_positions",
+          "as_of"
+        ],
+        "title": "ConcentrationOut",
+        "description": "Mesure PONCTUELLE : porte une date de valorisation, pas une fenêtre.\n\nLui attacher une fenêtre laisserait croire à une moyenne dans le temps. Sa\nprovenance est `as_of` — la date des prix qui ont produit les poids."
+      },
+      "ContributionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "excess_over_weight": {
+            "type": "number",
+            "title": "Excess Over Weight"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "contribution",
+          "weight",
+          "excess_over_weight"
+        ],
+        "title": "ContributionOut",
+        "description": "Part de variance d'une ligne, à côté de sa part de capital.\n\nLes trois nombres voyagent dans le MÊME objet plutôt qu'en tableaux\nparallèles : un objet par ligne ne peut pas se désaligner. `excess_over_weight`\nvient de la méthode du moteur, pas d'une soustraction faite ici."
+      },
+      "CoverageOut": {
+        "properties": {
+          "covered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Covered"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedPositionOut"
+            },
+            "type": "array",
+            "title": "Excluded"
+          },
+          "covered_value": {
+            "type": "number",
+            "title": "Covered Value"
+          },
+          "total_value": {
+            "type": "number",
+            "title": "Total Value"
+          },
+          "value_share": {
+            "type": "number",
+            "title": "Value Share"
+          },
+          "is_complete": {
+            "type": "boolean",
+            "title": "Is Complete"
+          },
+          "covered_count": {
+            "type": "integer",
+            "title": "Covered Count"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "covered",
+          "excluded",
+          "covered_value",
+          "total_value",
+          "value_share",
+          "is_complete",
+          "covered_count",
+          "total_count"
+        ],
+        "title": "CoverageOut",
+        "description": "Quelle part du portefeuille le scénario a réellement pu couvrir.\n\n`value_share` est une fraction de la VALEUR, pas une fraction des lignes :\nécarter une ligne à 1 % et une ligne à 40 % n'ont pas la même portée, alors\nque « 5 lignes sur 6 » se dirait pareil. Le biais est orienté — la partie\nexclue est plus récente, donc en moyenne plus spéculative —, ce qui rend la\nperte affichée vraisemblablement optimiste à mesure que `value_share` baisse."
+      },
+      "CsvImportOut": {
+        "properties": {
+          "portfolio_id": {
+            "type": "integer",
+            "title": "Portfolio Id"
+          },
+          "positions_count": {
+            "type": "integer",
+            "title": "Positions Count"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Updated At"
+          },
+          "replaced": {
+            "type": "boolean",
+            "title": "Replaced",
+            "description": "L'écriture remplace TOUTES les positions du portefeuille ; elle n'ajoute jamais aux lignes existantes.",
+            "default": true
+          },
+          "source": {
+            "$ref": "#/components/schemas/CsvSourceOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "positions_count",
+          "updated_at",
+          "source"
+        ],
+        "title": "CsvImportOut"
+      },
+      "CsvSourceOut": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "utf-8",
+              "utf-8-sig",
+              "cp1252"
+            ],
+            "title": "Encoding"
+          },
+          "delimiter": {
+            "type": "string",
+            "enum": [
+              ",",
+              ";"
+            ],
+            "title": "Delimiter"
+          },
+          "decimal_separator": {
+            "type": "string",
+            "enum": [
+              ".",
+              ",",
+              "mixte",
+              "aucune"
+            ],
+            "title": "Decimal Separator",
+            "description": "Séparateur décimal OBSERVÉ dans les nombres du fichier, et non celui qui était admis : un fichier `;` dont les quantités sont entières rend `aucune`, et non `,`. `mixte` quand le fichier mélange les deux écritures."
+          },
+          "rows_read": {
+            "type": "integer",
+            "title": "Rows Read"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "encoding",
+          "delimiter",
+          "decimal_separator",
+          "rows_read"
+        ],
+        "title": "CsvSourceOut",
+        "description": "Comment le fichier a été lu. C'est de la provenance, pas du décor.\n\nUn utilisateur qui voit « lu en cp1252, séparateur `;`, décimale `,` »\ncomprend un résultat inattendu au lieu de le subir. Ces choix sont devinés à\npartir des octets : ils doivent donc être affichables."
+      },
+      "DisclaimerOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/DisclaimerSectionOut"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "confirmation": {
+            "type": "string",
+            "title": "Confirmation"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "sections",
+          "confirmation",
+          "text"
+        ],
+        "title": "DisclaimerOut",
+        "description": "Le bandeau d'acceptation, structuré ET à plat.\n\nLes sections servent à la mise en page ; `text` est le même contenu en un\nbloc, tel que le moteur de règles l'attache à son rapport. La fenêtre citée\ndans le texte est celle qui a été DEMANDÉE pour cette analyse : le texte ne\npeut donc pas annoncer une durée que le calcul n'a pas utilisée."
+      },
+      "DisclaimerSectionOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "DisclaimerSectionOut"
+      },
+      "DrawdownOut": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "peak_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Peak Date"
+          },
+          "trough_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Trough Date"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "peak_date",
+          "trough_date",
+          "window"
+        ],
+        "title": "DrawdownOut"
+      },
+      "ExcludedPositionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "first_available": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Available"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "reason",
+          "value",
+          "weight",
+          "first_available"
+        ],
+        "title": "ExcludedPositionOut"
+      },
+      "ExpectedShortfallOut": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Perte moyenne au-delà du quantile, en PERTE POSITIVE et en fraction : 0.03 se lit « perte moyenne de 3 % »."
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "tail_observations": {
+            "type": "integer",
+            "title": "Tail Observations"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold",
+            "description": "Quantile qui borne la queue, en convention de RENDEMENT et non de perte : négatif pour une perte. Signe opposé à `value`, qui est une perte positive. Vaut l'opposé de `historical_var.value` au même niveau de confiance."
+          },
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "confidence",
+          "tail_observations",
+          "threshold",
+          "caveat",
+          "window"
+        ],
+        "title": "ExpectedShortfallOut",
+        "description": "CVaR, avec la taille de la queue qu'il moyenne et son avertissement.\n\n`caveat` est une `@property` du moteur, allumée en PERMANENCE à 99 % et\nau-delà : à ce niveau la queue ne compte que 1 % de la fenêtre, ce n'est pas\nune anomalie mais la structure du chiffre. Un convertisseur générique\nl'aurait perdue sans rien signaler.\n\n═══ DEUX CONVENTIONS DE SIGNE DANS LE MÊME OBJET ═══\n\n`value` est une PERTE POSITIVE (0,0300 = perte moyenne de 3 %), `threshold`\nest un RENDEMENT (−0,0173 = le quantile sous lequel se trouve la queue).\nLes deux décrivent le même événement par les deux bouts, et l'en-tête de\n`risk_engine.var` annonce pourtant que « toutes les valeurs de ce module\nsont des pertes positives ».\n\nL'écart est dans le moteur, pas ici : `expected_shortfall` rend\n`value=-queue.mean()` mais `threshold=seuil`, le quantile brut. Le\nsérialiser tel quel est le choix retenu — le retourner dans la couche API\nserait de l'arithmétique, et surtout publierait un nombre que le moteur n'a\njamais produit. Le champ porte donc sa convention dans sa description.\n\nRelation exacte, vérifiée par un test : `threshold` vaut l'opposé de\n`historical_var.value` du même niveau de confiance, les deux sortant du même\nquantile empirique."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LimitingPositionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "first_available": {
+            "type": "string",
+            "format": "date",
+            "title": "First Available"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "first_available"
+        ],
+        "title": "LimitingPositionOut",
+        "description": "Ligne dont l'historique borne la fenêtre de TOUT le rapport.\n\nLe panel est aligné sur l'INTERSECTION des dates : une ligne à 5 % du\nportefeuille, cotée depuis quarante séances, ramène toutes les mesures à son\npropre historique et déplace le beta et la VaR de l'ensemble.\n`window.complete` dit déjà que la fenêtre est courte ; il ne dit pas à cause\nde qui, et c'est la seule information sur laquelle l'utilisateur peut agir.\n\nListe vide quand la fenêtre est pleine : elle a alors été bornée par la\ndemande et non par l'historique, et nommer une ligne ferait porter à\nquelqu'un la responsabilité d'un choix de paramètre. Vide aussi quand la\ntroncature vient d'un trou au milieu d'une série plutôt que d'une entrée en\ncotation tardive — mieux vaut ne désigner personne que désigner à tort."
+      },
+      "MatricesOut": {
+        "properties": {
+          "covariance": {
+            "$ref": "#/components/schemas/MatrixOut"
+          },
+          "correlation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatrixOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correlation_undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Undefined Reason"
+          },
+          "ddof": {
+            "type": "integer",
+            "title": "Ddof"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "covariance",
+          "correlation",
+          "correlation_undefined_reason",
+          "ddof",
+          "window"
+        ],
+        "title": "MatricesOut",
+        "description": "Covariance et corrélation, la seconde pouvant manquer avec sa raison.\n\nSous trois observations, toutes les cellules hors diagonale de la\ncorrélation valent ±1 par construction. La matrice sort donc `null` avec\n`correlation_undefined_reason`, sur le modèle de `SortinoResult` : le refus\nvit dans la MESURE et non seulement dans la phrase du moteur de règles,\nparce qu'une carte de chaleur lit la matrice et non la phrase — et qu'une\ncarte de chaleur de ±1 reste symétrique, de diagonale 1, donc plausible.\n\n`covariance` reste publiée : `wᵀΣw` est la variance de la série du\nportefeuille, estimable dès deux observations, et c'est elle qui porte la\nvolatilité paramétrique et la VaR."
+      },
+      "MatrixOut": {
+        "properties": {
+          "tickers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tickers"
+          },
+          "values": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tickers",
+          "values"
+        ],
+        "title": "MatrixOut",
+        "description": "Matrice carrée étiquetée : `tickers` gouverne l'ordre des `values`.\n\n`values[i][j]` est la cellule (tickers[i], tickers[j]). Une matrice de\ncorrélation est symétrique et sa diagonale vaut 1 : si les libellés et les\nvaleurs se désalignaient, la carte de chaleur resterait plausible et\ndeviendrait fausse en silence. D'où l'extraction cellule par cellule, par\nCOUPLE D'ÉTIQUETTES, dans `of` — l'alignement n'est pas vérifié, il est\nimpossible à rater."
+      },
+      "MetaOut": {
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "securities_count": {
+            "type": "integer",
+            "title": "Securities Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "as_of",
+          "securities_count"
+        ],
+        "title": "MetaOut",
+        "description": "État de la base, pas de l'horloge.\n\n`as_of` est la dernière séance PRÉSENTE EN BASE. Ce n'est pas la date du\njour : un week-end, un jour férié ou une ingestion en panne la laissent en\narrière, et c'est précisément cet écart qu'il faut pouvoir voir.\n\nÀ ne pas confondre avec l'`as_of` d'une analyse, qui est la date de\nvalorisation d'un portefeuille donné — la plus ancienne des dernières\nclôtures de ses lignes — et peut donc être antérieure à celle-ci."
+      },
+      "ObservationOut": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "title": "Rule"
+          },
+          "rule_label": {
+            "type": "string",
+            "title": "Rule Label"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "statement": {
+            "type": "string",
+            "title": "Statement"
+          },
+          "facts": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Facts"
+          },
+          "provenance": {
+            "type": "string",
+            "title": "Provenance"
+          },
+          "thresholds": {
+            "items": {
+              "$ref": "#/components/schemas/ThresholdOut"
+            },
+            "type": "array",
+            "title": "Thresholds"
+          },
+          "uses_chosen_threshold": {
+            "type": "boolean",
+            "title": "Uses Chosen Threshold"
+          },
+          "rendered": {
+            "type": "string",
+            "title": "Rendered"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule",
+          "rule_label",
+          "subject",
+          "statement",
+          "facts",
+          "provenance",
+          "thresholds",
+          "uses_chosen_threshold",
+          "rendered"
+        ],
+        "title": "ObservationOut",
+        "description": "Une propriété chiffrée du portefeuille. Elle décrit, elle ne prescrit pas.\n\n`rule` est l'identifiant machine, `rule_label` le libellé français.\n`facts` porte les mêmes chiffres que `statement`, sous forme exploitable.\n`thresholds` est vide quand la mesure parle d'elle-même — ce n'est pas un\noubli, c'est une absence de seuil assumée par le moteur de règles."
+      },
+      "ParametersOut": {
+        "properties": {
+          "window": {
+            "type": "integer",
+            "title": "Window"
+          },
+          "benchmark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark"
+          },
+          "confidence_levels": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Confidence Levels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "window",
+          "benchmark",
+          "confidence_levels"
+        ],
+        "title": "ParametersOut",
+        "description": "Ce qui a été DEMANDÉ, pas ce qui a été utilisé.\n\nAucune fenêtre effective ici : chaque mesure porte la sienne, et une fenêtre\nhissée en tête de document serait fausse pour toute mesure qui n'utilise pas\ncelle-là. `window` est le nombre de séances demandé au moteur ; le nombre\nréellement obtenu se lit sur `window.observations` de chaque mesure."
+      },
+      "PortfolioCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "default": "Portefeuille"
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Owner",
+            "default": "local"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PortfolioCreate"
+      },
+      "PortfolioDetailOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "valuation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValuationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "valuation_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuation Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner",
+          "updated_at",
+          "valuation",
+          "valuation_error"
+        ],
+        "title": "PortfolioDetailOut",
+        "description": "Portefeuille et sa valorisation.\n\n`valuation` est `null` quand le portefeuille existe mais n'est pas\nvalorisable — aucune position, aucun prix pour une ligne. `valuation_error`\nporte alors le message du moteur, qui dit quoi faire. Les deux champs\nvoyagent ensemble : un `null` seul serait un blanc inexpliqué.\n\nCette tolérance vaut pour la LISTE, où un portefeuille cassé ne doit pas\npriver des autres. Interrogé seul, un portefeuille non valorisable répond en\n409 : c'est la ressource demandée qui est en cause."
+      },
+      "PortfolioOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner",
+          "updated_at"
+        ],
+        "title": "PortfolioOut",
+        "description": "Le portefeuille tel qu'il est stocké.\n\n`updated_at` date le dernier remplacement des POSITIONS, jamais la création.\n`null` se lit « jamais modifié depuis l'application » — ce qui est vrai d'un\nportefeuille encore vide, et vrai des lignes antérieures à la migration,\npour lesquelles la date est réellement inconnue."
+      },
+      "PositionContributionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "start_value": {
+            "type": "number",
+            "title": "Start Value"
+          },
+          "end_value": {
+            "type": "number",
+            "title": "End Value"
+          },
+          "own_return": {
+            "type": "number",
+            "title": "Own Return"
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution"
+          },
+          "start_weight": {
+            "type": "number",
+            "title": "Start Weight"
+          },
+          "end_weight": {
+            "type": "number",
+            "title": "End Weight"
+          },
+          "pnl": {
+            "type": "number",
+            "title": "Pnl"
+          },
+          "weight_drift": {
+            "type": "number",
+            "title": "Weight Drift"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "start_value",
+          "end_value",
+          "own_return",
+          "contribution",
+          "start_weight",
+          "end_weight",
+          "pnl",
+          "weight_drift"
+        ],
+        "title": "PositionContributionOut"
+      },
+      "PositionIn": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Ticker"
+          },
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "cost_basis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "quantity"
+        ],
+        "title": "PositionIn"
+      },
+      "PositionsReplace": {
+        "properties": {
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionIn"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "positions"
+        ],
+        "title": "PositionsReplace"
+      },
+      "PositionsWrittenOut": {
+        "properties": {
+          "portfolio_id": {
+            "type": "integer",
+            "title": "Portfolio Id"
+          },
+          "positions_count": {
+            "type": "integer",
+            "title": "Positions Count"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Updated At"
+          },
+          "replaced": {
+            "type": "boolean",
+            "title": "Replaced",
+            "description": "L'écriture remplace TOUTES les positions du portefeuille ; elle n'ajoute jamais aux lignes existantes.",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "positions_count",
+          "updated_at"
+        ],
+        "title": "PositionsWrittenOut"
+      },
+      "RegimeOut": {
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/ScenarioDefOut"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageOut"
+          },
+          "benchmark": {
+            "type": "string",
+            "title": "Benchmark"
+          },
+          "portfolio_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio Return"
+          },
+          "benchmark_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Return"
+          },
+          "amplification_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amplification Ratio"
+          },
+          "crisis_beta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegressedBetaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "calm_beta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegressedBetaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "predicted_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Return"
+          },
+          "prediction_gap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Gap"
+          },
+          "ratio_beta_divergence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio Beta Divergence"
+          },
+          "systematic_share_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systematic Share Change"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario",
+          "coverage",
+          "benchmark",
+          "portfolio_return",
+          "benchmark_return",
+          "amplification_ratio",
+          "crisis_beta",
+          "calm_beta",
+          "predicted_return",
+          "prediction_gap",
+          "ratio_beta_divergence",
+          "systematic_share_change",
+          "unavailable_reason",
+          "summary"
+        ],
+        "title": "RegimeOut",
+        "description": "Le beta de régime calme a-t-il prédit la perte subie pendant la crise ?\n\n`prediction_gap` (réalisé − prédit) est LE LIVRABLE de cette comparaison,\nd'après la docstring du moteur, et c'est une `@property` : un convertisseur\ngénérique aurait publié cette section sans elle, sans erreur.\n`systematic_share_change` et `ratio_beta_divergence` sont dans le même cas."
+      },
+      "RegressedBetaOut": {
+        "properties": {
+          "beta": {
+            "type": "number",
+            "title": "Beta"
+          },
+          "r_squared": {
+            "type": "number",
+            "title": "R Squared"
+          },
+          "standard_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Error"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "min_observations": {
+            "type": "integer",
+            "title": "Min Observations"
+          },
+          "sample_too_thin": {
+            "type": "boolean",
+            "title": "Sample Too Thin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "beta",
+          "r_squared",
+          "standard_error",
+          "observations",
+          "start",
+          "end",
+          "min_observations",
+          "sample_too_thin"
+        ],
+        "title": "RegressedBetaOut",
+        "description": "Beta régressé sur une fenêtre datée, avec son incertitude.\n\nPorte `observations`, `start` et `end` directement plutôt qu'un objet\n`Window` : le moteur ne lui en attache pas, et en fabriquer un ici\ninventerait une fenêtre « demandée » qui n'a jamais été demandée."
+      },
+      "RiskOut": {
+        "properties": {
+          "volatility": {
+            "$ref": "#/components/schemas/VolatilityOut"
+          },
+          "ewma_volatility": {
+            "$ref": "#/components/schemas/VolatilityOut"
+          },
+          "parametric_volatility": {
+            "$ref": "#/components/schemas/VolatilityOut"
+          },
+          "drawdown": {
+            "$ref": "#/components/schemas/DrawdownOut"
+          },
+          "sharpe": {
+            "$ref": "#/components/schemas/SharpeOut"
+          },
+          "sortino": {
+            "$ref": "#/components/schemas/SortinoOut"
+          },
+          "concentration": {
+            "$ref": "#/components/schemas/ConcentrationOut"
+          },
+          "matrices": {
+            "$ref": "#/components/schemas/MatricesOut"
+          },
+          "variance_contributions": {
+            "$ref": "#/components/schemas/VarianceContributionsOut"
+          },
+          "beta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BetaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tail_risk": {
+            "$ref": "#/components/schemas/TailRiskOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "volatility",
+          "ewma_volatility",
+          "parametric_volatility",
+          "drawdown",
+          "sharpe",
+          "sortino",
+          "concentration",
+          "matrices",
+          "variance_contributions",
+          "beta",
+          "tail_risk"
+        ],
+        "title": "RiskOut"
+      },
+      "ScenarioDefOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "benchmark": {
+            "type": "string",
+            "title": "Benchmark"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "calendar_days": {
+            "type": "integer",
+            "title": "Calendar Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "start",
+          "end",
+          "benchmark",
+          "description",
+          "calendar_days"
+        ],
+        "title": "ScenarioDefOut"
+      },
+      "ScenarioOut": {
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/ScenarioDefOut"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageOut"
+          },
+          "end_to_end_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End To End Return"
+          },
+          "max_drawdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrajectoryDrawdownOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionContributionOut"
+            },
+            "type": "array",
+            "title": "Contributions"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario",
+          "coverage",
+          "end_to_end_return",
+          "max_drawdown",
+          "contributions",
+          "observations",
+          "unavailable_reason",
+          "summary"
+        ],
+        "title": "ScenarioOut",
+        "description": "Un scénario, c'est trois chiffres indissociables.\n\n`end_to_end_return` (ce que vaudrait le portefeuille à la SORTIE),\n`max_drawdown` (le pire moment TRAVERSÉ, souvent plus profond) et\n`coverage.value_share` (la portée du chiffre) sont trois champs requis du\nmême objet. Aucun ne peut être servi sans les autres, et les deux premiers\nvalent `null` ensemble quand aucune ligne n'est couverte —\n`unavailable_reason` dit alors pourquoi."
+      },
+      "SecurityOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "first_price_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Price Date"
+          },
+          "last_price_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price Date"
+          },
+          "has_prices": {
+            "type": "boolean",
+            "title": "Has Prices"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "name",
+          "sector",
+          "first_price_date",
+          "last_price_date",
+          "has_prices"
+        ],
+        "title": "SecurityOut"
+      },
+      "SharpeOut": {
+        "properties": {
+          "annualised": {
+            "type": "number",
+            "title": "Annualised"
+          },
+          "risk_free_annual": {
+            "type": "number",
+            "title": "Risk Free Annual"
+          },
+          "risk_free_daily": {
+            "type": "number",
+            "title": "Risk Free Daily"
+          },
+          "risk_free_observed_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Free Observed On"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "annualised",
+          "risk_free_annual",
+          "risk_free_daily",
+          "risk_free_observed_on",
+          "window"
+        ],
+        "title": "SharpeOut"
+      },
+      "SortinoOut": {
+        "properties": {
+          "annualised": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annualised"
+          },
+          "downside_deviation_daily": {
+            "type": "number",
+            "title": "Downside Deviation Daily"
+          },
+          "target_daily": {
+            "type": "number",
+            "title": "Target Daily"
+          },
+          "undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undefined Reason"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "annualised",
+          "downside_deviation_daily",
+          "target_daily",
+          "undefined_reason",
+          "window"
+        ],
+        "title": "SortinoOut",
+        "description": "Sortino, éventuellement indéfini — et alors il le DIT.\n\n`annualised: null` accompagné de `undefined_reason` : jamais un champ\nabsent, jamais un zéro. Un zéro se lirait « ratio nul », c'est-à-dire un\nportefeuille sans excédent de rendement, alors que l'indéfinition dit\nl'inverse — aucun rendement sous la cible sur la fenêtre. C'est la raison\npour laquelle `response_model_exclude_none` est banni de cette API : il\nsupprimerait exactement le champ qui explique le blanc."
+      },
+      "StudentFitOut": {
+        "properties": {
+          "nu": {
+            "type": "number",
+            "title": "Nu"
+          },
+          "loc": {
+            "type": "number",
+            "title": "Loc"
+          },
+          "scale": {
+            "type": "number",
+            "title": "Scale"
+          },
+          "log_likelihood": {
+            "type": "number",
+            "title": "Log Likelihood"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nu",
+          "loc",
+          "scale",
+          "log_likelihood",
+          "observations"
+        ],
+        "title": "StudentFitOut"
+      },
+      "TailRiskLevelOut": {
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "historical_var": {
+            "$ref": "#/components/schemas/VarOut"
+          },
+          "parametric_var": {
+            "$ref": "#/components/schemas/VarOut"
+          },
+          "monte_carlo_var": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VarOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_parametric_var": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VarOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_monte_carlo_var": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VarOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_shortfall": {
+            "$ref": "#/components/schemas/ExpectedShortfallOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confidence",
+          "historical_var",
+          "parametric_var",
+          "monte_carlo_var",
+          "student_parametric_var",
+          "student_monte_carlo_var",
+          "expected_shortfall"
+        ],
+        "title": "TailRiskLevelOut",
+        "description": "Toutes les mesures de queue d'UN niveau de confiance, dans un seul objet.\n\nLa VaR normale et sa contrepartie Student sont voisines de champ, parce que\nl'écart entre les deux chiffre le coût de l'hypothèse de normalité : afficher\nla normale seule la ferait passer pour le dernier mot. Quand le volet Student\nest indisponible, ces champs valent `null` et\n`TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres."
+      },
+      "TailRiskOut": {
+        "properties": {
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/TailRiskLevelOut"
+            },
+            "type": "array",
+            "title": "Levels"
+          },
+          "student_fit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudentFitOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Unavailable Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "levels",
+          "student_fit",
+          "student_unavailable_reason"
+        ],
+        "title": "TailRiskOut"
+      },
+      "ThresholdOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "derived",
+              "portfolio_relative",
+              "chosen"
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "percent": {
+            "type": "boolean",
+            "title": "Percent"
+          },
+          "chosen": {
+            "type": "boolean",
+            "title": "Chosen"
+          },
+          "rendered": {
+            "type": "string",
+            "title": "Rendered"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "value",
+          "rationale",
+          "percent",
+          "chosen",
+          "rendered"
+        ],
+        "title": "ThresholdOut",
+        "description": "Un seuil et sa provenance, lisible par une machine.\n\n`kind` est un champ MACHINE, pas une chaîne à analyser : le client distingue\nun seuil choisi à la main d'un seuil dérivé sans chercher le mot « CHOISI »\ndans du texte français. `rendered` reste disponible pour l'affichage, mais\naucune décision d'interface ne doit dépendre de son contenu."
+      },
+      "TrajectoryDrawdownOut": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "peak_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Peak Date"
+          },
+          "trough_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Trough Date"
+          },
+          "peak_level": {
+            "type": "number",
+            "title": "Peak Level"
+          },
+          "trough_level": {
+            "type": "number",
+            "title": "Trough Level"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "peak_date",
+          "trough_date",
+          "peak_level",
+          "trough_level"
+        ],
+        "title": "TrajectoryDrawdownOut",
+        "description": "Drawdown d'une trajectoire de scénario : pas de fenêtre d'estimation.\n\nIl ne s'estime sur rien — c'est la lecture directe du pire moment traversé\npar une trajectoire bornée par le scénario. Les niveaux sont en base 1 au\npremier jour de l'épisode (voir `risk_engine.stress`)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValuationOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "total_value": {
+            "type": "number",
+            "title": "Total Value"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ValuedPositionOut"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "as_of",
+          "total_value",
+          "positions"
+        ],
+        "title": "ValuationOut"
+      },
+      "ValuedPositionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "cost_basis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "quantity",
+          "cost_basis",
+          "price",
+          "value",
+          "weight"
+        ],
+        "title": "ValuedPositionOut",
+        "description": "Une ligne valorisée à la dernière clôture connue.\n\n`price` est la clôture BRUTE (`close`) et non la clôture ajustée : c'est un\nprix auquel on peut traiter, là où `adj_close` est un indice de performance\ntotale rebasé à chaque dividende, réservé aux rendements. Voir\n`risk_engine.portfolio.latest_closes`.\n\nAucune plus-value n'est publiée ici, bien que `cost_basis` soit disponible :\nla calculer serait de l'arithmétique dans la couche API. Si elle devient\nutile, elle sera ajoutée au moteur avec son test."
+      },
+      "VarOut": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "nu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nu"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "confidence",
+          "method",
+          "detail",
+          "nu",
+          "window"
+        ],
+        "title": "VarOut",
+        "description": "VaR à horizon une séance, en PERTE POSITIVE et en FRACTION.\n\n`0.0138` se lit « perte d'au moins 1,38 % ». Une valeur négative signifie un\ngain à ce niveau de confiance. `nu` est `null` hors loi de Student : c'est\nune donnée du résultat, pas une mention noyée dans `detail`."
+      },
+      "VarianceContributionsOut": {
+        "properties": {
+          "tickers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tickers"
+          },
+          "contributions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ContributionOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contributions"
+          },
+          "undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undefined Reason"
+          },
+          "effective_positions": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Positions"
+          },
+          "has_negative_contribution": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Negative Contribution"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tickers",
+          "contributions",
+          "undefined_reason",
+          "effective_positions",
+          "has_negative_contribution",
+          "window"
+        ],
+        "title": "VarianceContributionsOut",
+        "description": "Décomposition de la variance, qui peut manquer avec sa raison.\n\nSous trois observations la covariance est de rang 1 et la part de chaque\nligne s'y ramène à `wᵢδᵢ / (wᵀδ)`, sa part dans une seule différence\njournalière. Le refus vit donc dans la MESURE : en 7B un graphe à barres\nlira `contributions`, pas la phrase du moteur de règles, et des parts qui\nsomment à 1 auront l'air d'une décomposition quel que soit leur contenu.\n\n`has_negative_contribution` vaut `null` et non `false` dans ce cas : `false`\naffirmerait qu'aucune ligne n'a évolué à rebours des autres, alors que rien\nn'a été mesuré."
+      },
+      "VolatilityOut": {
+        "properties": {
+          "annualised": {
+            "type": "number",
+            "title": "Annualised"
+          },
+          "daily": {
+            "type": "number",
+            "title": "Daily"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "annualised",
+          "daily",
+          "method",
+          "window"
+        ],
+        "title": "VolatilityOut"
+      },
+      "WeightOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "weight"
+        ],
+        "title": "WeightOut"
+      },
+      "WindowOut": {
+        "properties": {
+          "requested": {
+            "type": "integer",
+            "title": "Requested"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete",
+            "description": "Fenêtre demandée entièrement remplie (propriété du moteur)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requested",
+          "observations",
+          "start",
+          "end",
+          "complete"
+        ],
+        "title": "WindowOut",
+        "description": "Fenêtre d'estimation d'UNE mesure.\n\nRépétée sur chaque mesure, jamais hissée en tête de réponse. Le beta est\nrégressé sous une contrainte d'échantillon minimal qui lui est propre, un\nscénario à couverture partielle a sa propre portée : une fenêtre unique au\nniveau du document serait un mensonge pour toute mesure qui n'utilise pas\ncelle-là."
+      }
+    }
+  }
+}
