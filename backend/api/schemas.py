@@ -1193,6 +1193,16 @@ class AnalysisOut(Schema):
     `tickers` est l'ordre canonique de la réponse : celui des matrices, des poids
     et des contributions à la variance.
 
+    `estimation_window` est la fenêtre du PANEL de régime courant
+    (`PortfolioSeries.window`). Ce n'est pas une fenêtre hissée au niveau du
+    document : c'est un objet du moteur, avec son propre nom et son propre sens.
+    Les mesures calculées sur ce panel la partagent par construction ; chacune
+    continue de porter la sienne, et une mesure peut en avoir une autre — le
+    beta est régressé sous une contrainte d'échantillon qui lui est propre, un
+    scénario a ses propres dates. Un client qui l'afficherait à la place des
+    fenêtres de mesure mentirait sur celles-là ; publier le panel sous son vrai
+    nom vaut mieux que de le laisser déduire d'une mesure choisie au hasard.
+
     `limiting_positions` nomme la ou les lignes dont l'historique a borné la
     fenêtre de TOUTES les mesures. Vide quand la fenêtre est pleine.
 
@@ -1212,6 +1222,13 @@ class AnalysisOut(Schema):
     total_value: float
     tickers: list[str]
     weights: list[WeightOut]
+    estimation_window: WindowOut = Field(
+        description=(
+            "Fenêtre du panel de régime courant. Les mesures calculées sur ce "
+            "panel la partagent ; chacune porte néanmoins la sienne, et une "
+            "mesure peut en avoir une autre."
+        )
+    )
     limiting_positions: list[LimitingPositionOut]
     parameters: ParametersOut
     risk: RiskOut

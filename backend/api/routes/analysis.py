@@ -57,6 +57,7 @@ from ..schemas import (
     RiskOut,
     ScenarioOut,
     WeightOut,
+    WindowOut,
 )
 
 router = APIRouter(prefix="/portfolios", tags=["analyse"])
@@ -173,6 +174,12 @@ def analyse(
             WeightOut(ticker=ticker, weight=report.weights[ticker])
             for ticker in tickers
         ],
+        # La fenêtre du PANEL, telle que le moteur la porte — pas celle d'une
+        # mesure promue en fenêtre du document. `report.window` est
+        # littéralement `PortfolioSeries.window` : la relire sur la volatilité
+        # donnerait aujourd'hui le même nombre et inventerait une convention
+        # que rien ne garantirait demain.
+        estimation_window=WindowOut.of(report.window),
         limiting_positions=[
             LimitingPositionOut.of(position)
             for position in report.limiting_positions

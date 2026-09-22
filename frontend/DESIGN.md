@@ -362,23 +362,35 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  Mx Risk MGT      Portefeuille principal      83 185,85 $       [◐]      │
-│                   Valorisé au 2026-09-09   Fenêtre 504 séances            │
+│           Valorisé au 2026-09-09   Fenêtre d'estimation : 504 séances     │
 │                   Positions modifiées le 2026-09-21                       │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-`as_of`, `Window.observations`, la valeur du portefeuille et la date de
+`as_of`, la fenêtre d'estimation, la valeur du portefeuille et la date de
 modification des positions sont dans le bandeau **parce qu'ils conditionnent
 tout le reste**. C'est la traduction visuelle directe de la discipline du
 backend. `[◐]` = bascule de thème.
 
+- **Fenêtre d'estimation** — le bandeau lit `analysis.estimation_window`, la
+  fenêtre du **panel de régime courant** publiée par l'API, et rien d'autre.
+  Il ne la déduit pas d'une mesure : `risk.volatility.window` se trouve porter
+  le même nombre aujourd'hui, et l'y lire promouvrait une mesure particulière
+  en fenêtre du document par convention silencieuse — exactement ce que
+  `AnalysisOut` refuse de faire. Le mot **estimation** borne la portée : les
+  scénarios ont leurs propres périodes, et le bandeau ne parle pas pour eux.
+  Chaque bloc `<Measure>` continue d'afficher la sienne ; le bandeau ne
+  dispense de rien.
+
 - **Fraîcheur des positions** (`portfolio.updated_at`) : l'`as_of` date les
   prix, pas les quantités. Si `updated_at` est nul : « Positions jamais
   modifiées depuis l'application ».
-- **Fenêtre réduite** (`window.complete = false`) : point `--caveat` et la
-  cause, en clair. Si `limiting_positions` n'est pas vide : « Fenêtre réduite
-  à 40 séances sur 504 : NEWCO n'est coté que depuis le 2026-07-14. » Si elle
-  est vide : « Fenêtre réduite à 40 séances sur 504 (historique incomplet) »,
+- **Fenêtre réduite** (`estimation_window.complete = false`) : point
+  `--caveat` et la cause, en clair. C'est le seul endroit du bandeau où le
+  nombre de séances **demandé** (`parameters.window`) apparaît. Si
+  `limiting_positions` n'est pas vide : « Fenêtre réduite à 40 séances sur 504
+  demandées : NEWCO n'est coté que depuis le 2026-07-14. » Si elle est vide :
+  « Fenêtre réduite à 40 séances sur 504 demandées (historique incomplet) »,
   sans nommer de ligne — le backend ne nomme que ce qu'il a prouvé.
 - Le bandeau peut passer à deux ou trois lignes : sa hauteur suit son
   contenu, elle n'est pas fixée à 56 px.

@@ -145,11 +145,62 @@ def test_aucune_fenetre_n_est_hissee_en_tete_de_reponse(analyse_reelle):
     fenêtre au niveau du document serait fausse pour toute mesure qui n'utilise
     pas celle-là. Seule la fenêtre DEMANDÉE figure en tête, sous `parameters`,
     et elle est nommée comme telle.
+
+    `estimation_window` n'est pas une contre-exemple : ce n'est pas la fenêtre
+    d'une mesure hissée, c'est celle du PANEL, publiée sous son propre nom. Le
+    test qui suit dit ce qu'elle est.
     """
     corps = analyse_reelle.json()
     assert "window" not in corps
     assert "window" not in corps["risk"]
     assert corps["parameters"]["window"] == 504
+
+
+def test_la_fenetre_du_panel_est_publiee_sous_son_propre_nom(analyse_reelle):
+    """`estimation_window` est `PortfolioSeries.window`, pas une mesure promue.
+
+    Sans ce champ, un client qui veut afficher la fenêtre du régime courant en
+    tête de page n'a que deux options, toutes deux mauvaises : lire
+    `parameters.window`, qui est le DEMANDÉ et vaudrait 504 alors que le calcul
+    a tourné sur 40 ; ou lire `risk.volatility.window`, ce qui promeut une
+    mesure particulière en fenêtre du document par convention silencieuse — la
+    convention se trouve juste aujourd'hui, et rien ne la garantit demain.
+
+    Le champ porte donc le nom de l'objet du moteur, et il a la forme complète
+    d'une fenêtre : `objets(corps, "window")` ne le voit pas, puisque sa clé
+    n'est pas « window ».
+    """
+    corps = analyse_reelle.json()
+    panel = corps["estimation_window"]
+    assert set(panel) == {"requested", "observations", "start", "end", "complete"}
+    assert panel["observations"] == 504
+    assert panel["requested"] == 504
+    assert panel["start"] == "2024-09-05"
+    assert panel["end"] == "2026-09-09"
+    assert panel["complete"] is True
+
+    # Les mesures calculées sur ce panel la partagent — c'est ce qui rend le
+    # champ publiable. Le beta de crise, lui, n'a pas de `window` du tout.
+    assert corps["risk"]["volatility"]["window"] == panel
+    assert corps["risk"]["tail_risk"]["levels"][0]["historical_var"]["window"] == panel
+
+
+def test_la_fenetre_du_panel_suit_l_historique_reel_pas_la_demande(
+    analyse_historique_court,
+):
+    """Une ligne cotée depuis peu la fait tomber, sans qu'aucun paramètre change.
+
+    C'est la raison d'être du champ : `parameters.window` dirait encore 504. Un
+    bandeau qui lirait le demandé annoncerait une profondeur d'historique que le
+    calcul n'a jamais eue.
+    """
+    corps = analyse_historique_court(40).json()
+    panel = corps["estimation_window"]
+    assert corps["parameters"]["window"] == 504
+    assert panel["requested"] == 504
+    assert panel["observations"] == 39
+    assert panel["complete"] is False
+    assert [p["ticker"] for p in corps["limiting_positions"]] == ["COURT"]
 
 
 def test_le_beta_regresse_de_crise_porte_ses_propres_observations(analyse_reelle):
