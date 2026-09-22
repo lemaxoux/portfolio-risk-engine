@@ -538,16 +538,18 @@ contribution négative signale une ligne qui a évolué à rebours du reste.
 
 | Règle | Ce qu'elle décrit | Seuil |
 |---|---|---|
-| 1. Concentration effective | lignes effectives en capital (`1/Σwᵢ²`) **et** en risque (`1/Σcᵢ²`), et l'écart entre les deux | aucun |
-| 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne |
+| 1. Concentration effective | lignes effectives en capital (`1/Σwᵢ²`) **et** en risque (`1/Σcᵢ²`), et l'écart entre les deux | aucun en régime normal ; 60 séances **choisies** et 3 séances **dérivées** pour la moitié « en risque » |
+| 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun en régime normal ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée | 60 séances **choisies** pour signaler un échantillon trop mince |
 | 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
 
 **Deux régimes de taille d'échantillon, et la frontière entre eux n'est pas une
-convention.** Les règles 3 et 4 lisent `window.observations` — le nombre de
-séances RÉELLEMENT utilisées — et non la fenêtre demandée.
+convention.** Les **quatre** règles qui reposent sur la matrice de covariance —
+concentration effective (moitié « en risque »), contribution à la variance,
+diversification apparente, part systématique — lisent `window.observations`, le
+nombre de séances RÉELLEMENT utilisées, et non la fenêtre demandée.
 
 - **Sous 3 observations, la règle refuse de chiffrer.** Une régression avec
   constante a `n − 2` degrés de liberté résiduels : à deux observations il n'en
@@ -561,6 +563,29 @@ séances RÉELLEMENT utilisées — et non la fenêtre demandée.
 - **De 3 à 59 observations, la règle chiffre et le signale**, avec le seuil
   `MIN_REGRESSION_SAMPLE` attaché — exactement ce que la règle 5 faisait déjà
   pour le R² de crise. Le chiffre dit quelque chose, mal.
+
+**La même frontière vaut pour les contributions à la variance.** À `n = 2` la
+covariance est de rang 1 — `Σ ∝ δδᵀ`, où `δ` est l'écart entre les deux
+rendements — et la contribution de la ligne `i` vaut exactement `wᵢδᵢ / (wᵀδ)` :
+la part de chaque ligne dans **une** différence journalière, présentée comme une
+décomposition de variance. Vérifié à `1e-16` près.
+
+**La singularité de `Σ` quand `n ≤ k` ne crée pas de troisième régime**,
+contrairement à ce qu'on pourrait craindre : les contributions n'ont besoin que
+de `wᵀΣw > 0`, jamais d'une inverse, et chaque covariance qui les compose garde
+ses `n − 1` degrés de liberté. Mesuré sur un modèle à un facteur, 7 lignes,
+3 000 tirages, contre une vérité connue :
+
+| n | rang Σ | erreur abs. médiane | P(contribution < 0) | lignes eff. (vrai : 5,30) |
+|---|---|---|---|---|
+| **2** | **1** | **0,1216** | **73,1 %** | **2,88** |
+| 3 | 2 | 0,0688 | 49,8 % | 4,20 |
+| 7 | 6 *(singulière)* | 0,0344 | 11,6 % | 4,98 |
+| 8 | 7 *(inversible)* | 0,0309 | 7,3 % | 5,04 |
+| 60 | 7 | 0,0104 | 0,0 % | 5,28 |
+
+Le passage `n = 7 → 8`, où `Σ` cesse d'être singulière, ne produit aucune
+rupture. La seule est à `n = 2`, et elle est exacte.
 
 `MIN_ESTIMABLE_OBSERVATIONS` est le seul seuil du projet déclaré **`DERIVED`
 sans venir d'une référence du portefeuille** : il ne se choisit pas, il se
@@ -751,6 +776,24 @@ décrit comme « le livrable » de la comparaison de régimes —,
 `Threshold.chosen`, `value_share`, `summary()` et `render()`. Chaque schéma
 énumère donc ses champs à la main.
 
+**Le refus vit dans la MESURE, pas seulement dans la phrase.** Sous trois
+observations, `matrices.correlation` et `beta` sortent `null` avec leur raison,
+dans le moteur. Un moteur de règles qui refuserait de commenter des valeurs
+encore publiées ne protégerait de rien : une carte de chaleur lit la matrice, et
+une matrice de corrélations toutes à ±1 reste symétrique, de diagonale 1, donc
+parfaitement plausible et entièrement fausse.
+
+**La pente du beta est `null` aussi, pas seulement son R².** À zéro degré de
+liberté résiduel la droite passe exactement par les points : elle n'a pas
+d'erreur type, ce n'est plus une estimation. Publier la pente en nullifiant le
+seul R² laisserait croire que la sensibilité au marché a été mesurée et que
+seule sa qualité d'ajustement manque. `risk.beta` valant `null` garde un sens
+distinct : aucun benchmark demandé.
+
+`matrices.covariance` reste publiée dans les deux cas — `wᵀΣw` est la variance
+de la série du portefeuille, estimable dès deux observations, et c'est elle qui
+porte la volatilité paramétrique et la VaR.
+
 **Un indéfini se dit.** Quand `SortinoResult.annualised` vaut `None`, la réponse
 porte `annualised: null` **et** `undefined_reason`. `response_model_exclude_none`
 est banni de cette API : il supprimerait exactement le champ qui explique le
@@ -801,6 +844,38 @@ une Student — ν ≤ 2, série trop courte —, les champs sortent à `null` e
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
 rapport étant servi normalement. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
+
+**`limiting_positions` nomme la ligne qui raccourcit la fenêtre.** Le panel est
+aligné sur l'**intersection** des dates : une ligne à 5 % du portefeuille, cotée
+depuis quarante séances, ramène toutes les mesures à son propre historique — le
+beta passe de 0,57 à 0,32, la VaR 95 % de 1,38 % à 1,12 %. `window.complete`
+disait déjà que la fenêtre était courte ; il ne disait pas à cause de qui, et
+c'est la seule information sur laquelle l'utilisateur peut agir.
+
+L'attribution est **prouvée, pas devinée** : une ligne n'est nommée que si sa
+première séance disponible est exactement celle où le panel commence. Quand la
+troncature vient d'un trou au milieu d'une série plutôt que d'une entrée en
+cotation tardive, la liste est vide — mieux vaut ne désigner personne que
+désigner à tort. Elle est vide aussi quand la fenêtre est pleine : elle a alors
+été bornée par la demande, et nommer une ligne ferait porter à quelqu'un la
+responsabilité d'un choix de paramètre.
+
+#### Historique insuffisant : troncature ou exclusion — décision v1
+
+Une ligne sans historique suffisant est traitée **différemment selon l'endroit**,
+et il faut le savoir :
+
+| | Ce qui est fait | Ce qui est décrit |
+|---|---|---|
+| **Scénarios de stress** | la ligne est **exclue**, les poids restants renormalisés | la période complète, sur une **partie** du portefeuille (`coverage.value_share`) |
+| **Régime courant** | toute l'analyse est **tronquée** à l'historique commun | le portefeuille **entier**, sur une période plus courte (`limiting_positions`) |
+
+Les deux sont honnêtes puisque les deux sont déclarés, mais ils ne sont pas
+cohérents entre eux. **La troncature est conservée en v1** parce qu'elle
+n'écarte aucune ligne détenue : le chiffre décrit bien le portefeuille qu'on a,
+sur une fenêtre plus courte. L'exclusion avec renormalisation — décrire la
+fenêtre complète sur une partie du portefeuille — part au **backlog v2**, où
+elle demandera la même déclaration de couverture que les scénarios.
 
 **`benchmark` est insensible à la casse**, comme les tickers des positions :
 `?benchmark=spy` et `?benchmark=SPY` font la même chose. Deux portes d'entrée de
@@ -947,6 +1022,9 @@ l'ordre chronologique.
   Excel français, erreurs du moteur relayées en 4xx utilisables
   - Migration `portfolios` : `name` et `updated_at`, idempotente
   - Zéro arithmétique et zéro SQL dans `backend/api/`, vérifiés par test
+  - Taille d'échantillon appliquée aux quatre règles qui lisent la covariance,
+    sur la fenêtre EFFECTIVE ; refus des mesures dégénérées dans le moteur
+    (corrélation et beta `null` avec leur raison) ; ligne limitante nommée
 - [ ] **Phase 7B — Frontend** : saisie, dashboard, vue stress test
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**

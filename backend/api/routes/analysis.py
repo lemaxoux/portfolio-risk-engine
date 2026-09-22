@@ -49,6 +49,7 @@ from ..validation import normalise_ticker
 from ..schemas import (
     AnalysisOut,
     DisclaimerOut,
+    LimitingPositionOut,
     ObservationOut,
     ParametersOut,
     PortfolioOut,
@@ -150,11 +151,17 @@ def analyse(
 
     rules_report = evaluate(report, scenarios, regimes)
 
-    # Ordre canonique de toute la réponse : celui des colonnes de la matrice.
-    # Les poids sont relus PAR CE MÊME ordre plutôt que publiés dans le leur, de
-    # sorte qu'une carte de chaleur et une barre de poids ne puissent pas
-    # s'étiqueter différemment.
-    tickers = [str(colonne) for colonne in report.matrices.correlation.columns]
+    # Ordre canonique de toute la réponse : celui des colonnes de la matrice de
+    # COVARIANCE. Les poids sont relus par ce même ordre plutôt que publiés dans
+    # le leur, de sorte qu'une carte de chaleur et une barre de poids ne puissent
+    # pas s'étiqueter différemment.
+    #
+    # La covariance et non la corrélation : les deux sortent du même panel, donc
+    # du même ordre, mais la corrélation vaut None sous
+    # MIN_ESTIMABLE_OBSERVATIONS. Faire dépendre l'étiquetage de toute la
+    # réponse d'une matrice qui peut manquer priverait le client de son ordre
+    # de référence précisément quand il en a le plus besoin.
+    tickers = [str(colonne) for colonne in report.matrices.covariance.columns]
 
     return AnalysisOut(
         portfolio_id=portfolio_id,
@@ -165,6 +172,10 @@ def analyse(
         weights=[
             WeightOut(ticker=ticker, weight=report.weights[ticker])
             for ticker in tickers
+        ],
+        limiting_positions=[
+            LimitingPositionOut.of(position)
+            for position in report.limiting_positions
         ],
         parameters=ParametersOut(
             window=window,

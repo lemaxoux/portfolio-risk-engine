@@ -11,7 +11,7 @@ par ordre de préférence :
    la part de capital d'une ligne. Entre aussi dans cette catégorie le seuil
    qui vient de l'ALGÈBRE de l'estimateur et non d'une convention : le nombre
    d'observations en deçà duquel une statistique cesse d'être une mesure n'a
-   pas été choisi, il se démontre (voir `MIN_ESTIMABLE_OBSERVATIONS`).
+   pas été choisi, il se démontre (voir `MIN_ESTIMABLE_SAMPLE`).
 3. **Un seuil relatif au portefeuille lui-même**, comme la corrélation de sa paire
    la plus corrélée.
 4. **En dernier recours seulement, un nombre rond choisi à la main.** Le résultat
@@ -24,7 +24,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from backend.risk_engine.config import MIN_REGRESSION_OBSERVATIONS
+from backend.risk_engine.config import (
+    MIN_ESTIMABLE_OBSERVATIONS,
+    MIN_REGRESSION_OBSERVATIONS,
+)
 
 
 class ThresholdKind(Enum):
@@ -117,10 +120,12 @@ MIN_REGRESSION_SAMPLE = Threshold(
 #
 # Le moteur connaît déjà cette frontière : `covariance.Beta.standard_error` est
 # documenté « None en dessous de trois observations, où elle n'est pas définie ».
-MIN_ESTIMABLE_OBSERVATIONS = Threshold(
+# Nommé comme `MIN_REGRESSION_SAMPLE` : la CONSTANTE vit dans le moteur, le
+# SEUIL — le nombre plus sa provenance — vit ici. Deux objets, deux noms.
+MIN_ESTIMABLE_SAMPLE = Threshold(
     name="nombre minimal de séances estimables",
     kind=ThresholdKind.DERIVED,
-    value=3.0,
+    value=float(MIN_ESTIMABLE_OBSERVATIONS),
     rationale=(
         "une régression avec constante a n − 2 degrés de liberté résiduels ; à "
         "deux observations il n'en reste aucun, la droite passe exactement par "

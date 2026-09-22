@@ -22,6 +22,7 @@ from .config import (
     DEFAULT_BENCHMARK,
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
+    MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
     MONTE_CARLO_SEED,
@@ -141,12 +142,25 @@ class CovarianceResult:
     Estimées sur observations COMPLÈTES, jamais paire à paire : toutes les
     cellules reposent sur les mêmes dates, ce qui garantit que la matrice reste
     semi-définie positive et donc utilisable par Cholesky.
+
+    `correlation` vaut None en deçà de `MIN_ESTIMABLE_OBSERVATIONS`, avec sa
+    raison — même convention que `SortinoResult.annualised`. À deux
+    observations, toutes les cellules hors diagonale valent ±1 par construction,
+    quelles que soient les données : une carte de chaleur dessinée là-dessus
+    resterait symétrique, de diagonale 1, donc parfaitement plausible, et
+    entièrement fausse. Refuser dans la phrase du moteur de règles ne suffirait
+    pas — l'interface lit la matrice, pas la phrase.
+
+    `covariance` reste publiée : elle sert au calcul de la volatilité
+    paramétrique et de la VaR, dont le dénominateur `wᵀΣw` est la variance de la
+    série du portefeuille, elle-même estimable dès deux observations.
     """
 
     covariance: pd.DataFrame = field(repr=False)
-    correlation: pd.DataFrame = field(repr=False)
+    correlation: pd.DataFrame | None = field(repr=False)
     window: Window
     ddof: int = DDOF
+    correlation_undefined_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -182,17 +196,29 @@ class BetaResult:
     `r_squared` est la part de variance du portefeuille expliquée par le
     benchmark : c'est le risque systématique. Son complément à 1 est le risque
     idiosyncratique, celui que la diversification peut encore réduire.
+
+    LA PENTE AUSSI EST INDÉFINIE en deçà de `MIN_ESTIMABLE_OBSERVATIONS`, pas
+    seulement le R². À zéro degré de liberté résiduel, la droite passe
+    exactement par les points : elle n'a pas d'erreur type, et ce n'est donc
+    plus une estimation mais une construction géométrique. Rendre la pente en
+    nullifiant le seul R² laisserait croire que la sensibilité au marché a été
+    mesurée et que seule sa qualité d'ajustement manque.
+
+    `undefined_reason` accompagne alors les deux, sur le modèle de
+    `SortinoResult`. Le résultat garde son benchmark et sa fenêtre : ce qui
+    manque est le chiffre, pas la provenance.
     """
 
-    beta: float
-    r_squared: float
+    beta: float | None
+    r_squared: float | None
     benchmark: str
     basis: str
     window: Window
+    undefined_reason: str | None = None
 
     @property
-    def idiosyncratic_share(self) -> float:
-        return 1.0 - self.r_squared
+    def idiosyncratic_share(self) -> float | None:
+        return None if self.r_squared is None else 1.0 - self.r_squared
 
 
 @dataclass(frozen=True)
@@ -249,6 +275,31 @@ class ExpectedShortfallResult:
         )
 
 @dataclass(frozen=True)
+class LimitingPosition:
+    """Ligne dont l'historique borne la fenêtre d'estimation de TOUT le rapport.
+
+    Le panel est aligné sur l'INTERSECTION des dates : une seule ligne cotée
+    depuis peu ramène toutes les mesures à son propre historique. Une ligne à
+    5 % du portefeuille peut ainsi faire passer la fenêtre de 504 séances à 40,
+    et déplacer le beta et la VaR de tout le portefeuille.
+
+    `Window.complete` dit déjà que la fenêtre est courte ; il ne dit pas à cause
+    de qui. Sans ce nom, l'utilisateur voit des chiffres qui ont changé sans
+    savoir quelle ligne les a changés — et la seule action possible, retirer ou
+    conserver cette ligne, lui reste invisible.
+
+    ATTRIBUTION PROUVÉE, PAS DEVINÉE — une ligne n'est nommée que si sa première
+    séance disponible est exactement celle où le panel commence. Quand la
+    troncature vient d'un trou au milieu d'une série plutôt que d'une entrée en
+    cotation tardive, aucune ligne n'est nommée : mieux vaut ne désigner
+    personne que de désigner à tort.
+    """
+
+    ticker: str
+    first_available: date
+
+
+@dataclass(frozen=True)
 class PortfolioSeries:
     """Série de rendements d'un portefeuille et son contexte."""
 
@@ -259,6 +310,7 @@ class PortfolioSeries:
     asset_returns: pd.DataFrame = field(repr=False)
     benchmark: str | None = None
     benchmark_returns: pd.Series | None = field(default=None, repr=False)
+    limiting_positions: tuple[LimitingPosition, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -291,6 +343,7 @@ class RiskReport:
     student_fit: var.StudentFit | None = None
     student_parametric_var: dict[float, VarResult] | None = None
     student_monte_carlo_var: dict[float, VarResult] | None = None
+    limiting_positions: tuple[LimitingPosition, ...] = ()
 
 
 # ------------------------------------------------------------------ Séries --
@@ -372,7 +425,36 @@ def build_portfolio_series(
         benchmark_returns=(
             rendements[benchmark].tail(window) if benchmark else None
         ),
+        limiting_positions=_limiting_positions(panel, aligne, window, len(serie)),
     )
+
+
+def _limiting_positions(
+    panel: pd.DataFrame,
+    aligned: pd.DataFrame,
+    requested: int,
+    obtained: int,
+) -> tuple[LimitingPosition, ...]:
+    """Lignes dont l'entrée en cotation borne la fenêtre. Vide si elle est pleine.
+
+    Une fenêtre pleine n'a pas de ligne limitante : elle a été bornée par la
+    demande, pas par l'historique. Nommer une ligne dans ce cas ferait porter à
+    quelqu'un la responsabilité d'un choix de paramètre.
+    """
+    if obtained >= requested:
+        return ()
+
+    debut_commun = aligned.index[0]
+    limitantes = [
+        LimitingPosition(ticker=str(ticker), first_available=premiere)
+        for ticker in panel.columns
+        # `first_valid_index` est la première séance où CETTE ligne a un cours ;
+        # l'égalité prouve qu'elle est ce qui empêche le panel de commencer plus
+        # tôt. Une inégalité stricte signifie que la troncature vient d'ailleurs.
+        for premiere in (panel[ticker].first_valid_index(),)
+        if premiere == debut_commun
+    ]
+    return tuple(sorted(limitantes, key=lambda ligne: ligne.ticker))
 
 
 # ---------------------------------------------------------------- Mesures --
@@ -480,12 +562,33 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
+def _non_estimable(window: Window, quoi: str) -> str | None:
+    """Raison du refus d'estimer, ou None si la fenêtre le permet.
+
+    Un seul texte pour toutes les mesures concernées : elles refusent pour la
+    même raison, et deux formulations divergeraient.
+    """
+    if window.observations >= MIN_ESTIMABLE_OBSERVATIONS:
+        return None
+    return (
+        f"{window.observations} séances seulement : {quoi} n'est pas estimable "
+        f"en deçà de {MIN_ESTIMABLE_OBSERVATIONS} observations. Une régression "
+        "avec constante a n − 2 degrés de liberté résiduels ; à deux points il "
+        "n'en reste aucun, la droite passe exactement par eux et le coefficient "
+        "vaut ±1 quelles que soient les données."
+    )
+
+
 def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
     """Covariance et corrélation des titres détenus, sur la fenêtre."""
+    refus = _non_estimable(serie.window, "une corrélation")
     return CovarianceResult(
         covariance=covariance.covariance_matrix(serie.asset_returns),
-        correlation=covariance.correlation_matrix(serie.asset_returns),
+        correlation=(
+            None if refus else covariance.correlation_matrix(serie.asset_returns)
+        ),
         window=serie.window,
+        correlation_undefined_reason=refus,
     )
 
 
@@ -522,12 +625,24 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
             "Aucun benchmark dans cette série. La construire avec "
             "`build_portfolio_series(..., benchmark=\"SPY\")`."
         )
+    base = "rendements bruts (non excédentaires)"
+    refus = _non_estimable(serie.window, "un beta")
+    if refus:
+        return BetaResult(
+            beta=None,
+            r_squared=None,
+            benchmark=serie.benchmark,
+            basis=base,
+            window=serie.window,
+            undefined_reason=refus,
+        )
+
     brut = covariance.beta(serie.returns, serie.benchmark_returns)
     return BetaResult(
         beta=brut.beta,
         r_squared=brut.r_squared,
         benchmark=serie.benchmark,
-        basis="rendements bruts (non excédentaires)",
+        basis=base,
         window=serie.window,
     )
 
@@ -1237,6 +1352,7 @@ def analyse_portfolio(
             c: expected_shortfall(serie, c) for c in confidence_levels
         },
         variance_contributions=variance_contributions(serie),
+        limiting_positions=serie.limiting_positions,
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(
             {c: monte_carlo_var(serie, c) for c in confidence_levels}

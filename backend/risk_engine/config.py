@@ -66,6 +66,34 @@ DDOF = 1
 # seuil.
 MIN_REGRESSION_OBSERVATIONS = 60
 
+# ------------------------------------- Taille minimale d'une ESTIMATION --
+#
+# En deçà de trois observations, une corrélation et un R² cessent d'être des
+# estimations. Ce n'est pas une convention comme `MIN_REGRESSION_OBSERVATIONS` :
+# c'est de l'algèbre, et c'est le seul seuil du projet qui se démontre.
+#
+# Une régression avec constante a n − 2 degrés de liberté RÉSIDUELS. À deux
+# observations il n'en reste aucun : la droite passe exactement par les deux
+# points, son R² vaut 1, la corrélation vaut ±1 — quelles que soient les
+# données. Le chiffre serait identique pour deux titres pris au hasard. C'est
+# déjà écrit ailleurs dans le moteur : `covariance.Beta.standard_error` est
+# documenté « None en dessous de trois observations, où elle n'est pas définie ».
+#
+# La matrice de covariance dégénère au même endroit, et seulement là. À n = 2
+# elle est de rang 1 — Σ ∝ δδᵀ, où δ est l'écart entre les deux rendements —, et
+# les contributions à la variance s'y réduisent à `wᵢδᵢ / (wᵀδ)` : la part de
+# chaque ligne dans UNE différence journalière, présentée comme une décomposition
+# de variance. Vérifié à 1e-16 près.
+#
+# La singularité de Σ quand n ≤ k (nombre de lignes) ne produit PAS de seconde
+# rupture, contrairement à ce qu'on pourrait craindre : les contributions n'ont
+# besoin que de `wᵀΣw > 0`, jamais d'une inverse, et chaque covariance qui les
+# compose garde ses n − 1 degrés de liberté. Mesuré sur un modèle à un facteur à
+# 7 lignes, 3 000 tirages, contre une vérité connue — l'erreur absolue médiane
+# passe de 0,034 à n = 7 (Σ singulière) à 0,031 à n = 8 (Σ inversible), sans
+# rupture, là où elle vaut 0,122 à n = 2 contre 0,069 à n = 3.
+MIN_ESTIMABLE_OBSERVATIONS = 3
+
 # ------------------------------------------------------------ Monte Carlo --
 #
 # Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas

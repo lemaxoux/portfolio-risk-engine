@@ -37,7 +37,7 @@ from backend.risk_engine.engine import (
 from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.rules import (
-    MIN_ESTIMABLE_OBSERVATIONS,
+    MIN_ESTIMABLE_SAMPLE,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
@@ -768,7 +768,7 @@ def test_le_refus_porte_un_seuil_derive_et_non_choisi(risque):
     ]
     for obs in refus:
         (seuil,) = obs.thresholds
-        assert seuil is MIN_ESTIMABLE_OBSERVATIONS
+        assert seuil is MIN_ESTIMABLE_SAMPLE
         assert seuil.kind is ThresholdKind.DERIVED
         assert seuil.value == 3.0
         assert obs.uses_chosen_threshold is False
@@ -849,7 +849,7 @@ def test_aucune_valeur_degeneree_n_est_affirmee_sans_signalement(risque, observa
         degeneree = "corrélation de 1,00" in obs.statement or "R² 1,00" in obs.statement
         if observations < 3:
             assert not degeneree, obs.statement
-            assert obs.thresholds == (MIN_ESTIMABLE_OBSERVATIONS,)
+            assert obs.thresholds == (MIN_ESTIMABLE_SAMPLE,)
         elif degeneree:
             assert MIN_REGRESSION_SAMPLE in obs.thresholds, obs.statement
             assert "Estimation mince" in obs.statement
@@ -860,4 +860,117 @@ def test_les_refus_ne_prescrivent_rien_non_plus(risque):
     base = avec_correlation(risque, [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], 2)
     base = replace(base, beta=replace(base.beta, window=fenetre_de(2)))
     for obs in apparent_diversification(base) + systematic_share(base):
+        assert PRESCRIPTIF.search(obs.render()) is None, obs.render()
+
+# ------------------------- Règles 1 et 2 : la même matrice, les mêmes régimes --
+#
+# La covariance ne sert pas qu'aux corrélations et au beta : les contributions à
+# la variance et les lignes effectives « en risque » en sortent aussi. À n = 2,
+# Σ est de rang 1 et la contribution de i se réduit exactement à
+# `wᵢδᵢ / (wᵀδ)` — la part de chaque ligne dans UNE différence journalière.
+
+
+def avec_fenetre_de_variance(report, observations: int):
+    return replace(
+        report,
+        variance_contributions=replace(
+            report.variance_contributions, window=fenetre_de(observations)
+        ),
+    )
+
+
+def test_sous_trois_seances_aucune_part_de_variance_n_est_chiffree(risque):
+    (obs,) = variance_contribution(avec_fenetre_de_variance(risque, 2))
+
+    assert obs.subject == "portefeuille"
+    assert "ne se décompose pas" in obs.statement
+    assert "rang 1" in obs.statement
+    assert obs.facts.get("part_de_variance") is None
+    assert "%" not in obs.statement.replace("séances", "")
+    (seuil,) = obs.thresholds
+    assert seuil is MIN_ESTIMABLE_SAMPLE
+    assert seuil.kind is ThresholdKind.DERIVED
+
+
+def test_sous_trois_seances_les_lignes_effectives_en_risque_ne_sont_pas_dites(risque):
+    """La moitié EN CAPITAL survit : c'est une mesure ponctuelle, sans fenêtre.
+
+    Seule la lecture en risque disparaît, et elle dit pourquoi — plutôt que de
+    laisser croire que le risque se concentre sur 1,4 ligne.
+    """
+    obs = effective_concentration(avec_fenetre_de_variance(risque, 2))
+
+    assert "lignes effectives en capital" in obs.statement
+    assert "en risque" in obs.statement
+    assert "n'est pas disponible" in obs.statement
+    assert obs.facts["lignes_effectives_capital"] is not None
+    assert obs.facts["lignes_effectives_risque"] is None
+    (seuil,) = obs.thresholds
+    assert seuil is MIN_ESTIMABLE_SAMPLE
+
+
+def test_a_trois_seances_les_deux_regles_chiffrent_et_signalent(risque):
+    base = avec_fenetre_de_variance(risque, 3)
+
+    concentration_obs = effective_concentration(base)
+    assert concentration_obs.facts["lignes_effectives_risque"] is not None
+    assert "Estimation mince : 3 séances" in concentration_obs.statement
+    assert concentration_obs.thresholds == (MIN_REGRESSION_SAMPLE,)
+
+    contributions = variance_contribution(base)
+    assert len(contributions) == len(risque.variance_contributions.contributions)
+    for obs in contributions:
+        assert obs.facts["part_de_variance"] is not None
+        assert "Estimation mince : 3 séances" in obs.statement
+        assert MIN_REGRESSION_SAMPLE in obs.thresholds
+        assert obs.uses_chosen_threshold
+
+
+@pytest.mark.parametrize("observations", [60, 100, 504])
+def test_au_dela_du_seuil_les_deux_regles_ne_signalent_rien(risque, observations):
+    base = avec_fenetre_de_variance(risque, observations)
+
+    concentration_obs = effective_concentration(base)
+    assert "Estimation mince" not in concentration_obs.statement
+    assert concentration_obs.thresholds == ()
+
+    for obs in variance_contribution(base):
+        assert "Estimation mince" not in obs.statement
+        # Seule la part de capital de la ligne, qui n'est pas un seuil de taille.
+        assert [s.kind for s in obs.thresholds] == [ThresholdKind.DERIVED]
+
+
+def test_les_quatre_regles_portent_le_seuil_choisi_sur_un_echantillon_mince(risque):
+    """Les quatre règles qui lisent la covariance, d'un coup.
+
+    C'était le trou : le minimum de 60 séances ne s'appliquait qu'aux
+    régressions de crise, alors que quatre règles reposent sur la même matrice.
+    """
+    base = avec_fenetre_de_variance(risque, 40)
+    base = replace(
+        base,
+        beta=replace(base.beta, window=fenetre_de(40)),
+        matrices=replace(base.matrices, window=fenetre_de(40)),
+    )
+
+    rendues = [
+        effective_concentration(base),
+        *variance_contribution(base),
+        *apparent_diversification(base),
+        *systematic_share(base),
+    ]
+    regles = {o.rule for o in rendues}
+    assert regles == {
+        RuleId.EFFECTIVE_CONCENTRATION,
+        RuleId.VARIANCE_CONTRIBUTION,
+        RuleId.APPARENT_DIVERSIFICATION,
+        RuleId.SYSTEMATIC_SHARE,
+    }
+    for obs in rendues:
+        assert MIN_REGRESSION_SAMPLE in obs.thresholds, obs.rule
+
+
+def test_les_refus_des_regles_1_et_2_ne_prescrivent_rien(risque):
+    base = avec_fenetre_de_variance(risque, 2)
+    for obs in (effective_concentration(base), *variance_contribution(base)):
         assert PRESCRIPTIF.search(obs.render()) is None, obs.render()

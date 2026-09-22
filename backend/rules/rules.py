@@ -53,7 +53,7 @@ from backend.risk_engine.engine import (
 
 from .disclaimer import acceptance_text
 from .thresholds import (
-    MIN_ESTIMABLE_OBSERVATIONS,
+    MIN_ESTIMABLE_SAMPLE,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
@@ -163,6 +163,22 @@ def _lignes(nombre: int) -> str:
 # d'échantillon mince ne réparerait rien : la phrase affirmerait toujours,
 # sur le portefeuille, quelque chose que le nombre ne peut pas porter.
 #
+# LA MÊME FRONTIÈRE VAUT POUR LES CONTRIBUTIONS À LA VARIANCE, et pour les
+# lignes effectives « en risque » qui s'en déduisent. À n = 2 la covariance est
+# de rang 1 — Σ ∝ δδᵀ, δ étant l'écart entre les deux rendements — et la
+# contribution de i se réduit exactement à `wᵢδᵢ / (wᵀδ)` : la part de chaque
+# ligne dans UNE différence journalière, présentée comme une décomposition de
+# variance. Vérifié à 1e-16 près.
+#
+# La singularité de Σ quand n ≤ k (nombre de lignes) ne crée PAS de troisième
+# régime, contrairement à ce qu'on pourrait craindre : les contributions n'ont
+# besoin que de `wᵀΣw > 0`, jamais d'une inverse. Mesuré sur un modèle à un
+# facteur, 7 lignes, 3 000 tirages, contre une vérité connue : l'erreur absolue
+# médiane passe de 0,034 à n = 7 (Σ singulière) à 0,031 à n = 8 (Σ inversible),
+# sans rupture — là où elle vaut 0,122 à n = 2 contre 0,069 à n = 3. C'est la
+# probabilité d'une contribution NÉGATIVE qui dit le mieux la dégénérescence :
+# 73 % à n = 2, 50 % à n = 3, 12 % à n = 7, nulle au-delà de vingt.
+#
 # `_echantillon_mince` — entre trois séances et le seuil de régression, le
 # chiffre est une estimation réelle mais fragile. La règle chiffre et le dit,
 # exactement comme `crisis_degradation` le fait déjà pour le R² de crise.
@@ -174,7 +190,7 @@ def _lignes(nombre: int) -> str:
 
 
 def _non_estimable(seances: int) -> bool:
-    return seances < MIN_ESTIMABLE_OBSERVATIONS.value
+    return seances < MIN_ESTIMABLE_SAMPLE.value
 
 
 def _echantillon_mince(seances: int) -> bool:
@@ -208,6 +224,40 @@ def effective_concentration(report: RiskReport) -> Observation:
     c = report.concentration
     vc = report.variance_contributions
     en_capital = c.effective_positions
+    seances = vc.window.observations
+    provenance = (
+        f"capital : valorisation au {c.as_of} ; risque : fenêtre d'estimation "
+        f"de {vc.window}"
+    )
+
+    if _non_estimable(seances):
+        # La moitié EN CAPITAL reste dite : c'est une mesure ponctuelle, sans
+        # fenêtre d'estimation, que la brièveté de l'historique ne touche pas.
+        # Seule la moitié en risque disparaît, et elle dit pourquoi.
+        return Observation(
+            rule=RuleId.EFFECTIVE_CONCENTRATION,
+            subject="portefeuille",
+            statement=(
+                f"Tes {c.n_positions} lignes se comportent comme "
+                f"{_decimal(en_capital, 1)} lignes effectives en capital "
+                "(inverse de la somme des carrés des poids) ; l'équipondération "
+                f"en donnerait {c.n_positions}. La lecture en risque n'est pas "
+                f"disponible : sur {seances} séances, la covariance est de rang "
+                "1 et les contributions à la variance s'y ramènent à la part de "
+                "chaque ligne dans une seule différence journalière."
+            ),
+            facts={
+                "lignes": c.n_positions,
+                "lignes_effectives_capital": en_capital,
+                "lignes_effectives_risque": None,
+                "hhi": c.hhi,
+                "reference_equiponderee": c.equal_weight_reference,
+                "seances": seances,
+            },
+            provenance=provenance,
+            thresholds=(MIN_ESTIMABLE_SAMPLE,),
+        )
+
     en_risque = vc.effective_positions
 
     if c.n_positions == 1:
@@ -243,6 +293,9 @@ def effective_concentration(report: RiskReport) -> Observation:
                 "Une contribution négative à la variance rend la lecture en risque "
                 "approximative."
             )
+        mince = _mention_mince("la lecture en risque", seances)
+        if mince:
+            phrases.append(mince.strip())
         texte = " ".join(phrases)
 
     return Observation(
@@ -255,10 +308,11 @@ def effective_concentration(report: RiskReport) -> Observation:
             "lignes_effectives_risque": en_risque,
             "hhi": c.hhi,
             "reference_equiponderee": c.equal_weight_reference,
+            "seances": seances,
         },
-        provenance=(
-            f"capital : valorisation au {c.as_of} ; risque : fenêtre d'estimation "
-            f"de {vc.window}"
+        provenance=provenance,
+        thresholds=(
+            (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
         ),
     )
 
@@ -330,8 +384,32 @@ def variance_contribution(
     pendant les crises rejouées, pertes comme gains.
     """
     vc = report.variance_contributions
+    seances = vc.window.observations
     parcours = _scenario_record(scenarios)
-    observations = []
+    observations: list[Observation] = []
+
+    if _non_estimable(seances):
+        # Une seule observation, et aucun chiffre. Une décomposition par ligne
+        # avec des parts nulles laisserait croire à des parts mesurées à zéro.
+        return [
+            Observation(
+                rule=RuleId.VARIANCE_CONTRIBUTION,
+                subject="portefeuille",
+                statement=(
+                    f"Sur {seances} séances, la variance du portefeuille ne se "
+                    "décompose pas : la matrice de covariance est de rang 1, et "
+                    "la part de chaque ligne s'y ramène à sa part dans une seule "
+                    "différence journalière. Aucune contribution n'est donc "
+                    "chiffrée ici."
+                ),
+                facts={"seances": seances, "lignes": len(vc.contributions)},
+                provenance=f"fenêtre d'estimation : {vc.window}",
+                thresholds=(MIN_ESTIMABLE_SAMPLE,),
+            )
+        ]
+
+    mince = _mention_mince("une part de variance", seances)
+    seuils_mince = (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
 
     ordre = sorted(vc.contributions, key=lambda t: vc.contributions[t], reverse=True)
     for rang, ticker in enumerate(ordre):
@@ -367,6 +445,9 @@ def variance_contribution(
                 "du portefeuille, dans les deux sens : à la baisse comme à la hausse."
             )
 
+        if mince:
+            phrases.append(mince.strip())
+
         historique = parcours.get(ticker, [])
         if historique:
             phrases.append(_record_sentence(ticker, historique))
@@ -375,6 +456,7 @@ def variance_contribution(
             "poids": poids,
             "part_de_variance": part,
             "ecart": ecart,
+            "seances": seances,
         }
         faits.update({f"scenario:{r.scenario.key}": v for r, v in historique})
 
@@ -385,7 +467,7 @@ def variance_contribution(
                 statement=" ".join(phrases),
                 facts=faits,
                 provenance=f"fenêtre d'estimation : {vc.window}",
-                thresholds=(capital_share(ticker, poids),),
+                thresholds=(capital_share(ticker, poids), *seuils_mince),
             )
         )
     return observations
@@ -399,14 +481,22 @@ def apparent_diversification(
 ) -> list[Observation]:
     """Paires de lignes qui ont largement évolué ensemble sur la fenêtre."""
     correlation = report.matrices.correlation
-    tickers = list(correlation.columns)
-    if len(tickers) < 2:
-        return []
-
     seances = report.matrices.window.observations
     provenance = f"fenêtre d'estimation : {report.matrices.window}"
 
-    if _non_estimable(seances):
+    # Le nombre de lignes se lit sur la matrice quand elle existe, sinon sur la
+    # concentration : le moteur rend `correlation` à None sous
+    # MIN_ESTIMABLE_OBSERVATIONS, et une règle qui déréférencerait la matrice
+    # avant de vérifier la fenêtre tomberait sur un None.
+    lignes = (
+        len(correlation.columns)
+        if correlation is not None
+        else report.concentration.n_positions
+    )
+    if lignes < 2:
+        return []
+
+    if correlation is None or _non_estimable(seances):
         return [
             Observation(
                 rule=RuleId.APPARENT_DIVERSIFICATION,
@@ -421,10 +511,11 @@ def apparent_diversification(
                 ),
                 facts={"seances": seances, "correlation_max": None},
                 provenance=provenance,
-                thresholds=(MIN_ESTIMABLE_OBSERVATIONS,),
+                thresholds=(MIN_ESTIMABLE_SAMPLE,),
             )
         ]
 
+    tickers = list(correlation.columns)
     mince = _mention_mince("le coefficient", seances)
     seuils_mince = (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
     paires = sorted(
@@ -508,7 +599,7 @@ def systematic_share(report: RiskReport) -> list[Observation]:
                     "seances": seances,
                 },
                 provenance=provenance,
-                thresholds=(MIN_ESTIMABLE_OBSERVATIONS,),
+                thresholds=(MIN_ESTIMABLE_SAMPLE,),
             )
         ]
 

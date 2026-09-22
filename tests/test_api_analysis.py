@@ -1000,3 +1000,185 @@ def test_un_benchmark_vraiment_inconnu_reste_refuse(
     assert reponse.status_code == 409
     # Le message nomme le ticker tel qu'il sera cherché en base, en capitales.
     assert "ABSENT" in reponse.json()["detail"]
+
+# ═══════════════ 14. La fenêtre effective, dans les mesures et les phrases ══
+#
+# Le trou corrigé ici est plus large que les deux règles de la passe
+# précédente : quatre règles lisent la même matrice de covariance, et le bloc
+# `risk` publiait encore les valeurs dégénérées que ces règles refusaient de
+# commenter. En 7B, une carte de chaleur lit la matrice, pas la phrase.
+
+
+def test_sous_trois_seances_la_correlation_et_le_beta_sortent_null(
+    analyse_historique_court,
+):
+    """Le refus vit dans la MESURE, pas seulement dans le commentaire."""
+    corps = analyse_historique_court(3).json()
+    assert corps["risk"]["volatility"]["window"]["observations"] == 2
+
+    matrices = corps["risk"]["matrices"]
+    assert matrices["correlation"] is None
+    assert "2 séances seulement" in matrices["correlation_undefined_reason"]
+    assert "degrés de liberté résiduels" in matrices["correlation_undefined_reason"]
+    # La covariance reste publiée : wᵀΣw porte la volatilité et la VaR.
+    assert matrices["covariance"]["values"]
+
+    beta = corps["risk"]["beta"]
+    assert beta["beta"] is None, "la pente aussi, pas seulement le R²"
+    assert beta["r_squared"] is None
+    assert beta["idiosyncratic_share"] is None
+    assert "un beta n'est pas estimable" in beta["undefined_reason"]
+    # Ce qui manque est le chiffre, pas la provenance.
+    assert beta["benchmark"] == "SPY"
+    assert beta["window"]["observations"] == 2
+
+
+def test_sous_trois_seances_aucune_part_de_variance_ni_ligne_effective_en_risque(
+    analyse_historique_court,
+):
+    corps = analyse_historique_court(3).json()
+    par_regle = {}
+    for observation in corps["observations"]:
+        par_regle.setdefault(observation["rule"], []).append(observation)
+
+    (contribution,) = par_regle["variance_contribution"]
+    assert contribution["subject"] == "portefeuille"
+    assert "ne se décompose pas" in contribution["statement"]
+    assert contribution["facts"].get("part_de_variance") is None
+
+    (concentration,) = par_regle["effective_concentration"]
+    assert "n'est pas disponible" in concentration["statement"]
+    assert concentration["facts"]["lignes_effectives_risque"] is None
+    assert concentration["facts"]["lignes_effectives_capital"] is not None
+
+    # Les quatre règles refusent, et toutes avec le seuil DÉRIVÉ.
+    for regle in (
+        "effective_concentration",
+        "variance_contribution",
+        "apparent_diversification",
+        "systematic_share",
+    ):
+        for observation in par_regle[regle]:
+            assert observation["uses_chosen_threshold"] is False, regle
+            (seuil,) = observation["thresholds"]
+            assert seuil["kind"] == "derived", regle
+            assert seuil["value"] == 3.0, regle
+
+
+def test_les_quatre_regles_portent_le_seuil_choisi_sur_quarante_seances(
+    analyse_historique_court,
+):
+    """Le trou d'origine : seules les régressions de crise appliquaient le 60."""
+    corps = analyse_historique_court(40).json()
+    assert corps["risk"]["volatility"]["window"]["observations"] == 39
+
+    concernees = [
+        o
+        for o in corps["observations"]
+        if o["rule"]
+        in (
+            "effective_concentration",
+            "variance_contribution",
+            "apparent_diversification",
+            "systematic_share",
+        )
+    ]
+    assert {o["rule"] for o in concernees} == {
+        "effective_concentration",
+        "variance_contribution",
+        "apparent_diversification",
+        "systematic_share",
+    }
+    for observation in concernees:
+        assert "Estimation mince : 39 séances" in observation["statement"], (
+            observation["rule"]
+        )
+        minimum = [
+            s
+            for s in observation["thresholds"]
+            if s["name"] == "nombre minimal de séances d'une régression"
+        ]
+        assert minimum, observation["rule"]
+        assert minimum[0]["kind"] == "chosen"
+        assert minimum[0]["value"] == 60.0
+
+
+def test_la_ligne_qui_raccourcit_la_fenetre_est_nommee_avec_sa_date(
+    analyse_historique_court,
+):
+    """`complete: false` dit que la fenêtre est courte, pas à cause de qui.
+
+    C'est pourtant la seule information sur laquelle l'utilisateur peut agir, et
+    le bandeau de la 7B en a besoin.
+    """
+    corps = analyse_historique_court(40).json()
+
+    assert corps["risk"]["volatility"]["window"]["complete"] is False
+    (limitante,) = corps["limiting_positions"]
+    assert limitante["ticker"] == "COURT"
+
+    # La date est celle de l'entrée en cotation de la ligne. Elle précède d'une
+    # séance le début de la fenêtre : le premier cours commun ne produit pas de
+    # rendement, il sert de point de départ au suivant.
+    fenetre = corps["risk"]["volatility"]["window"]
+    assert limitante["first_available"] < fenetre["start"]
+
+
+@pytest.mark.parametrize("seances_courtes", [3, 40])
+def test_une_ligne_limitante_est_nommee_des_que_la_fenetre_est_incomplete(
+    analyse_historique_court, seances_courtes
+):
+    corps = analyse_historique_court(seances_courtes).json()
+    assert [p["ticker"] for p in corps["limiting_positions"]] == ["COURT"]
+
+
+def test_a_fenetre_pleine_la_reponse_est_inchangee_et_sans_ligne_limitante(
+    analyse_reelle,
+):
+    """Le portefeuille de démonstration, 504 séances : rien ne bouge.
+
+    Aucune ligne limitante, aucun seuil de taille d'échantillon nulle part, et
+    les chiffres sont ceux d'avant cette passe — les champs ajoutés
+    (`limiting_positions`, `correlation_undefined_reason`, `undefined_reason`)
+    sont additifs et valent `null` ou liste vide.
+    """
+    corps = analyse_reelle.json()
+
+    assert corps["risk"]["volatility"]["window"]["observations"] == 504
+    assert corps["risk"]["volatility"]["window"]["complete"] is True
+    assert corps["limiting_positions"] == []
+
+    # Les mesures sont là, avec leurs valeurs de référence.
+    assert corps["risk"]["matrices"]["correlation"] is not None
+    assert corps["risk"]["matrices"]["correlation_undefined_reason"] is None
+    assert corps["risk"]["beta"]["undefined_reason"] is None
+    assert corps["risk"]["beta"]["beta"] == pytest.approx(0.5672, abs=1e-3)
+    assert corps["risk"]["beta"]["r_squared"] == pytest.approx(0.4949, abs=1e-3)
+    assert corps["risk"]["volatility"]["annualised"] == pytest.approx(
+        0.13327, abs=1e-4
+    )
+    assert corps["risk"]["tail_risk"]["levels"][1]["historical_var"][
+        "value"
+    ] == pytest.approx(0.01730, abs=1e-4)
+
+    # Aucune règle ne signale d'échantillon mince, et aucune ne refuse.
+    for observation in corps["observations"]:
+        assert "Estimation mince" not in observation["statement"]
+        assert "n'est pas estimable" not in observation["statement"]
+        noms = {s["name"] for s in observation["thresholds"]}
+        assert "nombre minimal de séances estimables" not in noms
+        if observation["rule"] != "crisis_degradation":
+            assert "nombre minimal de séances d'une régression" not in noms
+
+
+def test_les_contributions_a_la_variance_restent_completes_a_fenetre_pleine(
+    analyse_reelle,
+):
+    """Contrôle de non-régression : six lignes, six observations, somme à 1."""
+    corps = analyse_reelle.json()
+    contributions = [
+        o for o in corps["observations"] if o["rule"] == "variance_contribution"
+    ]
+    assert len(contributions) == 6
+    total = sum(o["facts"]["part_de_variance"] for o in contributions)
+    assert total == pytest.approx(1.0)

@@ -22,6 +22,7 @@ from backend.risk_engine.config import (
     RISK_FREE_RATE_OBSERVED_ON,
 )
 from backend.risk_engine.engine import (
+    LimitingPosition,
     Window,
     analyse_portfolio,
     build_portfolio_series,
@@ -815,3 +816,171 @@ def test_l_as_of_de_la_base_peut_devancer_celui_d_un_portefeuille(conn):
 
     assert latest_price_date(conn) == j[-1]
     assert market_value_weights(conn, 1).as_of == j[3]
+
+# ------------------------------- Refus dans les MESURES, pas les phrases --
+#
+# Le moteur de règles peut refuser de commenter un chiffre ; ça ne l'empêche pas
+# d'être publié et dessiné. Une carte de chaleur de corrélations toutes à ±1
+# reste symétrique et de diagonale 1 — donc parfaitement plausible, et
+# entièrement fausse. Le refus doit donc exister là où la valeur est produite.
+
+
+def test_la_correlation_n_est_pas_estimee_sous_trois_seances(conn):
+    """À deux observations, toutes les cellules hors diagonale valent ±1."""
+    j = seances(3)
+    peupler(conn, {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)}, {"A": 10, "B": 5})
+    rapport = analyse_portfolio(conn, 1, window=504)
+
+    assert rapport.matrices.window.observations == 2
+    assert rapport.matrices.correlation is None
+    raison = rapport.matrices.correlation_undefined_reason
+    assert "2 séances seulement" in raison
+    assert "degrés de liberté résiduels" in raison
+    # La covariance reste publiée : wᵀΣw est la variance de la série du
+    # portefeuille, estimable dès deux observations, et elle porte la VaR.
+    assert rapport.matrices.covariance is not None
+    assert rapport.volatility.annualised > 0.0
+
+
+def test_la_correlation_revient_des_trois_seances(conn):
+    j = seances(4)
+    peupler(conn, {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)}, {"A": 10, "B": 5})
+    rapport = analyse_portfolio(conn, 1, window=504)
+
+    assert rapport.matrices.window.observations == 3
+    assert rapport.matrices.correlation is not None
+    assert rapport.matrices.correlation_undefined_reason is None
+
+
+def test_la_pente_du_beta_est_indefinie_aussi_pas_seulement_le_r2(conn):
+    """À zéro degré de liberté résiduel, la droite passe par les points.
+
+    Elle n'a pas d'erreur type : ce n'est plus une estimation mais une
+    construction géométrique. Rendre la pente en nullifiant le seul R²
+    laisserait croire que la sensibilité au marché a été mesurée et que seule sa
+    qualité d'ajustement manque.
+    """
+    j = seances(3)
+    peupler(conn, {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)}, {"A": 10, "B": 5})
+    beta = analyse_portfolio(conn, 1, window=504).beta
+
+    assert beta.beta is None
+    assert beta.r_squared is None
+    assert beta.idiosyncratic_share is None
+    assert "un beta n'est pas estimable" in beta.undefined_reason
+    # Ce qui manque est le chiffre, pas la provenance.
+    assert beta.benchmark == "SPY"
+    assert beta.window.observations == 2
+
+
+def test_un_beta_indefini_ne_se_confond_pas_avec_un_beta_non_demande(conn):
+    """`report.beta is None` veut dire « aucun benchmark demandé ».
+
+    Un beta non estimable garde son objet et dit pourquoi : les deux situations
+    appellent des affichages différents, et un `None` unique les confondrait.
+    """
+    j = seances(3)
+    peupler(conn, {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)}, {"A": 10, "B": 5})
+
+    assert analyse_portfolio(conn, 1, window=504, benchmark=None).beta is None
+    assert analyse_portfolio(conn, 1, window=504).beta is not None
+
+
+# ---------------------------------- Quelle ligne raccourcit la fenêtre ? --
+
+
+def test_la_ligne_qui_borne_la_fenetre_est_nommee_avec_sa_premiere_date(conn):
+    """`Window.complete` dit que la fenêtre est courte, pas à cause de qui.
+
+    C'est pourtant la seule information sur laquelle l'utilisateur peut agir :
+    une ligne à 5 % du portefeuille, cotée depuis peu, ramène TOUTES les mesures
+    à son propre historique.
+    """
+    j = seances(120)
+    peupler(
+        conn,
+        {
+            "VIEUX": cours(j),
+            "RECENT": cours(j[80:], 50.0, graine=7),
+            "SPY": cours(j, 300.0, graine=9),
+        },
+        {"VIEUX": 10, "RECENT": 5},
+    )
+    serie = build_portfolio_series(conn, 1, window=504)
+
+    assert serie.window.complete is False
+    assert [p.ticker for p in serie.limiting_positions] == ["RECENT"]
+    assert serie.limiting_positions[0].first_available == j[80]
+
+
+def test_une_fenetre_pleine_n_a_aucune_ligne_limitante(conn):
+    """Elle a été bornée par la demande, pas par l'historique.
+
+    Nommer une ligne ferait porter à quelqu'un la responsabilité d'un choix de
+    paramètre.
+    """
+    j = seances(120)
+    peupler(conn, {"A": cours(j), "B": cours(j, 50.0, graine=7), "SPY": cours(j, 300.0, graine=9)}, {"A": 10, "B": 5})
+    serie = build_portfolio_series(conn, 1, window=50)
+
+    assert serie.window.complete is True
+    assert serie.limiting_positions == ()
+
+
+def test_plusieurs_lignes_entrees_le_meme_jour_sont_toutes_nommees(conn):
+    j = seances(120)
+    peupler(
+        conn,
+        {
+            "VIEUX": cours(j),
+            "RECENT_A": cours(j[80:], 50.0, graine=7),
+            "RECENT_B": cours(j[80:], 20.0, graine=11),
+            "SPY": cours(j, 300.0, graine=9),
+        },
+        {"VIEUX": 10, "RECENT_A": 5, "RECENT_B": 3},
+    )
+    serie = build_portfolio_series(conn, 1, window=504)
+
+    assert [p.ticker for p in serie.limiting_positions] == ["RECENT_A", "RECENT_B"]
+
+
+def test_aucune_ligne_n_est_nommee_quand_la_troncature_vient_d_un_trou(conn):
+    """Attribution PROUVÉE, pas devinée.
+
+    Ici le panel commence après la première date de CHAQUE ligne : VIEUX a un
+    trou le jour où RECENT entre en cotation, et l'intersection ne démarre donc
+    que le lendemain. Aucune ligne n'explique à elle seule la troncature, et
+    mieux vaut ne désigner personne que désigner à tort.
+    """
+    j = seances(120)
+    prix_vieux = [(jour, valeur) for jour, valeur in cours(j) if jour != j[80]]
+    peupler(
+        conn,
+        {
+            "VIEUX": prix_vieux,
+            "RECENT": cours(j[80:], 50.0, graine=7),
+            "SPY": cours(j, 300.0, graine=9),
+        },
+        {"VIEUX": 10, "RECENT": 5},
+    )
+    serie = build_portfolio_series(conn, 1, window=504)
+
+    assert serie.window.complete is False
+    assert serie.window.start > j[80]
+    assert serie.limiting_positions == ()
+
+
+def test_les_lignes_limitantes_voyagent_jusqu_au_rapport(conn):
+    j = seances(120)
+    peupler(
+        conn,
+        {
+            "VIEUX": cours(j),
+            "RECENT": cours(j[80:], 50.0, graine=7),
+            "SPY": cours(j, 300.0, graine=9),
+        },
+        {"VIEUX": 10, "RECENT": 5},
+    )
+    rapport = analyse_portfolio(conn, 1, window=504)
+
+    assert [p.ticker for p in rapport.limiting_positions] == ["RECENT"]

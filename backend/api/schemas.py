@@ -58,6 +58,7 @@ from backend.risk_engine.engine import (
     DrawdownResult,
     ExcludedPosition,
     ExpectedShortfallResult,
+    LimitingPosition,
     RegimeComparison,
     RegressedBeta,
     RiskReport,
@@ -471,8 +472,23 @@ class ConcentrationOut(Schema):
 
 
 class MatricesOut(Schema):
+    """Covariance et corrélation, la seconde pouvant manquer avec sa raison.
+
+    Sous trois observations, toutes les cellules hors diagonale de la
+    corrélation valent ±1 par construction. La matrice sort donc `null` avec
+    `correlation_undefined_reason`, sur le modèle de `SortinoResult` : le refus
+    vit dans la MESURE et non seulement dans la phrase du moteur de règles,
+    parce qu'une carte de chaleur lit la matrice et non la phrase — et qu'une
+    carte de chaleur de ±1 reste symétrique, de diagonale 1, donc plausible.
+
+    `covariance` reste publiée : `wᵀΣw` est la variance de la série du
+    portefeuille, estimable dès deux observations, et c'est elle qui porte la
+    volatilité paramétrique et la VaR.
+    """
+
     covariance: MatrixOut
-    correlation: MatrixOut
+    correlation: MatrixOut | None
+    correlation_undefined_reason: str | None
     ddof: int
     window: WindowOut
 
@@ -480,7 +496,12 @@ class MatricesOut(Schema):
     def of(cls, result: CovarianceResult) -> MatricesOut:
         return cls(
             covariance=MatrixOut.of(result.covariance),
-            correlation=MatrixOut.of(result.correlation),
+            correlation=(
+                None
+                if result.correlation is None
+                else MatrixOut.of(result.correlation)
+            ),
+            correlation_undefined_reason=result.correlation_undefined_reason,
             ddof=result.ddof,
             window=WindowOut.of(result.window),
         )
@@ -529,9 +550,23 @@ class VarianceContributionsOut(Schema):
 
 
 class BetaOut(Schema):
-    beta: float
-    r_squared: float
-    idiosyncratic_share: float
+    """Sensibilité au marché, éventuellement indéfinie — et alors elle le dit.
+
+    LA PENTE AUSSI est `null` sous trois observations, pas seulement le R². À
+    zéro degré de liberté résiduel la droite passe exactement par les points :
+    elle n'a pas d'erreur type, ce n'est plus une estimation. Publier la pente
+    en nullifiant le seul R² laisserait croire que la sensibilité au marché a
+    été mesurée et que seule sa qualité d'ajustement manque.
+
+    Le résultat garde son `benchmark` et sa `window` : ce qui manque est le
+    chiffre, pas la provenance. Distinct de `risk.beta` valant `null`, qui
+    signifie « aucun benchmark demandé ».
+    """
+
+    beta: float | None
+    r_squared: float | None
+    idiosyncratic_share: float | None
+    undefined_reason: str | None
     benchmark: str
     basis: str
     window: WindowOut
@@ -542,6 +577,7 @@ class BetaOut(Schema):
             beta=result.beta,
             r_squared=result.r_squared,
             idiosyncratic_share=result.idiosyncratic_share,
+            undefined_reason=result.undefined_reason,
             benchmark=result.benchmark,
             basis=result.basis,
             window=WindowOut.of(result.window),
@@ -717,6 +753,32 @@ class TailRiskOut(Schema):
 class WeightOut(Schema):
     ticker: str
     weight: float
+
+
+class LimitingPositionOut(Schema):
+    """Ligne dont l'historique borne la fenêtre de TOUT le rapport.
+
+    Le panel est aligné sur l'INTERSECTION des dates : une ligne à 5 % du
+    portefeuille, cotée depuis quarante séances, ramène toutes les mesures à son
+    propre historique et déplace le beta et la VaR de l'ensemble.
+    `window.complete` dit déjà que la fenêtre est courte ; il ne dit pas à cause
+    de qui, et c'est la seule information sur laquelle l'utilisateur peut agir.
+
+    Liste vide quand la fenêtre est pleine : elle a alors été bornée par la
+    demande et non par l'historique, et nommer une ligne ferait porter à
+    quelqu'un la responsabilité d'un choix de paramètre. Vide aussi quand la
+    troncature vient d'un trou au milieu d'une série plutôt que d'une entrée en
+    cotation tardive — mieux vaut ne désigner personne que désigner à tort.
+    """
+
+    ticker: str
+    first_available: date
+
+    @classmethod
+    def of(cls, position: LimitingPosition) -> LimitingPositionOut:
+        return cls(
+            ticker=position.ticker, first_available=position.first_available
+        )
 
 
 class RiskOut(Schema):
@@ -1111,6 +1173,18 @@ class AnalysisOut(Schema):
 
     `tickers` est l'ordre canonique de la réponse : celui des matrices, des poids
     et des contributions à la variance.
+
+    `limiting_positions` nomme la ou les lignes dont l'historique a borné la
+    fenêtre de TOUTES les mesures. Vide quand la fenêtre est pleine.
+
+    CONVENTION v1, ASSUMÉE — une ligne sans historique suffisant est traitée
+    différemment selon l'endroit, et les deux traitements sont honnêtes à
+    condition d'être dits. Les SCÉNARIOS l'EXCLUENT et déclarent leur couverture
+    (`coverage.value_share`) ; le RÉGIME COURANT TRONQUE toute l'analyse à
+    l'historique commun. La troncature est retenue en v1 parce qu'elle n'écarte
+    aucune ligne détenue — tout le portefeuille est décrit, sur une période plus
+    courte. L'exclusion avec renormalisation, qui décrirait la période complète
+    sur une partie du portefeuille, est au backlog v2.
     """
 
     portfolio_id: int
@@ -1119,6 +1193,7 @@ class AnalysisOut(Schema):
     total_value: float
     tickers: list[str]
     weights: list[WeightOut]
+    limiting_positions: list[LimitingPositionOut]
     parameters: ParametersOut
     risk: RiskOut
     scenarios: list[ScenarioOut]
