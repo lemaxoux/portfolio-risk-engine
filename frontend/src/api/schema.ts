@@ -28,6 +28,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/disclaimer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Disclaimer
+         * @description Le bandeau d'acceptation, EN LECTURE SEULE et sans portefeuille.
+         *
+         *     L'écran d'acceptation est une page entière que l'on traverse avant le
+         *     premier accès (DESIGN.md §15) : il précède donc l'existence du moindre
+         *     portefeuille. Servir ce texte uniquement dans `/analysis` forcerait le
+         *     client à en embarquer une copie, et cette copie deviendrait le texte
+         *     réellement affiché le jour où le bandeau changerait — un texte à portée
+         *     quasi juridique figé dans un bundle, sans que personne s'en aperçoive.
+         *
+         *     Cette route ne prend AUCUN paramètre et ne touche pas à la base. La fenêtre
+         *     citée est celle de la configuration du moteur (`DEFAULT_WINDOW`), la même
+         *     que celle qu'une analyse demande par défaut. Une analyse lancée sur une
+         *     autre fenêtre publie son propre texte dans sa réponse, où la fenêtre citée
+         *     est celle qui a réellement servi.
+         */
+        get: operations["read_disclaimer_api_disclaimer_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/securities": {
         parameters: {
             query?: never;
@@ -1183,6 +1216,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaOut"];
+                };
+            };
+        };
+    };
+    read_disclaimer_api_disclaimer_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisclaimerOut"];
                 };
             };
         };

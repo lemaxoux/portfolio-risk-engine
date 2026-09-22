@@ -76,11 +76,13 @@ from backend.risk_engine.portfolio import PortfolioWeights, Security
 from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.risk_engine.var import StudentFit
+from backend.risk_engine.config import DEFAULT_WINDOW
 from backend.rules.disclaimer import (
     ACCEPTANCE_CONFIRMATION,
     ACCEPTANCE_TITLE,
     DisclaimerSection,
     acceptance_sections,
+    acceptance_text,
 )
 from backend.rules.rules import Observation, RulesReport
 from backend.rules.thresholds import Threshold
@@ -1157,6 +1159,30 @@ class DisclaimerOut(Schema):
             ],
             confirmation=ACCEPTANCE_CONFIRMATION,
             text=rules_report.disclaimer,
+        )
+
+    @classmethod
+    def seul(cls, window: int = DEFAULT_WINDOW) -> DisclaimerOut:
+        """Le même bandeau, sans rapport d'analyse — pour `GET /api/disclaimer`.
+
+        L'écran d'acceptation est traversé AVANT le premier accès, donc avant
+        qu'un portefeuille existe : le texte doit être disponible sans analyse.
+        Le servir seulement dans `/analysis` obligerait le client à en garder
+        une copie, et cette copie serait le vrai texte affiché le jour où le
+        bandeau changerait.
+
+        `rules_report.disclaimer` vaut `acceptance_text(window)` — c'est
+        exactement ce que le moteur de règles y met. Les deux routes servent
+        donc le même texte pour la même fenêtre, et un test le vérifie plutôt
+        que de le supposer.
+        """
+        return cls(
+            title=ACCEPTANCE_TITLE,
+            sections=[
+                DisclaimerSectionOut.of(s) for s in acceptance_sections(window)
+            ],
+            confirmation=ACCEPTANCE_CONFIRMATION,
+            text=acceptance_text(window),
         )
 
 

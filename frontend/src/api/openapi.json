@@ -28,6 +28,28 @@
         }
       }
     },
+    "/api/disclaimer": {
+      "get": {
+        "tags": [
+          "méta"
+        ],
+        "summary": "Read Disclaimer",
+        "description": "Le bandeau d'acceptation, EN LECTURE SEULE et sans portefeuille.\n\nL'écran d'acceptation est une page entière que l'on traverse avant le\npremier accès (DESIGN.md §15) : il précède donc l'existence du moindre\nportefeuille. Servir ce texte uniquement dans `/analysis` forcerait le\nclient à en embarquer une copie, et cette copie deviendrait le texte\nréellement affiché le jour où le bandeau changerait — un texte à portée\nquasi juridique figé dans un bundle, sans que personne s'en aperçoive.\n\nCette route ne prend AUCUN paramètre et ne touche pas à la base. La fenêtre\ncitée est celle de la configuration du moteur (`DEFAULT_WINDOW`), la même\nque celle qu'une analyse demande par défaut. Une analyse lancée sur une\nautre fenêtre publie son propre texte dans sa réponse, où la fenêtre citée\nest celle qui a réellement servi.",
+        "operationId": "read_disclaimer_api_disclaimer_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisclaimerOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/securities": {
       "get": {
         "tags": [
