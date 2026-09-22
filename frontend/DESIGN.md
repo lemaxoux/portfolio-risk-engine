@@ -100,9 +100,31 @@ Deux thèmes, commutables par l'utilisateur, **sombre par défaut si le système
 le demande** (`prefers-color-scheme`), avec surcharge manuelle mémorisée dans
 `localStorage`.
 
-Implémentation : un attribut `data-theme="dark" | "light"` sur `<html>`. Toutes
-les variables sont redéfinies sous cet attribut. Aucun composant ne connaît le
-thème courant.
+**Implémentation — le thème du système d'abord, la surcharge ensuite.** Si le
+JavaScript ne s'exécute pas, la page doit quand même suivre le système :
+
+```css
+:root { color-scheme: light dark; /* + tokens du thème clair (§5.2) */ }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { /* tokens du thème sombre (§5.1) */ }
+}
+:root[data-theme="dark"]  { color-scheme: dark;  /* tokens sombres */ }
+:root[data-theme="light"] { color-scheme: light; }
+```
+
+- `color-scheme` est obligatoire : sans lui, barres de défilement, champs de
+  saisie et cases à cocher restent clairs dans le thème sombre. Doublé d'un
+  `<meta name="color-scheme" content="light dark">` dans `<head>`.
+- La surcharge est posée par un **petit script en ligne, bloquant, dans
+  `<head>` de `index.html`** — pas dans le bundle React, qui est un module
+  chargé après le premier rendu : l'utilisateur verrait un éclair du mauvais
+  thème à chaque chargement.
+- Choix mémorisé dans `localStorage`, lecture et écriture dans un `try/catch`
+  (stockage bloqué ⇒ on suit le système, sans erreur).
+- **Bascule à deux états**, pas trois : « comme le système » et « l'autre ».
+  Choisir l'autre **fige** ce thème précis — si le système change ensuite,
+  l'application ne suit pas.
+- Aucun composant ne connaît le thème courant : tout passe par les variables.
 
 - **Sombre : gris foncé, pas noir.** Fond `#1B1D1F`, pas `#000`. Un noir pur
   sur écran OLED crée un contraste de halo autour du texte fin et fatigue à la
@@ -138,8 +160,16 @@ sont le ratio WCAG contre le fond de page du thème.
 
   --accent:          #4FA69F;  /* sélection, état actif, lien  5,87:1 */
   --caveat:          #C9A227;  /* réserve méthodologique       6,99:1 */
-  --loss:            #E08C80;  /* signe négatif, en §5.3 seulement */
-  --gain:            #7FB4D6;  /* signe positif, en §5.3 seulement */
+
+  /* Couleurs de MARQUES graphiques (§5.4) — jamais de texte. */
+  --series-1:        #1F9B92;  /* une série = une teinte */
+  --loss:            #CB6E60;  /* = pôle brique de la divergente */
+  --gain:            #3A95CD;  /* = pôle bleu de la divergente */
+  --div-neg-strong:  #3A95CD;  /* −1 */
+  --div-neg-mid:     #2F6081;  /* −0,5 */
+  --div-zero:        #36383A;  /*  0 : gris neutre, distinct des surfaces */
+  --div-pos-mid:     #804A41;  /* +0,5 */
+  --div-pos-strong:  #CB6E60;  /* +1 */
 }
 ```
 
@@ -159,8 +189,16 @@ sont le ratio WCAG contre le fond de page du thème.
 
   --accent:          #14615C;  /*  6,42:1 */
   --caveat:          #7E6110;  /*  5,15:1 */
-  --loss:            #A3453A;  /*  5,35:1 */
-  --gain:            #2E6A93;  /*  5,16:1 */
+
+  /* Couleurs de MARQUES graphiques (§5.4) — jamais de texte. */
+  --series-1:        #058D85;
+  --loss:            #A74639;
+  --gain:            #1870A1;
+  --div-neg-strong:  #1870A1;
+  --div-neg-mid:     #7FB2D6;
+  --div-zero:        #DFDEDB;
+  --div-pos-mid:     #D6998F;
+  --div-pos-strong:  #A74639;
 }
 ```
 
@@ -170,13 +208,30 @@ sont le ratio WCAG contre le fond de page du thème.
 |---|---|
 | `--accent` | Élément sélectionné, onglet actif, lien, anneau de focus clavier. **Jamais** pour décorer un titre, un chiffre ou une bordure de bloc. |
 | `--caveat` | Une seule chose : **ce chiffre repose sur quelque chose de contestable**. Concrètement : un seuil `ThresholdKind.CHOSEN`, le `caveat` permanent du CVaR 99 %, une fenêtre trop courte pour la régression, un scénario dont la couverture est incomplète. Un point plein de 6 px devant la ligne concernée, plus la phrase en `--caveat`. Jamais un fond coloré, jamais une icône d'alerte. |
-| `--loss` / `--gain` | **Uniquement dans le tableau par ligne d'un scénario de stress**, seul endroit où le signe varie réellement d'une position à l'autre. Partout ailleurs, interdits. Le couple choisi est brique/bleu et non rouge/vert : un daltonisme deutan ou protan (≈ 8 % des hommes) rend rouge/vert indistinguables, brique/bleu non. Et la couleur y est le **troisième** canal, après le signe explicite (`+`/`−`) et l'ordre de tri. |
+| `--loss` / `--gain` | **Uniquement dans le tableau par ligne d'un scénario de stress**, seul endroit où le signe varie réellement d'une position à l'autre. Partout ailleurs, interdits. Ce sont des couleurs de **marque** (une petite barre à côté du chiffre), **jamais de texte** : le chiffre lui-même reste en `--text-1`. Le couple choisi est brique/bleu et non rouge/vert : un daltonisme deutan ou protan (≈ 8 % des hommes) rend rouge/vert indistinguables, brique/bleu non. Et la couleur y est le **troisième** canal, après le signe explicite (`+`/`−`) et l'ordre de tri. |
+| `--series-1` | La teinte des données quand il n'y a **qu'une série** : barres de poids, barres de part de variance. Même famille que l'accent, à une luminosité de données ; l'état sélectionné se signale par un contour, jamais par ce remplissage. |
+| `--div-*` | Uniquement l'échelle divergente de la heatmap de corrélation (§5.4). |
 
 **Aucune couleur n'est jamais le seul porteur d'une information.** Test à
 appliquer : passer la capture d'écran en niveaux de gris ; si une information
 disparaît, le composant est faux.
 
 ### 5.4 Palettes de graphiques
+
+**Toutes les couleurs de marques ont été validées par calcul**, pas à l'œil :
+luminosité OKLCH dans la bande de chaque thème, chroma ≥ 0,10, contraste ≥ 3:1
+contre les deux surfaces du thème, et séparation sous daltonisme protan et
+deutan (simulation Machado 2009, ΔE OKLab). Le couple brique/bleu passe à
+ΔE 16,2 (clair) et 16,1 (sombre) sous protanopie, pour un minimum requis de 8.
+**Toute nouvelle couleur de graphique passe les mêmes contrôles avant d'entrer
+dans `tokens.css`.**
+
+**Règle : la couleur suit l'entité, jamais son rang ni sa valeur.** Une ligne
+du portefeuille ne change pas de couleur parce qu'une autre a été ajoutée ou
+parce que son poids a baissé. Conséquence directe : **un graphique à une série
+prend une seule teinte** (`--series-1`) et le ticker est porté par l'axe. Six
+positions ne demandent ni six teintes ni une rampe ordonnée par poids : la
+longueur de la barre dit déjà le poids, la couleur n'a pas à le redire.
 
 **Heatmap de corrélation — échelle divergente, domaine FIXÉ à [−1, +1].**
 
@@ -185,27 +240,35 @@ Point non négociable : le domaine ne s'adapte **jamais** aux données. Une
 corrélation maximale est 0,55 et un autre où elle est 0,97 — exactement la
 comparaison que l'outil existe pour permettre.
 
-Le point médian (corrélation nulle) est **la couleur de fond elle-même** : une
-corrélation nulle ne dit rien, elle doit donc être invisible. Le positif
-(dangereux : les positions bougent ensemble) va vers la brique ; le négatif
-(diversifiant) vers le bleu.
+Le positif (les positions bougent ensemble, le risque se concentre) va vers la
+brique ; le négatif (diversifiant) vers le bleu. Les deux bras sont
+**symétriques en luminosité** : une corrélation de −0,5 pèse visuellement
+autant que +0,5. Le point médian est un **gris neutre distinct des surfaces**,
+pas le fond lui-même : une cellule à zéro doit rester une cellule, sinon la
+grille se désagrège et on ne distingue plus « nul » de « absent ».
 
 ```
-        −1.0       −0.5        0.0        +0.5       +1.0
-clair   #2A5C7A   #7FA3B8   [surface-0]  #D19F92   #A3453A
-sombre  #7FB4D6   #44657D   [surface-1]  #7D453D   #E08C80
+          −1.0 (bleu)   −0.5       0.0 (gris)   +0.5     +1.0 (brique)
+clair     #1870A1      #7FB2D6     #DFDEDB     #D6998F    #A74639
+sombre    #3A95CD      #2F6081     #36383A     #804A41    #CB6E60
+L OKLCH   .52 / .64    .74 / .47   .90 / .34   .74 / .47  .52 / .64
 ```
 
-**Séries par position — rampe monochrome ordonnée par poids, pas palette
-catégorielle.** Six positions ne demandent pas six teintes ; elles demandent un
-ordre. La rampe part de l'accent et s'éclaircit (sombre) / s'assombrit (clair)
-selon le rang. Au-delà de 5 positions, la 6ᵉ et les suivantes sont agrégées en
-« autres lignes » dans la couleur neutre `--border-strong`.
+Interpolation en espace Lab entre ces cinq points. Les pas intermédiaires
+(±0,5) tombent autour de 2:1 contre la surface : c'est admis pour une échelle
+continue, **à condition que la valeur soit écrite dans chaque cellule** (deux
+décimales, `--text-1` ou `--text-2` selon le fond). La valeur écrite est le
+canal de secours, la couleur n'est qu'une lecture rapide.
 
-```
-clair   #0E4A46  #14615C  #3C8079  #74A8A2  #ADCAC6   + neutre
-sombre  #7FC4BE  #5FB0A9  #4FA69F  #3A867F  #2A625C   + neutre
-```
+Quand la corrélation n'est pas estimable (`correlation: null`), **on ne dessine
+pas de heatmap vide** : on affiche `correlation_undefined_reason`, en texte.
+
+**Contribution à la variance contre part de capital.** Une barre par ligne en
+`--series-1` pour la part de variance, et un trait vertical fin en `--text-1`
+à la position de la part de capital, sur le même axe. L'écart entre le bout de
+la barre et le trait **est** le message ; il est aussi écrit en points à droite
+(« +9,8 pts »). Légende explicite : « barre : part de la variance — trait :
+part du capital ». Pas de barres appariées de deux couleurs.
 
 ---
 
@@ -248,10 +311,16 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   Spectral : `line-height: 1.6`. Interface en Plex Sans : `1.45`. Chiffres
   principaux : `1.1`.
 - **Casse phrase partout.** Pas de capitales sur les libellés (§12).
-- **Format français obligatoire**, via `Intl.NumberFormat('fr-FR')` : virgule
-  décimale, espace fine insécable comme séparateur de milliers, espace
-  insécable avant `%`. Le backend écrit déjà `« 1,38 % »` ; une interface qui
-  afficherait `1.38%` créerait deux conventions dans un même produit.
+- **Format français obligatoire**, avec des caractères **fixés explicitement**
+  et non laissés à `Intl.NumberFormat` : virgule décimale, **U+202F** (espace
+  fine insécable) comme séparateur de milliers et avant `%`, **U+00A0** entre
+  un nombre et le mot qu'il compte (« 504 séances », « 9,8 pts »). La sortie
+  d'`Intl` pour `fr-FR` a changé de caractère d'espace selon les versions
+  d'ICU : Node (où tournent les tests) et le navigateur peuvent différer, et
+  un test qui passe ne prouverait rien. Le backend suit la même convention
+  dans les phrases qu'il rédige : une interface qui afficherait `1.38%` à
+  côté d'une phrase en `1,38 %` créerait deux conventions dans un même
+  produit.
 - Dates en `YYYY-MM-DD` dans les blocs de provenance (non ambigu, triable,
   cohérent avec l'API) ; en toutes lettres dans la prose.
 
@@ -287,19 +356,32 @@ comparables d'un coup d'œil vertical.
 
 ### 8.1 Le bandeau permanent
 
-Trois informations s'appliquent à **tous** les chiffres de la page. Elles ne
-défilent donc jamais : barre collante en haut, sur `--surface-1`, hauteur 56 px.
+Quelques informations s'appliquent à **tous** les chiffres de la page. Elles
+ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  Mx Risk MGT      Portefeuille 1 · 6 lignes                              │
-│                   Valorisé au 2026-09-09   Fenêtre 504 séances   [◐]     │
+│  Mx Risk MGT      Portefeuille principal      83 185,85 $       [◐]      │
+│                   Valorisé au 2026-09-09   Fenêtre 504 séances            │
+│                   Positions modifiées le 2026-09-21                       │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-`as_of`, `Window.observations` et la valeur du portefeuille sont dans le
-bandeau **parce qu'ils conditionnent tout le reste**. C'est la traduction
-visuelle directe de la discipline du backend. `[◐]` = bascule de thème.
+`as_of`, `Window.observations`, la valeur du portefeuille et la date de
+modification des positions sont dans le bandeau **parce qu'ils conditionnent
+tout le reste**. C'est la traduction visuelle directe de la discipline du
+backend. `[◐]` = bascule de thème.
+
+- **Fraîcheur des positions** (`portfolio.updated_at`) : l'`as_of` date les
+  prix, pas les quantités. Si `updated_at` est nul : « Positions jamais
+  modifiées depuis l'application ».
+- **Fenêtre réduite** (`window.complete = false`) : point `--caveat` et la
+  cause, en clair. Si `limiting_positions` n'est pas vide : « Fenêtre réduite
+  à 40 séances sur 504 : NEWCO n'est coté que depuis le 2026-07-14. » Si elle
+  est vide : « Fenêtre réduite à 40 séances sur 504 (historique incomplet) »,
+  sans nommer de ligne — le backend ne nomme que ce qu'il a prouvé.
+- Le bandeau peut passer à deux ou trois lignes : sa hauteur suit son
+  contenu, elle n'est pas fixée à 56 px.
 
 ### 8.2 La page d'analyse
 
@@ -307,7 +389,7 @@ visuelle directe de la discipline du backend. `[◐]` = bascule de thème.
 ┌────────────┬─────────────────────────────────────────────────────────────┐
 │            │  1. Le portefeuille                                         │
 │ Portefeuille│     tableau : ticker, nom, quantité, prix, valeur, poids   │
-│ ▸ Un jour   │     + barre de poids empilée (rampe monochrome ordonnée)   │
+│ ▸ Un jour   │     poids en barre dans sa cellule (--series-1)            │
 │   ordinaire ├─────────────────────────────────────────────────────────────┤
 │ ▸ Au pire   │  2. Ce qu'il perd un jour ordinaire                         │
 │ ▸ Qui porte │     ┌─ mesure ─┐ ┌─ mesure ─┐ ┌─ mesure ─┐                  │
@@ -323,8 +405,8 @@ visuelle directe de la discipline du backend. `[◐]` = bascule de thème.
 │            │     de creux annotées SUR la courbe, pas en légende.        │
 │            ├─────────────────────────────────────────────────────────────┤
 │            │  4. Qui porte le risque                                     │
-│            │     Contributions à la variance vs poids en capital —       │
-│            │     barres appariées. L'écart est le message.               │
+│            │     Part de variance en barre, part de capital en trait     │
+│            │     (§5.4). L'écart est le message.                         │
 │            │     Concentration effective. Heatmap de corrélation.        │
 │            ├─────────────────────────────────────────────────────────────┤
 │            │  5. Ce qui se passe en crise                                │
@@ -581,6 +663,11 @@ au regard de §11.
 - Les tuiles identiques en grille avec la même ombre douce sous chacune.
 - Le noir pur `#000` et le blanc pur `#FFF`, en fond comme en texte.
 - Rouge/vert pour les gains et pertes.
+- Une couleur qui code le rang ou la valeur d'une ligne (rampe ordonnée par
+  poids, ligne « la plus risquée » en rouge). La longueur ou la position le
+  dit déjà ; la couleur suit l'entité.
+- Une couleur de graphique en couleur de texte : un chiffre reste en
+  `--text-1`, la couleur va sur la marque à côté.
 - Émoji et icônes décoratives. Les icônes sont autorisées uniquement quand
   elles portent une fonction (tri, fermer, télécharger), en trait de 1,5 px.
 
@@ -754,6 +841,8 @@ le portefeuille perd 8,7 % pendant que sa ligne énergie gagne 59,7 %.
 ## 17. Vérification avant de déclarer la phase 7 terminée
 
 - [ ] Capture d'écran en niveaux de gris : aucune information perdue.
+- [ ] Aucune couleur de graphique hors des tokens de §5 ; toute couleur ajoutée
+      a passé les contrôles de §5.4 (bande, chroma, contraste, daltonisme).
 - [ ] Recherche dans le code : aucun `#` hexadécimal hors de `tokens.css`.
 - [ ] Recherche dans le code : aucun `px` de taille de police hors de
       `typography.css`.
