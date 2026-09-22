@@ -13,6 +13,12 @@ exceptions en codes HTTP. Chaque nombre publié vient d'une fonction du moteur
 déjà testée ; un test le vérifie en inspectant l'arbre syntaxique des modules de
 `backend/api/`.
 
+LE FRONTEND EST SERVI PAR CETTE MÊME APPLICATION — `backend/api/static.py`
+rend `frontend/dist` à la racine quand le bundle existe. Il n'y a donc qu'une
+origine en production, et AUCUN middleware CORS : en développement c'est Vite
+qui relaie `/api`, ce qui garde la permission du côté qui en a besoin plutôt
+que de la laisser en place dans le serveur, où elle ne servirait jamais.
+
 NaN ET INFINITY — `json.dumps` les écrit tels quels, et `JSON.parse` côté
 navigateur plante dessus. Deux gardes se complètent : les schémas pydantic les
 refusent à la construction, en nommant le champ fautif, et le rendu JSON de
@@ -36,6 +42,7 @@ from .routes import (
     portfolios_router,
     securities_router,
 )
+from .static import register_frontend
 
 API_PREFIX = "/api"
 
@@ -91,6 +98,11 @@ def create_app() -> FastAPI:
         analysis_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
+
+    # APRÈS les routeurs, jamais avant : la route attrape-tout du frontend
+    # correspond à n'importe quel chemin, et Starlette retient la PREMIÈRE
+    # correspondance complète. Déclarée en tête, elle avalerait l'API entière.
+    register_frontend(app)
     return app
 
 
