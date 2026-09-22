@@ -1,0 +1,213 @@
+/**
+ * Le SEUL endroit du frontend qui écrit un nombre — DESIGN.md §6.3 et §14.
+ *
+ * C'est le pendant de la convention de signe du backend : un seul endroit
+ * décide comment un pourcentage, une perte, une date et une valeur indéfinie
+ * s'écrivent. Un composant qui formaterait un nombre lui-même est un bogue en
+ * attente — il produira « 1.38% » à côté d'un « 1,38 % » rédigé par le moteur,
+ * et le produit aura deux conventions.
+ *
+ * ═══ LES CARACTÈRES SONT FIXÉS ICI, PAS LAISSÉS À `Intl` ═══
+ *
+ * `Intl.NumberFormat('fr-FR')` produit le bon RÉSULTAT VISUEL, mais pas
+ * toujours les mêmes POINTS DE CODE : la sortie pour `fr-FR` a changé d'espace
+ * selon les versions d'ICU — U+00A0 dans les unes, U+202F dans les autres. Or
+ * Node (où tournent les tests) et le navigateur embarquent des ICU différents.
+ * Un test écrit contre `Intl` passerait sur la machine de développement et ne
+ * prouverait rien sur ce que l'utilisateur voit.
+ *
+ * Et surtout : le backend RÉDIGE des phrases contenant des nombres
+ * (`backend/typography.py`), avec ces caractères-là, choisis explicitement. Les
+ * deux moitiés du produit doivent écrire « 25,6 % » de la même façon, octet
+ * pour octet, sinon une phrase du moteur et le chiffre affiché à côté d'elle
+ * se coupent différemment en fin de ligne.
+ *
+ *     U+202F  ESPACE FINE INSÉCABLE   séparateur de milliers, et avant « % »
+ *     U+00A0  ESPACE INSÉCABLE        entre un nombre et le mot qu'il compte
+ *     U+2212  SIGNE MOINS             jamais le trait d'union U+002D
+ *     U+2014  TIRET CADRATIN          une mesure indéfinie
+ *
+ * ═══ CE MODULE NE CALCULE AUCUNE MESURE ═══
+ *
+ * Multiplier une fraction par cent et arrondir est du FORMATAGE, et l'API le
+ * délègue explicitement au client : « toutes les valeurs sont des fractions
+ * […] le formatage — pourcentage, virgule décimale, arrondi — est décidé côté
+ * client, à un seul endroit ». Il n'y a ici ni somme, ni écart, ni moyenne :
+ * une valeur qui manque s'ajoute au moteur avec son test, jamais ici.
+ */
+
+/** Espace fine insécable — milliers, et avant le signe pourcent. */
+export const ESPACE_FINE = '\u202F'
+/** Espace insécable — entre un nombre et le mot qu'il compte. */
+export const ESPACE_INSECABLE = '\u00A0'
+/** Signe moins typographique, à la même chasse que les chiffres. */
+export const SIGNE_MOINS = '\u2212'
+/** Une mesure indéfinie. Jamais « 0 », jamais « ∞ » (§9.1, règle 3). */
+export const TIRET_INDEFINI = '\u2014'
+
+/**
+ * Groupe la partie entière par milliers.
+ *
+ * À partir de quatre chiffres, comme `backend.typography.thousands` : « 504 »
+ * reste « 504 », « 1000 » devient « 1 000 ». Les deux moitiés du produit
+ * groupent au même seuil.
+ */
+function grouper(entier: string): string {
+  return entier.replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_FINE)
+}
+
+/**
+ * Un nombre, en écriture française.
+ *
+ * `decimales` n'a pas de valeur par défaut, volontairement : §9.3 exige le même
+ * nombre de décimales dans toute une colonne, et un défaut implicite fait
+ * apparaître des colonnes mêlant « 1,4 » et « 1,38 » sans que personne l'ait
+ * décidé. Le choix est donc pris à chaque appel, où le contexte est connu.
+ *
+ * L'ARRONDI EST CELUI DE `toFixed`, qui travaille sur la valeur binaire réelle
+ * du nombre : `(1.005).toFixed(2)` rend « 1,00 », parce que 1,005 n'est pas
+ * représentable et vaut en réalité 1,00499999999999989. Aucun formateur ne fait
+ * mieux sans arithmétique décimale, et les mesures publiées portent assez de
+ * décimales pour que ce demi-ulp ne déplace jamais un chiffre affiché.
+ */
+export function decimal(valeur: number, decimales: number): string {
+  if (!Number.isFinite(valeur)) {
+    throw new Error(`Valeur non finie à formater : ${valeur}`)
+  }
+  const negatif = valeur < 0
+  const [entier = '0', fraction] = Math.abs(valeur).toFixed(decimales).split('.')
+  const corps = fraction === undefined ? grouper(entier) : `${grouper(entier)},${fraction}`
+  // Une valeur négative qui s'arrondit à zéro ne porte pas de signe : « −0,0 % »
+  // se lit comme une perte alors que le chiffre dit qu'il n'y en a pas.
+  const nul = Number(Math.abs(valeur).toFixed(decimales)) === 0
+  return negatif && !nul ? `${SIGNE_MOINS}${corps}` : corps
+}
+
+/**
+ * Une fraction en pourcentage : `0.0138` → « 1,38 % ».
+ *
+ * L'espace avant le signe est FINE et INSÉCABLE : avec une espace ordinaire, le
+ * « % » part seul à la ligne suivante.
+ */
+export function pourcentage(fraction: number, decimales: number): string {
+  return `${decimal(fraction * 100, decimales)}${ESPACE_FINE}%`
+}
+
+/**
+ * Un nombre et le mot qu'il compte : « 504 séances ».
+ *
+ * Copie exacte de `backend.typography.counted`, accord compris : pluriel au-delà
+ * de deux exclu, singulier en deçà — « 0 séance », « 1 séance », « 2 séances ».
+ * C'est la règle française, où zéro et un prennent le singulier.
+ */
+export function compte(nombre: number, singulier: string, pluriel?: string): string {
+  const mot = Math.abs(nombre) < 2 ? singulier : (pluriel ?? `${singulier}s`)
+  return `${decimal(nombre, 0)}${ESPACE_INSECABLE}${mot}`
+}
+
+/** Les deux usages les plus fréquents, nommés pour ne pas être réécrits. */
+export function seances(nombre: number): string {
+  return compte(nombre, 'séance')
+}
+
+export function lignes(nombre: number): string {
+  return compte(nombre, 'ligne')
+}
+
+/**
+ * Une valeur de portefeuille.
+ *
+ * SANS SYMBOLE DE DEVISE, et c'est délibéré : l'API ne publie aucune devise —
+ * ni sur le portefeuille, ni sur un titre, ni sur un prix. Écrire « $ » ici
+ * serait une affirmation du frontend sur des données qu'il n'a pas reçues,
+ * c'est-à-dire exactement ce que la règle d'or interdit. Le jour où le moteur
+ * publiera la devise, elle s'affichera ; d'ici là, une omission vaut mieux
+ * qu'une invention.
+ */
+export function valeurDePortefeuille(valeur: number): string {
+  return decimal(valeur, 2)
+}
+
+const MOIS = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+] as const
+
+/**
+ * Date de provenance, telle que l'API l'écrit : `YYYY-MM-DD`.
+ *
+ * Non ambiguë, triable, et identique à ce que le client a reçu : un bloc de
+ * provenance qui reformaterait la date rendrait sa comparaison avec la réponse
+ * brute pénible, sans rien gagner.
+ */
+export function dateISO(iso: string): string {
+  return iso
+}
+
+/**
+ * Date en toutes lettres, pour la prose : « 9 septembre 2026 ».
+ *
+ * Le découpage est fait sur la chaîne et non par `new Date(iso)` : un
+ * `Date` interprète « 2026-09-09 » en UTC puis l'affiche dans le fuseau local,
+ * ce qui recule la date d'un jour à l'ouest de Greenwich. Une date de
+ * valorisation fausse d'un jour est une faute, pas un détail d'affichage.
+ */
+export function dateEnToutesLettres(iso: string): string {
+  const [annee, mois, jour] = iso.split('\u002D')
+  if (annee === undefined || mois === undefined || jour === undefined) return iso
+  const nom = MOIS[Number(mois) - 1]
+  if (nom === undefined) return iso
+  return `${Number(jour)}${ESPACE_INSECABLE}${nom}${ESPACE_INSECABLE}${annee}`
+}
+
+/**
+ * Un pourcentage, ou le tiret d'indéfini.
+ *
+ * LE POINT DE CETTE FONCTION EST QU'ELLE NE PEUT PAS RENDRE « 0,00 % » SUR UN
+ * `null`. Le backend a déjà été corrigé deux fois sur des annulations
+ * catastrophiques produisant des ratios absurdes : rendre un zéro plausible à
+ * la place d'une mesure absente réintroduirait le problème par l'affichage.
+ * La RAISON de l'absence s'affiche à côté, elle n'est pas de ce module.
+ */
+export function pourcentageOuTiret(
+  fraction: number | null | undefined,
+  decimales: number,
+): string {
+  return fraction === null || fraction === undefined
+    ? TIRET_INDEFINI
+    : pourcentage(fraction, decimales)
+}
+
+export function decimalOuTiret(
+  valeur: number | null | undefined,
+  decimales: number,
+): string {
+  return valeur === null || valeur === undefined
+    ? TIRET_INDEFINI
+    : decimal(valeur, decimales)
+}
+
+/**
+ * Une VaR ou une CVaR négative est un GAIN à ce niveau de confiance.
+ *
+ * Le backend rend ces mesures en PERTES POSITIVES : `0.0138` se lit « perte
+ * d'au moins 1,38 % ». L'interface ne retourne jamais le signe et n'en ajoute
+ * jamais un (§9.1, règle 2). Mais une valeur négative existe, et elle ne veut
+ * pas dire « petite perte » : elle veut dire qu'à ce niveau de confiance, le
+ * portefeuille gagne. C'est la PHRASE DE LECTURE qui doit changer, pas le
+ * nombre — d'où ce prédicat, qui ne touche à rien et laisse le composant dire
+ * la bonne chose.
+ */
+export function estUnGain(perte: number): boolean {
+  return perte < 0
+}

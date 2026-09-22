@@ -1,0 +1,228 @@
+/**
+ * Les POINTS DE CODE exacts, pas l'apparence.
+ *
+ * « 1,38 % » écrit avec U+00A0 et « 1,38 % » écrit avec U+202F sont
+ * indiscernables à l'œil, dans un terminal comme dans un rapport de test. Seule
+ * la comparaison des unités de code sépare les deux, et c'est précisément la
+ * différence qui existe entre deux versions d'ICU. Ces tests écrivent donc les
+ * échappements, jamais les caractères — un test qui contiendrait l'espace
+ * littérale ne dirait pas laquelle il attend.
+ */
+import { describe, expect, it } from 'vitest'
+
+import {
+  ESPACE_FINE,
+  ESPACE_INSECABLE,
+  SIGNE_MOINS,
+  TIRET_INDEFINI,
+  compte,
+  dateEnToutesLettres,
+  dateISO,
+  decimal,
+  decimalOuTiret,
+  estUnGain,
+  lignes,
+  pourcentage,
+  pourcentageOuTiret,
+  seances,
+  valeurDePortefeuille,
+} from './format'
+
+describe('les caractères sont ceux de backend/typography.py', () => {
+  it('les constantes sont les points de code annoncés', () => {
+    expect(ESPACE_FINE).toBe('\u202F')
+    expect(ESPACE_FINE.codePointAt(0)).toBe(0x202f)
+    expect(ESPACE_INSECABLE).toBe('\u00A0')
+    expect(ESPACE_INSECABLE.codePointAt(0)).toBe(0x00a0)
+    expect(SIGNE_MOINS).toBe('\u2212')
+    expect(SIGNE_MOINS.codePointAt(0)).toBe(0x2212)
+    expect(TIRET_INDEFINI.codePointAt(0)).toBe(0x2014)
+  })
+
+  it('aucune espace ordinaire ne sort de ce module', () => {
+    // U+0020 et U+00A0 ont la même apparence dans un rapport d'échec. Le test
+    // porte donc sur l'absence du point de code, pas sur ce qu'on croit lire.
+    for (const texte of [
+      pourcentage(0.0138, 2),
+      seances(504),
+      valeurDePortefeuille(83185.85),
+      dateEnToutesLettres('2026-09-09'),
+    ]) {
+      expect(texte).not.toContain('\u0020')
+    }
+  })
+
+  it("n'emploie jamais le trait d'union U+002D comme signe négatif", () => {
+    expect(decimal(-8.7, 1)).not.toContain('\u002D')
+    expect(pourcentage(-0.087, 1)).not.toContain('\u002D')
+  })
+})
+
+describe('decimal', () => {
+  it('écrit la virgule décimale française', () => {
+    expect(decimal(1.38, 2)).toBe('1,38')
+    expect(decimal(13.3, 1)).toBe('13,3')
+    expect(decimal(5.65, 2)).toBe('5,65')
+  })
+
+  it('groupe les milliers par une espace FINE insécable', () => {
+    expect(decimal(83185.85, 2)).toBe(`83${ESPACE_FINE}185,85`)
+    expect(decimal(100000, 0)).toBe(`100${ESPACE_FINE}000`)
+    expect(decimal(1000, 0)).toBe(`1${ESPACE_FINE}000`)
+  })
+
+  it('ne groupe pas en deçà de mille — comme backend.typography.thousands', () => {
+    expect(decimal(504, 0)).toBe('504')
+    expect(decimal(999, 0)).toBe('999')
+  })
+
+  it('ne groupe jamais les décimales', () => {
+    // « 0,123456 » et non « 0,123 456 » : grouper à droite de la virgule est une
+    // convention typographique différente, que le backend n'applique pas.
+    expect(decimal(0.123456, 6)).toBe('0,123456')
+  })
+
+  it('emploie le SIGNE MOINS pour les valeurs négatives', () => {
+    expect(decimal(-44, 1)).toBe(`${SIGNE_MOINS}44,0`)
+    expect(decimal(-83185.85, 2)).toBe(`${SIGNE_MOINS}83${ESPACE_FINE}185,85`)
+  })
+
+  it("ne met pas de signe sur un négatif qui s'arrondit à zéro", () => {
+    // « −0,0 % » se lit comme une perte alors que le chiffre dit qu'il n'y en a
+    // pas. Le zéro signé est un artefact d'arrondi, pas une information.
+    expect(decimal(-0.004, 2)).toBe('0,00')
+    expect(decimal(-0.0, 1)).toBe('0,0')
+  })
+
+  it('refuse une valeur non finie plutôt que d’écrire « NaN »', () => {
+    // Le backend garantit déjà qu'aucun NaN ne franchit la sérialisation. Si
+    // l'un arrivait quand même, il doit faire du bruit ici et non s'afficher.
+    expect(() => decimal(Number.NaN, 2)).toThrow()
+    expect(() => decimal(Number.POSITIVE_INFINITY, 2)).toThrow()
+  })
+})
+
+describe('pourcentage', () => {
+  it('convertit la fraction publiée et pose une espace FINE avant le signe', () => {
+    // Chiffres de référence de §16, recalculés depuis la base locale.
+    expect(pourcentage(0.0138, 2)).toBe(`1,38${ESPACE_FINE}%`)
+    expect(pourcentage(0.0195, 2)).toBe(`1,95${ESPACE_FINE}%`)
+    expect(pourcentage(0.133, 1)).toBe(`13,3${ESPACE_FINE}%`)
+    expect(pourcentage(0.256, 1)).toBe(`25,6${ESPACE_FINE}%`)
+  })
+
+  it('écrit un niveau de confiance sans décimale', () => {
+    expect(pourcentage(0.95, 0)).toBe(`95${ESPACE_FINE}%`)
+    expect(pourcentage(0.99, 0)).toBe(`99${ESPACE_FINE}%`)
+  })
+
+  it('survit à la représentation binaire de la multiplication par cent', () => {
+    // 0.07 * 100 vaut 7.000000000000001 en double. L'arrondi doit absorber le
+    // résidu et non le montrer.
+    expect(pourcentage(0.07, 1)).toBe(`7,0${ESPACE_FINE}%`)
+    expect(pourcentage(0.0138, 2)).not.toContain('0000')
+  })
+
+  it('écrit un rendement négatif de scénario avec le signe moins', () => {
+    expect(pourcentage(-0.44, 1)).toBe(`${SIGNE_MOINS}44,0${ESPACE_FINE}%`)
+    expect(pourcentage(-0.087, 1)).toBe(`${SIGNE_MOINS}8,7${ESPACE_FINE}%`)
+  })
+})
+
+describe('compte — accord et espace insécable', () => {
+  it('lie le nombre au mot par une espace INSÉCABLE', () => {
+    expect(seances(504)).toBe(`504${ESPACE_INSECABLE}séances`)
+    expect(lignes(6)).toBe(`6${ESPACE_INSECABLE}lignes`)
+  })
+
+  it('groupe les grands nombres comptés', () => {
+    expect(compte(100000, 'tirage')).toBe(
+      `100${ESPACE_FINE}000${ESPACE_INSECABLE}tirages`,
+    )
+  })
+
+  it('met le singulier à zéro et à un, comme en français', () => {
+    // Même règle que backend.typography.counted : pluriel au-delà de deux exclu.
+    expect(seances(0)).toBe(`0${ESPACE_INSECABLE}séance`)
+    expect(seances(1)).toBe(`1${ESPACE_INSECABLE}séance`)
+    expect(seances(2)).toBe(`2${ESPACE_INSECABLE}séances`)
+  })
+
+  it('accepte un pluriel irrégulier', () => {
+    expect(compte(3, 'œil', 'yeux')).toBe(`3${ESPACE_INSECABLE}yeux`)
+  })
+})
+
+describe('valeur de portefeuille', () => {
+  it("n'invente aucune devise — l'API n'en publie pas", () => {
+    const ecrit = valeurDePortefeuille(83185.85)
+    expect(ecrit).toBe(`83${ESPACE_FINE}185,85`)
+    expect(ecrit).not.toContain('$')
+    expect(ecrit).not.toContain('€')
+  })
+})
+
+describe('dates', () => {
+  it('laisse la date de provenance telle que l’API l’écrit', () => {
+    expect(dateISO('2026-09-09')).toBe('2026-09-09')
+  })
+
+  it('écrit la prose sans décaler la date d’un fuseau', () => {
+    // `new Date('2026-09-09')` est interprété en UTC : affiché en heure locale à
+    // l'ouest de Greenwich, il recule au 8 septembre. Le découpage est textuel.
+    expect(dateEnToutesLettres('2026-09-09')).toBe(
+      `9${ESPACE_INSECABLE}septembre${ESPACE_INSECABLE}2026`,
+    )
+    expect(dateEnToutesLettres('2007-10-09')).toBe(
+      `9${ESPACE_INSECABLE}octobre${ESPACE_INSECABLE}2007`,
+    )
+    expect(dateEnToutesLettres('2020-01-01')).toBe(
+      `1${ESPACE_INSECABLE}janvier${ESPACE_INSECABLE}2020`,
+    )
+  })
+
+  it('rend la chaîne telle quelle si elle n’a pas la forme attendue', () => {
+    expect(dateEnToutesLettres('jamais')).toBe('jamais')
+    expect(dateEnToutesLettres('2026-13-01')).toBe('2026-13-01')
+  })
+})
+
+describe('une mesure indéfinie ne devient jamais un zéro', () => {
+  it('rend le tiret cadratin sur null et undefined', () => {
+    expect(pourcentageOuTiret(null, 2)).toBe(TIRET_INDEFINI)
+    expect(pourcentageOuTiret(undefined, 2)).toBe(TIRET_INDEFINI)
+    expect(decimalOuTiret(null, 2)).toBe(TIRET_INDEFINI)
+  })
+
+  it('ne rend ni « 0 », ni « ∞ », ni « NaN »', () => {
+    // §9.1 règle 3, et la raison écrite dans le backend : deux annulations
+    // catastrophiques y ont déjà produit des ratios absurdes. Rendre l'absurde
+    // plausible par l'affichage réintroduirait le problème.
+    const ecrit = pourcentageOuTiret(null, 2)
+    expect(ecrit).not.toContain('0')
+    expect(ecrit).not.toContain('∞')
+    expect(ecrit).not.toContain('NaN')
+  })
+
+  it('distingue un zéro RÉEL du tiret', () => {
+    // Un zéro mesuré s'affiche : c'est un résultat, pas une absence.
+    expect(pourcentageOuTiret(0, 2)).toBe(`0,00${ESPACE_FINE}%`)
+  })
+})
+
+describe('convention de signe des pertes (§9.1, règle 2)', () => {
+  it('affiche une VaR telle quelle, sans ajouter de signe', () => {
+    // 0.0138 se lit « perte d'au moins 1,38 % ». Le nombre part positif du
+    // moteur et reste positif ici : ajouter « − » le ferait lire comme un gain.
+    expect(pourcentage(0.0138, 2)).toBe(`1,38${ESPACE_FINE}%`)
+    expect(pourcentage(0.0138, 2).startsWith(SIGNE_MOINS)).toBe(false)
+  })
+
+  it('signale qu’une perte négative est un gain, sans toucher au nombre', () => {
+    expect(estUnGain(-0.0021)).toBe(true)
+    expect(estUnGain(0.0138)).toBe(false)
+    expect(estUnGain(0)).toBe(false)
+    // Le nombre, lui, s'écrit tel qu'il est — c'est la phrase qui change.
+    expect(pourcentage(-0.0021, 2)).toBe(`${SIGNE_MOINS}0,21${ESPACE_FINE}%`)
+  })
+})
