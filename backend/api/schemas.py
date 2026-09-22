@@ -318,14 +318,21 @@ class CsvSourceOut(Schema):
     """Comment le fichier a été lu. C'est de la provenance, pas du décor.
 
     Un utilisateur qui voit « lu en cp1252, séparateur `;`, décimale `,` »
-    comprend un résultat inattendu au lieu de le subir. Ces trois choix sont
-    devinés à partir des octets : ils doivent donc être affichables.
+    comprend un résultat inattendu au lieu de le subir. Ces choix sont devinés à
+    partir des octets : ils doivent donc être affichables.
     """
 
     filename: str | None
     encoding: Literal["utf-8", "utf-8-sig", "cp1252"]
     delimiter: Literal[",", ";"]
-    decimal_separator: Literal[".", ","]
+    decimal_separator: Literal[".", ",", "mixte", "aucune"] = Field(
+        description=(
+            "Séparateur décimal OBSERVÉ dans les nombres du fichier, et non "
+            "celui qui était admis : un fichier `;` dont les quantités sont "
+            "entières rend `aucune`, et non `,`. `mixte` quand le fichier "
+            "mélange les deux écritures."
+        )
+    )
     rows_read: int
 
 
@@ -579,12 +586,42 @@ class ExpectedShortfallOut(Schema):
     au-delà : à ce niveau la queue ne compte que 1 % de la fenêtre, ce n'est pas
     une anomalie mais la structure du chiffre. Un convertisseur générique
     l'aurait perdue sans rien signaler.
+
+    ═══ DEUX CONVENTIONS DE SIGNE DANS LE MÊME OBJET ═══
+
+    `value` est une PERTE POSITIVE (0,0300 = perte moyenne de 3 %), `threshold`
+    est un RENDEMENT (−0,0173 = le quantile sous lequel se trouve la queue).
+    Les deux décrivent le même événement par les deux bouts, et l'en-tête de
+    `risk_engine.var` annonce pourtant que « toutes les valeurs de ce module
+    sont des pertes positives ».
+
+    L'écart est dans le moteur, pas ici : `expected_shortfall` rend
+    `value=-queue.mean()` mais `threshold=seuil`, le quantile brut. Le
+    sérialiser tel quel est le choix retenu — le retourner dans la couche API
+    serait de l'arithmétique, et surtout publierait un nombre que le moteur n'a
+    jamais produit. Le champ porte donc sa convention dans sa description.
+
+    Relation exacte, vérifiée par un test : `threshold` vaut l'opposé de
+    `historical_var.value` du même niveau de confiance, les deux sortant du même
+    quantile empirique.
     """
 
-    value: float
+    value: float = Field(
+        description=(
+            "Perte moyenne au-delà du quantile, en PERTE POSITIVE et en "
+            "fraction : 0.03 se lit « perte moyenne de 3 % »."
+        )
+    )
     confidence: float
     tail_observations: int
-    threshold: float
+    threshold: float = Field(
+        description=(
+            "Quantile qui borne la queue, en convention de RENDEMENT et non de "
+            "perte : négatif pour une perte. Signe opposé à `value`, qui est "
+            "une perte positive. Vaut l'opposé de `historical_var.value` au "
+            "même niveau de confiance."
+        )
+    )
     caveat: str | None
     window: WindowOut
 

@@ -45,6 +45,7 @@ from backend.rules.rules import evaluate
 
 from ..dependencies import get_connection
 from ..errors import ApiError, not_found, unprocessable
+from ..validation import normalise_ticker
 from ..schemas import (
     AnalysisOut,
     DisclaimerOut,
@@ -118,8 +119,8 @@ def analyse(
     benchmark: str | None = Query(
         DEFAULT_BENCHMARK,
         description=(
-            "Indice de référence du beta. Chaîne vide pour désactiver le beta, "
-            "lorsque l'indice n'est pas en base."
+            "Indice de référence du beta, insensible à la casse. Chaîne vide "
+            "pour désactiver le beta, lorsque l'indice n'est pas en base."
         ),
     ),
     conn: sqlite3.Connection = Depends(get_connection),
@@ -129,7 +130,11 @@ def analyse(
     if row is None:
         raise not_found(portfolio_id)
 
-    indice = benchmark or None
+    # Même normalisation que pour les tickers des positions. Sans elle,
+    # `?benchmark=spy` répondait 409 « aucun prix en base pour ['spy'] » alors
+    # que `spy` dans un CSV s'importe sans broncher : deux portes d'entrée de la
+    # même API, deux exigences différentes sur la même donnée.
+    indice = normalise_ticker(benchmark) if benchmark else None
 
     try:
         report, student_reason = _analyse(conn, portfolio_id, window, indice)

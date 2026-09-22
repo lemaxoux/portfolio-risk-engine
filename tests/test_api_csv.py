@@ -78,7 +78,7 @@ def test_l_encodage_cp1252_est_detecte_et_annonce(
 def test_un_csv_virgule_utf8_s_importe_aussi(
     client_synthetique, portefeuille_synthetique
 ):
-    contenu = b"ticker,quantity\nALFA,10\nMIKE,20\n"
+    contenu = b"ticker,quantity\nALFA,10.5\nMIKE,20\n"
     reponse = depose(client_synthetique, portefeuille_synthetique, contenu)
     assert reponse.status_code == 200, reponse.text
     assert reponse.json()["source"]["delimiter"] == ","
@@ -206,16 +206,18 @@ def test_un_doublon_est_refuse_en_csv(
     assert "ligne 2" in probleme["problem"]
 
 
-def test_une_quantite_illisible_dit_quelle_decimale_etait_attendue(
+def test_une_quantite_illisible_dit_quelle_decimale_est_acceptee(
     client_synthetique, portefeuille_synthetique
 ):
+    """« Acceptée » et non « observée » : le message décrit la règle de lecture,
+    qui est ce dont l'utilisateur a besoin pour corriger son fichier."""
     reponse = depose(
         client_synthetique, portefeuille_synthetique, b"ticker;quantity\nALFA;dix\n"
     )
     assert reponse.status_code == 422
     probleme = reponse.json()["problems"][0]
     assert probleme["field"] == "quantity"
-    assert "Décimale attendue" in probleme["problem"]
+    assert "Décimale acceptée : `,`" in probleme["problem"]
 
 
 def test_un_en_tete_manquant_dit_ce_qui_etait_attendu(
@@ -265,6 +267,63 @@ def test_les_lignes_vides_sont_ignorees_sans_bruit(
     assert reponse.json()["positions_count"] == 2
 
 
+# ════════════════════════ Le séparateur décimal est OBSERVÉ, pas supposé ══
+#
+# Annoncer la RÈGLE DE LECTURE à la place de ce que contient le fichier serait
+# une provenance fausse — la même faute que d'annoncer « utf-8-sig » pour un
+# fichier sans marque d'octets. Avec `;`, la virgule est admise ; ce n'est pas
+# une raison pour dire qu'elle a été rencontrée.
+
+
+def test_un_fichier_point_virgule_a_decimales_point_annonce_le_point(
+    client_synthetique, portefeuille_synthetique
+):
+    """Le cas qui rendait la provenance fausse : `;` en champs, `.` en décimale."""
+    reponse = depose(
+        client_synthetique, portefeuille_synthetique, b"ticker;quantity\nALFA;40.5\n"
+    )
+    assert reponse.status_code == 200, reponse.text
+    source = reponse.json()["source"]
+    assert source["delimiter"] == ";"
+    assert source["decimal_separator"] == "."
+
+
+def test_un_fichier_sans_aucune_decimale_l_annonce(
+    client_synthetique, portefeuille_synthetique
+):
+    """Des quantités entières ne disent rien du séparateur décimal.
+
+    `aucune` est une information : elle évite d'affirmer une convention que le
+    fichier n'exerce nulle part.
+    """
+    reponse = depose(
+        client_synthetique, portefeuille_synthetique, b"ticker;quantity\nALFA;40\n"
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["source"]["decimal_separator"] == "aucune"
+
+
+def test_un_fichier_qui_melange_les_deux_ecritures_le_dit(
+    client_synthetique, portefeuille_synthetique
+):
+    """`mixte` n'est pas une erreur : c'est la signature d'un assemblage à la
+    main, et c'est utile à savoir devant un résultat inattendu."""
+    contenu = b"ticker;quantity;cost_basis\nALFA;40,5;12.75\n"
+    reponse = depose(client_synthetique, portefeuille_synthetique, contenu)
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["source"]["decimal_separator"] == "mixte"
+
+
+def test_le_prix_de_revient_compte_aussi_dans_ce_qui_est_observe(
+    client_synthetique, portefeuille_synthetique
+):
+    """Une décimale peut n'apparaître que dans `cost_basis`."""
+    contenu = b"ticker;quantity;cost_basis\nALFA;40;12,75\n"
+    reponse = depose(client_synthetique, portefeuille_synthetique, contenu)
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["source"]["decimal_separator"] == ","
+
+
 # ══════════════════════════════════════════════════ Le lecteur, isolément ══
 
 
@@ -276,9 +335,11 @@ def test_la_virgule_decimale_n_est_admise_qu_en_separateur_point_virgule():
     """
     lecture = read(b"ticker;quantity\nALFA;1,5\n")
     assert lecture.positions[0].quantity == 1.5
+    assert lecture.source.decimal_separator == ","
 
     lecture = read(b"ticker,quantity\nALFA,1.5\n")
     assert lecture.positions[0].quantity == 1.5
+    assert lecture.source.decimal_separator == "."
 
 
 def test_un_encodage_illisible_leve_une_erreur_explicite():

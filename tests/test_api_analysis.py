@@ -927,3 +927,76 @@ def test_une_ligne_a_variance_nulle_est_refusee_par_le_moteur_pas_par_un_nan(
     detail = reponse.json()["detail"]
     assert "Variance nulle" in detail
     assert "FIGE" in detail
+
+# ═════════════════════════ 13. Conventions de signe et de casse ══
+
+
+def test_le_seuil_du_cvar_est_un_rendement_et_sa_valeur_une_perte(analyse_reelle):
+    """Deux conventions de signe dans le même objet, et c'est documenté.
+
+    `value` est une perte positive, `threshold` est le quantile brut de la
+    distribution des rendements, donc négatif. L'en-tête de `risk_engine.var`
+    annonce pourtant que « toutes les valeurs de ce module sont des pertes
+    positives » : l'écart est dans le moteur, et la couche API le publie tel
+    quel plutôt que de retourner un nombre que le moteur n'a jamais produit.
+
+    La relation exacte : `threshold` est l'opposé de `historical_var.value` au
+    même niveau, les deux sortant du même quantile empirique.
+    """
+    for niveau in analyse_reelle.json()["risk"]["tail_risk"]["levels"]:
+        cvar = niveau["expected_shortfall"]
+        assert cvar["value"] > 0.0, "la perte moyenne est rendue positive"
+        assert cvar["threshold"] < 0.0, "le seuil est un rendement"
+        assert cvar["threshold"] == pytest.approx(
+            -niveau["historical_var"]["value"]
+        )
+        # Le CVaR est au moins aussi sévère que la VaR, par construction.
+        assert cvar["value"] >= niveau["historical_var"]["value"]
+
+
+def test_la_convention_de_signe_du_seuil_est_dans_le_schema(analyse_reelle):
+    """Un champ dont le signe surprend doit porter sa convention.
+
+    Sans description, un client qui lirait `threshold` comme une perte
+    afficherait « −1,73 % » là où la perte vaut 1,73 %, et le signe passerait
+    pour une erreur de saisie.
+    """
+    from backend.api.schemas import ExpectedShortfallOut
+
+    description = ExpectedShortfallOut.model_fields["threshold"].description
+    assert description is not None
+    assert "RENDEMENT" in description
+    assert "opposé" in description
+
+
+def test_le_benchmark_est_insensible_a_la_casse(
+    client_synthetique, portefeuille_synthetique
+):
+    """Les tickers des positions sont mis en capitales ; le benchmark aussi.
+
+    Sans cette normalisation, `?benchmark=spy` répondait 409 « aucun prix en
+    base » alors que `spy` dans un CSV s'importe sans broncher : deux portes
+    d'entrée de la même API, deux exigences différentes sur la même donnée.
+    """
+    for saisie in ("spy", "SPY", "Spy", " spy "):
+        reponse = client_synthetique.get(
+            f"/api/portfolios/{portefeuille_synthetique}/analysis",
+            params={"window": 250, "benchmark": saisie},
+        )
+        assert reponse.status_code == 200, (saisie, reponse.text)
+        corps = reponse.json()
+        assert corps["parameters"]["benchmark"] == "SPY"
+        assert corps["risk"]["beta"]["benchmark"] == "SPY"
+
+
+def test_un_benchmark_vraiment_inconnu_reste_refuse(
+    client_synthetique, portefeuille_synthetique
+):
+    """La normalisation ne doit pas faire passer n'importe quoi."""
+    reponse = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis",
+        params={"window": 250, "benchmark": "absent"},
+    )
+    assert reponse.status_code == 409
+    # Le message nomme le ticker tel qu'il sera cherché en base, en capitales.
+    assert "ABSENT" in reponse.json()["detail"]

@@ -665,6 +665,19 @@ syntaxique de `backend/api/` pour vérifier qu'aucun module n'y fait
 d'arithmétique, n'y écrit de SQL, n'y appelle `asdict()` ni n'y supprime les
 champs nuls. Une règle écrite dans un README se contourne sans bruit.
 
+Ce que la garde d'arithmétique voit : les quatre opérations, la puissance, le
+modulo, les affectations augmentées, `round()` et `abs()`, et la **négation
+d'une valeur** — `-resultat.value` est exactement l'inversion de signe que
+`risk_engine.var` redoute, une VaR rendue en perte positive et republiée en
+rendement négatif se lirait comme un gain sans qu'aucun test de valeur ne
+bronche. `-1` reste un littéral, `int | None` reste une annotation.
+
+La détection est une fonction (`calculs_dans`) exercée par deux jeux de témoins,
+dans les deux sens : treize extraits qui **doivent** être détectés, neuf qui ne
+doivent pas l'être. Une garde qu'on n'a jamais vue échouer ne prouve rien — un
+`CALCULS` vidé par mégarde passerait au vert sur toute la couche et la
+déclarerait propre.
+
 ### 9. API
 
 ```powershell
@@ -756,6 +769,16 @@ impossible à rater. Une matrice de corrélation est symétrique et de diagonale
 1 — des libellés décalés d'un cran donneraient une carte de chaleur plausible et
 fausse.
 
+**Deux conventions de signe cohabitent dans l'Expected Shortfall.** `value` est
+une perte positive (`0.0300` = perte moyenne de 3 %), `threshold` est le
+quantile brut de la distribution des **rendements**, donc négatif (`-0.0173`).
+L'écart vient du moteur, dont l'en-tête annonce pourtant que « toutes les
+valeurs de ce module sont des pertes positives » ; la couche API publie le
+nombre tel quel plutôt que de le retourner, ce qui serait de l'arithmétique et
+publierait une valeur que le moteur n'a jamais produite. Le champ porte donc sa
+convention dans sa description OpenAPI, et un test verrouille la relation :
+`threshold` vaut l'opposé de `historical_var.value` au même niveau de confiance.
+
 **Chaque mesure garde sa fenêtre.** Aucune fenêtre au niveau du document : le
 beta est régressé sous une contrainte d'échantillon qui lui est propre, un
 scénario à couverture partielle a sa propre portée. Seule la fenêtre *demandée*
@@ -778,6 +801,11 @@ une Student — ν ≤ 2, série trop courte —, les champs sortent à `null` e
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
 rapport étant servi normalement. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
+
+**`benchmark` est insensible à la casse**, comme les tickers des positions :
+`?benchmark=spy` et `?benchmark=SPY` font la même chose. Deux portes d'entrée de
+la même API ne peuvent pas avoir deux exigences différentes sur la même donnée —
+`spy` dans un CSV s'importe sans broncher.
 
 **Le plancher de `window` vient du moteur.** Le paramètre est borné par
 `MIN_REGRESSION_OBSERVATIONS` (60), pas par un littéral : `window=2` servait
@@ -849,6 +877,14 @@ espaces de milliers d'un tableur (fine insécable, insécable, ordinaire) sont
 admis. La virgule décimale n'est acceptée qu'avec le séparateur `;` : avec `,`
 en séparateur de champs, une virgule dans un nombre est une fin de colonne.
 Fichiers limités à 1 Mo — un portefeuille fait quelques kilo-octets.
+
+**`decimal_separator` rend ce qui a été OBSERVÉ, pas ce qui était admis.** Avec
+`;`, la virgule *est* acceptée — mais un fichier `;` dont les quantités s'écrivent
+`40.5` n'en contient aucune, et annoncer `,` décrirait la règle de lecture plutôt
+que le fichier. Quatre valeurs : `,`, `.`, `mixte` quand le fichier mélange les
+deux écritures, et `aucune` quand tous les nombres sont entiers. Les deux
+dernières sont des informations en soi — un fichier mixte sort d'un assemblage à
+la main.
 
 Sont refusés avec un message situé à la ligne : ticker inconnu, ticker sans
 historique de prix, quantité nulle ou négative, doublon, en-tête absent.

@@ -91,6 +91,48 @@ CALCULS = (
     ast.MatMult,
 )
 
+# Deux fonctions natives qui CHANGENT une valeur numérique.
+#
+# `round` est du formatage, et cette couche n'en fait pas : l'arrondi est décidé
+# à un seul endroit, côté frontend. `abs` efface un signe, or le signe porte du
+# sens partout dans ce moteur — une VaR est une perte positive, un rendement de
+# scénario est négatif, un `prediction_gap` négatif dit que la crise a coûté
+# plus que ce que la gestion courante laissait attendre.
+NATIVES_INTERDITES = ("round", "abs")
+
+
+def calculs_dans(source: str, nom: str = "<extrait>") -> list[str]:
+    """Emplacements où ce source ferait un calcul. Liste vide s'il n'en fait pas.
+
+    Extraite de la garde pour être elle-même testable : une garde qu'on n'a
+    jamais vue échouer ne prouve rien, elle rassure. Deux jeux de témoins
+    l'exercent plus bas, dans les deux sens.
+    """
+    fautes: list[str] = []
+    for noeud in ast.walk(ast.parse(source)):
+        if isinstance(noeud, ast.BinOp) and isinstance(noeud.op, CALCULS):
+            fautes.append(f"{nom}:{noeud.lineno} opération binaire")
+        elif isinstance(noeud, ast.AugAssign) and isinstance(noeud.op, CALCULS):
+            fautes.append(f"{nom}:{noeud.lineno} affectation augmentée")
+        elif isinstance(noeud, ast.UnaryOp) and isinstance(noeud.op, ast.USub):
+            # `-1` est un littéral négatif — un indice, une constante —, pas un
+            # calcul. `-resultat.value` en est un, et c'est exactement
+            # l'inversion de signe que `risk_engine.var` redoute : une VaR
+            # rendue en perte positive et republiée en rendement négatif se
+            # lirait comme un gain, sans qu'aucun test de valeur ne bronche.
+            litteral = isinstance(noeud.operand, ast.Constant) and isinstance(
+                noeud.operand.value, (int, float)
+            )
+            if not litteral:
+                fautes.append(f"{nom}:{noeud.lineno} négation d'une valeur")
+        elif isinstance(noeud, ast.Call):
+            appele = getattr(noeud.func, "id", None) or getattr(
+                noeud.func, "attr", None
+            )
+            if appele in NATIVES_INTERDITES:
+                fautes.append(f"{nom}:{noeud.lineno} appel à {appele}()")
+    return fautes
+
 
 @pytest.mark.parametrize("chemin", MODULES_API, ids=lambda p: p.name)
 def test_aucun_module_de_l_api_ne_fait_d_arithmetique(chemin):
@@ -101,23 +143,64 @@ def test_aucun_module_de_l_api_ne_fait_d_arithmetique(chemin):
     est indiscernable d'un `+` de nombres à la lecture de l'arbre, et les
     f-strings font le travail sans ambiguïté.
     """
-    fautes = [
-        f"{chemin.name}:{noeud.lineno}"
-        for noeud in ast.walk(arbre(chemin))
-        if isinstance(noeud, ast.BinOp) and isinstance(noeud.op, CALCULS)
-    ]
-    assert not fautes, f"arithmétique dans la couche API : {fautes}"
+    fautes = calculs_dans(chemin.read_text(encoding="utf-8"), chemin.name)
+    assert not fautes, f"calcul dans la couche API : {fautes}"
 
 
-@pytest.mark.parametrize("chemin", MODULES_API, ids=lambda p: p.name)
-def test_aucun_module_de_l_api_n_incremente_en_place(chemin):
-    """`x += 1` est une addition déguisée en affectation."""
-    fautes = [
-        f"{chemin.name}:{noeud.lineno}"
-        for noeud in ast.walk(arbre(chemin))
-        if isinstance(noeud, ast.AugAssign) and isinstance(noeud.op, CALCULS)
-    ]
-    assert not fautes, f"affectation augmentée dans la couche API : {fautes}"
+# ------------------------------------------------ Témoins de la garde --
+
+TEMOINS_CALCUL = (
+    ("addition", "resultat = a + b"),
+    ("soustraction", "ecart = contribution - poids"),
+    ("multiplication", "valeur = quantite * prix"),
+    ("division", "part = valeur / total"),
+    ("puissance", "annualisee = quotidienne ** 0.5"),
+    ("modulo", "reste = index % taille"),
+    ("affectation augmentée", "total += valeur"),
+    ("négation d'un attribut", "perte = -resultat.value"),
+    ("négation d'un appel", "perte = -calculer(serie)"),
+    ("négation d'un nom", "inverse = -seuil"),
+    ("arrondi", "affiche = round(valeur, 2)"),
+    ("valeur absolue", "ecart = abs(reel)"),
+    ("arrondi en méthode", "affiche = numpy.round(valeur)"),
+)
+
+TEMOINS_LEGITIMES = (
+    ("annotation union", "def f(x: int | None) -> str | None: ..."),
+    ("littéral négatif", "SEUIL = -1"),
+    ("indice négatif", "dernier = noms[-1]"),
+    ("tranche", "court = texte[:117]"),
+    ("comparaison", "trop = len(payload) > MAX_BYTES"),
+    ("f-string", "texte = f'{ticker} sur {seances} séances'"),
+    ("sélection", "meilleur = max(options, key=len)"),
+    ("somme d'un attribut", "total = sum(p.weight for p in positions)"),
+    ("appel du moteur", "part = resultat.excess_over_weight(ticker)"),
+)
+
+
+@pytest.mark.parametrize(
+    "libelle, extrait", TEMOINS_CALCUL, ids=[t[0] for t in TEMOINS_CALCUL]
+)
+def test_la_garde_voit_un_calcul_quand_il_y_en_a_un(libelle, extrait):
+    """Témoins POSITIFS.
+
+    Sans eux, une garde qui ne détecterait plus rien — un `CALCULS` vidé, un
+    `ast.walk` remplacé par un parcours qui n'entre pas dans les corps de
+    fonction — passerait au vert sur toute la couche et la déclarerait propre.
+    """
+    assert calculs_dans(extrait), extrait
+
+
+@pytest.mark.parametrize(
+    "libelle, extrait", TEMOINS_LEGITIMES, ids=[t[0] for t in TEMOINS_LEGITIMES]
+)
+def test_la_garde_laisse_passer_le_code_legitime(libelle, extrait):
+    """Témoins NÉGATIFS.
+
+    Une garde qui se déclenche sur `int | None` ou sur `noms[-1]` serait
+    désactivée dans la semaine, et c'est ainsi qu'une règle meurt.
+    """
+    assert calculs_dans(extrait) == [], extrait
 
 
 # ══════════════════════════════════════════════ Imports autorisés ══

@@ -15,6 +15,18 @@ afficher est de la provenance, au même titre qu'une fenêtre d'estimation : un
 utilisateur qui lit « cp1252, séparateur `;`, décimale `,` » comprend un
 résultat inattendu au lieu de le subir.
 
+ATTENTION À CE QUE « DÉCIMALE » DÉSIGNE. Le séparateur rendu est celui qui a été
+OBSERVÉ dans les nombres du fichier, pas celui qui était admis. Avec `;` en
+séparateur de champs, la virgule EST acceptée comme décimale — mais un fichier
+`;` dont les quantités s'écrivent `40.5` n'en contient aucune, et annoncer `,`
+décrirait la règle de lecture plutôt que le fichier. Ce serait une provenance
+fausse, au même titre qu'annoncer « utf-8-sig » pour un fichier sans BOM.
+
+Quatre valeurs possibles, donc : `,`, `.`, `mixte` quand le fichier mélange les
+deux, et `aucune` quand tous les nombres sont entiers. Les deux dernières sont
+des informations en soi : un fichier mixte sort d'un assemblage à la main, et
+c'est utile à savoir.
+
 ═══ ORDRE DE DÉCODAGE ═══
 
 utf-8-sig, puis utf-8, puis cp1252 — mais la marque d'ordre des octets (BOM) est
@@ -65,6 +77,11 @@ COLONNE_PRIX_REVIENT = "cost_basis"
 
 EN_TETE_ATTENDU = "ticker;quantity[;cost_basis]"
 
+# Séparateurs décimaux tels qu'ils peuvent être OBSERVÉS dans un fichier.
+# `mixte` et `aucune` ne sont pas des cas d'erreur : le premier signale un
+# fichier assemblé à la main, le second un fichier sans aucune décimale.
+DECIMALES_OBSERVEES = ("." , "," , "mixte", "aucune")
+
 # Espaces qu'un tableur glisse dans les milliers : fine insécable, insécable,
 # ordinaire. Retirées avant lecture d'un nombre.
 ESPACES = (" ", " ", " ")
@@ -72,12 +89,17 @@ ESPACES = (" ", " ", " ")
 
 @dataclass(frozen=True)
 class CsvSource:
-    """Comment le fichier a été lu."""
+    """Comment le fichier a été lu.
+
+    `decimal_separator` est OBSERVÉ, pas déduit du séparateur de champs :
+    annoncer `,` pour un fichier `;` qui ne contient que des entiers, ou que des
+    nombres écrits `40.5`, décrirait la règle de lecture et non le fichier.
+    """
 
     filename: str | None
     encoding: Literal["utf-8", "utf-8-sig", "cp1252"]
     delimiter: Literal[",", ";"]
-    decimal_separator: Literal[".", ","]
+    decimal_separator: Literal[".", ",", "mixte", "aucune"]
     rows_read: int
 
 
@@ -128,8 +150,12 @@ def sniff_delimiter(entete: str) -> str:
     return meilleur
 
 
-def _nombre(brut: str, decimale: str) -> float:
-    """Lit un nombre, virgule décimale et espaces de milliers admis.
+def _nombre(brut: str, virgule_admise: bool) -> tuple[float, str | None]:
+    """Lit un nombre ; rend sa valeur et le séparateur décimal OBSERVÉ.
+
+    Le second membre vaut `","`, `"."`, ou None quand le nombre est entier.
+    C'est ce qui permet à la réponse de décrire le fichier plutôt que la règle
+    de lecture.
 
     La virgule n'est acceptée comme décimale que lorsque le séparateur de champs
     est `;`. Avec `,` en séparateur de champs, une virgule dans un nombre est une
@@ -139,9 +165,34 @@ def _nombre(brut: str, decimale: str) -> float:
     texte = brut.strip()
     for espace in ESPACES:
         texte = texte.replace(espace, "")
-    if decimale == ",":
+
+    observee: str | None = None
+    if virgule_admise and "," in texte:
+        observee = ","
         texte = texte.replace(",", ".")
-    return float(texte)
+    elif "." in texte:
+        observee = "."
+
+    return float(texte), observee
+
+
+def _admise(virgule_admise: bool) -> str:
+    """Le séparateur décimal accepté, pour un message d'erreur."""
+    return "," if virgule_admise else "."
+
+
+def _decimale_observee(vues: set[str]) -> str:
+    """Ce que les nombres du fichier contenaient réellement.
+
+    `aucune` quand tous les nombres sont entiers, `mixte` quand le fichier
+    mélange les deux écritures. Aucun des deux n'est une erreur : ce sont des
+    faits sur le fichier, et le second signale un assemblage à la main.
+    """
+    if not vues:
+        return "aucune"
+    if len(vues) > 1:
+        return "mixte"
+    return vues.pop()
 
 
 def _colonnes(entete: list[str]) -> dict[str, int]:
@@ -180,7 +231,9 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
     texte, encodage = decode(payload)
     premiere = texte.splitlines()[0] if texte.splitlines() else ""
     separateur = sniff_delimiter(premiere)
-    decimale = "," if separateur == ";" else "."
+    # Avec `;`, la virgule est ADMISE comme décimale ; ce qui sera ANNONCÉ
+    # dépend de ce que les nombres contiennent réellement.
+    virgule_admise = separateur == ";"
 
     lecteur = csv.reader(io.StringIO(texte), delimiter=separateur)
     lignes = [ligne for ligne in lecteur]
@@ -190,6 +243,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
     index = _colonnes(lignes[0])
     positions: list[SubmittedPosition] = []
     problemes: list[Problem] = []
+    vues: set[str] = set()
 
     # `start=2` : la première ligne de données est la ligne 2 du fichier, en-tête
     # compris — le numéro que l'utilisateur lit dans son tableur.
@@ -213,7 +267,9 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
         ticker = ligne[index[COLONNE_TICKER]].strip()
         brut_quantite = ligne[index[COLONNE_QUANTITE]]
         try:
-            quantite = _nombre(brut_quantite, decimale)
+            quantite, vue = _nombre(brut_quantite, virgule_admise)
+            if vue is not None:
+                vues.add(vue)
         except ValueError:
             problemes.append(
                 Problem(
@@ -222,7 +278,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                     value=brut_quantite.strip(),
                     problem=(
                         f"Quantité illisible : {brut_quantite.strip()!r}. "
-                        f"Décimale attendue : `{decimale}`."
+                        f"Décimale acceptée : `{_admise(virgule_admise)}`."
                     ),
                 )
             )
@@ -234,7 +290,9 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
             brut_prix = ligne[position_prix].strip()
             if brut_prix:
                 try:
-                    prix_revient = _nombre(brut_prix, decimale)
+                    prix_revient, vue = _nombre(brut_prix, virgule_admise)
+                    if vue is not None:
+                        vues.add(vue)
                 except ValueError:
                     problemes.append(
                         Problem(
@@ -243,7 +301,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                             value=brut_prix,
                             problem=(
                                 f"Prix de revient illisible : {brut_prix!r}. "
-                                f"Décimale attendue : `{decimale}`."
+                                f"Décimale acceptée : `{_admise(virgule_admise)}`."
                             ),
                         )
                     )
@@ -265,7 +323,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
             filename=filename,
             encoding=encodage,
             delimiter=separateur,
-            decimal_separator=decimale,
+            decimal_separator=_decimale_observee(vues),
             rows_read=lues,
         ),
         problems=tuple(problemes),
