@@ -1,0 +1,224 @@
+/*
+ * tokens.css — DESIGN.md §5, §6, §7.
+ *
+ * LE SEUL FICHIER DU PROJET QUI CONTIENT UNE VALEUR BRUTE. Aucune couleur,
+ * aucune taille de police, aucun pas d'espacement n'a le droit d'apparaître en
+ * dur dans un composant. Si une valeur manque, elle s'ajoute ici — elle ne
+ * s'écrit pas localement. `tokens.test.ts` le vérifie sur l'arborescence.
+ *
+ * ═══ POURQUOI LA PALETTE EST NOMMÉE AVANT D'ÊTRE AFFECTÉE ═══
+ *
+ * §4 impose trois points d'entrée au thème : le défaut clair sur `:root`, le
+ * sombre du système sous `@media (prefers-color-scheme: dark)`, et le sombre
+ * figé sous `:root[data-theme="dark"]`. Le sombre est donc affecté DEUX FOIS,
+ * et CSS n'a aucun moyen de partager un bloc de déclarations entre une requête
+ * de média et un sélecteur — pas de mixin, pas d'inclusion.
+ *
+ * Écrire les hexadécimaux deux fois les ferait diverger : quelqu'un
+ * retoucherait `--surface-1` dans un bloc et pas dans l'autre, et le bogue ne
+ * se verrait que chez les utilisateurs ayant figé leur thème. La palette est
+ * donc déclarée une fois, sous des noms propres, et les deux blocs sombres ne
+ * font que pointer dessus. Un test vérifie en plus qu'ils déclarent exactement
+ * le même jeu de tokens.
+ */
+
+:root {
+  /* ═══════════════════════════════════════════ Palette brute (§5.1, §5.2) ══
+   *
+   * Les contrastes en commentaire ont été CALCULÉS contre le fond de page du
+   * thème, pas estimés. Les couleurs de marques graphiques ont en plus passé
+   * les contrôles de §5.4 : bande de luminosité OKLCH, chroma ≥ 0,10,
+   * contraste ≥ 3:1 contre les deux surfaces, séparation sous protanopie et
+   * deutéranopie. Toute couleur ajoutée passe les mêmes contrôles.
+   */
+
+  /* — Thème sombre : gris foncé, pas noir (§4). — */
+  --sombre-surface-0: #1b1d1f; /* page */
+  --sombre-surface-1: #232629; /* bloc surélevé, ligne alternée */
+  --sombre-surface-2: #2c3033; /* survol, en-tête de tableau */
+  --sombre-border: #41464c;
+  --sombre-border-strong: #6f757b; /* 3,63:1 */
+  --sombre-text-1: #e9e7e2; /* 13,68:1 */
+  --sombre-text-2: #a2a8ae; /* 7,04:1 */
+  --sombre-text-muted: #8b9198; /* désactivé/placeholder UNIQUEMENT */
+  --sombre-accent: #4fa69f; /* 5,87:1 */
+  --sombre-caveat: #c9a227; /* 6,99:1 */
+  --sombre-series-1: #1f9b92;
+  --sombre-loss: #cb6e60;
+  --sombre-gain: #3a95cd;
+  --sombre-div-neg-strong: #3a95cd;
+  --sombre-div-neg-mid: #2f6081;
+  --sombre-div-zero: #36383a;
+  --sombre-div-pos-mid: #804a41;
+  --sombre-div-pos-strong: #cb6e60;
+
+  /* — Thème clair : blanc cassé, pas blanc (§4). — */
+  --clair-surface-0: #f2f1ec;
+  --clair-surface-1: #fbfaf7;
+  --clair-surface-2: #e7e5de;
+  --clair-border: #cbc7bc;
+  --clair-border-strong: #868276; /* 3,40:1 */
+  --clair-text-1: #22252a; /* 13,59:1 */
+  --clair-text-2: #585e65; /* 5,80:1 */
+  --clair-text-muted: #6f6a62; /* 4,74:1, désactivé uniquement */
+  --clair-accent: #14615c; /* 6,42:1 */
+  --clair-caveat: #7e6110; /* 5,15:1 */
+  --clair-series-1: #058d85;
+  --clair-loss: #a74639;
+  --clair-gain: #1870a1;
+  --clair-div-neg-strong: #1870a1;
+  --clair-div-neg-mid: #7fb2d6;
+  --clair-div-zero: #dfdedb;
+  --clair-div-pos-mid: #d6998f;
+  --clair-div-pos-strong: #a74639;
+
+  /* ═══════════════════════════════════════════════ Typographie (§6.2) ══
+   *
+   * Échelle modulaire de raison 1,25 (tierce majeure), base 16 px. En `rem`,
+   * jamais en `px` : la taille de police choisie par l'utilisateur dans son
+   * navigateur doit continuer de gouverner.
+   */
+  --text-micro: 0.75rem; /* 12px — unités et mentions liées à un chiffre */
+  --text-sm: 0.875rem; /* 14px — données de tableau, libellés, provenance */
+  --text-body: 1rem; /* 16px — prose, phrases du moteur de règles */
+  --text-lg: 1.25rem; /* 20px — titres de section */
+  --text-xl: 1.5625rem; /* 25px — chiffre secondaire */
+  --text-2xl: 1.9375rem; /* 31px — chiffre principal d'un bloc mesure */
+  --text-3xl: 2.4375rem; /* 39px — réservé : le chiffre du scénario de crise */
+
+  /* Graisses : 400, 500, 600. Pas de 700, pas de 300 (§6.2). */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+
+  --leading-prose: 1.6; /* Spectral */
+  --leading-ui: 1.45; /* IBM Plex Sans */
+  --leading-figure: 1.1; /* chiffres principaux */
+
+  /* Piles de polices (§6.1). Les familles de repli servent le temps que la
+   * police auto-hébergée arrive ; `font-display: swap` vient de @fontsource. */
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-serif: 'Spectral', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ═══════════════════════════════════ Espacement, formes, grille (§7) ══ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Deux rayons seulement, et ils DIFFÈRENT selon la hiérarchie : un même
+   * rayon appliqué à tout est un des marqueurs de template les plus
+   * reconnaissables. Il n'y a pas de --radius-lg ni de --radius-full. */
+  --radius-sm: 3px; /* champs, puces, cellules actives */
+  --radius-md: 6px; /* blocs de contenu */
+
+  --reading-width: 1100px; /* colonne de lecture centrée */
+  --gutter: var(--space-5); /* gouttière latérale minimale */
+  --rail-width: 220px; /* barre de navigation, escamotée sous 900 px */
+  --prose-width: 66ch; /* cible de §6.3, < 80 caractères */
+
+  /* ═══════════════════════════════════════════════════ Mouvement (§10) ══
+   *
+   * Budget très faible, et jamais au chargement. Ces durées ne servent qu'en
+   * réponse à une action ; `reset.css` les ramène à zéro sous
+   * `prefers-reduced-motion`. */
+  --motion-hover: 120ms;
+  --motion-theme: 180ms;
+  --motion-panel: 200ms;
+
+  /* ══════════════════════════════════════ Thème par défaut : le système ══
+   *
+   * `color-scheme: light dark` annonce au navigateur que la page sait faire
+   * les deux : barres de défilement, champs de saisie et cases à cocher
+   * suivent alors le réglage du système. Sans cette ligne ils restent clairs
+   * dans le thème sombre.
+   *
+   * Les tokens du thème CLAIR sont posés ici, donc la page fonctionne sans
+   * JavaScript et sans requête de média. */
+  color-scheme: light dark;
+
+  --surface-0: var(--clair-surface-0);
+  --surface-1: var(--clair-surface-1);
+  --surface-2: var(--clair-surface-2);
+  --border: var(--clair-border);
+  --border-strong: var(--clair-border-strong);
+  --text-1: var(--clair-text-1);
+  --text-2: var(--clair-text-2);
+  --text-muted: var(--clair-text-muted);
+  --accent: var(--clair-accent);
+  --caveat: var(--clair-caveat);
+  --series-1: var(--clair-series-1);
+  --loss: var(--clair-loss);
+  --gain: var(--clair-gain);
+  --div-neg-strong: var(--clair-div-neg-strong);
+  --div-neg-mid: var(--clair-div-neg-mid);
+  --div-zero: var(--clair-div-zero);
+  --div-pos-mid: var(--clair-div-pos-mid);
+  --div-pos-strong: var(--clair-div-pos-strong);
+}
+
+/*
+ * Le système demande le sombre, et l'utilisateur n'a pas figé le clair.
+ *
+ * `:not([data-theme="light"])` est ce qui rend la surcharge possible : sans
+ * elle, un utilisateur ayant choisi le clair sur une machine réglée en sombre
+ * verrait la requête de média reprendre la main.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface-0: var(--sombre-surface-0);
+    --surface-1: var(--sombre-surface-1);
+    --surface-2: var(--sombre-surface-2);
+    --border: var(--sombre-border);
+    --border-strong: var(--sombre-border-strong);
+    --text-1: var(--sombre-text-1);
+    --text-2: var(--sombre-text-2);
+    --text-muted: var(--sombre-text-muted);
+    --accent: var(--sombre-accent);
+    --caveat: var(--sombre-caveat);
+    --series-1: var(--sombre-series-1);
+    --loss: var(--sombre-loss);
+    --gain: var(--sombre-gain);
+    --div-neg-strong: var(--sombre-div-neg-strong);
+    --div-neg-mid: var(--sombre-div-neg-mid);
+    --div-zero: var(--sombre-div-zero);
+    --div-pos-mid: var(--sombre-div-pos-mid);
+    --div-pos-strong: var(--sombre-div-pos-strong);
+  }
+}
+
+/* Thème sombre FIGÉ par l'utilisateur, quel que soit le réglage du système. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-0: var(--sombre-surface-0);
+  --surface-1: var(--sombre-surface-1);
+  --surface-2: var(--sombre-surface-2);
+  --border: var(--sombre-border);
+  --border-strong: var(--sombre-border-strong);
+  --text-1: var(--sombre-text-1);
+  --text-2: var(--sombre-text-2);
+  --text-muted: var(--sombre-text-muted);
+  --accent: var(--sombre-accent);
+  --caveat: var(--sombre-caveat);
+  --series-1: var(--sombre-series-1);
+  --loss: var(--sombre-loss);
+  --gain: var(--sombre-gain);
+  --div-neg-strong: var(--sombre-div-neg-strong);
+  --div-neg-mid: var(--sombre-div-neg-mid);
+  --div-zero: var(--sombre-div-zero);
+  --div-pos-mid: var(--sombre-div-pos-mid);
+  --div-pos-strong: var(--sombre-div-pos-strong);
+}
+
+/* Thème clair FIGÉ. Les tokens sont déjà ceux de `:root` ; seule la
+ * déclaration `color-scheme` doit être resserrée, pour que le navigateur cesse
+ * de peindre ses propres contrôles en sombre. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}

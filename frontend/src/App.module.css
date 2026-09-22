@@ -1,0 +1,59 @@
+/* Coquille — DESIGN.md §7 (grille), §8.1 (bandeau), §13 (lien d'évitement). */
+
+/*
+ * Lien « aller au contenu » (§13). Il n'est pas caché à l'écran : il est hors
+ * cadre tant qu'il n'a pas le focus, et il revient dès qu'on l'atteint au
+ * clavier. `display: none` le retirerait aussi de l'ordre de tabulation, ce
+ * qui le rendrait inutile.
+ */
+.evitement {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: 2;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  transform: translateY(-200%);
+}
+
+.evitement:focus-visible {
+  transform: none;
+}
+
+/*
+ * Bandeau permanent (§8.1) — collant, sur --surface-1.
+ *
+ * Sa hauteur suit son contenu : il passe à deux ou trois lignes selon ce
+ * qu'il a à dire, et rien ne la fixe. Bordure basse d'1 px, JAMAIS d'ombre
+ * portée (§12) : c'est la seule exception que §12 accorde, et elle est une
+ * bordure.
+ */
+.bandeau {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--gutter);
+  border-block-end: 1px solid var(--border);
+  background-color: var(--surface-1);
+}
+
+.marque {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+.contenu {
+  max-inline-size: var(--reading-width);
+  margin-inline: auto;
+  padding: var(--space-6) var(--gutter);
+}

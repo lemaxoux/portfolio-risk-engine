@@ -1,0 +1,108 @@
+/*
+ * typography.css — DESIGN.md §6.
+ *
+ * Polices AUTO-HÉBERGÉES via @fontsource : aucune requête vers Google Fonts,
+ * donc aucune dépendance réseau tierce pour une application locale, et aucune
+ * fuite de l'adresse IP de l'utilisateur vers un tiers à chaque chargement.
+ * Vite empaquette les woff2 comme des ressources du projet.
+ *
+ * CHAQUE FICHIER IMPORTÉ EST UNE GRAISSE, et seulement celles que §6.2
+ * autorise : 400, 500, 600 pour Plex Sans ; 400, 500 pour Spectral ; 400 pour
+ * Plex Mono. Importer la famille entière chargerait neuf graisses dont sept
+ * sont interdites — et les rendrait utilisables par accident.
+ *
+ * Les fichiers non préfixés (`400.css` et non `latin-400.css`) déclarent une
+ * `unicode-range` par sous-ensemble : le navigateur ne télécharge que les
+ * blocs réellement présents dans le texte. Choisir `latin-400.css` à la main
+ * économiserait une déclaration et risquerait un caractère non couvert — « œ »
+ * et « € » ne sont pas dans le même bloc selon les fontes.
+ */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/spectral/400.css';
+@import '@fontsource/spectral/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+/*
+ * Aucune taille de police n'est écrite ici en `px` : elles viennent toutes des
+ * tokens `--text-*` de `tokens.css`, exprimés en `rem`. C'est le point de
+ * §17 « aucun px de taille de police hors de typography.css » — il se trouve
+ * qu'il n'y en a nulle part.
+ */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-ui);
+  /* Pas de `text-wrap` global : il a un coût, et il est posé là où il sert. */
+}
+
+/*
+ * Chiffres tabulaires — la condition non négociable de §6.1.
+ *
+ * Sans eux, un « 1 » est plus étroit qu'un « 0 » et une colonne de
+ * pourcentages danse d'une ligne à l'autre. La déclaration porte sur les
+ * porteurs de chiffres plutôt que sur `body` : appliquée à toute la page, elle
+ * toucherait aussi la prose en Spectral, dont les chiffres n'ont pas à être
+ * chassés comme ceux d'un tableau.
+ *
+ * Que la fonte réellement chargée les possède ne se suppose pas : la mesure
+ * est faite dans le navigateur (largeur de « 1111111 » contre « 0000000 »).
+ */
+table,
+[data-tabular] {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Titres — calmes (§3.3). L'audace visuelle est dépensée sur le bloc mesure,
+ * pas ici. Casse phrase partout, jamais de capitales (§12).
+ */
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-lg);
+}
+
+h2 {
+  font-size: var(--text-lg);
+}
+
+h3 {
+  font-size: var(--text-body);
+}
+
+/*
+ * Prose — les phrases que le moteur de règles RÉDIGE, en serif.
+ *
+ * L'usage est structurel, pas décoratif : composer en Spectral distingue
+ * visuellement « ce que le moteur affirme » de « ce que le moteur a mesuré ».
+ */
+p {
+  text-wrap: pretty;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Le monospace est STRICTEMENT réservé à du contenu réellement code (§6.1) :
+ * ni les tickers, ni les libellés, ni les petits chiffres. */
+pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+}

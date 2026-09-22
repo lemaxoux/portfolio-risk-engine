@@ -1,0 +1,30 @@
+/* Bascule de thème — §4, §12 (ni ombre, ni pastille arrondie). */
+
+.bascule {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  transition: background-color var(--motion-hover);
+}
+
+.bascule:hover {
+  background-color: var(--surface-2);
+}
+
+/* L'état courant, sous le libellé d'action. Il est LISIBLE et non masqué :
+ * un bouton qui dit « Thème sombre » sans dire où l'on est se lit dans les
+ * deux sens. En --text-2, jamais en --text-muted (§9.1, règle 1). */
+.etat {
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-normal);
+}

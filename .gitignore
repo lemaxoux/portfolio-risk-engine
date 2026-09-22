@@ -33,6 +33,12 @@ htmlcov/
 # --- Documents de cadrage (copie de travail, non versionnée) ---
 docs/
 
+# --- Frontend ---
+# Même discipline que venv/ : les dépendances ne sont pas versionnées, leurs
+# versions exactes le sont (package-lock.json, commité).
+frontend/node_modules/
+frontend/dist/
+
 # --- Éditeurs / OS ---
 .vscode/
 .idea/

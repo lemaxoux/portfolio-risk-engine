@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      DESIGN.md §4 — `color-scheme` est obligatoire : sans lui, barres de
+      défilement, champs de saisie et cases à cocher restent clairs dans le
+      thème sombre. Le contenu est réécrit par le script ci-dessous quand un
+      thème a été figé, pour que le navigateur peigne son canevas initial de la
+      bonne couleur au lieu de la corriger après coup.
+    -->
+    <meta name="color-scheme" content="light dark" />
+    <title>Mx Risk MGT</title>
+
+    <!--
+      Surcharge de thème — SCRIPT EN LIGNE ET BLOQUANT, délibérément.
+
+      Le bundle React est un module : il est chargé après le premier rendu.
+      Poser le thème là-bas ferait apparaître le thème système pendant une
+      poignée d'images avant la correction — l'éclair du mauvais thème, à
+      chaque chargement, pour tout utilisateur qui a figé le thème contraire au
+      sien. Ce script s'exécute avant que le corps n'existe : il n'y a rien à
+      repeindre.
+
+      La valeur stockée est LITTÉRALEMENT « light » ou « dark », jamais
+      « l'inverse du système » recalculé à l'affichage : si le système bascule
+      ensuite, l'application ne bouge pas. Absence de clé = on suit le système,
+      ce que le CSS fait déjà tout seul (§4) — donc sans JavaScript aussi.
+
+      `try/catch` : la lecture de `localStorage` LÈVE, elle ne rend pas null,
+      quand le stockage est bloqué. Sans lui, la page resterait blanche.
+    -->
+    <script>
+      (function () {
+        try {
+          var choix = localStorage.getItem('mx-risk-theme')
+          if (choix !== 'light' && choix !== 'dark') return
+          document.documentElement.setAttribute('data-theme', choix)
+          var meta = document.querySelector('meta[name="color-scheme"]')
+          if (meta) meta.setAttribute('content', choix)
+        } catch (erreur) {
+          /* Stockage bloqué : on suit le système, sans erreur. */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
