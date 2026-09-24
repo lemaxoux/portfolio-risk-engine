@@ -15,7 +15,8 @@ import type { LimitingPosition, Window } from '../api/types'
 import { ESPACE_FINE, compte, dateISO, pourcentage, seances } from './format'
 
 /**
- * « Perte attendue une séance sur vingt » (§15).
+ * « Une séance sur vingt » : la fréquence qui accompagne un niveau de
+ * confiance (§15).
  *
  * Une TABLE, pas un calcul. Écrire `1 / (1 - confiance)` produirait 20 pour
  * 0,95 et 100 pour 0,99, mais aussi 6,67 pour 0,85 — et il faudrait alors
@@ -35,22 +36,41 @@ export function frequenceLue(confiance: number): string | null {
 }
 
 /**
- * La phrase de lecture d'une VaR.
+ * La phrase de lecture d'une VaR : « perte d'au moins 1,38 %, une séance sur
+ * vingt ».
  *
- * Une VaR est une PERTE POSITIVE. Une valeur négative signifie un gain à ce
- * niveau de confiance, et c'est la phrase qui doit le dire — le nombre, lui,
- * s'affiche tel que le moteur l'a rendu (§9.1, règle 2).
+ * UNE VaR EST UN SEUIL DÉPASSÉ, PAS UNE PERTE ATTENDUE. Une séance sur vingt,
+ * la perte ATTEINT OU DÉPASSE ce niveau ; ce qu'elle vaut en moyenne ces
+ * jours-là est une autre mesure — la CVaR, affichée plus bas avec sa propre
+ * phrase. Écrire « perte attendue » ferait lire le seuil comme une moyenne, et
+ * sous-estimer exactement la queue que la CVaR existe pour chiffrer. La
+ * formulation est celle de `risk_engine/var.py`, qui rédige la convention.
+ *
+ * Une VaR est une PERTE POSITIVE. Une valeur négative signifie que le quantile
+ * est un gain, et c'est la phrase qui doit le dire — le nombre, lui, s'affiche
+ * tel que le moteur l'a rendu, sans signe retourné (§9.1, règle 2). La phrase
+ * de gain ne cite donc pas de chiffre : elle devrait sinon retourner le signe
+ * de celui qui est affiché juste au-dessus d'elle. Elle ne dit pas non plus
+ * que le portefeuille « ne perd pas » : un quantile positif laisse une séance
+ * sur vingt SOUS lui, et certaines de ces séances peuvent être des pertes.
+ *
+ * `decimales` est celui du chiffre affiché au-dessus de la phrase : les deux
+ * écritures du même nombre doivent être identiques.
  */
-export function lectureDeVar(valeur: number, confiance: number): string {
+export function lectureDeVar(
+  valeur: number,
+  confiance: number,
+  decimales: number,
+): string {
   const frequence = frequenceLue(confiance)
+  const niveau = `au niveau de confiance ${pourcentage(confiance, 0)}`
   if (valeur < 0) {
     return frequence === null
-      ? `gain à ce niveau de confiance, et non une perte`
-      : `gain ${frequence} : à ce niveau, le portefeuille ne perd pas`
+      ? `le seuil est un gain et non une perte, ${niveau}`
+      : `le seuil est un gain et non une perte : ${frequence}, le rendement reste sous ce gain`
   }
-  return frequence === null
-    ? `perte attendue au niveau ${pourcentage(confiance, 0)}`
-    : `perte attendue ${frequence}`
+  const seuil = `perte d'au moins ${pourcentage(valeur, decimales)}`
+  return frequence === null ? `${seuil}, ${niveau}` : `${seuil}, ${frequence}`
 }
 
 /**

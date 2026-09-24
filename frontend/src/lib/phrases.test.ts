@@ -48,29 +48,71 @@ describe('lecture d’un niveau de confiance', () => {
     // Une table, pas une division : 1/(1−0,85) vaudrait 6,67, et il faudrait
     // décider comment l'écrire — c'est-à-dire inventer une lecture.
     expect(frequenceLue(0.85)).toBeNull()
-    expect(lectureDeVar(0.02, 0.85)).toBe(`perte attendue au niveau 85${ESPACE_FINE}%`)
+    expect(lectureDeVar(0.02, 0.85, 2)).toBe(
+      `perte d'au moins 2,00${ESPACE_FINE}%, au niveau de confiance 85${ESPACE_FINE}%`,
+    )
   })
 
   it('accompagne le terme technique, il ne le remplace pas', () => {
-    expect(lectureDeVar(0.0138, 0.95)).toBe('perte attendue une séance sur vingt')
+    expect(lectureDeVar(0.0138, 0.95, 2)).toBe(
+      `perte d'au moins 1,38${ESPACE_FINE}%, une séance sur vingt`,
+    )
     expect(lectureDeCVaR(0.99)).toBe(
       `perte moyenne des 1${ESPACE_FINE}% de séances les pires`,
     )
   })
 })
 
+describe('une VaR est un seuil dépassé, pas une perte attendue', () => {
+  it('dit « d’au moins », comme la convention de risk_engine/var.py', () => {
+    // Une séance sur vingt, la perte ATTEINT OU DÉPASSE le seuil. Ce qu'elle
+    // vaut en moyenne ces jours-là est la CVaR : « perte attendue » ferait lire
+    // le seuil comme cette moyenne, et sous-estimerait la queue.
+    for (const confiance of [0.95, 0.99, 0.85]) {
+      const phrase = lectureDeVar(0.0138, confiance, 2)
+      expect(phrase).toMatch(/^perte d'au moins /)
+      expect(phrase).not.toContain('attendue')
+    }
+  })
+
+  it('écrit le seuil avec les décimales du chiffre affiché au-dessus', () => {
+    expect(lectureDeVar(0.013849, 0.95, 2)).toContain(`1,38${ESPACE_FINE}%`)
+    expect(lectureDeVar(0.013849, 0.95, 1)).toContain(`1,4${ESPACE_FINE}%`)
+  })
+
+  it('ne se confond pas avec la phrase de la CVaR, qui est une moyenne', () => {
+    expect(lectureDeCVaR(0.95)).toContain('moyenne')
+    expect(lectureDeVar(0.0138, 0.95, 2)).not.toContain('moyenne')
+  })
+})
+
 describe('convention de signe (§9.1, règle 2)', () => {
   it('change la PHRASE quand la perte est négative', () => {
     // Une valeur négative ne veut pas dire « petite perte » : elle veut dire
-    // qu'à ce niveau de confiance, le portefeuille gagne.
-    const phrase = lectureDeVar(-0.0021, 0.95)
+    // qu'à ce niveau de confiance, le quantile est un gain.
+    const phrase = lectureDeVar(-0.0021, 0.95, 2)
     expect(phrase).toContain('gain')
-    expect(phrase).not.toContain('perte attendue')
+    expect(phrase).not.toContain("perte d'au moins")
+  })
+
+  it('ne retourne pas le signe du chiffre affiché, et ne promet pas l’absence de perte', () => {
+    // Le chiffre s'affiche tel que le moteur l'a rendu, « −0,21 % » ; la
+    // phrase qui l'accompagne n'en écrit pas une deuxième version, positive.
+    // Et un quantile positif laisse une séance sur vingt sous lui : certaines
+    // peuvent être des pertes, « le portefeuille ne perd pas » serait faux.
+    const phrase = lectureDeVar(-0.0021, 0.95, 2)
+    expect(phrase).not.toMatch(/\d/)
+    expect(phrase).not.toContain('ne perd pas')
+    expect(lectureDeVar(-0.0021, 0.85, 2)).toContain(`85${ESPACE_FINE}%`)
   })
 
   it('garde la phrase de perte pour une valeur nulle ou positive', () => {
-    expect(lectureDeVar(0, 0.95)).toBe('perte attendue une séance sur vingt')
-    expect(lectureDeVar(0.0138, 0.99)).toBe('perte attendue une séance sur cent')
+    expect(lectureDeVar(0, 0.95, 2)).toBe(
+      `perte d'au moins 0,00${ESPACE_FINE}%, une séance sur vingt`,
+    )
+    expect(lectureDeVar(0.0138, 0.99, 2)).toBe(
+      `perte d'au moins 1,38${ESPACE_FINE}%, une séance sur cent`,
+    )
   })
 })
 

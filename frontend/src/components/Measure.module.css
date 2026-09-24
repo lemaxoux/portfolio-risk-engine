@@ -59,8 +59,8 @@
   font-size: var(--text-xl);
 }
 
-/* La phrase de lecture — « perte attendue une séance sur vingt ». Elle suit le
- * chiffre, donc elle s'aligne avec lui. */
+/* La phrase de lecture — « perte d'au moins 1,38 %, une séance sur vingt ».
+ * Elle suit le chiffre, donc elle s'aligne avec lui. */
 .lecture {
   margin-block: var(--space-1) var(--space-3);
   color: var(--text-2);

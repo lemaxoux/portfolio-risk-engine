@@ -449,7 +449,8 @@ C'est le composant sur lequel repose la thèse du produit. Il rend un chiffre
 │ VaR 95 %, horizon 1 séance              │  text-sm / text-2 / 500
 │                                         │
 │                              1,38 %     │  text-2xl / text-1 / 600 / tabular
-│ perte attendue 1 séance sur 20          │  text-micro / text-2
+│     perte d'au moins 1,38 %, une séance │  text-micro / text-2
+│                               sur vingt │
 │ ─────────────────────────────────────── │  border, 1px
 │ Méthode      paramétrique (normale)     │  text-micro, grille 2 colonnes
 │ Fenêtre      504 séances                │  libellé text-2, valeur text-1
@@ -781,10 +782,16 @@ bug en attente.
 - Tout en français, casse phrase, verbes actifs. Un bouton dit ce qu'il fait :
   « Importer le portefeuille », pas « Valider ».
 - Un même geste garde son nom du bouton au message de confirmation.
-- Nommer les choses comme l'utilisateur les comprend. « Perte attendue une
-  séance sur vingt » accompagne « VaR 95 % » — on ne remplace pas le terme
-  technique, on le traduit à côté. Le particulier apprend le vocabulaire, ce qui
-  est une valeur du produit.
+- Nommer les choses comme l'utilisateur les comprend. « Perte d'au moins
+  1,38 %, une séance sur vingt » accompagne « VaR 95 % » — on ne remplace pas
+  le terme technique, on le traduit à côté. Le particulier apprend le
+  vocabulaire, ce qui est une valeur du produit.
+- **Traduire sans trahir.** Une VaR est un **seuil dépassé**, pas une perte
+  attendue : une séance sur vingt, la perte *atteint ou dépasse* ce niveau. Ce
+  qu'elle vaut en moyenne ces jours-là est la CVaR (« perte moyenne des 5 % de
+  séances les pires »). Écrire « perte attendue » sous une VaR ferait lire le
+  seuil comme cette moyenne, et sous-estimer la queue. La formulation de
+  référence est celle du backend, `risk_engine/var.py`.
 - Les réserves méthodologiques sont écrites platement, sans dramatiser ni
   minimiser : « Moyenne de 6 séances seulement, sur une fenêtre de 504 :
   chacune pèse pour 17 % du chiffre. » Le backend produit déjà ces phrases —

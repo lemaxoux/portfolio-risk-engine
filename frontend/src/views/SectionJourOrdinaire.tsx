@@ -68,7 +68,7 @@ function CoupleParametrique({
         niveau="secondaire"
         libelle={`VaR ${confiance} paramétrique, loi normale`}
         valeur={pourcentage(niveau.parametric_var.value, 2)}
-        lecture={lectureDeVar(niveau.parametric_var.value, niveau.confidence)}
+        lecture={lectureDeVar(niveau.parametric_var.value, niveau.confidence, 2)}
         provenance={provenanceDeVar(
           niveau.parametric_var,
           niveau.monte_carlo_var,
@@ -80,7 +80,7 @@ function CoupleParametrique({
           niveau="secondaire"
           libelle={`VaR ${confiance} paramétrique, loi de Student`}
           valeur={pourcentage(student.value, 2)}
-          lecture={lectureDeVar(student.value, niveau.confidence)}
+          lecture={lectureDeVar(student.value, niveau.confidence, 2)}
           provenance={provenanceDeVar(student, niveau.student_monte_carlo_var)}
         />
       ) : (
@@ -119,6 +119,7 @@ export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
             lecture={lectureDeVar(
               niveau.historical_var.value,
               niveau.confidence,
+              2,
             )}
             provenance={provenanceDeVar(niveau.historical_var)}
           />
