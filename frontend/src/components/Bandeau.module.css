@@ -45,10 +45,19 @@
   gap: 2px;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+  /* Le passage à une condition par ligne dépend de la place du BLOC, pas de
+   * la largeur de l'écran : entre 600 et 900 px, le bloc partage sa ligne
+   * avec l'identité et peut être aussi étroit que sur un téléphone. */
+  container-type: inline-size;
 }
 
 .ligne {
   color: var(--text-2);
+}
+
+/* Un libellé ne se sépare pas de sa valeur. */
+.paire {
+  white-space: nowrap;
 }
 
 .libelle {
@@ -61,14 +70,34 @@
 }
 
 /* Séparateur de conditions : une barre fine, pas un point médian — §12
- * interdit les chaînes de méta jointes par des points médians. */
-.separateur {
+ * interdit les chaînes de méta jointes par des points médians. Il vit ENTRE
+ * deux paires, jamais dans l'une d'elles. */
+.paire + .paire::before {
+  content: '';
   display: inline-block;
   inline-size: 1px;
   block-size: 0.85em;
   margin-inline: var(--space-3);
   background-color: var(--border);
   vertical-align: -0.1em;
+}
+
+/*
+ * En largeur étroite, une condition par ligne et plus de séparateur : une
+ * barre en fin de ligne, suivie d'une paire rejetée à la ligne suivante, ne
+ * sépare plus rien. Le seuil est la largeur des deux paires côte à côte avec
+ * de la marge pour une fenêtre à cinq chiffres.
+ */
+@container (width < 28rem) {
+  .ligne {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .paire + .paire::before {
+    content: none;
+  }
 }
 
 /* Fenêtre réduite : point de réserve et cause, en clair. */

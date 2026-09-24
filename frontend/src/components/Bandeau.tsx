@@ -39,13 +39,20 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
       </div>
 
       <div className={styles.conditions}>
+        {/* Chaque condition est une PAIRE insécable : un libellé ne se sépare
+            jamais de sa valeur, et « Fenêtre d'estimation » ne se coupe pas
+            en deux. Le séparateur est dessiné par la feuille de style entre
+            deux paires, et disparaît quand elles s'empilent. */}
         <p className={styles.ligne}>
-          <span className={styles.libelle}>Valorisé au</span>{' '}
-          <span className={styles.valeur}>{dateISO(analyse.as_of)}</span>
-          <span className={styles.separateur} />
-          <span className={styles.libelle}>Fenêtre d'estimation</span>{' '}
-          <span className={styles.valeur}>
-            {seances(analyse.estimation_window.observations)}
+          <span className={styles.paire}>
+            <span className={styles.libelle}>Valorisé au</span>{' '}
+            <span className={styles.valeur}>{dateISO(analyse.as_of)}</span>
+          </span>
+          <span className={styles.paire}>
+            <span className={styles.libelle}>Fenêtre d'estimation</span>{' '}
+            <span className={styles.valeur}>
+              {seances(analyse.estimation_window.observations)}
+            </span>
           </span>
         </p>
         <p className={styles.ligne}>
