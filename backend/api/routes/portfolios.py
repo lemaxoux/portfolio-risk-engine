@@ -74,7 +74,11 @@ def _detail(
         name=row.name,
         owner=row.owner,
         updated_at=row.updated_at,
-        valuation=ValuationOut.of(poids, store.load_positions(conn, row.id)),
+        valuation=ValuationOut.of(
+            poids,
+            store.load_positions(conn, row.id),
+            {titre.ticker: titre.name for titre in load_securities(conn)},
+        ),
         valuation_error=None,
     )
 

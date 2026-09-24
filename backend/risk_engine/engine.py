@@ -354,6 +354,11 @@ class RiskReport:
     dessiner un creux que le `drawdown` publié ne décrit pas. `wealth` commence
     au point de départ à 1,0, la séance qui précède le premier rendement : sans
     lui, le pic initial disparaît (voir `returns.wealth_curve`).
+
+    `valuation` est la valorisation qui a produit `weights` — prix, valeurs,
+    date —, transportée pour que la page affiche les quantités et les prix de
+    la MÊME réponse que les mesures, et non d'un second appel qui pourrait lire
+    une base rafraîchie entre-temps.
     """
 
     portfolio_id: int
@@ -376,6 +381,7 @@ class RiskReport:
     returns: pd.Series = field(repr=False)
     wealth: pd.Series = field(repr=False)
     histogram: measures.ReturnHistogram = field(repr=False)
+    valuation: PortfolioWeights = field(repr=False)
     beta: BetaResult | None = None
     monte_carlo_var: dict[float, VarResult] | None = None
     student_fit: var.StudentFit | None = None
@@ -1469,6 +1475,7 @@ def analyse_portfolio(
         returns=serie.returns,
         wealth=serie.wealth,
         histogram=measures.return_histogram(serie.returns),
+        valuation=serie.weights,
         limiting_positions=serie.limiting_positions,
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(

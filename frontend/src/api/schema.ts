@@ -252,6 +252,8 @@ export interface components {
             tickers: string[];
             /** Weights */
             weights: components["schemas"]["WeightOut"][];
+            /** @description Valorisation ligne à ligne qui a produit `weights` : quantité stockée, dernière clôture brute, valeur, nom du titre. Dans la même réponse que les mesures, pour décrire le même état de la base. */
+            valuation: components["schemas"]["ValuationOut"];
             /** @description Fenêtre du panel de régime courant. Les mesures calculées sur ce panel la partagent ; chacune porte néanmoins la sienne, et une mesure peut en avoir une autre. */
             estimation_window: components["schemas"]["WindowOut"];
             /** Limiting Positions */
@@ -1163,6 +1165,8 @@ export interface components {
         ValuedPositionOut: {
             /** Ticker */
             ticker: string;
+            /** Name */
+            name: string;
             /** Quantity */
             quantity: number;
             /** Cost Basis */

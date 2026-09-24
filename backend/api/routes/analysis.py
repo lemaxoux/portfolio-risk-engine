@@ -40,7 +40,7 @@ from backend.risk_engine.engine import (
     compare_all_regimes,
     run_all_scenarios,
 )
-from backend.risk_engine.portfolio import PortfolioError
+from backend.risk_engine.portfolio import PortfolioError, load_securities
 from backend.rules.rules import evaluate
 
 from ..dependencies import get_connection
@@ -58,6 +58,7 @@ from ..schemas import (
     ReturnHistogramOut,
     RiskOut,
     ScenarioOut,
+    ValuationOut,
     WeightOut,
     WindowOut,
 )
@@ -176,6 +177,12 @@ def analyse(
             WeightOut(ticker=ticker, weight=report.weights[ticker])
             for ticker in tickers
         ],
+        valuation=ValuationOut.of(
+            report.valuation,
+            store.load_positions(conn, portfolio_id),
+            {titre.ticker: titre.name for titre in load_securities(conn)},
+            order=tickers,
+        ),
         # La fenêtre du PANEL, telle que le moteur la porte — pas celle d'une
         # mesure promue en fenêtre du document. `report.window` est
         # littéralement `PortfolioSeries.window` : la relire sur la volatilité

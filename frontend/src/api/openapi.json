@@ -441,6 +441,10 @@
             "type": "array",
             "title": "Weights"
           },
+          "valuation": {
+            "$ref": "#/components/schemas/ValuationOut",
+            "description": "Valorisation ligne à ligne qui a produit `weights` : quantité stockée, dernière clôture brute, valeur, nom du titre. Dans la même réponse que les mesures, pour décrire le même état de la base."
+          },
           "estimation_window": {
             "$ref": "#/components/schemas/WindowOut",
             "description": "Fenêtre du panel de régime courant. Les mesures calculées sur ce panel la partagent ; chacune porte néanmoins la sienne, et une mesure peut en avoir une autre."
@@ -498,6 +502,7 @@
           "total_value",
           "tickers",
           "weights",
+          "valuation",
           "estimation_window",
           "limiting_positions",
           "parameters",
@@ -2427,6 +2432,10 @@
             "type": "string",
             "title": "Ticker"
           },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
           "quantity": {
             "type": "number",
             "title": "Quantity"
@@ -2459,6 +2468,7 @@
         "type": "object",
         "required": [
           "ticker",
+          "name",
           "quantity",
           "cost_basis",
           "price",

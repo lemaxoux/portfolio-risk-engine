@@ -44,7 +44,7 @@ complètent, l'une nomme, l'autre garantit.)
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Literal
 
@@ -242,6 +242,7 @@ class ValuedPositionOut(Schema):
     """
 
     ticker: str
+    name: str
     quantity: float
     cost_basis: float | None
     price: float
@@ -256,7 +257,11 @@ class ValuationOut(Schema):
 
     @classmethod
     def of(
-        cls, weights: PortfolioWeights, positions: Sequence[PositionRow]
+        cls,
+        weights: PortfolioWeights,
+        positions: Sequence[PositionRow],
+        names: Mapping[str, str],
+        order: Sequence[str] | None = None,
     ) -> ValuationOut:
         """Croise les poids du moteur et les positions stockées, par ticker.
 
@@ -264,6 +269,11 @@ class ValuationOut(Schema):
         valeur par le prix. Le résultat serait presque toujours le même, et
         « presque » est le problème : ce serait un calcul de la couche API, donc
         une quantité affichée que rien n'a testée.
+
+        Le nom vient du catalogue (`securities.name`), tel qu'il a été ingéré.
+        `order` impose l'ordre des lignes : dans `/analysis`, celui de
+        `tickers`, pour qu'un tableau et une carte de chaleur ne s'étiquettent
+        pas différemment.
         """
         quantites = {p.ticker: p for p in positions}
         return cls(
@@ -272,13 +282,14 @@ class ValuationOut(Schema):
             positions=[
                 ValuedPositionOut(
                     ticker=ticker,
+                    name=names[ticker],
                     quantity=quantites[ticker].quantity,
                     cost_basis=quantites[ticker].cost_basis,
                     price=weights.prices[ticker],
                     value=weights.values[ticker],
                     weight=weights.weights[ticker],
                 )
-                for ticker in weights.tickers
+                for ticker in (weights.tickers if order is None else order)
             ],
         )
 
@@ -1349,6 +1360,13 @@ class AnalysisOut(Schema):
     total_value: float
     tickers: list[str]
     weights: list[WeightOut]
+    valuation: ValuationOut = Field(
+        description=(
+            "Valorisation ligne à ligne qui a produit `weights` : quantité "
+            "stockée, dernière clôture brute, valeur, nom du titre. Dans la même "
+            "réponse que les mesures, pour décrire le même état de la base."
+        )
+    )
     estimation_window: WindowOut = Field(
         description=(
             "Fenêtre du panel de régime courant. Les mesures calculées sur ce "
