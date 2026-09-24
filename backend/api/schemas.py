@@ -836,6 +836,58 @@ class RiskOut(Schema):
         )
 
 
+# ═══════════════════════════════════════════════════════════════ Séries ══
+
+
+class PointOut(Schema):
+    """Un point daté d'une série : la date en ISO, la valeur telle quelle."""
+
+    date: date
+    value: float
+
+
+class PortfolioSeriesOut(Schema):
+    """Les séries sur lesquelles les mesures du régime courant ont été calculées.
+
+    Publiées pour être TRACÉES, pas recalculées : un histogramme ou une courbe
+    de richesse dessinés à partir d'autre chose que ces points pourraient
+    montrer un creux que `risk.drawdown` ne décrit pas.
+
+    `wealth` commence au point de départ à 1,0, daté de la séance qui PRÉCÈDE
+    le premier rendement. Il a donc un point de plus que `returns`. Sans lui,
+    le pic initial disparaît, et le creux dessiné ne correspond plus au
+    `max_drawdown` publié quand la série baisse dès sa première séance.
+    """
+
+    returns: list[PointOut] = Field(
+        description=(
+            "Rendements quotidiens simples du portefeuille, en fraction, poids "
+            "actuels constants. Autant de points que `window.observations`."
+        )
+    )
+    wealth: list[PointOut] = Field(
+        description=(
+            "Valeur cumulée d'une unité investie, base 1. Le premier point vaut "
+            "1,0 et précède le premier rendement d'une séance."
+        )
+    )
+    window: WindowOut
+
+    @classmethod
+    def of(cls, report: RiskReport) -> PortfolioSeriesOut:
+        return cls(
+            returns=[
+                PointOut(date=jour, value=float(valeur))
+                for jour, valeur in report.returns.items()
+            ],
+            wealth=[
+                PointOut(date=jour, value=float(valeur))
+                for jour, valeur in report.wealth.items()
+            ],
+            window=WindowOut.of(report.window),
+        )
+
+
 # ═══════════════════════════════════════════════════════════════ Scénarios ══
 
 
@@ -1258,6 +1310,7 @@ class AnalysisOut(Schema):
     limiting_positions: list[LimitingPositionOut]
     parameters: ParametersOut
     risk: RiskOut
+    series: PortfolioSeriesOut
     scenarios: list[ScenarioOut]
     regimes: list[RegimeOut]
     observations: list[ObservationOut]

@@ -258,6 +258,7 @@ export interface components {
             limiting_positions: components["schemas"]["LimitingPositionOut"][];
             parameters: components["schemas"]["ParametersOut"];
             risk: components["schemas"]["RiskOut"];
+            series: components["schemas"]["PortfolioSeriesOut"];
             /** Scenarios */
             scenarios: components["schemas"]["ScenarioOut"][];
             /** Regimes */
@@ -658,6 +659,19 @@ export interface components {
             /** Confidence Levels */
             confidence_levels: number[];
         };
+        /**
+         * PointOut
+         * @description Un point daté d'une série : la date en ISO, la valeur telle quelle.
+         */
+        PointOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Value */
+            value: number;
+        };
         /** PortfolioCreate */
         PortfolioCreate: {
             /**
@@ -715,6 +729,32 @@ export interface components {
             owner: string;
             /** Updated At */
             updated_at: string | null;
+        };
+        /**
+         * PortfolioSeriesOut
+         * @description Les séries sur lesquelles les mesures du régime courant ont été calculées.
+         *
+         *     Publiées pour être TRACÉES, pas recalculées : un histogramme ou une courbe
+         *     de richesse dessinés à partir d'autre chose que ces points pourraient
+         *     montrer un creux que `risk.drawdown` ne décrit pas.
+         *
+         *     `wealth` commence au point de départ à 1,0, daté de la séance qui PRÉCÈDE
+         *     le premier rendement. Il a donc un point de plus que `returns`. Sans lui,
+         *     le pic initial disparaît, et le creux dessiné ne correspond plus au
+         *     `max_drawdown` publié quand la série baisse dès sa première séance.
+         */
+        PortfolioSeriesOut: {
+            /**
+             * Returns
+             * @description Rendements quotidiens simples du portefeuille, en fraction, poids actuels constants. Autant de points que `window.observations`.
+             */
+            returns: components["schemas"]["PointOut"][];
+            /**
+             * Wealth
+             * @description Valeur cumulée d'une unité investie, base 1. Le premier point vaut 1,0 et précède le premier rendement d'une séance.
+             */
+            wealth: components["schemas"]["PointOut"][];
+            window: components["schemas"]["WindowOut"];
         };
         /** PositionContributionOut */
         PositionContributionOut: {

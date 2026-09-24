@@ -458,6 +458,9 @@
           "risk": {
             "$ref": "#/components/schemas/RiskOut"
           },
+          "series": {
+            "$ref": "#/components/schemas/PortfolioSeriesOut"
+          },
           "scenarios": {
             "items": {
               "$ref": "#/components/schemas/ScenarioOut"
@@ -496,6 +499,7 @@
           "limiting_positions",
           "parameters",
           "risk",
+          "series",
           "scenarios",
           "regimes",
           "observations",
@@ -1224,6 +1228,27 @@
         "title": "ParametersOut",
         "description": "Ce qui a été DEMANDÉ, pas ce qui a été utilisé.\n\nAucune fenêtre effective ici : chaque mesure porte la sienne, et une fenêtre\nhissée en tête de document serait fausse pour toute mesure qui n'utilise pas\ncelle-là. `window` est le nombre de séances demandé au moteur ; le nombre\nréellement obtenu se lit sur `window.observations` de chaque mesure."
       },
+      "PointOut": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "value"
+        ],
+        "title": "PointOut",
+        "description": "Un point daté d'une série : la date en ISO, la valeur telle quelle."
+      },
       "PortfolioCreate": {
         "properties": {
           "name": {
@@ -1343,6 +1368,38 @@
         ],
         "title": "PortfolioOut",
         "description": "Le portefeuille tel qu'il est stocké.\n\n`updated_at` date le dernier remplacement des POSITIONS, jamais la création.\n`null` se lit « jamais modifié depuis l'application » — ce qui est vrai d'un\nportefeuille encore vide, et vrai des lignes antérieures à la migration,\npour lesquelles la date est réellement inconnue."
+      },
+      "PortfolioSeriesOut": {
+        "properties": {
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/PointOut"
+            },
+            "type": "array",
+            "title": "Returns",
+            "description": "Rendements quotidiens simples du portefeuille, en fraction, poids actuels constants. Autant de points que `window.observations`."
+          },
+          "wealth": {
+            "items": {
+              "$ref": "#/components/schemas/PointOut"
+            },
+            "type": "array",
+            "title": "Wealth",
+            "description": "Valeur cumulée d'une unité investie, base 1. Le premier point vaut 1,0 et précède le premier rendement d'une séance."
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "returns",
+          "wealth",
+          "window"
+        ],
+        "title": "PortfolioSeriesOut",
+        "description": "Les séries sur lesquelles les mesures du régime courant ont été calculées.\n\nPubliées pour être TRACÉES, pas recalculées : un histogramme ou une courbe\nde richesse dessinés à partir d'autre chose que ces points pourraient\nmontrer un creux que `risk.drawdown` ne décrit pas.\n\n`wealth` commence au point de départ à 1,0, daté de la séance qui PRÉCÈDE\nle premier rendement. Il a donc un point de plus que `returns`. Sans lui,\nle pic initial disparaît, et le creux dessiné ne correspond plus au\n`max_drawdown` publié quand la série baisse dès sa première séance."
       },
       "PositionContributionOut": {
         "properties": {

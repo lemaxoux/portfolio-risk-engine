@@ -347,6 +347,13 @@ class RiskReport:
 
     Les VaR et Expected Shortfall sont indexés par niveau de confiance, pour que
     le 95 % et le 99 % soient lisibles côte à côte sans multiplier les champs.
+
+    `returns` et `wealth` sont les séries MÊMES sur lesquelles les mesures ont
+    été calculées — `PortfolioSeries.returns` et `.wealth`, transportées telles
+    quelles. Un graphique qui les tracerait à partir d'un autre calcul pourrait
+    dessiner un creux que le `drawdown` publié ne décrit pas. `wealth` commence
+    au point de départ à 1,0, la séance qui précède le premier rendement : sans
+    lui, le pic initial disparaît (voir `returns.wealth_curve`).
     """
 
     portfolio_id: int
@@ -366,6 +373,8 @@ class RiskReport:
     parametric_var: dict[float, VarResult]
     expected_shortfall: dict[float, ExpectedShortfallResult]
     variance_contributions: VarianceContributionResult
+    returns: pd.Series = field(repr=False)
+    wealth: pd.Series = field(repr=False)
     beta: BetaResult | None = None
     monte_carlo_var: dict[float, VarResult] | None = None
     student_fit: var.StudentFit | None = None
@@ -1456,6 +1465,8 @@ def analyse_portfolio(
             c: expected_shortfall(serie, c) for c in confidence_levels
         },
         variance_contributions=variance_contributions(serie),
+        returns=serie.returns,
+        wealth=serie.wealth,
         limiting_positions=serie.limiting_positions,
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(
