@@ -307,7 +307,7 @@ def test_le_r2_est_affiche_a_cote_de_l_erreur_type():
         beta=0.96, r_squared=0.86, standard_error=0.02, observations=355,
         start=date(2007, 10, 10), end=date(2009, 3, 9),
     )
-    assert str(b) == "0.96 ± 0.02, R² 0.86 (355 séances)"
+    assert str(b) == "0,96 ± 0,02, R² 0,86 (355\u00a0séances)"
 
 
 def test_le_resume_ne_presente_pas_le_ratio_comme_un_beta(conn):

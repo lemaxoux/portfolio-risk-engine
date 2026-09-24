@@ -87,3 +87,42 @@ def test_l_accord_du_pluriel_est_le_meme(source_frontend):
     assert typography.sessions(1) == f"1{typography.NBSP}séance"
     assert typography.sessions(2) == f"2{typography.NBSP}séances"
     assert "Math.abs(nombre) < 2" in source_frontend
+
+
+# ═════════════════════════════════════ Les nombres eux-mêmes, pas les espaces ══
+#
+# Les quatre tests ci-dessus comparent le VOCABULAIRE. Ceux-ci comparent
+# l'ÉCRITURE d'un nombre : virgule, signe, arrondi. C'est leur absence qui a
+# laissé passer « ν = 4.07 » à côté du « 4,07 » du frontend — le backend
+# n'avait tout simplement pas de formateur décimal à comparer.
+
+
+def test_le_signe_moins_est_le_meme(source_frontend):
+    echappement = _constante(source_frontend, "SIGNE_MOINS")
+    assert int(echappement[2:], 16) == ord(typography.MINUS) == 0x2212
+
+
+def test_la_virgule_decimale_est_la_meme(source_frontend):
+    assert typography.number(1.5, 1) == "1,5"
+    assert typography.number(1234.5, 1) == f"1{typography.NARROW_NBSP}234,5"
+    assert "`${grouper(entier)},${fraction}`" in source_frontend
+
+
+def test_l_arrondi_est_le_meme(source_frontend):
+    """La moitié s'éloigne de zéro, sur la valeur binaire réelle, comme `toFixed`.
+
+    Le `format` de Python arrondit au pair : `f"{2.5:.0f}"` rend « 2 » là où
+    `(2.5).toFixed(0)` rend « 3 ». Une part de 12,5 % s'écrirait 12 % dans une
+    phrase du moteur et 13 % dans le chiffre affiché à côté.
+    """
+    assert typography.number(2.5, 0) == "3"
+    assert typography.number(-2.5, 0) == f"{typography.MINUS}3"
+    assert typography.number(0.125, 2) == "0,13"
+    # 1,005 vaut 1,00499999999999989 en binaire : ce n'est PAS une moitié.
+    assert typography.number(1.005, 2) == "1,00"
+    assert "Math.abs(valeur).toFixed(decimales)" in source_frontend
+
+
+def test_un_zero_arrondi_ne_porte_de_signe_d_aucun_cote(source_frontend):
+    assert typography.number(-0.004, 2) == "0,00"
+    assert "negatif && !nul" in source_frontend

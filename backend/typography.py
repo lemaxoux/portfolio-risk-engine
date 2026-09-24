@@ -7,6 +7,8 @@ typographie française, ces liens ne se coupent pas.
 
     U+202F  ESPACE FINE INSÉCABLE   avant « % », et comme séparateur de milliers
     U+00A0  ESPACE INSÉCABLE        entre un nombre et le mot qu'il compte
+    U+2212  SIGNE MOINS             jamais le trait d'union U+002D
+    ,       VIRGULE DÉCIMALE        jamais le point
 
 INSÉCABLE est le mot important, pas la largeur. Avec une espace ordinaire,
 « 25,6 % » se coupe en fin de ligne et le « % » part seul à la ligne suivante ;
@@ -22,9 +24,28 @@ projet. D'où un module à part, que les quatre importent.
 LE FRONTEND FAIT LE MÊME CHOIX, de son côté, pour les nombres qu'il formate
 lui-même (`frontend/DESIGN.md` §6). Ce module ne concerne que le texte déjà
 rédigé côté serveur, qu'une interface affiche tel quel.
+
+═══ TOUT NOMBRE ÉCRIT DANS UN TEXTE PASSE PAR ICI ═══
+
+Pas seulement les espaces : la virgule décimale et le signe moins aussi. Un
+`f"{nu:.2f}"` écrit dans une phrase publiée produit « ν = 4.07 » à côté du
+« 4,07 » que le frontend affiche pour le même nombre — deux conventions dans
+une même page. `number`, `percent`, `signed_points` et `compact` sont le
+pendant exact de `frontend/src/lib/format.ts`, y compris l'ARRONDI : la moitié
+s'arrondit en s'éloignant de zéro, sur la valeur binaire réelle du flottant,
+comme `Number.prototype.toFixed`. Le `format` de Python arrondit au pair
+(`f"{2.5:.0f}"` rend « 2 », `(2.5).toFixed(0)` rend « 3 ») : laissé tel quel,
+il ferait écrire 12 % d'un côté et 13 % de l'autre pour une part de 12,5 %.
+
+Seul le texte en PROSE est concerné. Un message d'erreur qui montre une
+commande ou un littéral Python à recopier (« MX_RISK_FREE_RATE=0.035 ») garde
+le point : c'est du code, et une virgule le rendrait faux.
 """
 
 from __future__ import annotations
+
+import math
+from decimal import ROUND_HALF_UP, Decimal
 
 NARROW_NBSP = " "
 NBSP = " "
@@ -68,3 +89,66 @@ def thousands(nombre: int) -> str:
 def grouped(nombre: int, singulier: str, pluriel: str | None = None) -> str:
     """Un grand nombre groupé, et le mot qu'il compte : « 100 000 tirages »."""
     return counted(nombre, singulier, pluriel, affiche=thousands(nombre))
+
+
+MINUS = "\u2212"
+
+
+def number(
+    valeur: float, decimales: int, *, signed: bool = False, trim: bool = False
+) -> str:
+    """Un nombre en écriture française : « 4,07 », « −0,36 », « 83 185,85 ».
+
+    `decimales` n'a pas de défaut, comme dans `format.ts` : c'est l'appelant
+    qui sait combien de décimales porte le nombre qu'il écrit.
+
+    `signed` écrit le « + » d'une valeur positive, pour un écart. `trim` retire
+    une partie décimale faite de zéros seulement : « 80 % » et non « 80,0 % »,
+    mais « 25,6 % » reste intact.
+
+    Une valeur qui s'arrondit à zéro ne porte AUCUN signe : « −0,0 » se lirait
+    comme une perte alors que le chiffre dit qu'il n'y en a pas — même règle
+    que `format.ts`.
+    """
+    if not math.isfinite(valeur):
+        raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
+    # `Decimal(float)` est la valeur binaire EXACTE : les égalités à la moitié
+    # sont de vraies égalités, et ROUND_HALF_UP les tranche comme `toFixed`.
+    arrondi = Decimal(abs(valeur)).quantize(
+        Decimal(1).scaleb(-decimales), rounding=ROUND_HALF_UP
+    )
+    entier, _, fraction = f"{arrondi:f}".partition(".")
+    if trim and not fraction.strip("0"):
+        fraction = ""
+    corps = thousands(int(entier)) + (f",{fraction}" if fraction else "")
+    if arrondi == 0:
+        return corps
+    if valeur < 0:
+        return f"{MINUS}{corps}"
+    return f"+{corps}" if signed else corps
+
+
+def percent(
+    fraction: float, decimales: int, *, signed: bool = False, trim: bool = False
+) -> str:
+    """Une fraction en pourcentage : `0.439` → « 43,9 % », espace FINE avant « % »."""
+    return (
+        f"{number(fraction * 100.0, decimales, signed=signed, trim=trim)}"
+        f"{NARROW_NBSP}%"
+    )
+
+
+def signed_points(ecart: float, decimales: int = 1) -> str:
+    """Un écart entre deux parts, signé, en points : `0.098` → « +9,8 pts »."""
+    return f"{number(ecart * 100.0, decimales, signed=True)}{NBSP}pts"
+
+
+def compact(valeur: float) -> str:
+    """L'écriture la plus courte d'un paramètre : `0.94` → « 0,94 », `60.0` → « 60 ».
+
+    Pour une constante que l'on CITE (λ de l'EWMA, valeur d'un seuil), dont le
+    nombre de décimales n'est pas choisi mais celui de la constante elle-même.
+    """
+    if not math.isfinite(valeur):
+        raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
+    return f"{valeur:g}".replace(".", ",").replace("-", MINUS)

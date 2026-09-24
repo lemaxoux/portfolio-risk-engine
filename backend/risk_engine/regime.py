@@ -39,6 +39,8 @@ from __future__ import annotations
 
 import math
 
+from backend import typography
+
 # En dessous de ce seuil, `ln(1 + R_b)` est trop proche de zéro pour qu'un rapport
 # ait un sens : le dénominateur ne mesure plus un mouvement de marché mais du bruit.
 # Un scénario de stress étant par définition un mouvement ample, le cas ne se
@@ -51,7 +53,8 @@ def log_return(simple_return: float) -> float:
     """`ln(1 + R)`. Lève si la perte atteint ou dépasse 100 %."""
     if simple_return <= -1.0:
         raise ValueError(
-            f"Rendement de {simple_return:.2%} : une perte totale n'a pas de "
+            f"Rendement de {typography.percent(simple_return, 2)} : une perte "
+            "totale n'a pas de "
             "rendement log défini."
         )
     return math.log1p(simple_return)

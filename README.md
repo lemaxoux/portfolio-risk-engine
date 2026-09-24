@@ -1107,6 +1107,13 @@ de différents : un test écrit contre `Intl` passerait sans rien prouver.
 `tests/test_typographie_partagee.py` tient les deux moitiés ensemble depuis la
 suite Python, parce que c'est le backend qui bouge.
 
+Côté backend, tout nombre écrit dans une phrase passe par `backend/typography.py`
+(`number`, `percent`, `signed_points`, `compact`), qui arrondit comme `toFixed`
+et non comme le `format` de Python. `tests/test_nombres_publies.py` le vérifie
+sur les RÉPONSES de l'API, chaîne par chaîne : aucun « 4.07 », aucun trait
+d'union en guise de signe moins, quelle que soit la façon dont le nombre a été
+écrit.
+
 #### Acceptation
 
 L'écran d'acceptation est une **page entière**, pas une modale : une modale se

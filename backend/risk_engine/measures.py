@@ -14,6 +14,8 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
+from backend import typography
+
 from .config import DDOF, EWMA_LAMBDA, TRADING_DAYS_PER_YEAR
 
 
@@ -294,7 +296,8 @@ def herfindahl_index(weights) -> float:
     total = float(np.sum(tableau))
     if not math.isclose(total, 1.0, abs_tol=1e-6):
         raise ValueError(
-            f"Les poids doivent sommer à 1 (somme reçue : {total:.6f})."
+            f"Les poids doivent sommer à 1 (somme reçue : "
+            f"{typography.number(total, 6)})."
         )
     return float(np.sum(tableau**2))
 

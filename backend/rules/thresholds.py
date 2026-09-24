@@ -24,6 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from backend import typography
 from backend.risk_engine.config import (
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
@@ -51,13 +52,11 @@ class Threshold:
         return self.kind is ThresholdKind.CHOSEN
 
     def __str__(self) -> str:
-        if self.percent:
-            valeur = (
-                f"{self.value * 100:.1f}".replace(".", ",").removesuffix(",0")
-                + " %"
-            )
-        else:
-            valeur = f"{self.value:g}".replace(".", ",")
+        valeur = (
+            typography.percent(self.value, 1, trim=True)
+            if self.percent
+            else typography.compact(self.value)
+        )
         if self.chosen:
             return (
                 f"{self.name} = {valeur} — seuil CHOISI à la main, non dérivé des "

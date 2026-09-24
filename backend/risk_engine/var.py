@@ -28,6 +28,8 @@ from scipy.optimize import minimize
 from scipy.stats import norm
 from scipy.stats import t as student_t
 
+from backend import typography
+
 from .config import DDOF, MONTE_CARLO_SEED, MONTE_CARLO_SIMULATIONS
 from .covariance import _aligned_weights, is_positive_definite
 
@@ -172,7 +174,8 @@ def expected_shortfall(
         # Impossible avec method="lower", qui rend toujours une observation ;
         # garde-fou si une autre méthode d'interpolation est passée.
         raise ValueError(
-            f"Aucune observation au niveau de confiance {confidence:.0%} : "
+            f"Aucune observation au niveau de confiance "
+            f"{typography.percent(confidence, 0)} : "
             "queue vide, l'Expected Shortfall n'est pas estimable."
         )
 
@@ -364,7 +367,8 @@ def fit_student_t(returns) -> StudentFit:
 def _require_finite_variance(nu: float) -> None:
     if not nu > 2.0:
         raise ValueError(
-            f"ν = {nu:.3f} ≤ 2 : la loi de Student n'a pas de variance finie. "
+            f"ν = {typography.number(nu, 3)} ≤ 2 : la loi de Student n'a pas de "
+            "variance finie. "
             "Aucune matrice d'échelle ne peut reproduire la covariance observée, "
             "et une VaR « à variance ajustée » n'a pas de sens. Vérifier d'abord "
             "l'ajustement — un ν à peine supérieur à 2 est lui-même suspect."

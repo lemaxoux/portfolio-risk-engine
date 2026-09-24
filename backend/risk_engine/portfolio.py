@@ -13,6 +13,8 @@ from datetime import date
 
 import pandas as pd
 
+from backend import typography
+
 
 class PortfolioError(Exception):
     """Portefeuille introuvable, vide, ou sans prix exploitables."""
@@ -197,7 +199,8 @@ def market_value_weights(
     total = sum(valeurs.values())
     if total <= 0:
         raise PortfolioError(
-            f"Valeur de marché totale nulle ou négative ({total:.2f}) : "
+            f"Valeur de marché totale nulle ou négative "
+            f"({typography.number(total, 2)}) : "
             "les poids ne sont pas définis."
         )
 

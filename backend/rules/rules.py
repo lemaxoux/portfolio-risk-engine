@@ -123,25 +123,15 @@ class RulesReport:
 # ----------------------------------------------------------- Mise en forme --
 
 
-def _decimal(valeur: float, decimales: int) -> str:
-    return f"{valeur:.{decimales}f}".replace(".", ",").replace("-", "−")
-
-
-def _pct(valeur: float, decimales: int = 1) -> str:
-    """Pourcentage, espace FINE insécable avant le signe (voir `typography`)."""
-    return f"{_decimal(valeur * 100.0, decimales)} %"
-
-
 def _points(ecart: float, decimales: int = 1) -> str:
-    """Magnitude d'un écart entre deux parts, en points (singulier sous 2)."""
+    """Magnitude d'un écart entre deux parts, en points (singulier sous 2).
+
+    L'accord suit le nombre AFFICHÉ, pas la valeur exacte : 1,96 point s'écrit
+    « 2,0 points ». Les chiffres, eux, sont ceux de `typography`.
+    """
     valeur = abs(ecart) * 100.0
     unite = "points" if round(valeur, decimales) >= 2 else "point"
-    return f"{_decimal(valeur, decimales)} {unite}"
-
-
-def _signed_points(valeur: float, decimales: int = 1) -> str:
-    signe = "+" if valeur > 0 else ("−" if valeur < 0 else "")
-    return f"{signe}{_decimal(abs(valeur) * 100.0, decimales)} pts"
+    return f"{typography.number(valeur, decimales)}{typography.NBSP}{unite}"
 
 
 def _enumeration(elements: Sequence[str]) -> str:
@@ -247,7 +237,7 @@ def effective_concentration(report: RiskReport) -> Observation:
             subject="portefeuille",
             statement=(
                 f"Tes {_lignes(c.n_positions)} se comportent comme "
-                f"{_decimal(en_capital, 1)} lignes effectives en capital "
+                f"{typography.number(en_capital, 1)} lignes effectives en capital "
                 "(inverse de la somme des carrés des poids) ; l'équipondération "
                 f"en donnerait {c.n_positions}. La lecture en risque n'est pas "
                 f"disponible : sur {_seances(seances)}, la covariance est de rang "
@@ -274,8 +264,8 @@ def effective_concentration(report: RiskReport) -> Observation:
             "seule ligne effective, en capital comme en risque."
         )
     else:
-        capital_affiche = _decimal(en_capital, 1)
-        risque_affiche = _decimal(en_risque, 1)
+        capital_affiche = typography.number(en_capital, 1)
+        risque_affiche = typography.number(en_risque, 1)
         ecart = round(en_risque, 1) - round(en_capital, 1)
         liaison = "mais" if ecart < 0 else "et"
         phrases = [
@@ -355,26 +345,29 @@ def _record_sentence(ticker: str, historique: list[tuple[ScenarioResult, float]]
     if len(historique) == 1:
         phrase = (
             f"Dans la crise rejouée ({pire[0].scenario.name}), la contribution de "
-            f"{ticker} au résultat du portefeuille a été de {_signed_points(pire[1])}."
+            f"{ticker} au résultat du portefeuille a été de "
+            f"{typography.signed_points(pire[1])}."
         )
     elif pire[1] < 0 < meilleur[1]:
         phrase = (
             f"Dans les crises rejouées, {ticker} a pesé dans les deux sens : "
-            f"{_signed_points(pire[1])} ({pire[0].scenario.name}), mais "
-            f"{_signed_points(meilleur[1])} ({meilleur[0].scenario.name})."
+            f"{typography.signed_points(pire[1])} ({pire[0].scenario.name}), mais "
+            f"{typography.signed_points(meilleur[1])} ({meilleur[0].scenario.name})."
         )
     elif meilleur[1] <= 0:
         phrase = (
             f"Dans les crises rejouées, la contribution de {ticker} au résultat du "
-            f"portefeuille a été négative à chaque fois, de {_signed_points(pire[1])} "
-            f"({pire[0].scenario.name}) à {_signed_points(meilleur[1])} "
+            f"portefeuille a été négative à chaque fois, de "
+            f"{typography.signed_points(pire[1])} "
+            f"({pire[0].scenario.name}) à {typography.signed_points(meilleur[1])} "
             f"({meilleur[0].scenario.name})."
         )
     else:
         phrase = (
             f"Dans les crises rejouées, la contribution de {ticker} au résultat du "
-            f"portefeuille a été positive à chaque fois, de {_signed_points(pire[1])} "
-            f"({pire[0].scenario.name}) à {_signed_points(meilleur[1])} "
+            f"portefeuille a été positive à chaque fois, de "
+            f"{typography.signed_points(pire[1])} "
+            f"({pire[0].scenario.name}) à {typography.signed_points(meilleur[1])} "
             f"({meilleur[0].scenario.name})."
         )
 
@@ -427,8 +420,8 @@ def variance_contribution(
         ecart = part - poids
 
         phrases = [
-            f"{ticker} pèse {_pct(poids)} de la valeur du portefeuille et "
-            f"{_pct(part)} de sa variance."
+            f"{ticker} pèse {typography.percent(poids, 1)} de la valeur du portefeuille et "
+            f"{typography.percent(part, 1)} de sa variance."
         ]
         if part < 0:
             phrases.append(
@@ -543,7 +536,7 @@ def apparent_diversification(
                 rule=RuleId.APPARENT_DIVERSIFICATION,
                 subject=f"{a}–{b}",
                 statement=(
-                    f"{a} et {b} ont une corrélation de {_decimal(rho, 2)} sur "
+                    f"{a} et {b} ont une corrélation de {typography.number(rho, 2)} sur "
                     f"{_seances(seances)} : elles ont largement évolué ensemble, et "
                     "apportent moins de diversification que leur nombre ne le "
                     f"suggère.{mince}"
@@ -562,8 +555,9 @@ def apparent_diversification(
             subject="portefeuille",
             statement=(
                 "Aucune paire de lignes n'atteint une corrélation de "
-                f"{_decimal(threshold.value, 2)} sur {_seances(seances)}. La paire la "
-                f"plus corrélée est {a}–{b}, à {_decimal(rho, 2)}.{mince}"
+                f""
+                f"{typography.number(threshold.value, 2)} sur {_seances(seances)}. La paire la "
+                f"plus corrélée est {a}–{b}, à {typography.number(rho, 2)}.{mince}"
             ),
             facts={"correlation_max": rho, "paire": f"{a}–{b}", "seances": seances},
             provenance=provenance,
@@ -617,11 +611,14 @@ def systematic_share(report: RiskReport) -> list[Observation]:
             rule=RuleId.SYSTEMATIC_SHARE,
             subject="portefeuille",
             statement=(
-                f"Sur {_seances(seances)}, {_pct(r2, 0)} de la variance du portefeuille "
+                f"Sur {_seances(seances)}, "
+                f"{typography.percent(r2, 0)} de la variance du portefeuille "
                 f"s'explique par les mouvements de {beta.benchmark} "
-                f"(R² {_decimal(r2, 2)}). Cette part est du risque de marché : elle est "
+                f"(R² "
+                f"{typography.number(r2, 2)}). Cette part est du risque de marché : elle est "
                 "commune aux actions américaines, et en détenir davantage ne la dilue "
-                f"pas. Les {_pct(1.0 - r2, 0)} restants sont propres aux lignes "
+                f"pas. Les "
+                f"{typography.percent(1.0 - r2, 0)} restants sont propres aux lignes "
                 "détenues ; c'est sur eux seuls que la diversification entre lignes a "
                 f"prise.{_mention_mince('le R²', seances)}"
             ),
@@ -656,17 +653,20 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
         mince = " — échantillon trop mince" if c.crisis_beta.sample_too_thin else ""
         if calme_commun:
             morceaux.append(
-                f"{_pct(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
+                f""
+                f"{typography.percent(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
             )
         else:
             morceaux.append(
-                f"de {_pct(c.calm_beta.r_squared, 0)} à "
-                f"{_pct(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
+                f"de {typography.percent(c.calm_beta.r_squared, 0)} à "
+                f""
+                f"{typography.percent(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
             )
 
     if calme_commun:
         phrases = [
-            f"La part systématique du risque passe de {_pct(calmes[0], 0)} en régime "
+            f"La part systématique du risque passe de "
+            f"{typography.percent(calmes[0], 0)} en régime "
             f"calme à {_enumeration(morceaux)} dans les crises rejouées."
         ]
     else:
@@ -774,16 +774,20 @@ def scenario_coverage(
             )
         elif couverture.value_share < threshold.value:
             texte = (
-                f"{nom} ne couvre que {_pct(couverture.value_share, 0)} de la valeur "
-                f"du portefeuille ({detail}). En dessous de {_pct(threshold.value, 0)}, "
+                f"{nom} ne couvre que "
+                f"{typography.percent(couverture.value_share, 0)} de la valeur "
+                f"du portefeuille ({detail}). En dessous de "
+                f"{typography.percent(threshold.value, 0)}, "
                 "la partie rejouée est minoritaire dans la valeur : aucun chiffre "
                 "principal n'est donné pour ce scénario."
             )
         else:
             texte = (
-                f"{nom} couvre {_pct(couverture.value_share, 0)} de la valeur du "
+                f"{nom} couvre "
+                f"{typography.percent(couverture.value_share, 0)} de la valeur du "
                 f"portefeuille ({detail}). Son résultat de bout en bout "
-                f"({_pct(resultat.end_to_end_return)}) porte sur cette partie "
+                f"("
+                f"{typography.percent(resultat.end_to_end_return, 1)}) porte sur cette partie "
                 "seulement et sous-estime probablement celui de l'ensemble : une "
                 "ligne absente de l'historique d'une crise est cotée plus récemment, "
                 "en moyenne plus jeune et plus spéculative."

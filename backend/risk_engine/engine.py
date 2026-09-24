@@ -17,7 +17,7 @@ from datetime import date
 import pandas as pd
 
 from backend import typography
-from backend.typography import NARROW_NBSP, NBSP
+from backend.typography import NARROW_NBSP
 
 from . import covariance, measures, regime, stress, var
 from .config import (
@@ -43,18 +43,6 @@ from .portfolio import (
 )
 from .scenarios import SCENARIOS, Scenario
 from .returns import align_panel, portfolio_returns, simple_returns, wealth_curve
-
-
-def _pourcent(valeur: float, signe: bool = False) -> str:
-    """Fraction en pourcentage, espace FINE insécable avant le signe.
-
-    Le séparateur décimal reste le POINT dans ces résumés, là où le moteur de
-    règles écrit une virgule : deux conventions coexistent, et seule la seconde
-    est française. L'écart est antérieur à cette passe et n'est pas corrigé ici
-    — il se règle en une fois, pas mesure par mesure.
-    """
-    brut = f"{valeur:+.1%}" if signe else f"{valeur:.1%}"
-    return brut.replace("%", f"{NARROW_NBSP}%")
 
 
 @dataclass(frozen=True)
@@ -308,11 +296,10 @@ class ExpectedShortfallResult:
     def caveat(self) -> str | None:
         if self.confidence < 0.99:
             return None
-        poids = round(100 / self.tail_observations)
         return (
             f"Moyenne de {typography.sessions(self.tail_observations)} seulement, "
             f"sur une fenêtre de {self.window.observations} : chacune pèse pour "
-            f"{poids}{NARROW_NBSP}% du chiffre."
+            f"{typography.percent(1 / self.tail_observations, 0)} du chiffre."
         )
 
 @dataclass(frozen=True)
@@ -520,7 +507,7 @@ def ewma_volatility(
     return VolatilityResult(
         annualised=annualisee,
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
-        method=f"EWMA (λ={lam})",
+        method=f"EWMA (λ={typography.compact(lam)})",
         window=serie.window,
     )
 
@@ -848,7 +835,7 @@ def student_parametric_var(
         method="Student paramétrique",
         window=serie.window,
         detail=(
-            f"ν = {ajustement.nu:.2f} (MLE sur "
+            f"ν = {typography.number(ajustement.nu, 2)} (MLE sur "
             f"{typography.sessions(ajustement.observations)}), variance ajustée sur Σ"
         ),
         nu=ajustement.nu,
@@ -879,7 +866,7 @@ def student_monte_carlo_var(
         method="Monte Carlo Student",
         window=serie.window,
         detail=(
-            f"ν = {ajustement.nu:.2f} (MLE sur "
+            f"ν = {typography.number(ajustement.nu, 2)} (MLE sur "
             f"{typography.sessions(ajustement.observations)}), échelle S = Σ·(ν−2)/ν, "
             f"{typography.grouped(brut.simulations, 'tirage')}, "
             f"graine {brut.seed}"
@@ -947,7 +934,7 @@ class ScenarioCoverage:
             return f"{typography.lines(self.covered_count)}, 100{NARROW_NBSP}% de la valeur"
         return (
             f"{self.covered_count}/{typography.lines(self.total_count)}, "
-            f"{_pourcent(self.value_share)} de la valeur "
+            f"{typography.percent(self.value_share, 1)} de la valeur "
             f"(exclues : {', '.join(e.ticker for e in self.excluded)})"
         )
 
@@ -1008,14 +995,16 @@ class ScenarioResult:
             "portefeuille complet"
             if self.coverage.is_complete
             else (
-                f"{_pourcent(self.coverage.value_share)} de la valeur seulement, "
+                f"{typography.percent(self.coverage.value_share, 1)} de la valeur "
+                "seulement, "
                 "perte probablement sous-estimée"
             )
         )
         return (
-            f"{self.scenario.name} : {_pourcent(self.end_to_end_return, signe=True)} "
+            f"{self.scenario.name} : "
+            f"{typography.percent(self.end_to_end_return, 1, signed=True)} "
             f"de bout en bout, pire moment "
-            f"{_pourcent(self.max_drawdown.value, signe=True)} "
+            f"{typography.percent(self.max_drawdown.value, 1, signed=True)} "
             f"({typography.sessions(self.observations)}, {portee})"
         )
 
@@ -1186,10 +1175,13 @@ class RegressedBeta:
 
     def __str__(self) -> str:
         incertitude = (
-            "" if self.standard_error is None else f" ± {self.standard_error:.2f}"
+            ""
+            if self.standard_error is None
+            else f" ± {typography.number(self.standard_error, 2)}"
         )
         texte = (
-            f"{self.beta:.2f}{incertitude}, R² {self.r_squared:.2f} "
+            f"{typography.number(self.beta, 2)}{incertitude}, "
+            f"R² {typography.number(self.r_squared, 2)} "
             f"({typography.sessions(self.observations)})"
         )
         if self.sample_too_thin:
@@ -1277,28 +1269,32 @@ class RegimeComparison:
         ratio = (
             "indéfini (benchmark quasi immobile)"
             if self.amplification_ratio is None
-            else f"{self.amplification_ratio:.2f}"
+            else typography.number(self.amplification_ratio, 2)
         )
         lignes = [
             f"{self.scenario.name} : portefeuille "
-            f"{_pourcent(self.portfolio_return, signe=True)}, "
-            f"{self.benchmark} {_pourcent(self.benchmark_return, signe=True)}",
+            f"{typography.percent(self.portfolio_return, 1, signed=True)}, "
+            f"{self.benchmark} "
+            f"{typography.percent(self.benchmark_return, 1, signed=True)}",
             f"  ratio d'amplification réalisé : {ratio} "
             "(rapport de rendements log, pas un beta)",
             f"  beta régressé dans la fenêtre : {self.crisis_beta}",
             f"  beta de régime calme : {self.calm_beta}",
-            f"  part de risque systématique (R²) : {self.calm_beta.r_squared:.2f} "
-            f"en régime calme → {self.crisis_beta.r_squared:.2f} en crise "
-            f"({self.systematic_share_change:+.2f})"
+            f"  part de risque systématique (R²) : "
+            f"{typography.number(self.calm_beta.r_squared, 2)} en régime calme → "
+            f"{typography.number(self.crisis_beta.r_squared, 2)} en crise "
+            f"({typography.number(self.systematic_share_change, 2, signed=True)})"
             + (" — échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
             f"  le beta calme prédisait "
-            f"{_pourcent(self.predicted_return, signe=True)}, perte réelle "
-            f"{_pourcent(self.portfolio_return, signe=True)} : écart "
-            f"{self.prediction_gap * 100:+.1f}{NBSP}pts",
+            f"{typography.percent(self.predicted_return, 1, signed=True)}, "
+            f"perte réelle "
+            f"{typography.percent(self.portfolio_return, 1, signed=True)} : écart "
+            f"{typography.signed_points(self.prediction_gap)}",
         ]
         if not self.coverage.is_complete:
             lignes.append(
-                f"  portée : {_pourcent(self.coverage.value_share)} de la valeur "
+                f"  portée : {typography.percent(self.coverage.value_share, 1)} "
+                "de la valeur "
                 "seulement, perte probablement sous-estimée"
             )
         return "\n".join(lignes)
