@@ -12,12 +12,15 @@ construisent leur propre univers, pour contrôler exactement les prix. Mais
 certains doivent tourner sur les vraies séries : un scénario 2008 rejoué sur
 seize séances inventées ne dirait rien de la sérialisation d'une couverture
 partielle, ni du volet Student, qui dépend de la forme réelle des queues.
+
+ET LA COPIE DES VRAIES SÉRIES EST FIGÉE — voir `DATE_GEL`.
 """
 
 from __future__ import annotations
 
 import shutil
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +30,45 @@ from backend.db.init_db import connect, init_db
 
 RACINE = Path(__file__).resolve().parents[1]
 BASE_REELLE = RACINE / "data" / "mx_risk.sqlite"
+
+# Dernière séance que voient les tests écrits sur les vraies séries.
+#
+# `data/mx_risk.sqlite` est un fichier VIVANT : `python -m backend.ingestion
+# refresh` y ajoute des séances chaque jour. Un test qui en lit la dernière
+# date vérifie donc l'état du fichier, et non le code — il échoue le lendemain
+# d'un rattrapage sans qu'une ligne ait changé. C'est arrivé : la fenêtre
+# attendue 2024-09-05 → 2026-09-09 est devenue 2024-09-19 → 2026-09-23 au
+# premier rafraîchissement.
+#
+# La copie de test est donc tronquée à cette date. Ce qui la rend stable :
+#
+# * `refresh` repart de la dernière séance EN BASE, donc postérieure au gel :
+#   il n'a aucune raison de réécrire une séance figée ;
+# * un dividende multiplie tous les `adj_close` ANTÉRIEURS par un même facteur
+#   (vérifié chez Tiingo : ratio adj_close / close identique avant la date de
+#   détachement). Même si un split déclenchait une reprise complète de
+#   l'historique, les RENDEMENTS dans la fenêtre figée ne bougeraient pas ;
+# * les cours BRUTS (`close`), qui servent à la valorisation, ne sont jamais
+#   ajustés.
+#
+# Une exception connue, qui vient de l'ingestion et non du gel : le rattrapage
+# du 2026-09-23 a réécrit la séance du 2026-09-09 sur la base ajustée d'après
+# un dividende, sans toucher à celle du 2026-09-08. Pour KO et SPY, le dernier
+# rendement de la fenêtre figée porte donc un faux saut de l'ordre du
+# dividende. Les valeurs de référence (beta 0,5672, volatilité 0,13327) sont
+# retrouvées à moins de 3e-4 près, dans les tolérances des tests.
+DATE_GEL = "2026-09-09"
+
+
+def copier_base_reelle_figee(destination: Path) -> Path:
+    """Copie la base réelle et en retire toute séance postérieure au gel.
+
+    La suppression porte sur la COPIE, jamais sur `data/mx_risk.sqlite`.
+    """
+    shutil.copy(BASE_REELLE, destination)
+    with closing(connect(destination)) as conn, conn:
+        conn.execute("DELETE FROM prices WHERE date > ?", (DATE_GEL,))
+    return destination
 
 @pytest.fixture
 def client_factory(tmp_path, monkeypatch):
@@ -86,8 +128,9 @@ def analyse_reelle(tmp_path_factory):
 
     from fastapi.testclient import TestClient
 
-    copie = tmp_path_factory.mktemp("analyse_reelle") / "copie.sqlite"
-    shutil.copy(BASE_REELLE, copie)
+    copie = copier_base_reelle_figee(
+        tmp_path_factory.mktemp("analyse_reelle") / "copie.sqlite"
+    )
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("MX_RISK_DB_PATH", str(copie))
