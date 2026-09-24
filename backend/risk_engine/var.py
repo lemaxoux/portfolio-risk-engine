@@ -367,8 +367,8 @@ def fit_student_t(returns) -> StudentFit:
 def _require_finite_variance(nu: float) -> None:
     if not nu > 2.0:
         raise ValueError(
-            f"ν = {typography.number(nu, 3)} ≤ 2 : la loi de Student n'a pas de "
-            "variance finie. "
+            f"Degrés de liberté ν = {typography.number(nu, 3)} ≤ 2 : la loi de "
+            "Student n'a pas de variance finie. "
             "Aucune matrice d'échelle ne peut reproduire la covariance observée, "
             "et une VaR « à variance ajustée » n'a pas de sens. Vérifier d'abord "
             "l'ajustement — un ν à peine supérieur à 2 est lui-même suspect."

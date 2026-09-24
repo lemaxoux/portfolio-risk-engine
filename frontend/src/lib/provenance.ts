@@ -54,18 +54,24 @@ export function provenanceDeVar(
   resultat: Var,
   controle: Var | null = null,
 ): LigneProvenance[] {
-  const lignes: LigneProvenance[] = [
-    { libelle: 'Méthode', valeur: resultat.method },
-    { libelle: 'Calcul', valeur: resultat.detail },
-  ]
+  const lignes: LigneProvenance[] = [{ libelle: 'Méthode', valeur: resultat.method }]
 
   // ν n'apparaît que sur les VaR de Student, où il EST l'information (§11.5) :
   // c'est le degré de liberté ajusté sur les données, donc l'épaisseur de queue
   // que l'hypothèse de normalité refusait de voir.
+  //
+  // NOMMÉ AVANT D'ÊTRE ÉCRIT SEUL. En IBM Plex Sans, ν (nu) et v se ressemblent
+  // au point de se confondre : « ν = 4,07 » se lirait « v = 4,07 ». Le premier
+  // usage du bloc dit donc « degrés de liberté », et il précède la ligne
+  // « Calcul », dont le texte rédigé par le backend cite ν sans le nommer.
   if (resultat.nu !== null) {
-    lignes.push({ libelle: 'ν ajusté', valeur: decimal(resultat.nu, 2) })
+    lignes.push({
+      libelle: 'Degrés de liberté',
+      valeur: `ν = ${decimal(resultat.nu, 2)}`,
+    })
   }
 
+  lignes.push({ libelle: 'Calcul', valeur: resultat.detail })
   lignes.push(...lignesDeFenetre(resultat.window))
 
   if (controle !== null) {

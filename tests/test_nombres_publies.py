@@ -187,7 +187,7 @@ def test_le_refus_de_student_ecrit_nu_a_la_virgule():
     with pytest.raises(ValueError) as refus:
         var.student_t_var(0.01, 1.9, 0.95)
     message = str(refus.value)
-    assert "ν = 1,900 ≤ 2" in message
+    assert message.startswith("Degrés de liberté ν = 1,900 ≤ 2")
     assert fautes_de(message) == []
 
 
