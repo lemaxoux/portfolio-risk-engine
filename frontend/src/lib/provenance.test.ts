@@ -6,8 +6,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import type { Var, Window } from '../api/types'
-import { provenanceDeVar } from './provenance'
+import type { ExpectedShortfall, Var, Window } from '../api/types'
+import { provenanceDeCVaR, provenanceDeVar } from './provenance'
 
 const FENETRE: Window = {
   requested: 504,
@@ -53,5 +53,21 @@ describe('ν est nommé avant d’être écrit seul', () => {
     const lignes = provenanceDeVar(NORMALE)
     expect(lignes.map((ligne) => ligne.libelle)).not.toContain('Degrés de liberté')
     expect(lignes.some((ligne) => ligne.valeur.includes('ν'))).toBe(false)
+  })
+})
+
+describe('provenance d’une CVaR', () => {
+  const CVAR_99: ExpectedShortfall = {
+    value: 0.0243,
+    confidence: 0.99,
+    tail_observations: 6,
+    threshold: -0.0173,
+    caveat: null,
+    window: FENETRE,
+  }
+
+  it('dit ce que compte le nombre de tête : des séances dans la queue', () => {
+    const [premiere] = provenanceDeCVaR(CVAR_99)
+    expect(premiere).toEqual({ libelle: 'Séances dans la queue', valeur: '6\u00a0séances' })
   })
 })

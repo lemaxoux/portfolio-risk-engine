@@ -97,7 +97,10 @@ export function provenanceDeVar(
  */
 export function provenanceDeCVaR(resultat: ExpectedShortfall): LigneProvenance[] {
   return [
-    { libelle: 'Queue moyennée', valeur: seances(resultat.tail_observations) },
+    // « Séances dans la queue » et non « Queue moyennée » : le libellé dit ce
+    // que COMPTE le nombre, des séances. « Moyennée » décrivait l'opération
+    // faite sur elles, et se lisait comme un adjectif de la valeur.
+    { libelle: 'Séances dans la queue', valeur: seances(resultat.tail_observations) },
     {
       libelle: 'Seuil (rendement)',
       valeur: pourcentage(resultat.threshold, 2),
