@@ -55,3 +55,24 @@ def test_chaque_ligne_porte_le_nom_du_catalogue(client_synthetique, portefeuille
         assert lignes
         for ligne in lignes:
             assert ligne["name"] == catalogue[ligne["ticker"]]
+
+
+# ═════════════════════════════════════════════════════════════ Devise ══
+
+
+def test_la_devise_est_publiee_sur_la_valorisation_et_dans_meta(
+    client_synthetique, portefeuille_synthetique
+):
+    """Un code ISO, jamais un symbole : « $ » se lit dollar canadien à Montréal."""
+    from backend.risk_engine.config import PRICE_CURRENCY
+
+    analyse = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis?window=250"
+    ).json()
+    detail = client_synthetique.get(f"/api/portfolios/{portefeuille_synthetique}").json()
+    meta = client_synthetique.get("/api/meta").json()
+
+    assert PRICE_CURRENCY == "USD"
+    assert analyse["valuation"]["currency"] == PRICE_CURRENCY
+    assert detail["valuation"]["currency"] == PRICE_CURRENCY
+    assert meta["price_currency"] == PRICE_CURRENCY

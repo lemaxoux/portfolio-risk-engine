@@ -115,17 +115,34 @@ export function lignes(nombre: number): string {
 }
 
 /**
- * Une valeur de portefeuille.
+ * Une valeur de portefeuille : le NOMBRE seul, à deux décimales.
  *
- * SANS SYMBOLE DE DEVISE, et c'est délibéré : l'API ne publie aucune devise —
- * ni sur le portefeuille, ni sur un titre, ni sur un prix. Écrire « $ » ici
- * serait une affirmation du frontend sur des données qu'il n'a pas reçues,
- * c'est-à-dire exactement ce que la règle d'or interdit. Le jour où le moteur
- * publiera la devise, elle s'affichera ; d'ici là, une omission vaut mieux
- * qu'une invention.
+ * Sans devise : ce module n'en invente aucune. La devise est une donnée publiée
+ * par l'API (`valuation.currency`), et c'est `montant` qui l'accole. Une
+ * colonne de tableau, dont l'en-tête porte déjà la devise, n'a besoin que du
+ * nombre.
  */
 export function valeurDePortefeuille(valeur: number): string {
   return decimal(valeur, 2)
+}
+
+/**
+ * Un montant et sa devise : « 83 185,85 USD ».
+ *
+ * La devise est le CODE ISO 4217 publié par l'API, jamais un symbole. À
+ * Montréal, « $ » sans qualificatif se lit dollar canadien : « 83 185,85 $ »
+ * y serait faux de 30 % sans que rien ne le signale. Un code qui n'a pas la
+ * forme d'un code ISO est refusé plutôt qu'affiché — c'est le seul moyen
+ * qu'un « $ » ne passe jamais, d'où qu'il vienne.
+ *
+ * U+00A0 entre le nombre et le code : c'est l'unité que le nombre compte, et
+ * « USD » ne doit pas partir seul à la ligne.
+ */
+export function montant(valeur: number, devise: string): string {
+  if (!/^[A-Z]{3}$/.test(devise)) {
+    throw new Error(`Devise qui n'est pas un code ISO 4217 : « ${devise} »`)
+  }
+  return `${valeurDePortefeuille(valeur)}${ESPACE_INSECABLE}${devise}`
 }
 
 const MOIS = [

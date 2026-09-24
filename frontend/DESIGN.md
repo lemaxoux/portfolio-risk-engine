@@ -361,7 +361,7 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  Mx Risk MGT      Portefeuille principal      83 185,85 $       [◐]      │
+│  Mx Risk MGT      Portefeuille principal      83 185,85 USD     [◐]      │
 │           Valorisé au 2026-09-09   Fenêtre d'estimation : 504 séances     │
 │                   Positions modifiées le 2026-09-21                       │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -371,6 +371,10 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 modification des positions sont dans le bandeau **parce qu'ils conditionnent
 tout le reste**. C'est la traduction visuelle directe de la discipline du
 backend. `[◐]` = bascule de thème.
+
+La valeur s'écrit avec le **code ISO** de la devise publiée par l'API
+(`valuation.currency`), jamais avec un symbole : à Montréal, « $ » sans
+qualificatif se lit dollar canadien.
 
 - **Fenêtre d'estimation** — le bandeau lit `analysis.estimation_window`, la
   fenêtre du **panel de régime courant** publiée par l'API, et rien d'autre.
@@ -829,7 +833,7 @@ projet a déjà corrigé plusieurs fois des chiffres plausibles mais faux.
 | MSFT | 14,8 % | 15,4 % | +0,6 pts |
 | KO | 12,6 % | 5,3 % | −7,3 pts |
 
-- Valeur du portefeuille : 83 185,85 $ · 6 lignes · concentration effective 5,65
+- Valeur du portefeuille : 83 185,85 USD · 6 lignes · concentration effective 5,65
 - Volatilité annualisée : 13,3 % (quotidienne 0,84 %)
 - VaR 95 % paramétrique, 1 séance : 1,38 % — VaR 99 % : 1,95 %
 - Scénarios, à parts figées depuis les poids actuels, couverture 100 % :

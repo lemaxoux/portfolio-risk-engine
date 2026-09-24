@@ -20,7 +20,7 @@
  * continue d'afficher la sienne ; le bandeau ne dispense de rien.
  */
 import type { Analysis } from '../api/types'
-import { dateISO, seances, valeurDePortefeuille } from '../lib/format'
+import { dateISO, montant, seances } from '../lib/format'
 import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './Bandeau.module.css'
@@ -70,7 +70,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
 
       <div className={styles.total}>
         <span className={styles.montant}>
-          {valeurDePortefeuille(analyse.total_value)}
+          {montant(analyse.total_value, analyse.valuation.currency)}
         </span>
         <ThemeToggle />
       </div>

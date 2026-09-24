@@ -76,7 +76,7 @@ from backend.risk_engine.portfolio import PortfolioWeights, Security
 from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.risk_engine.var import StudentFit
-from backend.risk_engine.config import DEFAULT_WINDOW
+from backend.risk_engine.config import DEFAULT_WINDOW, PRICE_CURRENCY
 from backend.rules.disclaimer import (
     ACCEPTANCE_CONFIRMATION,
     ACCEPTANCE_TITLE,
@@ -167,6 +167,13 @@ class MetaOut(Schema):
 
     as_of: date | None
     securities_count: int
+    price_currency: str = Field(
+        description=(
+            "Code ISO 4217 de la devise de tous les prix en base. Hypothèse du "
+            "périmètre v1 (titres cotés aux États-Unis, cours Tiingo), pas une "
+            "donnée lue ligne à ligne : aucune conversion n'est faite."
+        )
+    )
 
 
 class SecurityOut(Schema):
@@ -253,6 +260,12 @@ class ValuedPositionOut(Schema):
 class ValuationOut(Schema):
     as_of: date
     total_value: float
+    currency: str = Field(
+        description=(
+            "Code ISO 4217 des prix et des valeurs. Jamais un symbole : « $ » "
+            "sans qualificatif se lit dollar canadien à Montréal."
+        )
+    )
     positions: list[ValuedPositionOut]
 
     @classmethod
@@ -279,6 +292,7 @@ class ValuationOut(Schema):
         return cls(
             as_of=weights.as_of,
             total_value=weights.total_value,
+            currency=PRICE_CURRENCY,
             positions=[
                 ValuedPositionOut(
                     ticker=ticker,

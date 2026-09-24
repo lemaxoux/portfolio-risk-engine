@@ -81,11 +81,22 @@ def test_un_titre_sans_historique_reste_liste_avec_des_dates_nulles(
 
 
 def test_une_base_sans_aucun_prix_rend_as_of_null(tmp_path, client_factory):
-    """Pas de date plutôt qu'une date fausse."""
+    """Pas de date plutôt qu'une date fausse.
+
+    Champ par champ, et non par égalité sur toute la réponse : ce test porte
+    sur `as_of`, pas sur la liste des champs de `/api/meta`. Cette liste est
+    déjà surveillée par `test_openapi_schema.py`, qui compare le schéma publié
+    au schéma commité — y revenir ici par une égalité complète ne comblerait
+    aucun trou, et ferait échouer ce test à chaque champ ajouté sans que
+    `as_of` soit en cause.
+    """
     from backend.db.init_db import init_db
 
     chemin = tmp_path / "vide.sqlite"
     init_db(chemin)
     with client_factory(chemin) as client:
         meta = client.get("/api/meta").json()
-    assert meta == {"as_of": None, "securities_count": 0}
+    assert meta["as_of"] is None
+    assert meta["securities_count"] == 0
+    # La devise est une hypothèse du périmètre, publiée même sur une base vide.
+    assert meta["price_currency"] == "USD"

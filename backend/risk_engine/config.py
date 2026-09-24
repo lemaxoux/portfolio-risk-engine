@@ -72,6 +72,21 @@ EWMA_LAMBDA = 0.94
 # distingue, à l'œil, d'un portefeuille diversifié.
 HISTOGRAM_BIN_WIDTH = 0.0025
 
+# ------------------------------------------------------------------ Devise --
+#
+# Devise de TOUS les prix en base, donc de toutes les valeurs de portefeuille.
+#
+# HYPOTHÈSE DU PÉRIMÈTRE v1, pas une donnée lue : l'univers ne contient que des
+# titres cotés aux États-Unis, et Tiingo rend leurs cours en dollars
+# américains sans publier la devise ligne à ligne. Aucune conversion n'est
+# faite nulle part — un titre coté dans une autre devise ferait de cette
+# constante un mensonge, et devrait entrer avec sa propre devise.
+#
+# Publiée sous son code ISO 4217 et non sous un symbole : à Montréal, « $ »
+# sans qualificatif se lit dollar canadien. Une valeur de portefeuille écrite
+# « 83 185,85 $ » y serait fausse de 30 % sans que rien ne le signale.
+PRICE_CURRENCY = "USD"
+
 # ------------------------------------------------------ Degrés de liberté --
 #
 # UNE SEULE convention pour TOUTE estimation de dispersion du moteur :

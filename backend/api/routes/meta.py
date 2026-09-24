@@ -6,6 +6,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
+from backend.risk_engine.config import PRICE_CURRENCY
 from backend.risk_engine.portfolio import latest_price_date, load_securities
 
 from ..dependencies import get_connection
@@ -25,6 +26,7 @@ def read_meta(conn: sqlite3.Connection = Depends(get_connection)) -> MetaOut:
     return MetaOut(
         as_of=latest_price_date(conn),
         securities_count=len(load_securities(conn)),
+        price_currency=PRICE_CURRENCY,
     )
 
 

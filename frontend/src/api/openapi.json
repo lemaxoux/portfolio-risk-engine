@@ -1141,13 +1141,19 @@
           "securities_count": {
             "type": "integer",
             "title": "Securities Count"
+          },
+          "price_currency": {
+            "type": "string",
+            "title": "Price Currency",
+            "description": "Code ISO 4217 de la devise de tous les prix en base. Hypothèse du périmètre v1 (titres cotés aux États-Unis, cours Tiingo), pas une donnée lue ligne à ligne : aucune conversion n'est faite."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "as_of",
-          "securities_count"
+          "securities_count",
+          "price_currency"
         ],
         "title": "MetaOut",
         "description": "État de la base, pas de l'horloge.\n\n`as_of` est la dernière séance PRÉSENTE EN BASE. Ce n'est pas la date du\njour : un week-end, un jour férié ou une ingestion en panne la laissent en\narrière, et c'est précisément cet écart qu'il faut pouvoir voir.\n\nÀ ne pas confondre avec l'`as_of` d'une analyse, qui est la date de\nvalorisation d'un portefeuille donné — la plus ancienne des dernières\nclôtures de ses lignes — et peut donc être antérieure à celle-ci."
@@ -2409,6 +2415,11 @@
             "type": "number",
             "title": "Total Value"
           },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "Code ISO 4217 des prix et des valeurs. Jamais un symbole : « $ » sans qualificatif se lit dollar canadien à Montréal."
+          },
           "positions": {
             "items": {
               "$ref": "#/components/schemas/ValuedPositionOut"
@@ -2422,6 +2433,7 @@
         "required": [
           "as_of",
           "total_value",
+          "currency",
           "positions"
         ],
         "title": "ValuationOut"

@@ -25,6 +25,7 @@ import {
   pourcentage,
   pourcentageOuTiret,
   seances,
+  montant,
   valeurDePortefeuille,
 } from './format'
 
@@ -224,5 +225,25 @@ describe('convention de signe des pertes (§9.1, règle 2)', () => {
     expect(estUnGain(0)).toBe(false)
     // Le nombre, lui, s'écrit tel qu'il est — c'est la phrase qui change.
     expect(pourcentage(-0.0021, 2)).toBe(`${SIGNE_MOINS}0,21${ESPACE_FINE}%`)
+  })
+})
+
+describe('montant et devise', () => {
+  it('écrit le code ISO publié, jamais un symbole : « 83 185,85 USD »', () => {
+    const ecrit = montant(83185.85, 'USD')
+    expect(ecrit).toBe(`83${ESPACE_FINE}185,85${ESPACE_INSECABLE}USD`)
+    expect(ecrit).not.toContain('$')
+  })
+
+  it('refuse un symbole plutôt que de l’afficher', () => {
+    // À Montréal, « $ » se lit dollar canadien : un montant américain écrit
+    // « 83 185,85 $ » y serait faux de 30 %.
+    expect(() => montant(83185.85, '$')).toThrow()
+    expect(() => montant(83185.85, 'US$')).toThrow()
+    expect(() => montant(83185.85, 'usd')).toThrow()
+  })
+
+  it('lie le nombre à sa devise par une espace insécable', () => {
+    expect(montant(1000, 'USD')).not.toContain('\u0020')
   })
 })

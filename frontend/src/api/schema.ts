@@ -622,6 +622,11 @@ export interface components {
             as_of: string | null;
             /** Securities Count */
             securities_count: number;
+            /**
+             * Price Currency
+             * @description Code ISO 4217 de la devise de tous les prix en base. Hypothèse du périmètre v1 (titres cotés aux États-Unis, cours Tiingo), pas une donnée lue ligne à ligne : aucune conversion n'est faite.
+             */
+            price_currency: string;
         };
         /**
          * ObservationOut
@@ -1146,6 +1151,11 @@ export interface components {
             as_of: string;
             /** Total Value */
             total_value: number;
+            /**
+             * Currency
+             * @description Code ISO 4217 des prix et des valeurs. Jamais un symbole : « $ » sans qualificatif se lit dollar canadien à Montréal.
+             */
+            currency: string;
             /** Positions */
             positions: components["schemas"]["ValuedPositionOut"][];
         };
