@@ -888,6 +888,55 @@ class PortfolioSeriesOut(Schema):
         )
 
 
+class HistogramBinOut(Schema):
+    lower: float
+    upper: float
+    count: int
+
+
+class ReturnHistogramOut(Schema):
+    """Les rendements quotidiens comptés par classes, PAR LE MOTEUR.
+
+    Le client dessine ces classes telles quelles ; il ne les recalcule pas.
+    Laissé à la bibliothèque de graphiques (`binX`), le découpage s'ajusterait
+    à chaque portefeuille, et deux portefeuilles ne se liraient plus sur la
+    même grille — comme une carte de corrélation dont l'échelle suivrait les
+    données.
+    """
+
+    bin_width: float = Field(
+        description=(
+            "Largeur de classe, en fraction : 0.0025 se lit 0,25 point. "
+            "Paramètre CHOISI (`HISTOGRAM_BIN_WIDTH`), le même pour tous les "
+            "portefeuilles ; les bornes sont des multiples de cette largeur, "
+            "donc zéro est toujours une borne."
+        )
+    )
+    closed: Literal["left"] = Field(
+        description="Chaque classe contient les rendements r tels que lower ≤ r < upper."
+    )
+    bins: list[HistogramBinOut] = Field(
+        description=(
+            "Classes contiguës, vides comprises, du minimum au maximum observés "
+            "et au moins jusqu'à zéro. La somme des `count` vaut "
+            "`window.observations`."
+        )
+    )
+    window: WindowOut
+
+    @classmethod
+    def of(cls, report: RiskReport) -> ReturnHistogramOut:
+        return cls(
+            bin_width=report.histogram.bin_width,
+            closed="left",
+            bins=[
+                HistogramBinOut(lower=c.lower, upper=c.upper, count=c.count)
+                for c in report.histogram.bins
+            ],
+            window=WindowOut.of(report.window),
+        )
+
+
 # ═══════════════════════════════════════════════════════════════ Scénarios ══
 
 
@@ -1311,6 +1360,7 @@ class AnalysisOut(Schema):
     parameters: ParametersOut
     risk: RiskOut
     series: PortfolioSeriesOut
+    histogram: ReturnHistogramOut
     scenarios: list[ScenarioOut]
     regimes: list[RegimeOut]
     observations: list[ObservationOut]

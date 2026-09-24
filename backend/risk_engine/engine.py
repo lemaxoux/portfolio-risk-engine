@@ -375,6 +375,7 @@ class RiskReport:
     variance_contributions: VarianceContributionResult
     returns: pd.Series = field(repr=False)
     wealth: pd.Series = field(repr=False)
+    histogram: measures.ReturnHistogram = field(repr=False)
     beta: BetaResult | None = None
     monte_carlo_var: dict[float, VarResult] | None = None
     student_fit: var.StudentFit | None = None
@@ -1467,6 +1468,7 @@ def analyse_portfolio(
         variance_contributions=variance_contributions(serie),
         returns=serie.returns,
         wealth=serie.wealth,
+        histogram=measures.return_histogram(serie.returns),
         limiting_positions=serie.limiting_positions,
         beta=beta_vs_benchmark(serie) if benchmark else None,
         monte_carlo_var=(

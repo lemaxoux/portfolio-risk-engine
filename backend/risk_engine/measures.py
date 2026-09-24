@@ -8,6 +8,7 @@ hypothèses n'est pas un résultat, c'est un chiffre.
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 
@@ -16,7 +17,12 @@ import pandas as pd
 
 from backend import typography
 
-from .config import DDOF, EWMA_LAMBDA, TRADING_DAYS_PER_YEAR
+from .config import (
+    DDOF,
+    EWMA_LAMBDA,
+    HISTOGRAM_BIN_WIDTH,
+    TRADING_DAYS_PER_YEAR,
+)
 
 
 @dataclass(frozen=True)
@@ -170,6 +176,89 @@ def max_drawdown(levels: pd.Series) -> Drawdown:
         trough_date=date_creux,
         peak_level=float(levels.loc[date_pic]),
         trough_level=float(levels.loc[date_creux]),
+    )
+
+
+# ------------------------------------------------------------ Histogramme --
+
+
+@dataclass(frozen=True)
+class HistogramBin:
+    """Une classe : les séances dont le rendement vérifie `lower ≤ r < upper`."""
+
+    lower: float
+    upper: float
+    count: int
+
+
+@dataclass(frozen=True)
+class ReturnHistogram:
+    """Décompte des rendements par classes de largeur fixe.
+
+    `bins` est CONTIGU : chaque `upper` est le `lower` de la classe suivante, et
+    les classes vides entre le minimum et le maximum observés y figurent avec
+    un compte nul. Un histogramme qui sauterait les classes vides rapprocherait
+    à l'œil une séance extrême du reste de la distribution.
+    """
+
+    bin_width: float
+    bins: tuple[HistogramBin, ...]
+
+    @property
+    def observations(self) -> int:
+        return sum(classe.count for classe in self.bins)
+
+
+def return_histogram(
+    returns, bin_width: float = HISTOGRAM_BIN_WIDTH
+) -> ReturnHistogram:
+    """Répartit les rendements en classes de largeur FIXE (voir la configuration).
+
+    ═══ BORNES ALIGNÉES SUR LES MULTIPLES DE LA LARGEUR ═══
+
+    La classe de rang k est `[k·w, (k+1)·w)`. Zéro est donc TOUJOURS une borne :
+    une séance positive et une séance négative ne tombent jamais dans la même
+    classe, et le trait vertical du zéro sur le graphique coïncide avec un bord
+    de barre. Les classes publiées s'étendent au besoin jusqu'à zéro, vides,
+    pour que cette borne figure même si toutes les séances sont du même signe.
+
+    ═══ CONVENTION DE BORNE : FERMÉE À GAUCHE ═══
+
+    Un rendement égal à une borne appartient à la classe qui COMMENCE à cette
+    borne : 0 va dans `[0, w)`, pas dans `[−w, 0)`. La borne est rendue
+    arrondie à 12 décimales — `3 × 0,0025` vaut 0,0075000000000000006 en
+    binaire — et le rang de chaque rendement est ajusté contre la borne
+    PUBLIÉE, pour qu'un lecteur qui compte à partir des bornes rendues retombe
+    exactement sur les mêmes classes.
+    """
+    if not bin_width > 0.0:
+        raise ValueError(
+            f"Largeur de classe non positive : {typography.compact(bin_width)}."
+        )
+    tableau = _as_array(returns)
+    if tableau.size == 0:
+        raise ValueError("Série de rendements vide : aucun histogramme à compter.")
+
+    def borne(rang: int) -> float:
+        return round(rang * bin_width, 12)
+
+    def rang_de(rendement: float) -> int:
+        rang = math.floor(rendement / bin_width)
+        while rendement < borne(rang):
+            rang -= 1
+        while rendement >= borne(rang + 1):
+            rang += 1
+        return rang
+
+    comptes = Counter(rang_de(float(r)) for r in tableau)
+    premier = min(min(comptes), 0)
+    dernier = max(max(comptes), -1)
+    return ReturnHistogram(
+        bin_width=bin_width,
+        bins=tuple(
+            HistogramBin(lower=borne(k), upper=borne(k + 1), count=comptes.get(k, 0))
+            for k in range(premier, dernier + 1)
+        ),
     )
 
 

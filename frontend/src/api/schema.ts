@@ -259,6 +259,7 @@ export interface components {
             parameters: components["schemas"]["ParametersOut"];
             risk: components["schemas"]["RiskOut"];
             series: components["schemas"]["PortfolioSeriesOut"];
+            histogram: components["schemas"]["ReturnHistogramOut"];
             /** Scenarios */
             scenarios: components["schemas"]["ScenarioOut"][];
             /** Regimes */
@@ -526,6 +527,15 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HistogramBinOut */
+        HistogramBinOut: {
+            /** Lower */
+            lower: number;
+            /** Upper */
+            upper: number;
+            /** Count */
+            count: number;
         };
         /**
          * LimitingPositionOut
@@ -875,6 +885,35 @@ export interface components {
             min_observations: number;
             /** Sample Too Thin */
             sample_too_thin: boolean;
+        };
+        /**
+         * ReturnHistogramOut
+         * @description Les rendements quotidiens comptés par classes, PAR LE MOTEUR.
+         *
+         *     Le client dessine ces classes telles quelles ; il ne les recalcule pas.
+         *     Laissé à la bibliothèque de graphiques (`binX`), le découpage s'ajusterait
+         *     à chaque portefeuille, et deux portefeuilles ne se liraient plus sur la
+         *     même grille — comme une carte de corrélation dont l'échelle suivrait les
+         *     données.
+         */
+        ReturnHistogramOut: {
+            /**
+             * Bin Width
+             * @description Largeur de classe, en fraction : 0.0025 se lit 0,25 point. Paramètre CHOISI (`HISTOGRAM_BIN_WIDTH`), le même pour tous les portefeuilles ; les bornes sont des multiples de cette largeur, donc zéro est toujours une borne.
+             */
+            bin_width: number;
+            /**
+             * Closed
+             * @description Chaque classe contient les rendements r tels que lower ≤ r < upper.
+             * @constant
+             */
+            closed: "left";
+            /**
+             * Bins
+             * @description Classes contiguës, vides comprises, du minimum au maximum observés et au moins jusqu'à zéro. La somme des `count` vaut `window.observations`.
+             */
+            bins: components["schemas"]["HistogramBinOut"][];
+            window: components["schemas"]["WindowOut"];
         };
         /** RiskOut */
         RiskOut: {

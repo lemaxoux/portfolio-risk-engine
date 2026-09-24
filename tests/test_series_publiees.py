@@ -12,6 +12,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from backend.risk_engine.config import HISTOGRAM_BIN_WIDTH
+from backend.risk_engine.measures import return_histogram
+
 from .conftest import construire_base
 
 
@@ -140,3 +143,105 @@ def test_sans_le_point_de_depart_le_creux_dessine_serait_faux(client_baisse_imme
     # Tracée sans lui, la courbe ne montrerait AUCUN creux de 10 % : elle
     # commencerait au creux lui-même.
     assert _creux(serie["wealth"][1:])[0] > -0.10 + 1e-9
+
+
+# ═══════════════════════════════════════════════════════════ Histogramme ══
+
+
+def _classe_de(rendement: float, classes: list[dict]) -> list[dict]:
+    """Les classes publiées qui contiennent ce rendement, selon `closed: left`."""
+    return [c for c in classes if c["lower"] <= rendement < c["upper"]]
+
+
+def test_chaque_rendement_publie_tombe_dans_exactement_une_classe(analyse_reelle):
+    """Vérifié avec les bornes PUBLIÉES et la convention publiée : un lecteur
+    qui recompte à partir de la réponse retombe sur les mêmes classes."""
+    corps = analyse_reelle.json()
+    histogramme = corps["histogram"]
+    assert histogramme["closed"] == "left"
+
+    for point in corps["series"]["returns"]:
+        assert len(_classe_de(point["value"], histogramme["bins"])) == 1, point
+
+    recompte = [
+        len([p for p in corps["series"]["returns"] if c["lower"] <= p["value"] < c["upper"]])
+        for c in histogramme["bins"]
+    ]
+    assert recompte == [c["count"] for c in histogramme["bins"]]
+
+
+def test_la_somme_des_classes_est_la_fenetre(analyse_reelle):
+    corps = analyse_reelle.json()
+    total = sum(c["count"] for c in corps["histogram"]["bins"])
+    assert total == corps["estimation_window"]["observations"]
+    assert corps["histogram"]["window"] == corps["estimation_window"]
+
+
+def test_zero_est_une_borne_et_toutes_les_bornes_sont_des_multiples(analyse_reelle):
+    histogramme = analyse_reelle.json()["histogram"]
+    largeur = histogramme["bin_width"]
+    bornes = [c["lower"] for c in histogramme["bins"]] + [histogramme["bins"][-1]["upper"]]
+
+    assert 0.0 in bornes
+    for borne in bornes:
+        assert borne / largeur == pytest.approx(round(borne / largeur), abs=1e-9)
+    for gauche, droite in zip(histogramme["bins"], histogramme["bins"][1:]):
+        assert gauche["upper"] == droite["lower"]
+        assert droite["upper"] - droite["lower"] == pytest.approx(largeur, abs=1e-12)
+
+
+def test_deux_portefeuilles_se_lisent_sur_la_meme_grille(
+    analyse_reelle, client_synthetique, portefeuille_synthetique
+):
+    """Même largeur, mêmes bornes possibles, quelle que soit la dispersion."""
+    reel = analyse_reelle.json()["histogram"]
+    synthetique = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis?window=250"
+    ).json()["histogram"]
+
+    assert reel["bin_width"] == synthetique["bin_width"] == HISTOGRAM_BIN_WIDTH
+    bornes_reelles = {c["lower"] for c in reel["bins"]}
+    bornes_synthetiques = {c["lower"] for c in synthetique["bins"]}
+    # Deux grilles alignées partagent leurs bornes là où elles se recouvrent.
+    communes = bornes_reelles & bornes_synthetiques
+    assert 0.0 in communes and len(communes) > 5
+
+
+def test_un_rendement_egal_a_une_borne_va_dans_la_classe_qui_y_commence():
+    histogramme = return_histogram([0.0, 0.005, -0.0025, 0.0075], bin_width=0.0025)
+    par_borne = {c.lower: c.count for c in histogramme.bins}
+    assert par_borne[0.0] == 1  # 0 est dans [0 ; 0,25 %), pas dans [−0,25 % ; 0)
+    assert par_borne[0.005] == 1
+    assert par_borne[-0.0025] == 1
+    # 0,0075 n'est pas représentable : la borne est rendue arrondie, et le
+    # rendement est rangé contre elle — pas contre 3 × 0,0025 en binaire.
+    assert par_borne[0.0075] == 1
+    assert histogramme.observations == 4
+
+
+def test_les_classes_vides_entre_deux_extremes_sont_publiees():
+    """Sauter les classes vides rapprocherait à l'œil la séance extrême du reste."""
+    histogramme = return_histogram([0.001, 0.0012, 0.0213], bin_width=0.0025)
+    assert [c.count for c in histogramme.bins] == [2, 0, 0, 0, 0, 0, 0, 0, 1]
+    assert histogramme.bins[0].lower == 0.0
+
+
+def test_zero_reste_une_borne_quand_toutes_les_seances_ont_le_meme_signe():
+    positives = return_histogram([0.011, 0.012], bin_width=0.0025)
+    assert positives.bins[0].lower == 0.0 and positives.bins[0].count == 0
+    negatives = return_histogram([-0.011, -0.012], bin_width=0.0025)
+    assert negatives.bins[-1].upper == 0.0 and negatives.bins[-1].count == 0
+
+
+def test_la_largeur_ne_depend_pas_des_donnees():
+    calme = return_histogram(np.random.default_rng(1).normal(0, 0.004, 500))
+    agite = return_histogram(np.random.default_rng(2).normal(0, 0.03, 500))
+    assert calme.bin_width == agite.bin_width == HISTOGRAM_BIN_WIDTH
+    assert len(agite.bins) > 3 * len(calme.bins)
+
+
+def test_une_largeur_non_positive_ou_une_serie_vide_sont_refusees():
+    with pytest.raises(ValueError, match="non positive"):
+        return_histogram([0.01], bin_width=0.0)
+    with pytest.raises(ValueError, match="vide"):
+        return_histogram([], bin_width=0.0025)

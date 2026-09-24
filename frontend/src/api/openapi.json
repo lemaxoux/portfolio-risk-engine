@@ -461,6 +461,9 @@
           "series": {
             "$ref": "#/components/schemas/PortfolioSeriesOut"
           },
+          "histogram": {
+            "$ref": "#/components/schemas/ReturnHistogramOut"
+          },
           "scenarios": {
             "items": {
               "$ref": "#/components/schemas/ScenarioOut"
@@ -500,6 +503,7 @@
           "parameters",
           "risk",
           "series",
+          "histogram",
           "scenarios",
           "regimes",
           "observations",
@@ -994,6 +998,30 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistogramBinOut": {
+        "properties": {
+          "lower": {
+            "type": "number",
+            "title": "Lower"
+          },
+          "upper": {
+            "type": "number",
+            "title": "Upper"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lower",
+          "upper",
+          "count"
+        ],
+        "title": "HistogramBinOut"
       },
       "LimitingPositionOut": {
         "properties": {
@@ -1739,6 +1767,42 @@
         ],
         "title": "RegressedBetaOut",
         "description": "Beta régressé sur une fenêtre datée, avec son incertitude.\n\nPorte `observations`, `start` et `end` directement plutôt qu'un objet\n`Window` : le moteur ne lui en attache pas, et en fabriquer un ici\ninventerait une fenêtre « demandée » qui n'a jamais été demandée."
+      },
+      "ReturnHistogramOut": {
+        "properties": {
+          "bin_width": {
+            "type": "number",
+            "title": "Bin Width",
+            "description": "Largeur de classe, en fraction : 0.0025 se lit 0,25 point. Paramètre CHOISI (`HISTOGRAM_BIN_WIDTH`), le même pour tous les portefeuilles ; les bornes sont des multiples de cette largeur, donc zéro est toujours une borne."
+          },
+          "closed": {
+            "type": "string",
+            "const": "left",
+            "title": "Closed",
+            "description": "Chaque classe contient les rendements r tels que lower ≤ r < upper."
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramBinOut"
+            },
+            "type": "array",
+            "title": "Bins",
+            "description": "Classes contiguës, vides comprises, du minimum au maximum observés et au moins jusqu'à zéro. La somme des `count` vaut `window.observations`."
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bin_width",
+          "closed",
+          "bins",
+          "window"
+        ],
+        "title": "ReturnHistogramOut",
+        "description": "Les rendements quotidiens comptés par classes, PAR LE MOTEUR.\n\nLe client dessine ces classes telles quelles ; il ne les recalcule pas.\nLaissé à la bibliothèque de graphiques (`binX`), le découpage s'ajusterait\nà chaque portefeuille, et deux portefeuilles ne se liraient plus sur la\nmême grille — comme une carte de corrélation dont l'échelle suivrait les\ndonnées."
       },
       "RiskOut": {
         "properties": {

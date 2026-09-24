@@ -37,6 +37,41 @@ DEFAULT_WINDOW = 504
 # à un choc, là où l'écart-type sur fenêtre fixe met des mois à l'intégrer.
 EWMA_LAMBDA = 0.94
 
+# ------------------------------------------------ Classes de l'histogramme --
+#
+# Largeur des classes de l'histogramme des rendements quotidiens : 0,25 point
+# (0,0025 en fraction). PARAMÈTRE CHOISI, pas estimé — il ne change aucun
+# chiffre de risque, seulement la façon de compter les séances pour les
+# dessiner. Il est publié avec l'histogramme (`bin_width`).
+#
+# ── Pourquoi une largeur FIXE, la même pour tous les portefeuilles ──
+#
+# Pour la raison qui fixe à [−1, +1] le domaine de la carte de corrélation :
+# deux portefeuilles doivent se lire sur la MÊME grille. Une largeur ajustée
+# aux données (règle de Freedman–Diaconis, de Scott, `binX` d'Observable Plot)
+# donnerait à un portefeuille calme et à un portefeuille agité des
+# histogrammes de même allure, chacun étiré à sa propre dispersion —
+# exactement la comparaison que l'outil existe pour permettre.
+#
+# ── Pourquoi 0,25 point ──
+#
+# * Sur le portefeuille de démonstration (σ quotidien 0,84 %, écart
+#   interquartile 0,85 %, 504 séances), les deux règles usuelles encadrent
+#   cette valeur : Freedman–Diaconis donne 0,21 point, Scott 0,37 point. Une
+#   largeur d'usage, donc, sur un portefeuille diversifié d'actions.
+# * Environ trois classes et demie par écart-type : assez pour que la forme de
+#   la queue se voie, assez peu pour que la classe centrale compte une
+#   trentaine de séances et pas trois.
+# * Quatre classes par point de pourcentage : les bornes tombent sur des
+#   valeurs rondes (0,25 %, 0,5 %, 0,75 %), lisibles sur l'axe sans décimale
+#   inventée. Et les VaR 95 % et 99 % usuelles (1 à 2 %) se situent à quatre à
+#   huit classes de zéro : la queue au-delà du quantile en occupe plusieurs.
+#
+# Sur un titre seul et agité (σ quotidien de 2,5 %), la même largeur donne un
+# histogramme plus étalé et plus plat. C'est voulu : c'est ce qui le
+# distingue, à l'œil, d'un portefeuille diversifié.
+HISTOGRAM_BIN_WIDTH = 0.0025
+
 # ------------------------------------------------------ Degrés de liberté --
 #
 # UNE SEULE convention pour TOUTE estimation de dispersion du moteur :
