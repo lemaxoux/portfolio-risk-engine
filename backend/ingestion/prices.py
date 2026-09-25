@@ -16,6 +16,7 @@ from backend.data_provider import (
     MarketDataProvider,
     ProviderError,
     RateLimitError,
+    SecurityInfo,
     UnknownTickerError,
     get_provider,
 )
@@ -43,6 +44,8 @@ class IngestionReport:
     """Bilan d'un passage d'ingestion, ticker par ticker."""
 
     results: list[TickerResult] = field(default_factory=list)
+    # Appels au fournisseur pendant le passage : ce que consomme le quota.
+    appels: int = 0
 
     @property
     def rows(self) -> int:
@@ -54,7 +57,10 @@ class IngestionReport:
 
     def summary(self) -> str:
         ok = sum(1 for r in self.results if r.status in (OK, A_JOUR))
-        lignes = [f"{ok}/{len(self.results)} titres traités, {self.rows} séances écrites"]
+        lignes = [
+            f"{ok}/{len(self.results)} titres traités, {self.rows} séances écrites, "
+            f"{self.appels} appels au fournisseur"
+        ]
         for r in self.failures:
             lignes.append(f"  {r.ticker} : {r.status} — {r.detail}")
         return "\n".join(lignes)
@@ -328,6 +334,59 @@ def refresh(
     return _run(tickers or list(DEV_UNIVERSE), rattrapage, provider=provider, conn=conn)
 
 
+def tickers_en_base(conn: sqlite3.Connection) -> list[str]:
+    """Tous les titres enregistrés, univers de dev comme titres ajoutés."""
+    return [
+        r["ticker"]
+        for r in conn.execute("SELECT ticker FROM securities ORDER BY ticker")
+    ]
+
+
+def rebuild(
+    tickers: list[str] | None = None,
+    *,
+    start: date = BACKFILL_START,
+    provider: MarketDataProvider | None = None,
+    conn: sqlite3.Connection | None = None,
+    today: date | None = None,
+) -> IngestionReport:
+    """Recharge d'un bloc l'historique complet de chaque titre en base.
+
+    Répare une base écrite avant la phase 7C, dont le rattrapage mélangeait
+    deux bases d'ajustement à chaque dividende (voir `refresh`). Un appel par
+    titre, aucun pour les métadonnées. Seule la table `prices` est réécrite :
+    ni `securities`, ni `portfolios`, ni `positions`.
+
+    N'est lancée que par la commande `rebuild`, qui sauvegarde d'abord la base
+    et vérifie le budget d'appels. Jamais par effet de bord d'une autre
+    opération.
+    """
+    end = today or date.today()
+    proprietaire = conn is None
+    connexion = conn or connect()
+    try:
+        connus = set(tickers_en_base(connexion))
+        cibles = tickers or sorted(connus)
+        logger.info("Reconstruction de %d titres (%s → %s)", len(cibles), start, end)
+        report = _run(
+            [t for t in cibles if t in connus],
+            lambda c, p, t: replace_history(c, p, t, start, end),
+            provider=provider,
+            conn=connexion,
+            enregistrer=False,
+        )
+    finally:
+        if proprietaire:
+            connexion.close()
+
+    report.results.extend(
+        TickerResult(t, ECHEC, detail="absent de la base : le charger avec `add`")
+        for t in cibles
+        if t not in connus
+    )
+    return report
+
+
 def ensure_ticker(
     ticker: str,
     *,
@@ -369,6 +428,7 @@ def _run(
     conn: sqlite3.Connection | None = None,
     sectors: dict[str, str | None] | None = None,
     refresh_metadata: bool = False,
+    enregistrer: bool = True,
 ) -> IngestionReport:
     """Applique `operation` à chaque titre en isolant les échecs.
 
@@ -376,8 +436,11 @@ def _run(
     réponse illisible sur un seul ne doit pas coûter le passage entier. Le
     dépassement de quota fait exception — le quota est global au compte, et
     insister ne ferait qu'échouer plus vite sur les titres restants.
+
+    `enregistrer=False` saute l'écriture dans `securities` : une opération qui
+    ne porte que sur des titres déjà en base n'a pas à y toucher.
     """
-    fournisseur = provider or get_provider()
+    fournisseur = _CompteurAppels(provider or get_provider())
     secteurs = sectors if sectors is not None else DEV_UNIVERSE
     report = IngestionReport()
 
@@ -392,13 +455,14 @@ def _run(
                 )
                 continue
             try:
-                _register(
-                    connexion,
-                    fournisseur,
-                    ticker,
-                    secteurs.get(ticker),
-                    refresh_metadata=refresh_metadata,
-                )
+                if enregistrer:
+                    _register(
+                        connexion,
+                        fournisseur,
+                        ticker,
+                        secteurs.get(ticker),
+                        refresh_metadata=refresh_metadata,
+                    )
                 rows = operation(connexion, fournisseur, ticker)
                 connexion.commit()
                 report.results.append(
@@ -420,5 +484,27 @@ def _run(
         if proprietaire:
             connexion.close()
 
+    report.appels = fournisseur.appels
     logger.info("Bilan — %s", report.summary())
     return report
+
+
+class _CompteurAppels:
+    """Délègue au fournisseur en comptant les appels, pour le bilan de quota.
+
+    Compte les appels de méthode, pas les requêtes HTTP : les nouvelles
+    tentatives de l'adaptateur après un 429 ou un 5xx sont journalisées par
+    lui, une par ligne.
+    """
+
+    def __init__(self, fournisseur: MarketDataProvider) -> None:
+        self._fournisseur = fournisseur
+        self.appels = 0
+
+    def get_daily_adjusted(self, ticker: str, start: date, end: date) -> list[DailyBar]:
+        self.appels += 1
+        return self._fournisseur.get_daily_adjusted(ticker, start, end)
+
+    def get_security_info(self, ticker: str) -> SecurityInfo:
+        self.appels += 1
+        return self._fournisseur.get_security_info(ticker)

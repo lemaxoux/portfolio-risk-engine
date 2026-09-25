@@ -183,6 +183,31 @@ la raison. Le coût est d'un appel par titre et par opération, soit quatre par
 an pour un titre à dividende trimestriel. Une reprise qui revient vide ne
 supprime rien.
 
+**Réparer une base écrite avant ce correctif : `rebuild`.** Le correctif
+protège les rattrapages à venir, mais pas les jonctions déjà fausses. Il faut
+les réparer par une commande explicite, jamais par effet de bord :
+
+```powershell
+python -m backend.ingestion rebuild                  # tous les titres en base
+python -m backend.ingestion rebuild --tickers KO SPY # par lot
+```
+
+1. La commande vérifie d'abord le budget : un appel par titre, aucun de
+   métadonnées. Au-delà de 50 appels, la limite horaire du plan gratuit, elle
+   ne lance rien et demande des lots `--tickers` à une heure d'intervalle.
+2. Elle copie la base vers `data/backup-AAAA-MM-JJ.sqlite` par l'API de
+   sauvegarde de SQLite. Une sauvegarde existante n'est jamais écrasée : une
+   deuxième le même jour prend le suffixe `-2`.
+3. Elle recharge l'historique complet de chaque titre depuis
+   `BACKFILL_START` et le remplace d'un bloc.
+4. Elle affiche le nombre d'appels prévus, puis le nombre d'appels effectués.
+
+Seule la table `prices` est réécrite. `portfolios`, `positions` et
+`securities` ne sont pas touchées : un test le vérifie par l'autoriseur de
+SQLite, qui voit chaque écriture tentée. Avec les 14 titres actuels, la
+reconstruction coûte 14 appels. Un `refresh` lancé dans la même heure s'y
+ajoute.
+
 **La profondeur est ancrée à une date fixe, pas à une durée glissante.**
 `BACKFILL_START = 2005-01-01` dans `backend/ingestion/universe.py`. Une fenêtre
 exprimée en années cesse silencieusement de couvrir un événement à mesure que

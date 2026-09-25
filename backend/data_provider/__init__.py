@@ -19,7 +19,7 @@ from .base import (
     SecurityInfo,
     UnknownTickerError,
 )
-from .tiingo import TiingoProvider
+from .tiingo import FREE_TIER_CALLS_PER_HOUR, TiingoProvider
 
 __all__ = [
     "DailyBar",
@@ -32,7 +32,13 @@ __all__ = [
     "get_security_info",
     "get_provider",
     "set_provider",
+    "HOURLY_CALL_BUDGET",
 ]
+
+# Budget horaire du fournisseur par défaut. Une commande qui prévoit un appel
+# par titre (`ingestion rebuild`) le vérifie avant le premier appel, sans
+# avoir à savoir quel fournisseur est derrière.
+HOURLY_CALL_BUDGET = FREE_TIER_CALLS_PER_HOUR
 
 _provider: MarketDataProvider | None = None
 

@@ -7,9 +7,15 @@ les fenêtres demandées pour qu'on puisse vérifier ce qui a été réclamé.
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import date, timedelta
 
 import pytest
+
+from backend import data_provider
+from backend.data_provider import HOURLY_CALL_BUDGET
+from backend.ingestion.__main__ import main as ingestion_main
 
 from backend.data_provider.base import (
     DailyBar,
@@ -27,6 +33,7 @@ from backend.ingestion.prices import (
     backfill,
     ensure_ticker,
     last_stored_date,
+    rebuild,
     refresh,
     upsert_security,
 )
@@ -604,3 +611,188 @@ def test_le_secteur_reste_applique_meme_sans_appel_de_metadonnees(conn):
 
     secteur = conn.execute("SELECT sector FROM securities").fetchone()["sector"]
     assert secteur == "Information Technology"
+
+
+# ----------------------------------------------------------- Reconstruction --
+#
+# `rebuild` répare une base écrite par l'ancien rattrapage. La base de départ
+# est produite par ce rattrapage lui-même (dividende masqué), pas écrite à la
+# main : c'est l'état exact qu'il laisse.
+
+
+class ParTitre(FakeProvider):
+    """Un fournisseur ajusté par titre, derrière une seule interface."""
+
+    def __init__(self, fournisseurs):
+        super().__init__()
+        self.fournisseurs = fournisseurs
+
+    def get_daily_adjusted(self, ticker, start, end):
+        self.fenetres.append((ticker, start, end))
+        return self.fournisseurs[ticker].get_daily_adjusted(ticker, start, end)
+
+
+COURS_CALME = {jour: 50.0 + i for i, jour in enumerate(sorted(COURS_KO))}
+
+
+def base_a_reparer(chemin):
+    """Base où KO porte la jonction fausse, plus un portefeuille et ses positions."""
+    init_db(chemin)
+    with closing(connect(chemin)) as c:
+        rattraper_ko(c, masquer_dividendes=True)
+        p = FournisseurAjuste(COURS_CALME, {})
+        backfill(["AAPL"], provider=p, conn=c, today=date(2026, 9, 16))
+        with c:
+            c.execute(
+                "INSERT INTO portfolios (owner, name, updated_at) "
+                "VALUES ('local', 'Principal', '2026-09-21')"
+            )
+            c.executemany(
+                "INSERT INTO positions (portfolio_id, ticker, quantity, cost_basis) "
+                "VALUES (1, ?, ?, ?)",
+                [("KO", 120, 61.5), ("AAPL", 40, None)],
+            )
+    return chemin
+
+
+def fournisseur_a_jour():
+    return ParTitre(
+        {
+            "KO": FournisseurAjuste(COURS_KO, {DETACHEMENT: DIVIDENDE}),
+            "AAPL": FournisseurAjuste(COURS_CALME, {}),
+        }
+    )
+
+
+def contenu(chemin, table):
+    with closing(sqlite3.connect(chemin)) as c:
+        return c.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall()
+
+
+@pytest.fixture
+def base_reelle_simulee(tmp_path, monkeypatch):
+    """Une base à réparer, à la place de data/mx_risk.sqlite pour la commande."""
+    chemin = base_a_reparer(tmp_path / "mx_risk.sqlite")
+    monkeypatch.setenv("MX_RISK_DB_PATH", str(chemin))
+    fournisseur = fournisseur_a_jour()
+    data_provider.set_provider(fournisseur)
+    yield chemin, fournisseur
+    data_provider.set_provider(None)
+
+
+def test_la_base_a_reparer_porte_bien_la_jonction_fausse(tmp_path):
+    chemin = base_a_reparer(tmp_path / "b.sqlite")
+    with closing(connect(chemin)) as c:
+        assert rendement_stocke(c, "KO", JONCTION) < -0.0092 - 0.005
+
+
+def test_rebuild_repare_la_seance_de_jonction(base_reelle_simulee):
+    chemin, _ = base_reelle_simulee
+
+    assert ingestion_main(["rebuild"]) == 0
+
+    with closing(connect(chemin)) as c:
+        assert rendement_stocke(c, "KO", JONCTION) == pytest.approx(-0.0092, abs=1e-12)
+
+
+def test_rebuild_sauvegarde_la_base_avant_d_ecrire(base_reelle_simulee):
+    chemin, _ = base_reelle_simulee
+    prix_avant = contenu(chemin, "prices")
+
+    ingestion_main(["rebuild"])
+
+    (sauvegarde,) = chemin.parent.glob("backup-*.sqlite")
+    assert sauvegarde.name == f"backup-{date.today().isoformat()}.sqlite"
+    assert contenu(sauvegarde, "prices") == prix_avant, "l'état d'AVANT la réparation"
+    assert contenu(chemin, "prices") != prix_avant
+
+
+def test_une_sauvegarde_existante_n_est_jamais_ecrasee(base_reelle_simulee):
+    chemin, _ = base_reelle_simulee
+    premiere = chemin.parent / f"backup-{date.today().isoformat()}.sqlite"
+    premiere.write_bytes(b"etat d'avant la premiere reparation")
+
+    ingestion_main(["rebuild"])
+
+    assert premiere.read_bytes() == b"etat d'avant la premiere reparation"
+    assert (chemin.parent / f"backup-{date.today().isoformat()}-2.sqlite").exists()
+
+
+def test_rebuild_ne_touche_ni_portfolios_ni_positions(base_reelle_simulee):
+    chemin, _ = base_reelle_simulee
+    avant = {t: contenu(chemin, t) for t in ("portfolios", "positions", "securities")}
+
+    ingestion_main(["rebuild"])
+
+    assert {t: contenu(chemin, t) for t in avant} == avant
+    assert avant["positions"], "le test porte sur des positions réelles, pas sur du vide"
+
+
+def test_rebuild_n_ecrit_que_dans_prices(tmp_path):
+    # Plus fort qu'une comparaison avant/après : l'autoriseur de SQLite voit
+    # chaque écriture tentée, même une qui réécrirait la même valeur.
+    chemin = base_a_reparer(tmp_path / "b.sqlite")
+    ecritures = set()
+
+    def espion(action, table, *_):
+        if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE):
+            ecritures.add(table)
+        return sqlite3.SQLITE_OK
+
+    with closing(connect(chemin)) as c:
+        c.set_authorizer(espion)
+        rebuild(provider=fournisseur_a_jour(), conn=c, today=date(2026, 9, 16))
+
+    assert ecritures == {"prices"}
+
+
+def test_rebuild_fait_un_appel_par_titre_et_l_affiche(base_reelle_simulee, capsys):
+    _, fournisseur = base_reelle_simulee
+
+    ingestion_main(["rebuild"])
+
+    sortie = capsys.readouterr().out
+    assert len(fournisseur.fenetres) == 2, "un appel par titre, aucun de métadonnées"
+    assert fournisseur.appels_info == []
+    assert f"2 appels prévus, sous la limite de {HOURLY_CALL_BUDGET} par heure" in sortie
+    assert "2 appels au fournisseur" in sortie
+
+
+def test_rebuild_recharge_depuis_l_ancrage(base_reelle_simulee):
+    _, fournisseur = base_reelle_simulee
+
+    ingestion_main(["rebuild"])
+
+    assert {debut for _, debut, _ in fournisseur.fenetres} == {BACKFILL_START}
+
+
+def test_rebuild_refuse_au_dela_du_budget_horaire(base_reelle_simulee, capsys):
+    chemin, fournisseur = base_reelle_simulee
+    with closing(connect(chemin)) as c, c:
+        c.executemany(
+            "INSERT INTO securities (ticker, name) VALUES (?, ?)",
+            [(f"T{i:03d}", "Titre") for i in range(HOURLY_CALL_BUDGET)],
+        )
+
+    assert ingestion_main(["rebuild"]) == 1
+
+    assert fournisseur.fenetres == [], "aucun appel lancé"
+    assert list(chemin.parent.glob("backup-*.sqlite")) == [], "ni sauvegarde"
+    assert "--tickers" in capsys.readouterr().out
+
+
+def test_rebuild_par_lot_ne_recharge_que_les_titres_demandes(base_reelle_simulee):
+    _, fournisseur = base_reelle_simulee
+
+    assert ingestion_main(["rebuild", "--tickers", "ko"]) == 0
+
+    assert [t for t, _, _ in fournisseur.fenetres] == ["KO"]
+
+
+def test_rebuild_signale_un_titre_absent_de_la_base(base_reelle_simulee, capsys):
+    _, fournisseur = base_reelle_simulee
+
+    assert ingestion_main(["rebuild", "--tickers", "KO", "TSLA"]) == 1
+
+    assert [t for t, _, _ in fournisseur.fenetres] == ["KO"]
+    assert "TSLA" in capsys.readouterr().out

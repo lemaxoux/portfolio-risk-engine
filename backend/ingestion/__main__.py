@@ -4,6 +4,7 @@
     python -m backend.ingestion refresh           # rattrapage quotidien
     python -m backend.ingestion add TSLA          # titre hors univers de dev
     python -m backend.ingestion status            # ce qui est en base
+    python -m backend.ingestion rebuild           # réparation : tout recharger
 
 Le code de sortie vaut 1 dès qu'un titre échoue, pour qu'un ordonnanceur ou un
 cron voie passer l'échec au lieu de le croire silencieusement réussi.
@@ -14,10 +15,19 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from contextlib import closing
 from datetime import date
 
-from backend.db.init_db import connect
-from backend.ingestion.prices import backfill, ensure_ticker, refresh
+from backend.data_provider import HOURLY_CALL_BUDGET
+from backend.db.backup import sauvegarder
+from backend.db.init_db import connect, get_db_path
+from backend.ingestion.prices import (
+    backfill,
+    ensure_ticker,
+    rebuild,
+    refresh,
+    tickers_en_base,
+)
 from backend.ingestion.universe import BACKFILL_START, DEV_UNIVERSE
 
 
@@ -72,6 +82,43 @@ def show_status() -> None:
     print(f"\n{len(lignes)} titres, {total} séances.")
 
 
+def reconstruire(tickers: list[str] | None, *, today: date | None = None) -> int:
+    """Sauvegarde la base, puis recharge l'historique complet de chaque titre.
+
+    Réservé à la réparation d'une base écrite par un rattrapage fautif : un
+    appel par titre, donc un budget vérifié AVANT la sauvegarde et le premier
+    appel. Au-delà, rien n'est lancé ; on relance par lots avec `--tickers`.
+    """
+    chemin = get_db_path()
+    if not chemin.exists():
+        print(f"Base introuvable : {chemin}. Rien à reconstruire.")
+        return 1
+
+    with closing(connect(chemin)) as conn:
+        cibles = tickers or tickers_en_base(conn)
+    if len(cibles) > HOURLY_CALL_BUDGET:
+        print(
+            f"{len(cibles)} appels nécessaires, au-delà de la limite de "
+            f"{HOURLY_CALL_BUDGET} par heure du fournisseur. Rien n'a été lancé : "
+            "relancer par lots avec --tickers, à une heure d'intervalle."
+        )
+        return 1
+
+    sauvegarde = sauvegarder(chemin, today or date.today())
+    # flush : les journaux partent sur stderr, et dans un tube la sauvegarde
+    # s'afficherait après eux, comme si elle avait suivi la reconstruction.
+    print(f"Sauvegarde : {sauvegarde}", flush=True)
+    print(
+        f"{len(cibles)} titres à recharger : {len(cibles)} appels prévus, sous la "
+        f"limite de {HOURLY_CALL_BUDGET} par heure (un refresh lancé dans la même "
+        "heure s'y ajoute).",
+        flush=True,
+    )
+    report = rebuild(cibles, today=today)
+    print(report.summary())
+    return 1 if report.failures else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m backend.ingestion",
@@ -106,6 +153,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("status", help="inventaire de la base")
+
+    p_rebuild = sub.add_parser(
+        "rebuild",
+        help="sauvegarder la base puis recharger tout l'historique de chaque titre",
+    )
+    p_rebuild.add_argument(
+        "--tickers", nargs="+", metavar="TICKER",
+        help="défaut : tous les titres en base",
+    )
     return parser
 
 
@@ -116,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         show_status()
         return 0
+
+    if args.command == "rebuild":
+        return reconstruire([t.upper() for t in args.tickers] if args.tickers else None)
 
     if args.command == "backfill":
         report = backfill(
