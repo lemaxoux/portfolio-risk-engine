@@ -27,6 +27,8 @@ import {
   pourcentageOuTiret,
   seances,
   montant,
+  points,
+  pointsSignes,
   valeurDePortefeuille,
 } from './format'
 
@@ -261,5 +263,19 @@ describe('décimales d’une colonne (§9.3)', () => {
 
   it('plafonne', () => {
     expect(decimalesDeColonne([1 / 3], 4)).toBe(4)
+  })
+})
+
+describe('points de pourcentage', () => {
+  it('écrit une largeur en points, accordée au nombre affiché', () => {
+    expect(points(0.0025, 2)).toBe(`0,25${ESPACE_INSECABLE}point`)
+    expect(points(0.098, 1)).toBe(`9,8${ESPACE_INSECABLE}points`)
+    expect(points(0.0196, 1)).toBe(`2,0${ESPACE_INSECABLE}points`)
+  })
+
+  it('écrit un écart signé comme le backend : « +9,8 pts », « −8,1 pts »', () => {
+    expect(pointsSignes(0.098, 1)).toBe(`+9,8${ESPACE_INSECABLE}pts`)
+    expect(pointsSignes(-0.081, 1)).toBe(`${SIGNE_MOINS}8,1${ESPACE_INSECABLE}pts`)
+    expect(pointsSignes(0.0004, 1)).toBe(`0,0${ESPACE_INSECABLE}pts`)
   })
 })

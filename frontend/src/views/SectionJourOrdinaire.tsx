@@ -30,9 +30,15 @@
  * deux chiffres sont posés côte à côte et l'œil fait le reste. Si l'écart doit
  * être publié, il s'ajoutera au moteur avec son test.
  */
-import type { Risk, TailRiskLevel } from '../api/types'
+import { useCallback } from 'react'
+
+import type { ReturnHistogram, Risk, TailRiskLevel } from '../api/types'
+import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
+import { optionsHistogramme } from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
-import { pourcentage } from '../lib/format'
+import { Section } from '../components/Section'
+import commun from '../components/Section.module.css'
+import { points, pourcentage, seances } from '../lib/format'
 import { lectureDeCVaR, lectureDeVar } from '../lib/phrases'
 import {
   provenanceDeCVaR,
@@ -94,23 +100,47 @@ function CoupleParametrique({
   )
 }
 
-export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
+/**
+ * La phrase que lit un lecteur d'écran à la place de l'histogramme (§13) : la
+ * conclusion, pas la forme. Chaque nombre est un champ publié.
+ */
+export function descriptionHistogramme(
+  histogramme: ReturnHistogram,
+  niveaux: readonly TailRiskLevel[],
+): string {
+  const quantiles = niveaux.map(
+    (niveau) =>
+      `rendement sous ${pourcentage(niveau.expected_shortfall.threshold, 2)} ` +
+      `au niveau ${pourcentage(niveau.confidence, 0)}`,
+  )
+  return (
+    `Rendements quotidiens de ${seances(histogramme.window.observations)}, en classes de ` +
+    `${points(histogramme.bin_width, 2)} : ${quantiles.join(' ; ')}.`
+  )
+}
+
+interface Props {
+  readonly risque: Risk
+  readonly histogramme: ReturnHistogram
+  readonly asOf: string
+}
+
+export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
   const niveaux = risque.tail_risk.levels
   const raisonStudent = risque.tail_risk.student_unavailable_reason
+  const options = useCallback(
+    (contexte: ContexteGraphique) => optionsHistogramme({ histogramme, niveaux }, contexte),
+    [histogramme, niveaux],
+  )
 
   return (
-    <section className={styles.section} id="jour-ordinaire">
-      <h2 className={styles.titre}>
-        <span className={styles.numero}>2.</span> Ce qu'il perd un jour
-        ordinaire
-      </h2>
-
-      <h3 className={styles.sousTitre}>Sans hypothèse de loi</h3>
-      <p className={styles.chapeau}>
+    <Section ancre="jour-ordinaire" numero={2} titre="Ce qu'il perd un jour ordinaire">
+      <h3 className={commun.sousTitre}>Sans hypothèse de loi</h3>
+      <p className={commun.chapeau}>
         Le quantile des rendements réellement observés sur la fenêtre. Aucune
         loi n'est supposée : ce sont les séances qui ont eu lieu.
       </p>
-      <div className={styles.rangee}>
+      <div className={commun.rangee}>
         {niveaux.map((niveau) => (
           <Measure
             key={niveau.confidence}
@@ -126,8 +156,26 @@ export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
         ))}
       </div>
 
-      <h3 className={styles.sousTitre}>Ce que coûte l'hypothèse de normalité</h3>
-      <p className={styles.chapeau}>
+      <div className={styles.histogramme}>
+        <Graphique
+          titre="Rendements quotidiens du portefeuille"
+          unite={`séances par classe de ${points(histogramme.bin_width, 2)}`}
+          fenetre={histogramme.window}
+          asOf={asOf}
+          description={descriptionHistogramme(histogramme, niveaux)}
+          options={options}
+        >
+          <p className={styles.legende}>
+            Classes de largeur fixe, les mêmes pour tout portefeuille : un
+            portefeuille plus agité s'étale davantage sur la même grille. Les
+            traits marquent les quantiles historiques ; l'aire ombrée, les
+            séances que moyenne la CVaR à 95 %.
+          </p>
+        </Graphique>
+      </div>
+
+      <h3 className={commun.sousTitre}>Ce que coûte l'hypothèse de normalité</h3>
+      <p className={commun.chapeau}>
         Les deux mêmes niveaux, sous deux lois. L'écart entre la normale et la
         loi de Student est l'information : il mesure ce que la normalité fait
         perdre de vue dans la queue.
@@ -140,8 +188,8 @@ export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
         />
       ))}
 
-      <h3 className={styles.sousTitre}>Amplitude ordinaire</h3>
-      <div className={styles.rangee}>
+      <h3 className={commun.sousTitre}>Amplitude ordinaire</h3>
+      <div className={commun.rangee}>
         <Measure
           libelle="Volatilité annualisée"
           valeur={pourcentage(risque.volatility.annualised, 1)}
@@ -150,12 +198,12 @@ export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
         />
       </div>
 
-      <h3 className={styles.sousTitre}>Au-delà du quantile</h3>
-      <p className={styles.chapeau}>
+      <h3 className={commun.sousTitre}>Au-delà du quantile</h3>
+      <p className={commun.chapeau}>
         La VaR dit à partir de quel niveau la perte est rare. La CVaR dit
         combien on perd, en moyenne, les jours où ce niveau est dépassé.
       </p>
-      <div className={styles.rangee}>
+      <div className={commun.rangee}>
         {niveaux.map((niveau) => (
           <Measure
             key={niveau.confidence}
@@ -167,6 +215,6 @@ export function SectionJourOrdinaire({ risque }: { risque: Risk }) {
           />
         ))}
       </div>
-    </section>
+    </Section>
   )
 }

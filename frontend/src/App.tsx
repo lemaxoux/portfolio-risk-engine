@@ -124,7 +124,11 @@ export function App() {
           {etat.phase === 'analyse' && (
             <>
               <SectionPortefeuille valorisation={etat.analyse.valuation} />
-              <SectionJourOrdinaire risque={etat.analyse.risk} />
+              <SectionJourOrdinaire
+                risque={etat.analyse.risk}
+                histogramme={etat.analyse.histogram}
+                asOf={etat.analyse.as_of}
+              />
             </>
           )}
         </main>

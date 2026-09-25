@@ -246,3 +246,29 @@ export function decimalesDeColonne(valeurs: readonly number[], plafond: number):
   }
   return plafond
 }
+
+/**
+ * Une fraction écrite en POINTS de pourcentage : `0.0025` → « 0,25 point ».
+ *
+ * L'accord suit le nombre AFFICHÉ, comme dans le moteur de règles
+ * (`rules._points`) : « 1,9 point », « 2,0 points ».
+ */
+export function points(fraction: number, decimales: number): string {
+  const ecrit = decimal(fraction * 100, decimales)
+  const affiche = Number(Math.abs(fraction * 100).toFixed(decimales))
+  return `${ecrit}${ESPACE_INSECABLE}${affiche >= 2 ? 'points' : 'point'}`
+}
+
+/**
+ * Un écart signé, en points : `0.098` → « +9,8 pts », `-0.081` → « −8,1 pts ».
+ *
+ * Pendant exact de `backend.typography.signed_points` : le « + » d'un écart
+ * positif est écrit, parce qu'un écart se lit par son signe ; une valeur qui
+ * s'arrondit à zéro n'en porte aucun.
+ */
+export function pointsSignes(fraction: number, decimales: number): string {
+  const ecrit = decimal(fraction * 100, decimales)
+  const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
+  const signe = fraction > 0 && !nul ? '+' : ''
+  return `${signe}${ecrit}${ESPACE_INSECABLE}pts`
+}
