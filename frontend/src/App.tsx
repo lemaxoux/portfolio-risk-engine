@@ -31,6 +31,7 @@ import { Acceptation } from './views/Acceptation'
 import { SectionAuPire } from './views/SectionAuPire'
 import { SectionCrise } from './views/SectionCrise'
 import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
+import { SectionMoteur } from './views/SectionMoteur'
 import { SectionPortefeuille } from './views/SectionPortefeuille'
 import { SectionRisque } from './views/SectionRisque'
 import styles from './App.module.css'
@@ -49,6 +50,7 @@ const SECTIONS = [
   { ancre: 'au-pire', libelle: 'Au pire' },
   { ancre: 'qui-porte', libelle: 'Qui porte le risque' },
   { ancre: 'en-crise', libelle: 'En crise' },
+  { ancre: 'moteur', libelle: 'Ce que le moteur en dit' },
 ] as const
 
 function enErreur(cause: unknown): Etat {
@@ -150,6 +152,11 @@ export function App() {
               <SectionCrise
                 scenarios={etat.analyse.scenarios}
                 regimes={etat.analyse.regimes}
+                asOf={etat.analyse.as_of}
+              />
+              <SectionMoteur
+                observations={etat.analyse.observations}
+                bandeau={etat.analyse.disclaimer}
                 asOf={etat.analyse.as_of}
               />
             </>

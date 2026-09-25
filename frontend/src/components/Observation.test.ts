@@ -1,0 +1,92 @@
+/**
+ * `<Observation>` — les trois cas de §9.2, rendus côté serveur.
+ */
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+
+import type { Observation as ObservationApi, Threshold } from '../api/types'
+import { Observation } from './Observation'
+import styles from './Observation.module.css'
+
+function seuil(kind: Threshold['kind'], rendered: string): Threshold {
+  return {
+    name: `seuil ${kind}`,
+    kind,
+    value: 0.7,
+    rationale: 'une raison',
+    percent: false,
+    chosen: kind === 'chosen',
+    rendered,
+  }
+}
+
+function observation(thresholds: Threshold[]): ObservationApi {
+  return {
+    rule: 'apparent_diversification',
+    rule_label: 'diversification apparente',
+    subject: 'portefeuille',
+    statement: "Aucune paire n'atteint 0,70 sur 504 séances.",
+    facts: {},
+    provenance: "fenêtre d'estimation : 504 séances, 2024-09-05 → 2026-09-09",
+    thresholds,
+    uses_chosen_threshold: thresholds.some((s) => s.chosen),
+    rendered: '',
+  }
+}
+
+function rendu(o: ObservationApi): string {
+  return renderToStaticMarkup(createElement(Observation, { observation: o })).replaceAll(
+    '&#x27;',
+    "'",
+  )
+}
+
+describe('les trois cas de §9.2', () => {
+  it('aucun seuil : AUCUNE ligne de seuil, pas même « n/a »', () => {
+    const html = rendu(observation([]))
+    expect(html).not.toContain('Seuil')
+    expect(html).not.toContain('data-seuil')
+    expect(html).not.toContain('n/a')
+  })
+
+  it('seuil dérivé : la ligne, sans point de réserve', () => {
+    const html = rendu(observation([seuil('derived', 'part de JPM = 25,6 % — référence calculée')]))
+    expect(html).toContain('data-seuil="derived"')
+    expect(html).not.toContain(styles.point)
+    expect(html).not.toContain(styles.choisi)
+  })
+
+  it('seuil relatif au portefeuille : la ligne, sans point non plus', () => {
+    const html = rendu(observation([seuil('portfolio_relative', 'corrélation JPM–KO = 0,53')]))
+    expect(html).not.toContain(styles.point)
+  })
+
+  it('seuil CHOISI : le point --caveat, et lui seul', () => {
+    const html = rendu(
+      observation([
+        seuil('chosen', 'corrélation forte = 0,7 — seuil CHOISI à la main'),
+        seuil('portfolio_relative', 'corrélation JPM–KO = 0,53'),
+      ]),
+    )
+    expect(html.match(new RegExp(styles.point ?? 'absent', 'g'))).toHaveLength(1)
+    expect(html).toContain(styles.choisi)
+  })
+
+  it('le point dépend du champ machine `kind`, pas du mot « CHOISI »', () => {
+    // Un texte qui contiendrait le mot sans que le seuil soit choisi ne doit
+    // pas allumer le point ; l'inverse non plus.
+    expect(rendu(observation([seuil('derived', 'CHOISI dans le texte')]))).not.toContain(styles.point)
+    expect(rendu(observation([seuil('chosen', 'sans le mot')]))).toContain(styles.point)
+  })
+})
+
+describe('le texte est celui du backend', () => {
+  it('rend statement, rendered et provenance mot pour mot', () => {
+    const o = observation([seuil('chosen', 'corrélation forte = 0,7 — seuil CHOISI à la main')])
+    const html = rendu(o)
+    expect(html).toContain(o.statement)
+    expect(html).toContain('corrélation forte = 0,7 — seuil CHOISI à la main')
+    expect(html).toContain(o.provenance)
+  })
+})

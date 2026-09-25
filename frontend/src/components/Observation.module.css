@@ -1,0 +1,67 @@
+/* Observation — §9.2. */
+
+.observation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.regle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sujet {
+  font-weight: var(--weight-normal);
+}
+
+/* Ce que le moteur AFFIRME : une phrase, en serif (§6.1). */
+.phrase {
+  max-inline-size: var(--prose-width);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+.seuil {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  max-inline-size: var(--prose-width);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}
+
+/* Seuil CHOISI à la main : point de 6 px et phrase en --caveat (§5.3). */
+.choisi {
+  color: var(--caveat);
+}
+
+.etiquette {
+  font-weight: var(--weight-medium);
+}
+
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  transform: translateY(-0.15em);
+}
+
+.observation :global(dl) {
+  margin-block-start: var(--space-1);
+}

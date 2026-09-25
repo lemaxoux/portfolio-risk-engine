@@ -1,0 +1,28 @@
+/* Section 6 — §9.2, §15. */
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Le rappel de l'acceptation : du texte courant, pas une modale, pas une
+ * case, pas un bouton (§15). */
+.rappel {
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+
+.rappelTitre {
+  margin-block-end: var(--space-2);
+  font-weight: var(--weight-medium);
+}
+
+.rappelListe {
+  padding-inline-start: var(--space-4);
+}
