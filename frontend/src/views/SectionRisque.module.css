@@ -1,0 +1,130 @@
+/* Section 4 — §5.4, §11.4. */
+
+.legende,
+.legendeCorrelation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-block-start: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  line-height: var(--leading-ui);
+}
+
+/* Les clés de légende reprennent la MARQUE : un rectangle pour la barre, un
+ * trait pour le trait (§9.4) — jamais une pastille de couleur générique. */
+.cleBarre {
+  display: inline-block;
+  inline-size: var(--space-4);
+  block-size: var(--space-2);
+  background-color: var(--series-1);
+}
+
+.cleTrait {
+  display: inline-block;
+  inline-size: 2px;
+  block-size: var(--space-3);
+  background-color: var(--text-1);
+}
+
+.negative {
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-3);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.tableau {
+  margin-block-start: var(--space-5);
+}
+
+/* Contribution de scénario : le chiffre en --text-1, et à côté une petite
+ * marque de signe. La couleur est le TROISIÈME canal, après le signe écrit et
+ * l'ordre (§5.3) ; en niveaux de gris, le « + » et le « − » restent. */
+.apport {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.marque {
+  display: inline-block;
+  inline-size: var(--space-2);
+  block-size: var(--space-2);
+}
+
+.perte {
+  background-color: var(--loss);
+}
+
+.gain {
+  background-color: var(--gain);
+}
+
+.absent {
+  color: var(--text-2);
+}
+
+/* Une mesure refusée : sa raison, en clair, à la place du graphique. */
+.refus {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  max-inline-size: var(--prose-width);
+  padding: var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--caveat);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  transform: translateY(-0.15em);
+}
+
+.pas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.pastille {
+  display: inline-block;
+  inline-size: var(--space-4);
+  block-size: var(--space-3);
+}
+
+.divNegFort {
+  background-color: var(--div-neg-strong);
+}
+
+.divNegMoyen {
+  background-color: var(--div-neg-mid);
+}
+
+.divZero {
+  background-color: var(--div-zero);
+}
+
+.divPosMoyen {
+  background-color: var(--div-pos-mid);
+}
+
+.divPosFort {
+  background-color: var(--div-pos-strong);
+}
+
+.lectureEchelle {
+  flex-basis: 100%;
+}

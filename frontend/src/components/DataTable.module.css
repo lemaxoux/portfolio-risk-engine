@@ -38,8 +38,11 @@
   background-color: var(--surface-2);
   color: var(--text-2);
   font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
   text-align: start;
-  white-space: nowrap;
+  /* Un en-tête long (« Resserrement monétaire 2022 ») passe à la ligne plutôt
+   * que d'élargir sa colonne au-delà de ses chiffres. */
+  text-wrap: balance;
 }
 
 .cellule {
@@ -55,6 +58,11 @@
 .nombre {
   text-align: end;
   white-space: nowrap;
+}
+
+/* Les CHIFFRES ne se coupent pas ; l'en-tête de leur colonne, si. */
+.entete.nombre {
+  white-space: normal;
 }
 
 .ligne {

@@ -80,10 +80,13 @@ export function Graphique({
 
   useEffect(() => {
     const noeud = conteneur.current
-    if (noeud === null || largeur === 0) return
+    if (noeud === null || largeur === 0 || couleurs === null) return
+    // La largeur de la colonne par défaut ; un graphique peut en demander
+    // MOINS (une carte de chaleur garde ses cellules carrées), jamais plus.
+    const demande = options({ couleurs, largeur })
     const trace = Plot.plot({
-      ...options({ couleurs, largeur }),
-      width: largeur,
+      ...demande,
+      width: Math.min(demande.width ?? largeur, largeur),
       style: { color: couleurs.texte2, background: 'transparent', overflow: 'visible' },
     })
     noeud.replaceChildren(trace)

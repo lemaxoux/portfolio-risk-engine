@@ -15,8 +15,14 @@ import { useEffect, useState } from 'react'
 
 import { couleursDuDocument, type Couleurs } from './couleurs'
 
-export function useCouleurs(): Couleurs {
-  const [couleurs, setCouleurs] = useState<Couleurs>(() => couleursDuDocument())
+/**
+ * `null` hors navigateur — rendu côté serveur, dans les tests : il n'y a
+ * alors ni document ni thème, et rien à tracer.
+ */
+export function useCouleurs(): Couleurs | null {
+  const [couleurs, setCouleurs] = useState<Couleurs | null>(() =>
+    typeof document === 'undefined' ? null : couleursDuDocument(),
+  )
 
   useEffect(() => {
     const relire = () => setCouleurs(couleursDuDocument())

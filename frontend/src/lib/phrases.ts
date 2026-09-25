@@ -150,3 +150,15 @@ export function lectureDeCreux(picIso: string, creuxIso: string): string {
     `du ${dateEnToutesLettres(picIso)} au ${dateEnToutesLettres(creuxIso)}`
   )
 }
+
+/**
+ * Une contribution NÉGATIVE à la variance (section 4) : elle doit se voir
+ * quand le moteur la signale (`has_negative_contribution`), et elle se dit
+ * sans en faire un défaut. Une ligne qui évolue à rebours du reste RÉDUIT le
+ * risque ; c'est la lecture « en lignes effectives » qui en devient
+ * approximative, comme le moteur de règles l'écrit.
+ */
+export const PHRASE_CONTRIBUTION_NEGATIVE =
+  "Au moins une ligne contribue négativement à la variance : elle a évolué à " +
+  "rebours du reste du portefeuille et en réduit le risque. Sa barre part à " +
+  "gauche de zéro, et la lecture en lignes effectives en devient approximative."

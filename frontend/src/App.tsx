@@ -31,6 +31,7 @@ import { Acceptation } from './views/Acceptation'
 import { SectionAuPire } from './views/SectionAuPire'
 import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
 import { SectionPortefeuille } from './views/SectionPortefeuille'
+import { SectionRisque } from './views/SectionRisque'
 import styles from './App.module.css'
 
 type Etat =
@@ -45,6 +46,7 @@ const SECTIONS = [
   { ancre: 'portefeuille', libelle: 'Le portefeuille' },
   { ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' },
   { ancre: 'au-pire', libelle: 'Au pire' },
+  { ancre: 'qui-porte', libelle: 'Qui porte le risque' },
 ] as const
 
 function enErreur(cause: unknown): Etat {
@@ -134,6 +136,13 @@ export function App() {
               <SectionAuPire
                 serie={etat.analyse.series}
                 creux={etat.analyse.risk.drawdown}
+                asOf={etat.analyse.as_of}
+              />
+              <SectionRisque
+                variance={etat.analyse.risk.variance_contributions}
+                concentration={etat.analyse.risk.concentration}
+                matrices={etat.analyse.risk.matrices}
+                scenarios={etat.analyse.scenarios}
                 asOf={etat.analyse.as_of}
               />
             </>
