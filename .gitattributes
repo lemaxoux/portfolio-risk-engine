@@ -5,3 +5,4 @@
 *.sqlite binary
 *.docx   binary
 *.png    binary
+*.ttf    binary

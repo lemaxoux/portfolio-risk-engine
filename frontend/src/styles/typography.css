@@ -25,6 +25,41 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 
 /*
+ * ═══ L'ESPACE FINE AVANT « % » EN SPECTRAL ═══
+ *
+ * Le sous-ensemble latin de Spectral revendique U+202F dans sa `unicode-range`
+ * (U+2000-206F), mais ne le contient pas. Le navigateur ne cherche donc aucune
+ * autre police : Chrome synthétise une demi-espace de 0,125 em, mesurée à
+ * 1,75 px sur les phrases du moteur en 14 px. Avec les approches serrées des
+ * chiffres de Spectral, le blanc entre « 0 » et « % » tombe à 0,170 em, et
+ * « 50 % » se lit « 50% ». En Plex Sans, qui n'a pas non plus le glyphe, le
+ * blanc est de 0,243 em et reste visible.
+ *
+ * Cette face complète Spectral pour U+202F seulement, et pour chaque graisse
+ * importée : une espace vide de 0,200 em, engendrée par `tools/espace_fine.py`,
+ * qui donne un blanc de 0,245 em, celui de Plex. Elle vient APRÈS les faces de
+ * @fontsource, parce qu'entre deux faces qui couvrent le même caractère, la
+ * dernière déclarée est essayée d'abord.
+ */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/espace-fine.ttf') format('truetype');
+  unicode-range: U+202F;
+}
+
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/espace-fine.ttf') format('truetype');
+  unicode-range: U+202F;
+}
+
+/*
  * Aucune taille de police n'est écrite ici en `px` : elles viennent toutes des
  * tokens `--text-*` de `tokens.css`, exprimés en `rem`. C'est le point de
  * §17 « aucun px de taille de police hors de typography.css » — il se trouve

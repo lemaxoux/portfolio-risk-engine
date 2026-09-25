@@ -93,7 +93,8 @@ app/
 │   ├── src/components/  #   Measure, Provenance, Bandeau, ThemeToggle
 │   └── src/views/       #   écran d'acceptation, sections de l'analyse
 ├── tools/               # Outils de développement, hors application
-│   └── openapi_schema.py#   écrit le schéma OpenAPI que le frontend compile
+│   ├── openapi_schema.py#   écrit le schéma OpenAPI que le frontend compile
+│   └── espace_fine.py   #   engendre la police de l'espace fine (U+202F)
 ├── tests/               # Tests unitaires
 ├── .env.example
 ├── requirements.txt         # exécution
@@ -1191,6 +1192,35 @@ changé d'espace selon les versions d'ICU, et Node et le navigateur en embarquen
 de différents : un test écrit contre `Intl` passerait sans rien prouver.
 `tests/test_typographie_partagee.py` tient les deux moitiés ensemble depuis la
 suite Python, parce que c'est le backend qui bouge.
+
+**L'espace fine avant « % » en Spectral, mesurée et non supposée.** Les
+phrases du moteur, composées en Spectral, affichaient « 50% » alors que l'API
+envoie bien U+202F. La cause, mesurée dans Chrome et dans les fichiers de
+police :
+
+- Le sous-ensemble latin de Spectral revendique U+202F dans sa
+  `unicode-range` (U+2000-206F), mais son cmap ne le contient pas. IBM Plex
+  Sans ne le contient pas non plus. Le navigateur ne cherche donc aucune
+  autre police.
+- Chrome synthétise une demi-espace de la police principale : 0,125 em en
+  Spectral (1,75 px sur les phrases en 14 px), 0,118 em en Plex. Georgia
+  seule donne aussi une demi-espace ; Times New Roman, qui a le glyphe,
+  0,200 em.
+- La largeur n'est donc pas nulle. C'est le blanc qui manque : Spectral serre
+  ses chiffres, avec des approches de 33 et 12 unités autour de « 0 » et
+  « % », contre 60 et 65 en Plex. Il reste 0,170 em de blanc en Spectral
+  contre 0,243 em en Plex.
+
+Le correctif est une police auto-hébergée de 644 octets, engendrée par
+`tools/espace_fine.py`. Elle est déclarée dans la famille 'Spectral' pour
+U+202F seulement, en 400 et en 500, après les faces de @fontsource. Elle
+dessine une espace vide de 0,200 em, la largeur de Times New Roman, d'Arial
+et de Cambria. Le blanc passe à 0,245 em, celui de Plex. Remesuré dans la
+page : 0,200 em en Spectral, Plex inchangé, et la hauteur de ligne identique
+avec ou sans l'espace fine. U+00A0 et U+2212 sont dessinés par les deux
+familles elles-mêmes : 0,250 et 0,500 em en Spectral, 0,236 et 0,600 em en
+Plex. `src/styles/typography.test.ts` lit la police sans décompresseur et
+vérifie la déclaration.
 
 Côté backend, tout nombre écrit dans une phrase passe par `backend/typography.py`
 (`number`, `percent`, `signed_points`, `compact`), qui arrondit comme `toFixed`
