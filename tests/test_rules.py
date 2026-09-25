@@ -513,6 +513,64 @@ def test_un_role_incoherent_avec_la_provenance_est_refuse():
         replace(STRONG_CORRELATION, kind=ThresholdKind.PORTFOLIO_RELATIVE)
 
 
+# Un même nombre a la même forme dans un même bloc : la ligne de seuil écrit
+# `displayed`, la phrase aussi. Le seuil choisi s'écrivait « 0,70 » dans la
+# phrase et « 0,7 » dessous.
+
+
+def _sans_paire_forte(risque, rho):
+    return replace(risque, matrices=replace(
+        risque.matrices,
+        correlation=matrice([[1.0, rho, 0.1], [rho, 1.0, 0.05], [0.1, 0.05, 1.0]], ["JNJ", "KO", "X"]),
+    ))
+
+
+def test_le_seuil_choisi_s_ecrit_comme_dans_la_phrase(risque):
+    (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.42))
+
+    assert "n'atteint une corrélation de 0,70 sur" in obs.statement
+    assert "  Seuil : corrélation forte = 0,70 — seuil CHOISI" in obs.render()
+    assert "= 0,7 " not in obs.render()
+
+
+def test_la_reference_de_la_paire_garde_ses_deux_decimales(risque):
+    (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.40))
+
+    assert "La paire la plus corrélée est JNJ–KO, à 0,40." in obs.statement
+    assert "  Référence : corrélation JNJ–KO = 0,40 — relatif au portefeuille" in obs.render()
+
+
+def test_une_egalite_exacte_s_ecrit_pareil_dans_la_phrase_et_la_reference(risque):
+    # 0,125 est exact en binaire : round() le tranche au pair (0,12), toFixed
+    # vers le haut (0,13). Arrondir la valeur avant de l'écrire donnait les
+    # deux formes dans le même bloc.
+    (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.125))
+    reference = obs.thresholds[1]
+
+    assert "à 0,13." in obs.statement
+    assert reference.displayed == "0,13"
+    assert reference.value == 0.125, "la valeur publiée n'est pas arrondie d'avance"
+
+
+def test_une_part_de_capital_ronde_garde_sa_decimale_dans_la_reference(risque):
+    base = replace(
+        risque,
+        variance_contributions=_contributions({"A": 0.40, "B": 0.35, "C": 0.25}, {"A": 0.50, "B": 0.25, "C": 0.25}),
+    )
+    observations = {o.subject: o for o in variance_contribution(base)}
+
+    obs = observations["B"]
+    assert "B pèse 25,0\u202f% de la valeur du portefeuille" in obs.statement
+    assert "  Référence : part de B dans la valeur = 25,0\u202f% — référence calculée" in obs.render()
+
+
+def test_les_seuils_fixes_s_ecrivent_sous_la_forme_de_leur_phrase():
+    assert STRONG_CORRELATION.displayed == "0,70"
+    assert MIN_SCENARIO_COVERAGE.displayed == "80\u202f%"
+    assert MIN_REGRESSION_SAMPLE.displayed == "60"
+    assert MIN_ESTIMABLE_SAMPLE.displayed == "3"
+
+
 def test_une_ligne_unique_n_a_pas_de_paire(risque):
     base = replace(risque, matrices=replace(risque.matrices, correlation=matrice([[1.0]], ["A"])))
     assert apparent_diversification(base) == []

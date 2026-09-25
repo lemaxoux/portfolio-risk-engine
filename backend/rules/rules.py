@@ -201,7 +201,7 @@ def _mention_mince(quoi: str, seances: int) -> str:
         return ""
     return (
         f" Estimation mince : {_seances(seances)}, moins que les "
-        f"{int(MIN_REGRESSION_SAMPLE.value)} en deçà desquelles quelques "
+        f"{MIN_REGRESSION_SAMPLE.displayed} en deçà desquelles quelques "
         f"journées extrêmes suffisent à porter {quoi}."
     )
 
@@ -418,9 +418,10 @@ def variance_contribution(
         part = vc.contributions[ticker]
         poids = vc.weights[ticker]
         ecart = part - poids
+        reference = capital_share(ticker, poids)
 
         phrases = [
-            f"{ticker} pèse {typography.percent(poids, 1)} de la valeur du portefeuille et "
+            f"{ticker} pèse {reference.displayed} de la valeur du portefeuille et "
             f"{typography.percent(part, 1)} de sa variance."
         ]
         if part < 0:
@@ -469,7 +470,7 @@ def variance_contribution(
                 statement=" ".join(phrases),
                 facts=faits,
                 provenance=f"fenêtre d'estimation : {vc.window}",
-                thresholds=(capital_share(ticker, poids), *seuils_mince),
+                thresholds=(reference, *seuils_mince),
             )
         )
     return observations
@@ -549,23 +550,19 @@ def apparent_diversification(
         ]
 
     rho, a, b = paires[0]
+    reference = most_correlated_pair(a, b, rho)
     return [
         Observation(
             rule=RuleId.APPARENT_DIVERSIFICATION,
             subject="portefeuille",
             statement=(
                 "Aucune paire de lignes n'atteint une corrélation de "
-                f""
-                f"{typography.number(threshold.value, 2)} sur {_seances(seances)}. La paire la "
-                f"plus corrélée est {a}–{b}, à {typography.number(rho, 2)}.{mince}"
+                f"{threshold.displayed} sur {_seances(seances)}. La paire la "
+                f"plus corrélée est {a}–{b}, à {reference.displayed}.{mince}"
             ),
             facts={"correlation_max": rho, "paire": f"{a}–{b}", "seances": seances},
             provenance=provenance,
-            thresholds=(
-                threshold,
-                most_correlated_pair(a, b, rho),
-                *seuils_mince,
-            ),
+            thresholds=(threshold, reference, *seuils_mince),
         )
     ]
 
@@ -863,7 +860,7 @@ def scenario_coverage(
                 f"{nom} ne couvre que "
                 f"{typography.percent(couverture.value_share, 0)} de la valeur "
                 f"du portefeuille ({detail}). En dessous de "
-                f"{typography.percent(threshold.value, 0)}, "
+                f"{threshold.displayed}, "
                 "la partie rejouée est minoritaire dans la valeur : aucun chiffre "
                 "principal n'est donné pour ce scénario."
             )

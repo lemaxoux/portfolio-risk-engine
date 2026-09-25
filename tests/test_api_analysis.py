@@ -420,6 +420,22 @@ def test_chaque_seuil_dit_s_il_est_un_seuil_ou_une_reference(analyse_reelle):
         assert contribution["thresholds"][0]["role"] == "reference"
 
 
+def test_un_meme_nombre_a_la_meme_forme_dans_la_phrase_et_la_ligne_de_seuil(
+    analyse_reelle,
+):
+    (diversification,) = [
+        o
+        for o in analyse_reelle.json()["observations"]
+        if o["rule"] == "apparent_diversification"
+    ]
+    seuil, paire = diversification["thresholds"]
+
+    assert "corrélation de 0,70 sur" in diversification["statement"]
+    assert seuil["rendered"].startswith("corrélation forte = 0,70 — ")
+    rho = paire["rendered"].split(" = ")[1].split(" — ")[0]
+    assert f"à {rho}." in diversification["statement"]
+
+
 def test_un_seuil_choisi_le_dit_dans_le_champ_et_dans_le_texte(analyse_reelle):
     choisis = [
         seuil

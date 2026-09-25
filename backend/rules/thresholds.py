@@ -60,9 +60,22 @@ class ThresholdRole(Enum):
 
 @dataclass(frozen=True)
 class Threshold:
+    """Un seuil ou une référence, sa provenance, et la forme sous laquelle il
+    s'écrit.
+
+    `decimals` est la précision de l'ÉCRITURE, pas de la valeur : la phrase de
+    l'observation et la ligne de seuil écrivent toutes deux `displayed`, si
+    bien qu'un même nombre a la même forme dans un même bloc (« 0,70 » ici et
+    là, et non « 0,70 » dans la phrase et « 0,7 » dessous). La valeur n'est
+    jamais arrondie d'avance : `round()` tranche les égalités au pair,
+    `typography` comme `toFixed`, et un double arrondi pourrait écrire
+    « 0,12 » sous une phrase qui dit « 0,13 ».
+    """
+
     name: str
     kind: ThresholdKind
     value: float
+    decimals: int
     rationale: str
     percent: bool = False
     role: ThresholdRole = ThresholdRole.THRESHOLD
@@ -83,18 +96,20 @@ class Threshold:
     def chosen(self) -> bool:
         return self.kind is ThresholdKind.CHOSEN
 
+    @property
+    def displayed(self) -> str:
+        """La valeur écrite, celle que la phrase de l'observation cite aussi."""
+        if self.percent:
+            return typography.percent(self.value, self.decimals)
+        return typography.number(self.value, self.decimals)
+
     def __str__(self) -> str:
-        valeur = (
-            typography.percent(self.value, 1, trim=True)
-            if self.percent
-            else typography.compact(self.value)
-        )
         if self.chosen:
             return (
-                f"{self.name} = {valeur} — seuil CHOISI à la main, non dérivé des "
-                f"données : {self.rationale}"
+                f"{self.name} = {self.displayed} — seuil CHOISI à la main, non "
+                f"dérivé des données : {self.rationale}"
             )
-        return f"{self.name} = {valeur} — {self.kind.value} : {self.rationale}"
+        return f"{self.name} = {self.displayed} — {self.kind.value} : {self.rationale}"
 
 
 # ------------------------------------------------ Seuils choisis à la main --
@@ -103,6 +118,7 @@ STRONG_CORRELATION = Threshold(
     name="corrélation forte",
     kind=ThresholdKind.CHOSEN,
     value=0.70,
+    decimals=2,  # comme toute corrélation écrite dans le projet
     rationale=(
         "convention usuelle pour qualifier une corrélation de forte ; aucun calcul "
         "sur le portefeuille ne la produit"
@@ -113,6 +129,7 @@ MIN_SCENARIO_COVERAGE = Threshold(
     name="couverture minimale d'un scénario",
     kind=ThresholdKind.CHOSEN,
     value=0.80,
+    decimals=0,
     rationale=(
         "le biais de la renormalisation est orienté — la partie exclue est plus "
         "récente, donc en moyenne plus spéculative —, un seuil plus strict qu'un "
@@ -127,6 +144,7 @@ MIN_REGRESSION_SAMPLE = Threshold(
     name="nombre minimal de séances d'une régression",
     kind=ThresholdKind.CHOSEN,
     value=float(MIN_REGRESSION_OBSERVATIONS),
+    decimals=0,
     rationale=(
         "environ trois mois ; en deçà, quelques journées extrêmes dictent la pente "
         "à elles seules"
@@ -163,6 +181,7 @@ MIN_ESTIMABLE_SAMPLE = Threshold(
     name="nombre minimal de séances estimables",
     kind=ThresholdKind.DERIVED,
     value=float(MIN_ESTIMABLE_OBSERVATIONS),
+    decimals=0,
     rationale=(
         "à deux observations, le centrage ne laisse qu'une seule direction : "
         "corrélation, beta et contributions à la variance s'y calculent tous à "
@@ -179,7 +198,8 @@ def capital_share(ticker: str, weight: float) -> Threshold:
     return Threshold(
         name=f"part de {ticker} dans la valeur",
         kind=ThresholdKind.DERIVED,
-        value=round(weight, 4),
+        value=weight,
+        decimals=1,
         rationale=(
             "au-dessus, la ligne pèse davantage dans le risque que dans le capital ; "
             "en dessous, moins"
@@ -194,7 +214,8 @@ def most_correlated_pair(first: str, second: str, correlation: float) -> Thresho
     return Threshold(
         name=f"corrélation {first}–{second}",
         kind=ThresholdKind.PORTFOLIO_RELATIVE,
-        value=round(correlation, 2),
+        value=correlation,
+        decimals=2,
         rationale="corrélation de la paire la plus corrélée du portefeuille",
         role=ThresholdRole.REFERENCE,
     )

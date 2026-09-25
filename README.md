@@ -707,6 +707,14 @@ ou « Référence : » d'après ce champ (DESIGN.md §9.2). `kind` ne suffit pas
 trancher, puisque `derived` couvre les deux cas. Le constructeur refuse une
 référence choisie à la main et un seuil relatif au portefeuille.
 
+**Un même nombre a la même forme dans un même bloc.** Chaque seuil déclare la
+précision de son écriture (`decimals`), et la phrase comme la ligne de seuil
+écrivent `Threshold.displayed`. Le seuil choisi s'écrivait « 0,70 » dans la
+phrase et « 0,7 » dessous. Désormais, c'est « 0,70 » aux deux endroits. La
+valeur n'est plus arrondie avant d'être écrite : `round()` tranche les
+égalités au pair et `typography` comme `toFixed`. Une corrélation de 0,125
+se serait écrite « 0,12 » sous une phrase qui dit « 0,13 ».
+
 Illustration sur le portefeuille de démonstration (données au 9 septembre 2026) :
 
 > Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque (inverse de la somme des carrés des poids, puis des contributions à la variance). En capital, l'équipondération en donnerait 6. Le risque se concentre davantage que le capital : la lecture en capital seule est la plus flatteuse des deux.
