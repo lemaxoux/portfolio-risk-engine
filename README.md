@@ -1352,6 +1352,20 @@ l'ordre chronologique.
     - Tout nombre écrit dans un texte publié passe par `backend/typography.py`,
       vérifié sur les réponses de l'API
     - Copie de la base réelle figée au 2026-09-09 pour les tests qui la lisent
+  - [x] **7C — Corrections avant 7B.3** : données, règles, retouches
+    - Dividendes : `refresh` recharge tout l'historique d'un titre sur
+      `divCash` comme sur split ; `ingestion rebuild` répare une base déjà
+      écrite, après sauvegarde. **À lancer par Maxence sur
+      `data/mx_risk.sqlite`** (14 appels)
+    - Tous les tests sur base réelle passent par la copie figée ; une garde
+      l'impose
+    - Règle 5 : une crise estimée sur trop peu de séances n'entre plus dans
+      la conclusion, ni dans les faits qui la fondent
+    - `<Observation>` : « Référence » pour une valeur du portefeuille ; un même
+      nombre a la même forme dans la phrase et la ligne de seuil
+    - Espace fine avant « % » en Spectral : une face qui dessine U+202F
+    - Section 1 sous 900 px : ticker, valeur, poids d'abord ; diagonale de la
+      carte de corrélation hors échelle ; `CLAUDE.md`
   - [ ] 7B.3 — Saisie et import du portefeuille
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
