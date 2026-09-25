@@ -26,3 +26,23 @@
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Sous le titre d'un graphique (§9.4) : les paires se suivent et passent à la
+ * ligne ENTRE deux paires, jamais au milieu d'une. L'espace qui les sépare est
+ * plus large que celui qui lie un libellé à sa valeur : c'est lui qui dit où
+ * finit une paire, sans point médian (§12).
+ */
+.enLigne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-micro);
+  line-height: var(--leading-ui);
+}
+
+.enLigne .ligne {
+  display: inline-flex;
+  gap: var(--space-2);
+  white-space: nowrap;
+}

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ExpectedShortfall, Var, Window } from '../api/types'
-import { provenanceDeCVaR, provenanceDeVar } from './provenance'
+import { provenanceDeCVaR, provenanceDeGraphique, provenanceDeVar } from './provenance'
 
 const FENETRE: Window = {
   requested: 504,
@@ -69,5 +69,18 @@ describe('provenance d’une CVaR', () => {
   it('dit ce que compte le nombre de tête : des séances dans la queue', () => {
     const [premiere] = provenanceDeCVaR(CVAR_99)
     expect(premiere).toEqual({ libelle: 'Séances dans la queue', valeur: '6\u00a0séances' })
+  })
+})
+
+describe('provenance d’un graphique (§9.4)', () => {
+  it('porte l’unité, la fenêtre et la date de valorisation, dans cet ordre', () => {
+    const lignes = provenanceDeGraphique('rendement quotidien, en %', FENETRE, '2026-09-09')
+    expect(lignes.map((ligne) => ligne.libelle)).toEqual([
+      'Unité',
+      'Fenêtre',
+      'Période',
+      'Valorisé au',
+    ])
+    expect(lignes[3]?.valeur).toBe('2026-09-09')
   })
 })

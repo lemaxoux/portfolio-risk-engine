@@ -19,9 +19,21 @@ export interface LigneProvenance {
   readonly valeur: string
 }
 
-export function Provenance({ lignes }: { lignes: readonly LigneProvenance[] }) {
+/**
+ * `disposition` : `grille` dans un bloc mesure, où les valeurs s'alignent d'un
+ * bloc à l'autre ; `ligne` sous le titre d'un graphique, où les paires se
+ * suivent comme chez FRED (§9.4). Dans les deux cas, chaque valeur garde son
+ * libellé — ce n'est jamais une chaîne « A · B · C ».
+ */
+export function Provenance({
+  lignes,
+  disposition = 'grille',
+}: {
+  lignes: readonly LigneProvenance[]
+  disposition?: 'grille' | 'ligne'
+}) {
   return (
-    <dl className={styles.grille}>
+    <dl className={disposition === 'ligne' ? styles.enLigne : styles.grille}>
       {lignes.map((ligne) => (
         <div key={ligne.libelle} className={styles.ligne}>
           <dt className={styles.libelle}>{ligne.libelle}</dt>

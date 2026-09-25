@@ -1,0 +1,50 @@
+/*
+ * Enveloppe de graphique — §9.4.
+ *
+ * Pas de fond propre, pas de bordure : le graphique vit dans la colonne de
+ * lecture comme un paragraphe, pas comme une tuile (§3.2, §12).
+ */
+
+.graphique {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-block-end: var(--space-3);
+}
+
+.titre {
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * Le tracé prend la largeur de la colonne et jamais plus : c'est lui qui est
+ * mesuré (ResizeObserver) pour que Plot dessine à cette largeur exacte. Aucun
+ * défilement horizontal, à 390 px comme ailleurs.
+ */
+.trace {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+/*
+ * Plot écrit `font-family` et `font-size` en attributs de présentation sur le
+ * SVG ; une règle CSS les surcharge. La police est celle des chiffres (§6.1),
+ * à la taille des unités et mentions liées à un chiffre.
+ *
+ * `--plot-background` est le fond que Plot donne à ses infobulles : il vaut
+ * blanc par défaut, il vaut ici la surface du thème.
+ */
+.trace :global(svg) {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+  --plot-background: var(--surface-1);
+}

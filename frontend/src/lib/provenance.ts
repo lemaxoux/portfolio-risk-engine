@@ -116,3 +116,20 @@ export function provenanceDeVolatilite(resultat: Volatility): LigneProvenance[] 
     ...lignesDeFenetre(resultat.window),
   ]
 }
+
+/**
+ * Ce qu'un graphique porte sous son titre (§9.4, modèle FRED) : l'unité, la
+ * fenêtre, et la date de valorisation. Les trois sont OBLIGATOIRES — c'est la
+ * signature de `<Graphique>` qui l'impose, et c'est ici qu'elles s'écrivent.
+ */
+export function provenanceDeGraphique(
+  unite: string,
+  fenetre: Window,
+  asOf: string,
+): LigneProvenance[] {
+  return [
+    { libelle: 'Unité', valeur: unite },
+    ...lignesDeFenetre(fenetre),
+    { libelle: 'Valorisé au', valeur: dateISO(asOf) },
+  ]
+}
