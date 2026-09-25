@@ -51,12 +51,23 @@ BASE_REELLE = RACINE / "data" / "mx_risk.sqlite"
 # * les cours BRUTS (`close`), qui servent à la valorisation, ne sont jamais
 #   ajustés.
 #
-# Une exception connue, qui vient de l'ingestion et non du gel : le rattrapage
-# du 2026-09-23 a réécrit la séance du 2026-09-09 sur la base ajustée d'après
-# un dividende, sans toucher à celle du 2026-09-08. Pour KO et SPY, le dernier
-# rendement de la fenêtre figée porte donc un faux saut de l'ordre du
-# dividende. Les valeurs de référence (beta 0,5672, volatilité 0,13327) sont
-# retrouvées à moins de 3e-4 près, dans les tolérances des tests.
+# Une exception connue, qui venait de l'ingestion et non du gel : le
+# rattrapage du 2026-09-23 a réécrit la séance du 2026-09-09 sur la base
+# ajustée d'après un dividende, sans toucher à celle du 2026-09-08. Pour KO,
+# SPY et NVDA, le dernier rendement de la fenêtre figée porte un faux saut de
+# l'ordre du dividende (KO : −1,51 % au lieu de −0,92 %). Corrigé en 7C :
+# `refresh` recharge tout l'historique sur dividende, et
+# `python -m backend.ingestion rebuild` répare une base déjà écrite.
+#
+# Tant que `rebuild` n'a pas été lancé sur data/mx_risk.sqlite, la copie
+# figée porte encore ce saut. Les deux états ont été mesurés, sur une copie
+# reconstruite le 2026-09-25 : la suite passe entière dans l'un comme dans
+# l'autre. Le plus gros écart sur les valeurs de référence est le beta
+# (0,56696 → 0,56719, pour une référence de 0,5672). La volatilité passe de
+# 0,1332679 à 0,1332668 et la VaR 99 % historique ne bouge pas. Deux textes
+# publiés changent : JPM repasse de 35,3 % à 35,4 % de la variance, la
+# valeur de DESIGN.md §16, et l'écart de prédiction de 2008 passe de
+# −7,5 pts à −7,4 pts.
 DATE_GEL = "2026-09-09"
 
 
