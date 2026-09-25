@@ -1196,7 +1196,18 @@ l'ordre chronologique.
       courant, sous son propre nom — le bandeau ne la déduit pas d'une mesure
     - `GET /api/disclaimer` en lecture seule, pour l'écran d'acceptation
     - FastAPI sert `frontend/dist` sans jamais masquer l'API ; aucun CORS
-  - [ ] 7B.2 — Graphiques
+  - [x] **7B.2 — Page d'analyse et graphiques** : les six sections de
+    `DESIGN.md` §8.2, Observable Plot à version figée derrière une enveloppe
+    qui porte unité, fenêtre et date sous chaque titre et redessine au
+    changement de thème ; navigation latérale, ancres en tête de page sous
+    900 px
+    - Publication des séries (rendements, richesse avec son point de départ),
+      de l'histogramme en classes FIXES de 0,25 point comptées par le moteur,
+      de la valorisation ligne à ligne et de la devise (`USD`, hypothèse du
+      périmètre)
+    - Tout nombre écrit dans un texte publié passe par `backend/typography.py`,
+      vérifié sur les réponses de l'API
+    - Copie de la base réelle figée au 2026-09-09 pour les tests qui la lisent
   - [ ] 7B.3 — Saisie et import du portefeuille
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
