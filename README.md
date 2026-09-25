@@ -97,6 +97,7 @@ app/
 │   └── espace_fine.py   #   engendre la police de l'espace fine (U+202F)
 ├── tests/               # Tests unitaires
 ├── .env.example
+├── CLAUDE.md            # conventions et commandes, en une page, pour Claude Code
 ├── requirements.txt         # exécution
 └── requirements-dev.txt     # pytest, httpx2
 ```
