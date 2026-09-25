@@ -28,6 +28,7 @@ import { Bandeau } from './components/Bandeau'
 import { MessageErreur } from './components/MessageErreur'
 import { aAccepte } from './lib/acceptation'
 import { Acceptation } from './views/Acceptation'
+import { SectionAuPire } from './views/SectionAuPire'
 import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
 import { SectionPortefeuille } from './views/SectionPortefeuille'
 import styles from './App.module.css'
@@ -43,6 +44,7 @@ type Etat =
 const SECTIONS = [
   { ancre: 'portefeuille', libelle: 'Le portefeuille' },
   { ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' },
+  { ancre: 'au-pire', libelle: 'Au pire' },
 ] as const
 
 function enErreur(cause: unknown): Etat {
@@ -127,6 +129,11 @@ export function App() {
               <SectionJourOrdinaire
                 risque={etat.analyse.risk}
                 histogramme={etat.analyse.histogram}
+                asOf={etat.analyse.as_of}
+              />
+              <SectionAuPire
+                serie={etat.analyse.series}
+                creux={etat.analyse.risk.drawdown}
                 asOf={etat.analyse.as_of}
               />
             </>

@@ -60,7 +60,7 @@ const NIVEAUX = [niveau(0.95, 0.004, -0.004, 2), niveau(0.99, 0.0049, -0.0049, 1
 
 interface MarqueInspectee {
   data: unknown
-  ariaLabel?: string
+  ariaDescription?: string
   transform?: unknown
   channels: Record<string, { value: unknown } | undefined>
 }

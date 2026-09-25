@@ -12,7 +12,7 @@
  * dérivé de 0,95, il y est associé.
  */
 import type { LimitingPosition, Window } from '../api/types'
-import { ESPACE_FINE, compte, dateISO, pourcentage, seances } from './format'
+import { ESPACE_FINE, compte, dateEnToutesLettres, dateISO, pourcentage, seances } from './format'
 
 /**
  * « Une séance sur vingt » : la fréquence qui accompagne un niveau de
@@ -136,4 +136,17 @@ export function phraseFenetreReduite(
     ),
   ]
   return `${tete} : ${morceaux.join(' ; ')}.`
+}
+
+/**
+ * La phrase de lecture du creux maximal (section 3).
+ *
+ * Dates en toutes lettres : c'est de la prose (§6.3). Les dates ISO restent
+ * dans la provenance, sous la phrase.
+ */
+export function lectureDeCreux(picIso: string, creuxIso: string): string {
+  return (
+    `baisse la plus profonde depuis un sommet, ` +
+    `du ${dateEnToutesLettres(picIso)} au ${dateEnToutesLettres(creuxIso)}`
+  )
 }

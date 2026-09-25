@@ -30,6 +30,7 @@ import * as Plot from '@observablehq/plot'
 import type { HistogramBin, ReturnHistogram, TailRiskLevel } from '../../api/types'
 import { decimal, pourcentage, seances } from '../../lib/format'
 import type { ContexteGraphique } from './Graphique'
+import { halo } from './habillage'
 
 export const HAUTEUR_HISTOGRAMME = 260
 
@@ -57,15 +58,6 @@ export function graduationsDeRendement(
     graduations.push(Math.round(rang * pas * 1e6) / 1e6)
   }
   return graduations
-}
-
-/**
- * Une étiquette posée SUR le tracé reste lisible au-dessus d'une barre : un
- * liseré de la couleur de la page l'en détache (Plot peint le contour sous
- * le texte). L'encre reste un token de texte, jamais la couleur de la série.
- */
-export function halo(couleurs: ContexteGraphique['couleurs'], encre: string) {
-  return { fill: encre, stroke: couleurs.surface0, strokeWidth: 3 }
 }
 
 interface Donnees {
@@ -97,7 +89,7 @@ export function optionsHistogramme(
         x2: queue.threshold,
         fill: couleurs.texte1,
         fillOpacity: 0.15,
-        ariaLabel: 'queue de la CVaR à 95 %',
+        ariaDescription: 'queue de la CVaR à 95 %',
       }),
       // À mi-hauteur, à gauche : la zone la plus vide du graphique, loin des
       // étiquettes de quantile posées en haut.
@@ -122,7 +114,7 @@ export function optionsHistogramme(
       y2: 'count',
       inset: 0.5,
       fill: couleurs.serie1,
-      ariaLabel: 'classes de rendements',
+      ariaDescription: 'classes de rendements',
     }),
     Plot.ruleX([0], { stroke: couleurs.bordureForte }),
     Plot.ruleY([0], { stroke: couleurs.bordureForte }),

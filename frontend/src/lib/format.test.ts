@@ -16,6 +16,7 @@ import {
   SIGNE_MOINS,
   TIRET_INDEFINI,
   compte,
+  dateDepuisISO,
   dateEnToutesLettres,
   dateISO,
   decimal,
@@ -26,6 +27,7 @@ import {
   pourcentage,
   pourcentageOuTiret,
   seances,
+  moisISO,
   montant,
   points,
   pointsSignes,
@@ -277,5 +279,15 @@ describe('points de pourcentage', () => {
     expect(pointsSignes(0.098, 1)).toBe(`+9,8${ESPACE_INSECABLE}pts`)
     expect(pointsSignes(-0.081, 1)).toBe(`${SIGNE_MOINS}8,1${ESPACE_INSECABLE}pts`)
     expect(pointsSignes(0.0004, 1)).toBe(`0,0${ESPACE_INSECABLE}pts`)
+  })
+})
+
+describe('dates d’un axe de temps', () => {
+  it('positionne à minuit UTC et écrit le mois en composantes UTC', () => {
+    // Quel que soit le fuseau de la machine qui exécute le test : la date lue
+    // est celle qui a été reçue, pas la veille.
+    const date = dateDepuisISO('2025-03-01')
+    expect(date.toISOString()).toBe('2025-03-01T00:00:00.000Z')
+    expect(moisISO(date)).toBe('2025-03')
   })
 })

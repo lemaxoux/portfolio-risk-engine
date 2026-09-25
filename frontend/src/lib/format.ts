@@ -272,3 +272,22 @@ export function pointsSignes(fraction: number, decimales: number): string {
   const signe = fraction > 0 && !nul ? '+' : ''
   return `${signe}${ecrit}${ESPACE_INSECABLE}pts`
 }
+
+/**
+ * Une date ISO de l'API en `Date`, à minuit UTC — pour POSITIONNER un point
+ * sur un axe de temps, jamais pour l'écrire.
+ *
+ * Le fuseau est explicite : `new Date('2026-09-09')` est déjà en UTC, mais
+ * l'écrire ensuite avec les méthodes locales reculerait la date d'un jour à
+ * l'ouest de Greenwich. Tout ce qui écrit une date lue ici passe donc par
+ * `moisISO`, qui lit les composantes UTC.
+ */
+export function dateDepuisISO(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`)
+}
+
+/** Graduation d'un axe de temps : « 2025-02 », en composantes UTC. */
+export function moisISO(date: Date): string {
+  const mois = String(date.getUTCMonth() + 1).padStart(2, '0')
+  return `${date.getUTCFullYear()}\u002D${mois}`
+}
