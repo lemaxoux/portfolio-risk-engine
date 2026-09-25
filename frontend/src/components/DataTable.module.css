@@ -112,8 +112,10 @@
 /*
  * En largeur étroite, le tableau défile dans son cadre (la page, jamais) : la
  * première colonne reste alors en place, pour que chaque chiffre garde sous
- * les yeux la ligne à laquelle il appartient. Son fond est celui de la page,
- * sans quoi les colonnes défilantes apparaîtraient au travers.
+ * les yeux la ligne à laquelle il appartient. Son fond est celui du support
+ * du tableau — la page par défaut, un bloc surélevé quand le tableau y est
+ * posé (`--fond-tableau`) —, sans quoi les colonnes défilantes apparaîtraient
+ * au travers.
  */
 .tableau tr > :first-child {
   /* Sans `z-index` : une cellule positionnée se peint déjà au-dessus des
@@ -121,7 +123,7 @@
    * passer au-dessus du bandeau collant de la page. */
   position: sticky;
   inset-inline-start: 0;
-  background-color: var(--surface-0);
+  background-color: var(--fond-tableau, var(--surface-0));
 }
 
 .tableau thead tr > :first-child {

@@ -1,0 +1,135 @@
+/* Section 5 — §11.2, §11.6. */
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Un bloc par scénario. Une bordure, la surface surélevée, pas d'ombre (§12). */
+.bloc {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.periode {
+  color: var(--text-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.description {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-2) var(--space-4);
+  color: var(--text-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+/*
+ * Les trois chiffres, côte à côte quand la place le permet, empilés sinon —
+ * mais toujours à la MÊME taille (§11.2) : aucune requête de média ne change
+ * la taille de l'un sans changer celle des autres.
+ */
+.triade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-4);
+  margin-block-end: var(--space-4);
+}
+
+.cellule {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.libelle {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* La taille réservée au chiffre du scénario de crise (§6.2), pour les trois. */
+.chiffre {
+  margin: var(--space-1) 0 0;
+  color: var(--text-1);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-figure);
+}
+
+.sousChiffre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-micro);
+}
+
+/* Réserve méthodologique : point de 6 px et phrase en --caveat (§5.3). */
+.reserve {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-4);
+  color: var(--caveat);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  transform: translateY(-0.15em);
+}
+
+.exclues {
+  margin-block-start: var(--space-1);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.ticker {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+}
+
+.regime {
+  /* Le tableau est posé sur le bloc surélevé, pas sur la page. */
+  --fond-tableau: var(--surface-1);
+  margin-block-start: var(--space-5);
+}
+
+.prediction {
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-3);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}

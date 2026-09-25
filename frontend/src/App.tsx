@@ -29,6 +29,7 @@ import { MessageErreur } from './components/MessageErreur'
 import { aAccepte } from './lib/acceptation'
 import { Acceptation } from './views/Acceptation'
 import { SectionAuPire } from './views/SectionAuPire'
+import { SectionCrise } from './views/SectionCrise'
 import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
 import { SectionPortefeuille } from './views/SectionPortefeuille'
 import { SectionRisque } from './views/SectionRisque'
@@ -47,6 +48,7 @@ const SECTIONS = [
   { ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' },
   { ancre: 'au-pire', libelle: 'Au pire' },
   { ancre: 'qui-porte', libelle: 'Qui porte le risque' },
+  { ancre: 'en-crise', libelle: 'En crise' },
 ] as const
 
 function enErreur(cause: unknown): Etat {
@@ -143,6 +145,11 @@ export function App() {
                 concentration={etat.analyse.risk.concentration}
                 matrices={etat.analyse.risk.matrices}
                 scenarios={etat.analyse.scenarios}
+                asOf={etat.analyse.as_of}
+              />
+              <SectionCrise
+                scenarios={etat.analyse.scenarios}
+                regimes={etat.analyse.regimes}
                 asOf={etat.analyse.as_of}
               />
             </>

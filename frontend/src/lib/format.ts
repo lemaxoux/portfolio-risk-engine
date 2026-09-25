@@ -291,3 +291,18 @@ export function moisISO(date: Date): string {
   const mois = String(date.getUTCMonth() + 1).padStart(2, '0')
   return `${date.getUTCFullYear()}\u002D${mois}`
 }
+
+/**
+ * Un rendement SIGNÉ : « −44,0 % », « +59,7 % ».
+ *
+ * Pour un résultat qui peut être un gain comme une perte — une crise rejouée,
+ * l'apport d'une ligne. Le « + » est écrit : sans lui, « 3,2 % » à côté de
+ * « −44,0 % » se lirait comme une perte oubliée. Pendant de
+ * `backend.typography.percent(..., signed=True)` ; une valeur qui s'arrondit
+ * à zéro ne porte aucun signe.
+ */
+export function pourcentageSigne(fraction: number, decimales: number): string {
+  const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
+  const signe = fraction > 0 && !nul ? '+' : ''
+  return `${signe}${pourcentage(fraction, decimales)}`
+}

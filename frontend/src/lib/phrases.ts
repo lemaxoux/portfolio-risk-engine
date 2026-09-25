@@ -12,7 +12,15 @@
  * dérivé de 0,95, il y est associé.
  */
 import type { LimitingPosition, Window } from '../api/types'
-import { ESPACE_FINE, compte, dateEnToutesLettres, dateISO, pourcentage, seances } from './format'
+import {
+  ESPACE_FINE,
+  compte,
+  dateEnToutesLettres,
+  dateISO,
+  lignes,
+  pourcentage,
+  seances,
+} from './format'
 
 /**
  * « Une séance sur vingt » : la fréquence qui accompagne un niveau de
@@ -162,3 +170,33 @@ export const PHRASE_CONTRIBUTION_NEGATIVE =
   "Au moins une ligne contribue négativement à la variance : elle a évolué à " +
   "rebours du reste du portefeuille et en réduit le risque. Sa barre part à " +
   "gauche de zéro, et la lecture en lignes effectives en devient approximative."
+
+/**
+ * Couverture partielle d'un scénario (§11.2) — ce que la perte ne couvre pas.
+ *
+ * La phrase ne dit que ce que le moteur publie : combien de lignes manquent,
+ * sur combien, et que la perte porte sur les autres, renormalisées. La raison
+ * de chaque exclusion est le texte du moteur, affiché à côté, tel quel.
+ */
+export function phraseCouverturePartielle(
+  exclues: number,
+  couvertes: number,
+  total: number,
+): string {
+  return (
+    `${lignes(exclues)} sur ${total} sans historique sur toute la période ; ` +
+    `la perte porte sur ${couvertes === 1 ? "l'autre" : `les ${couvertes} autres`}, renormalisées.`
+  )
+}
+
+/**
+ * Beta de crise sur un échantillon mince (§11.6) : le chiffre est rendu, et
+ * la phrase dit sur combien de séances, contre quel seuil — CHOISI.
+ */
+export function phraseEchantillonMince(observations: number, minimum: number): string {
+  return (
+    `Beta de crise estimé sur ${seances(observations)}, moins que les ${minimum} ` +
+    `retenues pour une régression stable (seuil choisi) : quelques séances ` +
+    `extrêmes y dictent la pente.`
+  )
+}

@@ -26,6 +26,7 @@ import {
   lignes,
   pourcentage,
   pourcentageOuTiret,
+  pourcentageSigne,
   seances,
   moisISO,
   montant,
@@ -289,5 +290,13 @@ describe('dates d’un axe de temps', () => {
     const date = dateDepuisISO('2025-03-01')
     expect(date.toISOString()).toBe('2025-03-01T00:00:00.000Z')
     expect(moisISO(date)).toBe('2025-03')
+  })
+})
+
+describe('rendement signé', () => {
+  it('écrit le « + » d’un gain et le vrai signe moins d’une perte', () => {
+    expect(pourcentageSigne(0.597, 1)).toBe(`+59,7${ESPACE_FINE}%`)
+    expect(pourcentageSigne(-0.44, 1)).toBe(`${SIGNE_MOINS}44,0${ESPACE_FINE}%`)
+    expect(pourcentageSigne(0.0001, 1)).toBe(`0,0${ESPACE_FINE}%`)
   })
 })
