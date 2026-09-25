@@ -20,9 +20,11 @@ class DailyBar:
     dividendes. Les deux divergent après chaque opération sur titre, et seul
     `adj_close` donne des rendements justes.
 
-    `split_factor` vaut 1.0 hors split. Toute autre valeur signale que le
-    fournisseur a retraité l'historique du titre : les `adj_close` déjà en base
-    sont alors périmés (voir `backend.ingestion.prices`).
+    `split_factor` vaut 1.0 hors split, `div_cash` vaut 0.0 hors détachement de
+    dividende. Toute autre valeur signale que le fournisseur a retraité les
+    `adj_close` de toutes les séances ANTÉRIEURES : ceux déjà en base sont
+    alors sur une autre base d'ajustement que ceux qu'il renvoie désormais
+    (voir `backend.ingestion.prices`).
     """
 
     date: date
@@ -33,6 +35,7 @@ class DailyBar:
     adj_close: float
     volume: int | None
     split_factor: float = 1.0
+    div_cash: float = 0.0
 
 
 @dataclass(frozen=True)

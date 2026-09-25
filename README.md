@@ -169,6 +169,20 @@ séance connue de chaque titre : la machine peut rester éteinte une semaine san
 laisser de trou. Le code de sortie vaut 1 si un titre a échoué, pour qu'un
 ordonnanceur le voie.
 
+**Un split ou un dividende fait recharger tout l'historique du titre.** À
+chacune de ces opérations, Tiingo recalcule tous les `adj_close` antérieurs à
+la séance. Un rattrapage qui ne réécrirait que la fenêtre manquante mélangerait
+deux bases d'ajustement, et le rendement de la séance de jonction mesurerait
+l'écart entre elles au lieu du rendement réel. Ce défaut a existé jusqu'en
+phase 7C, pour les dividendes. KO au 2026-09-09 : −1,51 % stocké contre
+−0,92 % réel, pour un dividende de 0,53 détaché le 2026-09-15. SPY et NVDA
+étaient touchés de la même façon. Dès qu'une séance récupérée porte `divCash`
+non nul ou `splitFactor` différent de 1, `refresh` recharge l'historique
+complet du titre et le remplace d'un bloc (`replace_history`), en journalisant
+la raison. Le coût est d'un appel par titre et par opération, soit quatre par
+an pour un titre à dividende trimestriel. Une reprise qui revient vide ne
+supprime rien.
+
 **La profondeur est ancrée à une date fixe, pas à une durée glissante.**
 `BACKFILL_START = 2005-01-01` dans `backend/ingestion/universe.py`. Une fenêtre
 exprimée en années cesse silencieusement de couvrir un événement à mesure que

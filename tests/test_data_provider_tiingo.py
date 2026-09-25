@@ -194,6 +194,26 @@ def test_le_split_factor_est_remonte():
     assert bar.split_factor == 4.0
 
 
+def test_le_dividende_est_remonte():
+    # Sans lui, l'ingestion ne voit pas que Tiingo a réajusté tout
+    # l'historique antérieur au détachement.
+    session = FakeSession(
+        FakeResponse(payload=[seance("2026-09-15", divCash=0.53)])
+    )
+    (bar,) = provider(session).get_daily_adjusted(
+        "KO", date(2026, 9, 15), date(2026, 9, 15)
+    )
+    assert bar.div_cash == 0.53
+
+
+def test_une_seance_sans_dividende_porte_zero():
+    session = FakeSession(
+        FakeResponse(payload=[seance("2026-01-02"), seance("2026-01-05", divCash=None)])
+    )
+    bars = provider(session).get_daily_adjusted("AAPL", date(2026, 1, 1), date(2026, 1, 5))
+    assert [b.div_cash for b in bars] == [0.0, 0.0]
+
+
 def test_un_week_end_rend_une_liste_vide_sans_erreur():
     session = FakeSession(FakeResponse(payload=[]))
     assert (

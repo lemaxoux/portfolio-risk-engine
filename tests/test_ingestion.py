@@ -234,6 +234,205 @@ def test_sans_split_il_n_y_a_pas_de_reprise(conn):
     assert len(p.fenetres_de("AAPL")) == appels_avant + 1
 
 
+# ---------------------------------------------------------------- Dividendes --
+#
+# Le défaut corrigé : à chaque dividende, le fournisseur recalcule TOUS les
+# adj_close antérieurs au détachement. Le rattrapage réécrivait la dernière
+# séance stockée sur la nouvelle base d'ajustement sans toucher à la veille,
+# et le rendement de cette séance de jonction comptait le détachement comme
+# une perte : KO au 2026-09-09, −1,51 % stocké contre −0,92 % réel.
+
+# Cours bruts sur le modèle de KO : dividende de 0,53 détaché le 2026-09-15,
+# rendement réel de −0,92 % le 2026-09-09 (le 2026-09-07 est férié).
+COURS_KO = {
+    date(2026, 9, 4): 70.20,
+    date(2026, 9, 8): 70.00,
+    date(2026, 9, 9): 70.00 * (1 - 0.0092),
+    date(2026, 9, 10): 69.60,
+    date(2026, 9, 11): 69.90,
+    date(2026, 9, 14): 70.10,
+    date(2026, 9, 15): 69.70,
+    date(2026, 9, 16): 69.80,
+}
+DETACHEMENT = date(2026, 9, 15)
+DIVIDENDE = 0.53
+JONCTION = date(2026, 9, 9)
+
+
+class FournisseurAjuste(FakeProvider):
+    """Réajuste l'historique à chaque dividende, à la manière de Tiingo.
+
+    L'`adj_close` d'une séance est son cours brut multiplié, pour chaque
+    dividende détaché APRÈS elle et déjà connu, par (1 − dividende / clôture
+    de la veille du détachement). Le fournisseur ne connaît un dividende qu'à
+    partir de sa date de détachement : `aujourd_hui` fixe ce qu'il sait au
+    moment de l'appel.
+
+    `masquer_dividendes` retire `div_cash` des séances sans rien changer à
+    l'ajustement : c'est ce que voyait l'ingestion avant de lire ce champ.
+    """
+
+    def __init__(self, cours, dividendes, *, masquer_dividendes=False, reprise_vide=False):
+        super().__init__()
+        self.cours = cours
+        self.dividendes = dividendes
+        self.masquer_dividendes = masquer_dividendes
+        self.reprise_vide = reprise_vide
+        self.aujourd_hui = max(cours)
+
+    def get_daily_adjusted(self, ticker, start, end):
+        self.fenetres.append((ticker, start, end))
+        if self.reprise_vide and start <= BACKFILL_START and len(self.fenetres) > 1:
+            return []
+        jours = sorted(j for j in self.cours if j <= self.aujourd_hui)
+        connus = {j: m for j, m in self.dividendes.items() if j <= self.aujourd_hui}
+        resultat = []
+        for jour in jours:
+            if not start <= jour <= end:
+                continue
+            facteur = 1.0
+            for detachement, montant in connus.items():
+                if detachement > jour:
+                    veille = max(j for j in jours if j < detachement)
+                    facteur *= 1 - montant / self.cours[veille]
+            resultat.append(
+                DailyBar(
+                    date=jour,
+                    open=None,
+                    high=None,
+                    low=None,
+                    close=self.cours[jour],
+                    adj_close=self.cours[jour] * facteur,
+                    volume=None,
+                    div_cash=0.0 if self.masquer_dividendes else connus.get(jour, 0.0),
+                )
+            )
+        return resultat
+
+
+def rendement_stocke(conn, ticker: str, jour: date) -> float:
+    """Rendement simple de `jour`, lu sur les deux derniers adj_close en base."""
+    (dernier, apres), (_, avant) = conn.execute(
+        "SELECT date, adj_close FROM prices WHERE ticker = ? AND date <= ? "
+        "ORDER BY date DESC LIMIT 2",
+        (ticker, jour.isoformat()),
+    ).fetchall()
+    assert dernier == jour.isoformat()
+    return apres / avant - 1
+
+
+def rattraper_ko(conn, *, jusqu_au: date = date(2026, 9, 16), **options):
+    """Backfill au 2026-09-09, puis rattrapage à `jusqu_au`."""
+    p = FournisseurAjuste(COURS_KO, {DETACHEMENT: DIVIDENDE}, **options)
+    p.aujourd_hui = JONCTION
+    backfill(["KO"], provider=p, conn=conn, today=JONCTION)
+    p.aujourd_hui = jusqu_au
+    rapport = refresh(["KO"], provider=p, conn=conn, today=jusqu_au)
+    return p, rapport
+
+
+def test_un_dividende_dans_la_fenetre_declenche_une_reprise_complete(conn):
+    p, rapport = rattraper_ko(conn)
+
+    assert p.fenetres_de("KO") == [
+        (BACKFILL_START, JONCTION),         # backfill
+        (JONCTION, date(2026, 9, 16)),      # rattrapage : voit le dividende
+        (BACKFILL_START, date(2026, 9, 16)),  # reprise complète
+    ]
+    assert rapport.results[0].status == OK
+
+
+def test_apres_reprise_la_seance_de_jonction_porte_son_rendement_reel(conn):
+    rattraper_ko(conn)
+
+    assert rendement_stocke(conn, "KO", JONCTION) == pytest.approx(-0.0092, abs=1e-12)
+
+
+def test_temoin_sans_lire_le_dividende_la_jonction_porte_l_ecart_de_base(conn):
+    # Le défaut reproduit, pour que le test précédent prouve quelque chose :
+    # sans div_cash, aucune reprise, et le rendement de jonction absorbe le
+    # facteur d'ajustement du dividende.
+    p, _ = rattraper_ko(conn, masquer_dividendes=True)
+
+    assert len(p.fenetres_de("KO")) == 2, "aucune reprise complète"
+    facteur = 1 - DIVIDENDE / COURS_KO[date(2026, 9, 14)]
+    ecart = (1 - 0.0092) * facteur - 1
+    assert rendement_stocke(conn, "KO", JONCTION) == pytest.approx(ecart, abs=1e-12)
+    assert ecart < -0.0092 - 0.005, "l'écart est de l'ordre du rendement du coupon"
+
+
+def test_apres_reprise_le_detachement_rapporte_le_rendement_total(conn):
+    rattraper_ko(conn)
+
+    veille = COURS_KO[date(2026, 9, 14)]
+    stocke = rendement_stocke(conn, "KO", DETACHEMENT)
+    # L'ajustement multiplicatif rapporte le cours du jour à la veille diminuée
+    # du dividende : exact par construction...
+    assert stocke == pytest.approx(COURS_KO[DETACHEMENT] / (veille - DIVIDENDE) - 1, abs=1e-12)
+    # ... et égal au rendement total (dividende réinvesti) au second ordre près.
+    total = (COURS_KO[DETACHEMENT] + DIVIDENDE) / veille - 1
+    assert stocke == pytest.approx(total, abs=5e-5)
+    assert stocke > 0, "le détachement n'est pas compté comme une perte"
+
+
+def test_sans_dividende_ni_split_le_rattrapage_est_inchange(conn):
+    # Rattrapage au 2026-09-14, veille du détachement : rien à reprendre.
+    p, _ = rattraper_ko(conn, jusqu_au=date(2026, 9, 14))
+    avant_jonction = conn.execute(
+        "SELECT date, adj_close FROM prices WHERE date < ? ORDER BY date",
+        (JONCTION.isoformat(),),
+    ).fetchall()
+
+    assert p.fenetres_de("KO")[1:] == [(JONCTION, date(2026, 9, 14))]
+    assert [tuple(r) for r in avant_jonction] == [
+        ("2026-09-04", COURS_KO[date(2026, 9, 4)]),
+        ("2026-09-08", COURS_KO[date(2026, 9, 8)]),
+    ], "les séances antérieures à la fenêtre ne sont pas réécrites"
+    assert compte_prix(conn, "KO") == 6
+
+
+def test_la_reprise_efface_une_seance_que_le_fournisseur_ne_renvoie_plus(conn):
+    # Une ligne laissée sur l'ancienne base d'ajustement fausserait deux
+    # rendements : celui du jour et celui du lendemain.
+    p = FournisseurAjuste(COURS_KO, {DETACHEMENT: DIVIDENDE})
+    p.aujourd_hui = JONCTION
+    backfill(["KO"], provider=p, conn=conn, today=JONCTION)
+    conn.execute(
+        "INSERT INTO prices (ticker, date, close, adj_close) "
+        "VALUES ('KO', '2026-09-05', 70.1, 70.1)"
+    )
+
+    p.aujourd_hui = date(2026, 9, 16)
+    refresh(["KO"], provider=p, conn=conn, today=p.aujourd_hui)
+
+    dates = [r["date"] for r in conn.execute("SELECT date FROM prices ORDER BY date")]
+    assert "2026-09-05" not in dates
+    assert len(dates) == len(COURS_KO)
+
+
+def test_une_reprise_vide_conserve_l_historique(conn):
+    p, rapport = rattraper_ko(conn, reprise_vide=True)
+
+    assert rapport.results[0].status == ECHEC
+    assert "historique en base conservé" in rapport.results[0].detail
+    assert compte_prix(conn, "KO") == 3, "le rattrapage fautif est annulé avec la reprise"
+
+
+def test_la_reprise_remonte_a_la_premiere_seance_si_elle_precede_l_ancrage(conn):
+    # Titre chargé avec un --start antérieur à l'ancrage : ce qui resterait en
+    # deçà de la reprise resterait sur l'ancienne base.
+    anciens = {date(2004, 6, 1): 40.0, date(2004, 6, 2): 40.5}
+    p = FournisseurAjuste({**anciens, **COURS_KO}, {DETACHEMENT: DIVIDENDE})
+    p.aujourd_hui = JONCTION
+    backfill(["KO"], start=date(2004, 6, 1), provider=p, conn=conn, today=JONCTION)
+
+    p.aujourd_hui = date(2026, 9, 16)
+    refresh(["KO"], provider=p, conn=conn, today=p.aujourd_hui)
+
+    debut_reprise, _ = p.fenetres_de("KO")[-1]
+    assert debut_reprise == date(2004, 6, 1)
+
+
 # ----------------------------------------------------- Intégrité du schéma --
 
 

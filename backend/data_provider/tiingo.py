@@ -229,4 +229,5 @@ def _to_bar(ticker: str, row: Any) -> DailyBar:
         adj_close=float(row["adjClose"]),
         volume=None if volume is None else int(volume),
         split_factor=float(row.get("splitFactor") or 1.0),
+        div_cash=float(row.get("divCash") or 0.0),
     )

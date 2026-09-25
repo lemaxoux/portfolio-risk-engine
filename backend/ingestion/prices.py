@@ -124,6 +124,15 @@ def last_stored_date(conn: sqlite3.Connection, ticker: str) -> date | None:
     return date.fromisoformat(valeur) if valeur else None
 
 
+def first_stored_date(conn: sqlite3.Connection, ticker: str) -> date | None:
+    """Première séance en base pour ce titre, ou None si aucune."""
+    row = conn.execute(
+        "SELECT MIN(date) AS premiere FROM prices WHERE ticker = ?", (ticker,)
+    ).fetchone()
+    valeur = row["premiere"] if row else None
+    return date.fromisoformat(valeur) if valeur else None
+
+
 # ------------------------------------------------------------- Un seul titre --
 
 
@@ -167,18 +176,71 @@ def _register(
     logger.debug("%s : %s (%s)", ticker, info.name, info.exchange or "place inconnue")
 
 
+def operations_sur_titre(bars: list[DailyBar]) -> list[str]:
+    """Décrit les séances qui ont fait retraiter l'historique ajusté du titre.
+
+    Un split comme un détachement de dividende font recalculer au fournisseur
+    TOUS les `adj_close` antérieurs à la séance. Une liste vide veut dire
+    qu'aucune séance récupérée ne donne de raison de croire que l'historique
+    en base a changé de base d'ajustement.
+    """
+    raisons: list[str] = []
+    for bar in bars:
+        if bar.split_factor != 1.0:
+            raisons.append(f"split de facteur {bar.split_factor:g} le {bar.date}")
+        if bar.div_cash != 0.0:
+            raisons.append(f"dividende de {bar.div_cash:g} le {bar.date}")
+    return raisons
+
+
 def _fetch_and_store(
     conn: sqlite3.Connection,
     provider: MarketDataProvider,
     ticker: str,
     start: date,
     end: date,
-) -> tuple[int, bool]:
-    """Récupère une fenêtre et l'écrit. Renvoie (lignes écrites, split détecté)."""
+) -> tuple[int, list[str]]:
+    """Récupère une fenêtre et l'écrit.
+
+    Renvoie (lignes écrites, opérations sur titre trouvées dans la fenêtre).
+    """
     bars = provider.get_daily_adjusted(ticker, start, end)
     rows = store_bars(conn, ticker, bars)
-    split = any(bar.split_factor != 1.0 for bar in bars)
-    return rows, split
+    return rows, operations_sur_titre(bars)
+
+
+def replace_history(
+    conn: sqlite3.Connection,
+    provider: MarketDataProvider,
+    ticker: str,
+    start: date,
+    end: date,
+) -> int:
+    """Remplace d'un bloc tout l'historique du titre par celui du fournisseur.
+
+    Le fournisseur recalcule les `adj_close` à chaque split et à chaque
+    dividende. Un historique rechargé par morceaux mélangerait deux bases
+    d'ajustement, et le rendement de la séance de jonction mesurerait l'écart
+    entre elles au lieu du rendement réel. Tout est donc relu en un appel, et
+    les lignes existantes sont supprimées avant réécriture : une séance que le
+    fournisseur ne renvoie plus ne doit pas survivre sur l'ancienne base.
+
+    La reprise part de `start`, ou de la première séance en base si elle est
+    plus ancienne (backfill lancé avec un `--start` antérieur) : ce qui
+    resterait en deçà de la reprise resterait sur l'ancienne base.
+
+    Une réponse vide ne supprime rien. Elle signale un fournisseur en défaut,
+    pas un titre qui aurait perdu son historique.
+    """
+    premiere = first_stored_date(conn, ticker)
+    debut = min(start, premiere) if premiere else start
+    bars = provider.get_daily_adjusted(ticker, debut, end)
+    if not bars:
+        raise ProviderError(
+            f"{ticker} : reprise complète vide depuis {debut}, historique en base conservé"
+        )
+    conn.execute("DELETE FROM prices WHERE ticker = ?", (ticker,))
+    return store_bars(conn, ticker, bars)
 
 
 # ---------------------------------------------------------------- Opérations --
@@ -208,7 +270,7 @@ def backfill(
     logger.info("Backfill de %d titres (%s → %s)", len(cibles), start, end)
     return _run(
         cibles,
-        lambda c, p, t: _fetch_and_store(c, p, t, start, end),
+        lambda c, p, t: _fetch_and_store(c, p, t, start, end)[0],
         provider=provider,
         conn=conn,
         refresh_metadata=refresh_metadata,
@@ -230,28 +292,37 @@ def refresh(
     journée manquée. La fenêtre part de la dernière date en base, pas du
     lendemain : réécrire cette séance ne coûte rien (clé primaire) et corrige
     une clôture récupérée en séance puis révisée depuis.
+
+    Un split ou un dividende dans la fenêtre déclenche une reprise complète
+    (`replace_history`), soit un appel de plus pour le titre concerné. Sans
+    elle, la séance `derniere` revenait sur la nouvelle base d'ajustement et la
+    veille restait sur l'ancienne : le rendement de jonction comptait le
+    détachement comme une perte. Constaté sur KO au 2026-09-09 : −1,51 %
+    stocké contre −0,92 % réel, pour un dividende de 0,53 détaché le
+    2026-09-15.
+
+    La séance `derniere` fait elle-même partie de la fenêtre examinée. Si elle
+    porte l'opération, une reprise déjà faite au passage précédent est refaite :
+    un appel de trop, jamais une donnée fausse. L'exclure manquerait le cas où
+    le fournisseur publie l'opération après avoir servi la clôture.
     """
     end = today or date.today()
 
-    def rattrapage(
-        c: sqlite3.Connection, p: MarketDataProvider, ticker: str
-    ) -> tuple[int, bool]:
+    def rattrapage(c: sqlite3.Connection, p: MarketDataProvider, ticker: str) -> int:
         derniere = last_stored_date(c, ticker)
         if derniere is None:
             logger.info("%s : aucune donnée en base, backfill complet", ticker)
-            return _fetch_and_store(c, p, ticker, fallback_start, end)
+            return _fetch_and_store(c, p, ticker, fallback_start, end)[0]
 
-        rows, split = _fetch_and_store(c, p, ticker, derniere, end)
-        if split:
-            # Tiingo retraite tout l'historique après un split : les adj_close
-            # déjà en base sont périmés et fausseraient tous les rendements du
-            # titre. Seule une reprise complète de la fenêtre les remet d'aplomb.
+        rows, raisons = _fetch_and_store(c, p, ticker, derniere, end)
+        if raisons:
             logger.warning(
-                "%s : split détecté, historique ajusté périmé — reprise complète",
+                "%s : %s — historique ajusté périmé, reprise complète",
                 ticker,
+                " ; ".join(raisons),
             )
-            rows, _ = _fetch_and_store(c, p, ticker, fallback_start, end)
-        return rows, split
+            rows = replace_history(c, p, ticker, fallback_start, end)
+        return rows
 
     logger.info("Rattrapage jusqu'au %s", end)
     return _run(tickers or list(DEV_UNIVERSE), rattrapage, provider=provider, conn=conn)
@@ -278,13 +349,11 @@ def ensure_ticker(
     cible = ticker.upper()
     end = today or date.today()
 
-    def charger(
-        c: sqlite3.Connection, p: MarketDataProvider, t: str
-    ) -> tuple[int, bool]:
+    def charger(c: sqlite3.Connection, p: MarketDataProvider, t: str) -> int:
         if last_stored_date(c, t) is not None:
             logger.info("%s : déjà en base, rien à charger", t)
-            return 0, False
-        return _fetch_and_store(c, p, t, start, end)
+            return 0
+        return _fetch_and_store(c, p, t, start, end)[0]
 
     return _run([cible], charger, provider=provider, conn=conn, sectors={cible: None})
 
@@ -330,7 +399,7 @@ def _run(
                     secteurs.get(ticker),
                     refresh_metadata=refresh_metadata,
                 )
-                rows, _ = operation(connexion, fournisseur, ticker)
+                rows = operation(connexion, fournisseur, ticker)
                 connexion.commit()
                 report.results.append(
                     TickerResult(ticker, OK if rows else A_JOUR, rows=rows)
