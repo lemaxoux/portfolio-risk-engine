@@ -8,10 +8,8 @@ divergence entre les deux est un résultat, pas une anomalie.
 from __future__ import annotations
 
 import math
-import shutil
 from contextlib import closing
 from datetime import date, timedelta
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -33,9 +31,6 @@ from backend.risk_engine.regime import (
     log_return,
 )
 from backend.risk_engine.scenarios import Scenario
-
-BASE_REELLE = Path(__file__).resolve().parents[1] / "data" / "mx_risk.sqlite"
-
 
 # ---------------------------------------------------- Fonctions pures --
 
@@ -339,12 +334,8 @@ def test_sans_benchmark_en_base_la_comparaison_est_impossible(conn):
 # ------------------------------------------------ Données réelles --
 
 
-@pytest.mark.skipif(not BASE_REELLE.exists(), reason="base locale absente")
-def test_comparaison_des_trois_scenarios_sur_un_portefeuille_reel(tmp_path):
-    copie = tmp_path / "copie.sqlite"
-    shutil.copy(BASE_REELLE, copie)
-
-    with closing(connect(copie)) as conn:
+def test_comparaison_des_trois_scenarios_sur_un_portefeuille_reel(base_figee):
+    with closing(connect(base_figee)) as conn:
         conn.execute("INSERT INTO portfolios (owner) VALUES ('test')")
         pid = conn.execute("SELECT MAX(id) FROM portfolios").fetchone()[0]
         for ticker, quantite in {"AAPL": 40, "JPM": 60, "KO": 120}.items():

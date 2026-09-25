@@ -672,7 +672,7 @@ def contenu(chemin, table):
 @pytest.fixture
 def base_reelle_simulee(tmp_path, monkeypatch):
     """Une base à réparer, à la place de data/mx_risk.sqlite pour la commande."""
-    chemin = base_a_reparer(tmp_path / "mx_risk.sqlite")
+    chemin = base_a_reparer(tmp_path / "base.sqlite")
     monkeypatch.setenv("MX_RISK_DB_PATH", str(chemin))
     fournisseur = fournisseur_a_jour()
     data_provider.set_provider(fournisseur)

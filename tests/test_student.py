@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import date
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -28,8 +27,6 @@ from backend.risk_engine.var import (
     student_scale_matrix,
     student_t_var,
 )
-
-BASE_REELLE = Path(__file__).resolve().parents[1] / "data" / "mx_risk.sqlite"
 
 TICKERS = ["A", "B", "C"]
 SIGMA = pd.DataFrame(
@@ -88,8 +85,7 @@ def test_trop_peu_d_observations_pour_estimer_nu():
         fit_student_t(np.random.default_rng(0).normal(0, 0.01, 10))
 
 
-@pytest.mark.skipif(not BASE_REELLE.exists(), reason="base locale absente")
-def test_non_regression_sur_la_serie_ou_scipy_a_echoue():
+def test_non_regression_sur_la_serie_ou_scipy_a_echoue(base_figee_partagee):
     """Série réelle figée : six titres, poids exacts, dates fixes.
 
     Au moment de l'écriture, `scipy.stats.t.fit` s'arrêtait sur cette série à
@@ -106,7 +102,7 @@ def test_non_regression_sur_la_serie_ou_scipy_a_echoue():
         "MSFT": 0.14775649945273145,
         "XOM": 0.15794032278326184,
     }
-    with closing(connect(BASE_REELLE)) as conn:
+    with closing(connect(base_figee_partagee)) as conn:
         panel = align_panel(
             load_price_panel(conn, list(poids), date(2024, 9, 4), date(2026, 9, 9))
         )

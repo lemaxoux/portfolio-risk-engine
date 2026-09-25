@@ -736,6 +736,21 @@ sur une copie jetable ou sur une base synthétique construite pour le cas
 couverture réelle d'un scénario de 2008 — sont ignorés si la base locale est
 absente.
 
+**Aucun test ne lit la base vivante.** `refresh` y ajoute des séances chaque
+jour et `rebuild` la réécrit : un test qui la lirait vérifierait l'état du
+fichier, pas le code. `tests/conftest.py` en est le seul accès. Il copie la
+base et la tronque à `DATE_GEL` (2026-09-09), et offre trois fixtures :
+
+- `base_figee_partagee`, une copie pour toute la session, en lecture seule
+  sur le disque ;
+- `base_figee`, une copie propre au test, pour qui y crée des portefeuilles ;
+- `analyse_reelle`, la réponse `/analysis` du portefeuille de démonstration.
+
+`tests/test_gel_des_tests.py` lit l'arbre syntaxique de chaque fichier de
+tests. Il échoue sur toute autre ouverture : `BASE_REELLE`, `get_db_path`,
+`connect()` sans chemin, une chaîne en `mx_risk.sqlite`. Il est exercé par
+des témoins dans les deux sens.
+
 La réponse `/analysis` de référence est calculée **une fois par session** :
 c'est un objet HTTP déjà reçu, que la vingtaine de tests concernés se contentent
 de lire, et la base qui l'a produite est fermée avant le premier d'entre eux. La

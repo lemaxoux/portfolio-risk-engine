@@ -11,7 +11,6 @@ si la base locale existe, et se saute proprement sur un clone frais.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -37,9 +36,6 @@ from backend.risk_engine.portfolio import (
     market_value_weights,
 )
 from backend.risk_engine.returns import simple_returns, wealth_curve
-
-BASE_REELLE = Path(__file__).resolve().parents[1] / "data" / "mx_risk.sqlite"
-
 
 @pytest.fixture
 def conn(tmp_path):
@@ -373,11 +369,9 @@ def test_le_taux_sans_risque_est_un_parametre_pas_une_constante_enfouie(conn):
 # --------------------------------------------- Non-régression, données réelles --
 
 
-@pytest.mark.skipif(
-    not BASE_REELLE.exists(),
-    reason="base locale absente — lancer `python -m backend.ingestion backfill`",
-)
-def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct():
+def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct(
+    base_figee_partagee,
+):
     """Ancrage sur l'histoire réelle, pas sur une valeur inventée.
 
     Le S&P 500 a perdu environ 34 % entre son sommet du 19 février 2020 et son
@@ -387,7 +381,7 @@ def test_regression_le_drawdown_de_spy_pendant_le_covid_reste_a_moins_33_7_pct()
     subtile (rendements log au lieu de simples, `close` au lieu d'`adj_close`,
     pic global au lieu de glissant).
     """
-    connexion = connect(BASE_REELLE)
+    connexion = connect(base_figee_partagee)
     try:
         panel = load_price_panel(
             connexion, ["SPY"], date(2020, 2, 19), date(2020, 3, 23)

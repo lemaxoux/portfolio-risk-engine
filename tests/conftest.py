@@ -19,6 +19,7 @@ ET LA COPIE DES VRAIES SÉRIES EST FIGÉE — voir `DATE_GEL`.
 from __future__ import annotations
 
 import shutil
+import stat
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
@@ -75,11 +76,41 @@ def copier_base_reelle_figee(destination: Path) -> Path:
     """Copie la base réelle et en retire toute séance postérieure au gel.
 
     La suppression porte sur la COPIE, jamais sur `data/mx_risk.sqlite`.
+
+    C'est le SEUL accès des tests à la base réelle : `test_gel_des_tests.py`
+    échoue si un autre fichier de tests l'ouvre directement.
     """
+    if not BASE_REELLE.exists():
+        pytest.skip("base locale absente — lancer `python -m backend.ingestion backfill`")
     shutil.copy(BASE_REELLE, destination)
     with closing(connect(destination)) as conn, conn:
         conn.execute("DELETE FROM prices WHERE date > ?", (DATE_GEL,))
     return destination
+
+
+@pytest.fixture(scope="session")
+def base_figee_partagee(tmp_path_factory) -> Path:
+    """Copie figée PARTAGÉE par toute la session, en lecture seule.
+
+    Pour les tests qui ne font que lire des cours : bornes des scénarios,
+    drawdown du krach COVID, série de l'ajustement de Student. Une copie par
+    test coûterait 9 Mo et une suppression à chaque paramètre.
+
+    Le fichier est mis en lecture seule : un test qui y écrirait échouerait
+    sur « attempt to write a readonly database » au lieu de contaminer les
+    suivants. Celui qui écrit prend `base_figee`.
+    """
+    chemin = copier_base_reelle_figee(
+        tmp_path_factory.mktemp("base_figee_partagee") / "figee.sqlite"
+    )
+    chemin.chmod(stat.S_IREAD)
+    return chemin
+
+
+@pytest.fixture
+def base_figee(tmp_path) -> Path:
+    """Copie figée PROPRE AU TEST, pour ceux qui y créent des portefeuilles."""
+    return copier_base_reelle_figee(tmp_path / "copie.sqlite")
 
 @pytest.fixture
 def client_factory(tmp_path, monkeypatch):
@@ -125,10 +156,10 @@ def analyse_reelle(tmp_path_factory):
     fois, pour un résultat identique à chaque tour.
 
     Un test qui ÉCRIRAIT sur la base réelle ne doit pas réutiliser cette
-    fixture : il se copie la base dans son propre `tmp_path` et passe par
-    `client_factory`, comme le font déjà les trois tests « sur un portefeuille
-    réel » de `test_regime`, `test_rules` et `test_stress`. La frontière est
-    là : lire une réponse se partage, toucher une base ne se partage pas.
+    fixture : il prend `base_figee`, sa propre copie figée, comme les trois
+    tests « sur un portefeuille réel » de `test_regime`, `test_rules` et
+    `test_stress`. La frontière est là : lire une réponse se partage, toucher
+    une base ne se partage pas.
 
     `monkeypatch` étant function-scoped, la variable d'environnement est posée
     dans un `MonkeyPatch.context()` qui la retire dès la réponse obtenue : elle

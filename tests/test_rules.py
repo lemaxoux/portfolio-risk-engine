@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import re
-import shutil
 from contextlib import closing
 from dataclasses import fields, replace
 from datetime import date, timedelta
@@ -57,7 +56,6 @@ from backend.rules import (
 )
 
 RACINE = Path(__file__).resolve().parents[1]
-BASE_REELLE = RACINE / "data" / "mx_risk.sqlite"
 
 # Garde lexicale : formes qui transformeraient une observation en consigne.
 PRESCRIPTIF = re.compile(
@@ -667,11 +665,8 @@ def test_le_bandeau_suit_la_fenetre_reellement_utilisee(rapport):
 # ====================================================== Données réelles ==
 
 
-@pytest.mark.skipif(not BASE_REELLE.exists(), reason="base locale absente")
-def test_regles_sur_un_portefeuille_reel(tmp_path):
-    copie = tmp_path / "copie.sqlite"
-    shutil.copy(BASE_REELLE, copie)
-    with closing(connect(copie)) as c:
+def test_regles_sur_un_portefeuille_reel(base_figee):
+    with closing(connect(base_figee)) as c:
         c.execute("INSERT INTO portfolios (owner) VALUES ('demo')")
         pid = c.execute("SELECT MAX(id) FROM portfolios").fetchone()[0]
         for ticker, quantite in {"AAPL": 40, "MSFT": 25, "JPM": 60, "JNJ": 50, "XOM": 80, "KO": 120}.items():

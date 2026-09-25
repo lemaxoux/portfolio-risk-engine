@@ -8,7 +8,6 @@ test doit pouvoir les contredire.
 
 from __future__ import annotations
 
-import shutil
 from contextlib import closing
 from datetime import date, timedelta
 from pathlib import Path
@@ -33,13 +32,6 @@ from backend.risk_engine.stress import (
     position_contributions,
 )
 
-BASE_REELLE = Path(__file__).resolve().parents[1] / "data" / "mx_risk.sqlite"
-
-besoin_de_la_base = pytest.mark.skipif(
-    not BASE_REELLE.exists(),
-    reason="base locale absente — lancer `python -m backend.ingestion backfill`",
-)
-
 # Ordres de grandeur relevés sur l'historique réel du S&P 500.
 AMPLITUDES_ATTENDUES = {
     "gfc_2008": -0.55,
@@ -48,8 +40,8 @@ AMPLITUDES_ATTENDUES = {
 }
 
 
-def cours_du_benchmark(scenario: Scenario) -> pd.Series:
-    with closing(connect(BASE_REELLE)) as conn:
+def cours_du_benchmark(base: Path, scenario: Scenario) -> pd.Series:
+    with closing(connect(base)) as conn:
         panel = load_price_panel(
             conn, [scenario.benchmark], scenario.start, scenario.end
         )
@@ -59,9 +51,10 @@ def cours_du_benchmark(scenario: Scenario) -> pd.Series:
 # ----------------------------------------- Bornes des scénarios, sur le réel --
 
 
-@besoin_de_la_base
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
-def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(scenario: Scenario):
+def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(
+    base_figee_partagee, scenario: Scenario
+):
     """Les dates du catalogue sont vérifiées, pas supposées.
 
     Une borne fausse ne se verrait pas autrement : le calcul tournerait et
@@ -73,7 +66,7 @@ def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(scenario: Scenari
     déclarée, le pic glissant du premier jour est ce premier jour par
     construction. Sa vérification réelle se fait sur fenêtre élargie, ci-dessous.
     """
-    resultat = max_drawdown(cours_du_benchmark(scenario))
+    resultat = max_drawdown(cours_du_benchmark(base_figee_partagee, scenario))
 
     assert resultat.trough_date == scenario.end, (
         f"{scenario.key} : le creux du benchmark tombe le {resultat.trough_date}, "
@@ -84,22 +77,21 @@ def test_le_creux_du_benchmark_tombe_a_la_date_de_fin_declaree(scenario: Scenari
 MARGE_EXTREMUM = pd.DateOffset(months=3)
 
 
-def cours_autour(scenario: Scenario, borne: date) -> pd.Series:
+def cours_autour(base: Path, scenario: Scenario, borne: date) -> pd.Series:
     debut = (pd.Timestamp(borne) - MARGE_EXTREMUM).date()
     fin = (pd.Timestamp(borne) + MARGE_EXTREMUM).date()
-    with closing(connect(BASE_REELLE)) as conn:
+    with closing(connect(base)) as conn:
         return load_price_panel(conn, [scenario.benchmark], debut, fin)[scenario.benchmark]
 
 
-@besoin_de_la_base
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
-def test_le_debut_declare_est_un_vrai_sommet_local(scenario: Scenario):
+def test_le_debut_declare_est_un_vrai_sommet_local(base_figee_partagee, scenario: Scenario):
     """Maximum sur trois mois de part et d'autre, pas simplement le premier point.
 
     Un cours plus haut dans les semaines précédant la date déclarée signifierait
     que la fenêtre démarre en cours de baisse et manque le début de l'épisode.
     """
-    cours = cours_autour(scenario, scenario.start)
+    cours = cours_autour(base_figee_partagee, scenario, scenario.start)
     assert cours.index[0] < scenario.start < cours.index[-1]
     assert cours.idxmax() == scenario.start, (
         f"{scenario.key} : le plus haut de la fenêtre élargie est le "
@@ -107,12 +99,11 @@ def test_le_debut_declare_est_un_vrai_sommet_local(scenario: Scenario):
     )
 
 
-@besoin_de_la_base
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
-def test_la_fin_declaree_est_un_vrai_creux_local(scenario: Scenario):
+def test_la_fin_declaree_est_un_vrai_creux_local(base_figee_partagee, scenario: Scenario):
     """Minimum sur trois mois de part et d'autre : la baisse ne s'est pas
     poursuivie après la date déclarée."""
-    cours = cours_autour(scenario, scenario.end)
+    cours = cours_autour(base_figee_partagee, scenario, scenario.end)
     assert cours.index[0] < scenario.end < cours.index[-1]
     assert cours.idxmin() == scenario.end, (
         f"{scenario.key} : le plus bas de la fenêtre élargie est le "
@@ -120,10 +111,11 @@ def test_la_fin_declaree_est_un_vrai_creux_local(scenario: Scenario):
     )
 
 
-@besoin_de_la_base
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.key)
-def test_l_amplitude_du_scenario_correspond_a_l_histoire(scenario: Scenario):
-    assert max_drawdown(cours_du_benchmark(scenario)).value == pytest.approx(
+def test_l_amplitude_du_scenario_correspond_a_l_histoire(
+    base_figee_partagee, scenario: Scenario
+):
+    assert max_drawdown(cours_du_benchmark(base_figee_partagee, scenario)).value == pytest.approx(
         AMPLITUDES_ATTENDUES[scenario.key], abs=0.01
     )
 
@@ -527,13 +519,9 @@ def test_un_scenario_hors_catalogue_fonctionne_sans_toucher_a_la_logique(conn):
 # --------------------------------------------- Bout en bout, données réelles --
 
 
-@besoin_de_la_base
-def test_les_trois_scenarios_tournent_sur_un_portefeuille_reel(tmp_path):
-    """Rejeu complet sur une COPIE de la base : rien n'est écrit dans la vraie."""
-    copie = tmp_path / "copie.sqlite"
-    shutil.copy(BASE_REELLE, copie)
-
-    with closing(connect(copie)) as conn:
+def test_les_trois_scenarios_tournent_sur_un_portefeuille_reel(base_figee):
+    """Rejeu complet sur une COPIE figée de la base : rien n'est écrit dans la vraie."""
+    with closing(connect(base_figee)) as conn:
         conn.execute("INSERT INTO portfolios (owner) VALUES ('test')")
         pid = conn.execute("SELECT MAX(id) FROM portfolios").fetchone()[0]
         for ticker, quantite in {"AAPL": 40, "JPM": 60, "KO": 120}.items():
