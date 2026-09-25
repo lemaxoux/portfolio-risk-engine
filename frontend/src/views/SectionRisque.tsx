@@ -125,6 +125,10 @@ function LegendeCorrelation() {
         échelle fixe : de −1, lignes qui bougent en sens inverse, à +1, lignes
         qui bougent ensemble
       </span>
+      <span className={styles.pas}>
+        <span className={`${styles.pastille} ${styles.diagonale}`} aria-hidden="true" />
+        diagonale : chaque ligne avec elle-même, 1 par définition, hors échelle
+      </span>
     </p>
   )
 }

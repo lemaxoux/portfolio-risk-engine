@@ -121,6 +121,14 @@
   background-color: var(--div-pos-mid);
 }
 
+/* La diagonale de la carte : la surface surélevée, bordée pour rester visible
+ * sur la page, comme ses cellules le sont par leur contraste. */
+.diagonale {
+  background-color: var(--surface-1);
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
 .divPosFort {
   background-color: var(--div-pos-strong);
 }

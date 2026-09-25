@@ -18,6 +18,17 @@
  * Deux décimales. C'est le canal de secours : la couleur n'est qu'une lecture
  * rapide. L'encre de la valeur est choisie PAR CONTRASTE avec la cellule —
  * voir `encreDeCellule`.
+ *
+ * ═══ LA DIAGONALE NE PREND PAS LA COULEUR DE +1 ═══
+ *
+ * La corrélation d'une ligne avec elle-même vaut 1 par définition. Peinte à la
+ * teinte la plus forte de l'échelle, la diagonale attirait l'œil sans rien
+ * apprendre. Elle est posée sur `--surface-1`, la surface surélevée, et son
+ * « 1,00 » est écrit en `--text-2` : la valeur reste lisible, discrète. Pas sur
+ * `--surface-2`, trop proche en thème clair du gris `--div-zero` qui code une
+ * corrélation NULLE (#E7E5DE contre #DFDEDB) : la diagonale se serait lue
+ * « corrélation ≈ 0 ». L'échelle, elle, ne change pas : son domaine est fixé,
+ * pas déduit des cellules qu'elle colore.
  */
 import * as Plot from '@observablehq/plot'
 
@@ -77,6 +88,11 @@ export function encreDeCellule(couleurs: Couleurs, valeur: number): string {
   return encreLisible(fond, [couleurs.texte1, couleurs.surface0])
 }
 
+/** La cellule d'une ligne avec elle-même : 1 par définition, rien à apprendre. */
+export function estDiagonale(cellule: Cellule): boolean {
+  return cellule.ligne === cellule.colonne
+}
+
 /** Côté d'une cellule : carrée, entre 36 et 64 px selon la place. */
 function coteDeCellule(nombre: number, largeur: number, marge: number): number {
   return Math.max(36, Math.min(64, Math.floor((largeur - marge) / Math.max(nombre, 1))))
@@ -87,12 +103,14 @@ export function optionsCarteCorrelation(
   { couleurs, largeur }: ContexteGraphique,
 ): Plot.PlotOptions {
   const cellules = cellulesDe(matrice)
+  const diagonale = cellules.filter(estDiagonale)
+  const horsDiagonale = cellules.filter((c) => !estDiagonale(c))
   // Une marque de texte par encre, de couleur CONSTANTE : une couleur donnée
   // par fonction serait un canal, et Plot la ferait passer par l'échelle de
   // corrélation de la carte.
   const encres = [couleurs.texte1, couleurs.surface0]
   const parEncre = encres.map((encre) =>
-    cellules.filter((c) => encreDeCellule(couleurs, c.valeur) === encre),
+    horsDiagonale.filter((c) => encreDeCellule(couleurs, c.valeur) === encre),
   )
   const marge = 52
   const cote = coteDeCellule(matrice.tickers.length, largeur, marge)
@@ -109,12 +127,26 @@ export function optionsCarteCorrelation(
     y: { domain: matrice.tickers, label: null, tickSize: 0 },
     color: echelleDeCorrelation(couleurs),
     marks: [
-      Plot.cell(cellules, {
+      Plot.cell(horsDiagonale, {
         x: 'colonne',
         y: 'ligne',
         fill: 'valeur',
         inset: 1,
         ariaDescription: 'corrélations',
+      }),
+      Plot.cell(diagonale, {
+        x: 'colonne',
+        y: 'ligne',
+        fill: couleurs.surface1,
+        inset: 1,
+        ariaDescription: 'diagonale',
+      }),
+      Plot.text(diagonale, {
+        x: 'colonne',
+        y: 'ligne',
+        text: (c: Cellule) => decimal(c.valeur, 2),
+        fill: couleurs.texte2,
+        ariaDescription: 'valeurs de la diagonale',
       }),
       ...encres.map((encre, rang) =>
         Plot.text(parEncre[rang] ?? [], {

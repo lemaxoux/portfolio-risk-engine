@@ -8,9 +8,11 @@ import type { Matrix } from '../../api/types'
 import type { Couleurs } from './couleurs'
 import {
   DOMAINE_CORRELATION,
+  type Cellule,
   cellulesDe,
   echelleDeCorrelation,
   encreDeCellule,
+  estDiagonale,
   optionsCarteCorrelation,
 } from './correlation'
 
@@ -83,6 +85,57 @@ describe('domaine fixe, indépendant des données', () => {
     expect(echelle.apply(-1)).toBe(rgb(CLAIR.divNegFort))
     expect(echelle.apply(0)).toBe(rgb(CLAIR.divZero))
     expect(echelle.apply(1)).toBe(rgb(CLAIR.divPosFort))
+  })
+})
+
+interface MarqueInspectee {
+  data: readonly Cellule[]
+  ariaDescription?: string
+  fill?: unknown
+  channels: Record<string, { value: unknown } | undefined>
+}
+
+describe('la diagonale ne prend pas la couleur de +1', () => {
+  const marques = (options(SERRE).marks ?? []) as unknown as MarqueInspectee[]
+  const marque = (description: string) => marques.find((m) => m.ariaDescription === description)
+
+  it("les cellules colorées par l'échelle ne comptent aucune cellule de la diagonale", () => {
+    const colorees = marque('corrélations')!
+    expect(colorees.channels.fill?.value).toBe('valeur')
+    expect(colorees.data).toHaveLength(6)
+    expect(colorees.data.some(estDiagonale)).toBe(false)
+  })
+
+  it('la diagonale est posée sur la surface surélevée, couleur constante hors échelle', () => {
+    const diagonale = marque('diagonale')!
+    expect(diagonale.data).toHaveLength(3)
+    expect(diagonale.data.every(estDiagonale)).toBe(true)
+    expect(diagonale.channels.fill).toBeUndefined()
+    expect(diagonale.fill).toBe(CLAIR.surface1)
+    // Pas --surface-2 : en thème clair, il se confond avec le gris d'une
+    // corrélation nulle.
+    expect(diagonale.fill).not.toBe(CLAIR.divZero)
+  })
+
+  it('sa valeur reste écrite, en encre discrète', () => {
+    const valeurs = marque('valeurs de la diagonale')!
+    expect(valeurs.fill).toBe(CLAIR.texte2)
+    const texte = valeurs.channels.text?.value as (c: Cellule) => string
+    expect(valeurs.data.map(texte)).toEqual(['1,00', '1,00', '1,00'])
+  })
+
+  it('les valeurs hors diagonale gardent leur encre de contraste, et elles seules', () => {
+    const ecrites = marques
+      .filter((m) => m.ariaDescription === 'valeurs')
+      .flatMap((m) => m.data)
+    expect(ecrites).toHaveLength(6)
+    expect(ecrites.some(estDiagonale)).toBe(false)
+  })
+
+  it("le domaine reste [−1, +1] : l'échelle ne dépend pas des cellules qu'elle colore", () => {
+    const echelle = options(SERRE).color as Plot.ScaleOptions
+    expect(echelle.domain).toEqual([-1, -0.5, 0, 0.5, 1])
+    expect(echelle).toEqual(options(CALME).color)
   })
 })
 

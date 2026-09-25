@@ -1246,6 +1246,17 @@ document. Hors navigateur, l'ordre est l'ordre large. Le nom ne se coupe
 plus : coupé, il faisait passer sa rangée sur trois lignes, loin des 36 px
 de §9.3.
 
+#### La diagonale de la carte de corrélation
+
+La corrélation d'une ligne avec elle-même vaut 1 par définition. Peinte à la
+teinte la plus forte de l'échelle, la diagonale attirait l'œil sans rien
+apprendre. Elle est désormais posée sur `--surface-1`, hors échelle, et son
+« 1,00 » reste écrit en `--text-2`. `--surface-2` aurait été plus visible,
+mais il se confond en thème clair avec le gris `--div-zero` d'une corrélation
+nulle (#E7E5DE contre #DFDEDB). La légende nomme la diagonale. Le domaine de
+l'échelle reste fixé à [−1, +1], puisqu'il ne dépend pas des cellules qu'elle
+colore.
+
 #### Acceptation
 
 L'écran d'acceptation est une **page entière**, pas une modale : une modale se
