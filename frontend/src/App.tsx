@@ -29,6 +29,7 @@ import { MessageErreur } from './components/MessageErreur'
 import { aAccepte } from './lib/acceptation'
 import { Acceptation } from './views/Acceptation'
 import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
+import { SectionPortefeuille } from './views/SectionPortefeuille'
 import styles from './App.module.css'
 
 type Etat =
@@ -39,7 +40,10 @@ type Etat =
   | { phase: 'analyse'; analyse: Analysis }
 
 /** Les sections réellement construites. Le rail est engendré depuis cette liste. */
-const SECTIONS = [{ ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' }] as const
+const SECTIONS = [
+  { ancre: 'portefeuille', libelle: 'Le portefeuille' },
+  { ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' },
+] as const
 
 function enErreur(cause: unknown): Etat {
   return {
@@ -118,7 +122,10 @@ export function App() {
           {etat.phase === 'erreur' && <MessageErreur erreur={etat.erreur} />}
           {etat.phase === 'vide' && <AucunPortefeuille />}
           {etat.phase === 'analyse' && (
-            <SectionJourOrdinaire risque={etat.analyse.risk} />
+            <>
+              <SectionPortefeuille valorisation={etat.analyse.valuation} />
+              <SectionJourOrdinaire risque={etat.analyse.risk} />
+            </>
           )}
         </main>
       </div>

@@ -1,0 +1,26 @@
+/* Section 1 — le poids, en barre dans sa cellule (§8.2). */
+
+.poids {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  inline-size: 100%;
+}
+
+/*
+ * La piste : la place de 100 %. Assez large pour que 10 % et 25 % se
+ * distinguent, assez étroite pour que la colonne tienne à 390 px.
+ */
+.piste {
+  flex: none;
+  inline-size: 4rem;
+  block-size: var(--space-2);
+  background-color: var(--surface-2);
+}
+
+.barre {
+  display: block;
+  block-size: 100%;
+  background-color: var(--series-1);
+}

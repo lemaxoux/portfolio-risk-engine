@@ -228,3 +228,21 @@ export function decimalOuTiret(
 export function estUnGain(perte: number): boolean {
   return perte < 0
 }
+
+/**
+ * Le nombre de décimales d'une COLONNE (§9.3) : le plus petit qui écrit
+ * chaque valeur de la colonne sans l'arrondir, plafonné.
+ *
+ * Une colonne de quantités entières s'écrit « 40 », « 120 » — pas « 40,0000 ».
+ * Qu'une seule quantité soit fractionnaire, et TOUTE la colonne prend ses
+ * décimales : « 40,50 » au-dessus de « 120,00 », jamais « 40,5 » au-dessus de
+ * « 120 ». Au-delà du plafond, les valeurs sont arrondies à lui.
+ */
+export function decimalesDeColonne(valeurs: readonly number[], plafond: number): number {
+  for (let decimales = 0; decimales < plafond; decimales += 1) {
+    if (valeurs.every((valeur) => Number(valeur.toFixed(decimales)) === valeur)) {
+      return decimales
+    }
+  }
+  return plafond
+}

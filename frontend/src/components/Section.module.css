@@ -1,0 +1,61 @@
+/*
+ * Section de la page d'analyse — §8.2.
+ *
+ * Une colonne de lecture qui déroule un raisonnement, pas une grille de
+ * tuiles identiques (§3.2, §12). Les blocs se suivent par groupes de sens,
+ * et chaque groupe porte une phrase qui dit pourquoi il est là.
+ */
+
+.section {
+  margin-block-end: var(--space-8);
+  /* L'ancre ne doit pas arriver SOUS le bandeau collant, dont la hauteur suit
+   * son contenu : une marge de défilement généreuse plutôt qu'une hauteur
+   * inscrite quelque part. */
+  scroll-margin-block-start: var(--space-8);
+}
+
+.titre {
+  margin-block-end: var(--space-5);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+/* La seule numérotation autorisée (§12). Discrète : ce n'est pas un marqueur
+ * « 01 / 02 / 03 ». */
+.numero {
+  color: var(--text-2);
+}
+
+.sousTitre {
+  margin-block: var(--space-6) var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* Le chapeau est de la prose : il explique un choix de méthode. Serif, à 66
+ * caractères, interlignage de prose (§6.3). */
+.chapeau {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-4);
+  color: var(--text-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
+/*
+ * Les blocs d'un même groupe. `auto-fit` plutôt qu'un nombre de colonnes fixé :
+ * une colonne unique sous 390 px sans requête de média.
+ */
+.rangee {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* Provenance d'une section entière, sous son titre (valorisation, scénarios). */
+.conditions {
+  margin-block-end: var(--space-4);
+}

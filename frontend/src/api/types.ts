@@ -35,3 +35,31 @@ export type DisclaimerSection = S['DisclaimerSectionOut']
 
 export type Meta = S['MetaOut']
 export type PortfolioDetail = S['PortfolioDetailOut']
+
+export type Valuation = S['ValuationOut']
+export type ValuedPosition = S['ValuedPositionOut']
+
+export type PortfolioSeries = S['PortfolioSeriesOut']
+export type Point = S['PointOut']
+export type ReturnHistogram = S['ReturnHistogramOut']
+export type HistogramBin = S['HistogramBinOut']
+export type Drawdown = S['DrawdownOut']
+
+export type Matrices = S['MatricesOut']
+export type Matrix = S['MatrixOut']
+export type VarianceContributions = S['VarianceContributionsOut']
+export type Contribution = S['ContributionOut']
+export type Concentration = S['ConcentrationOut']
+export type Beta = S['BetaOut']
+
+export type Scenario = S['ScenarioOut']
+export type ScenarioDef = S['ScenarioDefOut']
+export type Coverage = S['CoverageOut']
+export type ExcludedPosition = S['ExcludedPositionOut']
+export type PositionContribution = S['PositionContributionOut']
+export type TrajectoryDrawdown = S['TrajectoryDrawdownOut']
+export type Regime = S['RegimeOut']
+export type RegressedBeta = S['RegressedBetaOut']
+
+export type Observation = S['ObservationOut']
+export type Threshold = S['ThresholdOut']

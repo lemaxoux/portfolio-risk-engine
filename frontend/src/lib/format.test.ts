@@ -19,6 +19,7 @@ import {
   dateEnToutesLettres,
   dateISO,
   decimal,
+  decimalesDeColonne,
   decimalOuTiret,
   estUnGain,
   lignes,
@@ -245,5 +246,20 @@ describe('montant et devise', () => {
 
   it('lie le nombre à sa devise par une espace insécable', () => {
     expect(montant(1000, 'USD')).not.toContain('\u0020')
+  })
+})
+
+describe('décimales d’une colonne (§9.3)', () => {
+  it('écrit des entiers sans décimale', () => {
+    expect(decimalesDeColonne([40, 25, 120], 4)).toBe(0)
+  })
+
+  it('donne à toute la colonne les décimales de la plus précise', () => {
+    expect(decimalesDeColonne([40, 0.5, 120], 4)).toBe(1)
+    expect(decimalesDeColonne([40, 0.25], 4)).toBe(2)
+  })
+
+  it('plafonne', () => {
+    expect(decimalesDeColonne([1 / 3], 4)).toBe(4)
   })
 })
