@@ -1229,6 +1229,23 @@ sur les RÉPONSES de l'API, chaîne par chaîne : aucun « 4.07 », aucun trait
 d'union en guise de signe moins, quelle que soit la façon dont le nombre a été
 écrit.
 
+#### Le tableau du portefeuille sous 900 px
+
+À 390 px, le tableau de la section 1 défilait dans son cadre de 342 px, et
+l'ordre de DESIGN.md §8.2 (ticker, nom, quantité, prix, valeur, poids)
+rejetait hors de l'écran les deux colonnes les plus utiles : Valeur
+commençait à 339 px, Poids à 428. Sous 900 px, le point de rupture de la page,
+l'ordre devient ticker, valeur, poids, puis nom, quantité, prix. Les trois
+premières tiennent en 304 px sans défilement. Les trois autres ne sont pas
+masquées, le cadre les fait défiler, la colonne du ticker restant en place.
+
+Le CSS ne sait pas déplacer une cellule de tableau. L'ordre vient donc de
+`useEtroit()` (`src/lib/largeur.ts`, `matchMedia`) plutôt que d'une colonne
+dupliquée et masquée selon la largeur, qui doublerait le contenu du
+document. Hors navigateur, l'ordre est l'ordre large. Le nom ne se coupe
+plus : coupé, il faisait passer sa rangée sur trois lignes, loin des 36 px
+de §9.3.
+
 #### Acceptation
 
 L'écran d'acceptation est une **page entière**, pas une modale : une modale se

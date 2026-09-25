@@ -14,6 +14,17 @@
  * comme la carte de corrélation se lit sur un domaine fixe. Le chiffre est
  * écrit à côté ; la barre ne fait que le montrer.
  *
+ * ═══ L'ORDRE DES COLONNES SUIT LA LARGEUR ═══
+ *
+ * En large, l'ordre de DESIGN.md §8.2 : ticker, nom, quantité, prix, valeur,
+ * poids — la valeur se lit comme quantité × prix, le poids comme sa part.
+ * Sous 900 px, le tableau défile dans son cadre, et cet ordre rejetait hors de
+ * l'écran les deux colonnes les plus utiles : à 390 px, dans un cadre de
+ * 342 px, Valeur commençait à 339 px et Poids à 428. L'ordre devient donc
+ * ticker, valeur, poids, puis nom, quantité, prix. Les trois premières
+ * tiennent en 304 px, sans défilement. Les trois autres ne sont pas masquées :
+ * le cadre les fait défiler, la colonne du ticker restant en place.
+ *
  * ═══ AUCUN TOTAL CALCULÉ ═══
  *
  * La ligne de pied porte `valuation.total_value`, publié. La somme des poids
@@ -26,6 +37,7 @@ import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { dateISO, decimal, decimalesDeColonne, pourcentage } from '../lib/format'
+import { useEtroit } from '../lib/largeur'
 import styles from './SectionPortefeuille.module.css'
 
 /** Plafond des décimales d'une quantité : des fractions d'action, au plus. */
@@ -42,13 +54,19 @@ function BarrePoids({ poids }: { poids: number }) {
   )
 }
 
-export function colonnesDuPortefeuille(valorisation: Valuation): Colonne<ValuedPosition>[] {
+/** Ordre des colonnes sous 900 px : ce qui compte d'abord, le détail ensuite. */
+export const ORDRE_ETROIT = ['ticker', 'valeur', 'poids', 'nom', 'quantite', 'prix'] as const
+
+export function colonnesDuPortefeuille(
+  valorisation: Valuation,
+  etroit = false,
+): Colonne<ValuedPosition>[] {
   const devise = valorisation.currency
   const decimalesQuantite = decimalesDeColonne(
     valorisation.positions.map((ligne) => ligne.quantity),
     DECIMALES_QUANTITE_MAX,
   )
-  return [
+  const colonnes: Colonne<ValuedPosition>[] = [
     {
       cle: 'ticker',
       titre: 'Ticker',
@@ -60,7 +78,7 @@ export function colonnesDuPortefeuille(valorisation: Valuation): Colonne<ValuedP
       cle: 'nom',
       titre: 'Nom',
       nature: 'texte',
-      cellule: (ligne) => ligne.name,
+      cellule: (ligne) => <span className={styles.nom}>{ligne.name}</span>,
       tri: (ligne) => ligne.name,
     },
     {
@@ -92,9 +110,23 @@ export function colonnesDuPortefeuille(valorisation: Valuation): Colonne<ValuedP
       tri: (ligne) => ligne.weight,
     },
   ]
+  if (!etroit) return colonnes
+  return ORDRE_ETROIT.map((cle) => colonnes.find((colonne) => colonne.cle === cle)!)
+}
+
+/** Le pied suit l'ordre des colonnes : « Total » sous le ticker, la valeur publiée sous la valeur. */
+function piedDu(colonnes: Colonne<ValuedPosition>[], valorisation: Valuation) {
+  return colonnes.map((colonne) =>
+    colonne.cle === 'ticker'
+      ? 'Total'
+      : colonne.cle === 'valeur'
+        ? decimal(valorisation.total_value, 2)
+        : null,
+  )
 }
 
 export function SectionPortefeuille({ valorisation }: { valorisation: Valuation }) {
+  const colonnes = colonnesDuPortefeuille(valorisation, useEtroit())
   return (
     <Section ancre="portefeuille" numero={1} titre="Le portefeuille">
       <div className={commun.conditions}>
@@ -109,11 +141,11 @@ export function SectionPortefeuille({ valorisation }: { valorisation: Valuation 
       </div>
       <DataTable
         legende="Positions détenues, valorisées à la dernière clôture"
-        colonnes={colonnesDuPortefeuille(valorisation)}
+        colonnes={colonnes}
         lignes={valorisation.positions}
         cleDeLigne={(ligne) => ligne.ticker}
         triInitial={{ cle: 'poids', sens: 'decroissant' }}
-        pied={['Total', null, null, null, decimal(valorisation.total_value, 2), null]}
+        pied={piedDu(colonnes, valorisation)}
       />
     </Section>
   )

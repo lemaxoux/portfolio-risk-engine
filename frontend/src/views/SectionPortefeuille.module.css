@@ -24,3 +24,12 @@
   block-size: 100%;
   background-color: var(--series-1);
 }
+
+/*
+ * Le nom ne se coupe pas : coupé, « JPMorgan Chase & Co » faisait passer sa
+ * rangée sur trois lignes, loin des 36 px de §9.3. Sous 900 px, la colonne
+ * est au-delà du cadre et se lit en le faisant défiler.
+ */
+.nom {
+  white-space: nowrap;
+}

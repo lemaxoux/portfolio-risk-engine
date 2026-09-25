@@ -79,6 +79,30 @@ describe('section 1 — le portefeuille', () => {
   })
 })
 
+describe("section 1 — l'ordre des colonnes suit la largeur", () => {
+  const cles = (etroit: boolean) => colonnesDuPortefeuille(VALORISATION, etroit).map((c) => c.cle)
+
+  it("en large, l'ordre de DESIGN.md §8.2", () => {
+    expect(cles(false)).toEqual(['ticker', 'nom', 'quantite', 'prix', 'valeur', 'poids'])
+  })
+
+  it('sous 900 px, ticker, valeur et poids en tête, et aucune colonne perdue', () => {
+    // À 390 px, l'ordre large rejetait Valeur et Poids hors du cadre.
+    expect(cles(true)).toEqual(['ticker', 'valeur', 'poids', 'nom', 'quantite', 'prix'])
+    expect([...cles(true)].sort()).toEqual([...cles(false)].sort())
+  })
+
+  it("rendu hors navigateur dans l'ordre large, pied compris", () => {
+    const html = rendu({ ...VALORISATION, total_value: 1234.5 })
+    const entetes = html.slice(html.indexOf('<thead>'), html.indexOf('</thead>'))
+    expect(entetes.indexOf('Nom')).toBeLessThan(entetes.indexOf('Valeur'))
+    const pied = html.slice(html.indexOf('<tfoot>'))
+    const cellules = pied.split('<td').slice(1)
+    expect(cellules[0]).toContain('Total')
+    expect(cellules[4]).toContain(`1${ESPACE_FINE}234,50`)
+  })
+})
+
 describe('<DataTable> (§9.3, §13)', () => {
   it('a une légende, des en-têtes de colonne et de ligne', () => {
     const html = rendu()
