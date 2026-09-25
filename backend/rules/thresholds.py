@@ -39,6 +39,25 @@ class ThresholdKind(Enum):
     CHOSEN = "choisi à la main"
 
 
+class ThresholdRole(Enum):
+    """Ce que la valeur EST, indépendamment d'où elle vient.
+
+    Un SEUIL est une frontière posée d'avance, la même pour tout portefeuille :
+    choisi à la main (corrélation forte 0,70) ou démontré
+    (`MIN_ESTIMABLE_SAMPLE`). Une RÉFÉRENCE est une valeur calculée sur CE
+    portefeuille, à laquelle la mesure se compare : la part de capital d'une
+    ligne, la corrélation de sa paire la plus corrélée. Appeler « seuil » une
+    corrélation de 0,41 relevée sur le portefeuille la ferait passer pour une
+    frontière choisie, ce qu'elle n'est pas (DESIGN.md §9.2).
+
+    `kind` ne suffit pas à trancher : DERIVED couvre les deux cas. La valeur
+    de l'énumération est l'étiquette affichée devant la ligne.
+    """
+
+    THRESHOLD = "Seuil"
+    REFERENCE = "Référence"
+
+
 @dataclass(frozen=True)
 class Threshold:
     name: str
@@ -46,6 +65,19 @@ class Threshold:
     value: float
     rationale: str
     percent: bool = False
+    role: ThresholdRole = ThresholdRole.THRESHOLD
+
+    def __post_init__(self) -> None:
+        # Deux combinaisons n'ont pas de sens : une convention choisie à la
+        # main n'est jamais calculée sur le portefeuille, et une valeur relative
+        # au portefeuille n'est jamais une frontière posée d'avance.
+        if self.kind is ThresholdKind.CHOSEN and self.role is ThresholdRole.REFERENCE:
+            raise ValueError(f"{self.name} : un seuil choisi n'est pas une référence")
+        if (
+            self.kind is ThresholdKind.PORTFOLIO_RELATIVE
+            and self.role is ThresholdRole.THRESHOLD
+        ):
+            raise ValueError(f"{self.name} : une valeur relative au portefeuille est une référence")
 
     @property
     def chosen(self) -> bool:
@@ -153,6 +185,7 @@ def capital_share(ticker: str, weight: float) -> Threshold:
             "en dessous, moins"
         ),
         percent=True,
+        role=ThresholdRole.REFERENCE,
     )
 
 
@@ -163,4 +196,5 @@ def most_correlated_pair(first: str, second: str, correlation: float) -> Thresho
         kind=ThresholdKind.PORTFOLIO_RELATIVE,
         value=round(correlation, 2),
         rationale="corrélation de la paire la plus corrélée du portefeuille",
+        role=ThresholdRole.REFERENCE,
     )

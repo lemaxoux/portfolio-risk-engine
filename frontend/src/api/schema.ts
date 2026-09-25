@@ -1083,6 +1083,12 @@ export interface components {
          *     un seuil choisi à la main d'un seuil dérivé sans chercher le mot « CHOISI »
          *     dans du texte français. `rendered` reste disponible pour l'affichage, mais
          *     aucune décision d'interface ne doit dépendre de son contenu.
+         *
+         *     `role` dit ce que la valeur EST : `threshold`, une frontière posée d'avance
+         *     (choisie ou démontrée) ; `reference`, une valeur calculée sur ce
+         *     portefeuille, à laquelle la mesure se compare. Le client en tire
+         *     l'étiquette « Seuil » ou « Référence » (DESIGN.md §9.2). `kind` ne suffit
+         *     pas : `derived` couvre les deux.
          */
         ThresholdOut: {
             /** Name */
@@ -1092,6 +1098,11 @@ export interface components {
              * @enum {string}
              */
             kind: "derived" | "portfolio_relative" | "chosen";
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "threshold" | "reference";
             /** Value */
             value: number;
             /** Rationale */

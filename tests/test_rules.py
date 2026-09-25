@@ -44,6 +44,7 @@ from backend.rules import (
     RuleId,
     RulesReport,
     ThresholdKind,
+    ThresholdRole,
     acceptance_text,
     apparent_diversification,
     crisis_degradation,
@@ -470,6 +471,46 @@ def test_sans_paire_forte_la_paire_la_plus_correlee_est_decrite(risque):
     assert "La paire la plus corrélée est JNJ–KO, à 0,42" in obs.statement
     kinds = [s.kind for s in obs.thresholds]
     assert kinds == [ThresholdKind.CHOSEN, ThresholdKind.PORTFOLIO_RELATIVE]
+
+
+def test_la_paire_la_plus_correlee_est_une_reference_pas_un_seuil(risque):
+    # DESIGN.md §9.2 : « Référence : » pour une valeur calculée sur le
+    # portefeuille. La corrélation JNJ–KO était titrée « Seuil : », comme le
+    # vrai seuil choisi de la ligne précédente.
+    base = replace(risque, matrices=replace(
+        risque.matrices,
+        correlation=matrice([[1.0, 0.42, 0.1], [0.42, 1.0, 0.3], [0.1, 0.3, 1.0]], ["JNJ", "KO", "X"]),
+    ))
+    (obs,) = apparent_diversification(base)
+
+    roles = [s.role for s in obs.thresholds]
+    assert roles == [ThresholdRole.THRESHOLD, ThresholdRole.REFERENCE]
+    rendu = obs.render()
+    assert "  Seuil : corrélation forte" in rendu
+    assert "  Référence : corrélation JNJ–KO" in rendu
+    assert "Seuil : corrélation JNJ–KO" not in rendu
+
+
+def test_la_part_de_capital_est_une_reference(rapport):
+    for obs in rapport.of_rule(RuleId.VARIANCE_CONTRIBUTION):
+        part, *_ = obs.thresholds
+        assert part.role is ThresholdRole.REFERENCE
+        assert f"  Référence : part de {obs.subject} dans la valeur" in obs.render()
+
+
+def test_les_seuils_fixes_restent_des_seuils():
+    # Choisis à la main ou démontrés : des frontières posées d'avance, les
+    # mêmes pour tout portefeuille.
+    for seuil in (STRONG_CORRELATION, MIN_SCENARIO_COVERAGE, MIN_REGRESSION_SAMPLE, MIN_ESTIMABLE_SAMPLE):
+        assert seuil.role is ThresholdRole.THRESHOLD, seuil.name
+    assert MIN_ESTIMABLE_SAMPLE.kind is ThresholdKind.DERIVED, "kind ne suffit pas à trancher"
+
+
+def test_un_role_incoherent_avec_la_provenance_est_refuse():
+    with pytest.raises(ValueError, match="choisi"):
+        replace(STRONG_CORRELATION, role=ThresholdRole.REFERENCE)
+    with pytest.raises(ValueError, match="relative au portefeuille"):
+        replace(STRONG_CORRELATION, kind=ThresholdKind.PORTFOLIO_RELATIVE)
 
 
 def test_une_ligne_unique_n_a_pas_de_paire(risque):

@@ -97,7 +97,7 @@ class Observation:
     def render(self) -> str:
         lignes = [f"[{self.rule.value} — {self.subject}] {self.statement}"]
         if self.thresholds:
-            lignes += [f"  Seuil : {seuil}" for seuil in self.thresholds]
+            lignes += [f"  {seuil.role.value} : {seuil}" for seuil in self.thresholds]
         else:
             lignes.append("  Aucun seuil : la mesure parle d'elle-même.")
         lignes.append(f"  Provenance : {self.provenance}")

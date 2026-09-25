@@ -1196,10 +1196,17 @@ class ThresholdOut(Schema):
     un seuil choisi à la main d'un seuil dérivé sans chercher le mot « CHOISI »
     dans du texte français. `rendered` reste disponible pour l'affichage, mais
     aucune décision d'interface ne doit dépendre de son contenu.
+
+    `role` dit ce que la valeur EST : `threshold`, une frontière posée d'avance
+    (choisie ou démontrée) ; `reference`, une valeur calculée sur ce
+    portefeuille, à laquelle la mesure se compare. Le client en tire
+    l'étiquette « Seuil » ou « Référence » (DESIGN.md §9.2). `kind` ne suffit
+    pas : `derived` couvre les deux.
     """
 
     name: str
     kind: Literal["derived", "portfolio_relative", "chosen"]
+    role: Literal["threshold", "reference"]
     value: float
     rationale: str
     percent: bool
@@ -1211,6 +1218,7 @@ class ThresholdOut(Schema):
         return cls(
             name=threshold.name,
             kind=threshold.kind.name.lower(),
+            role=threshold.role.name.lower(),
             value=threshold.value,
             rationale=threshold.rationale,
             percent=threshold.percent,

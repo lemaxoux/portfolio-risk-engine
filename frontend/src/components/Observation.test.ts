@@ -9,10 +9,15 @@ import type { Observation as ObservationApi, Threshold } from '../api/types'
 import { Observation } from './Observation'
 import styles from './Observation.module.css'
 
-function seuil(kind: Threshold['kind'], rendered: string): Threshold {
+function seuil(
+  kind: Threshold['kind'],
+  rendered: string,
+  role: Threshold['role'] = kind === 'chosen' ? 'threshold' : 'reference',
+): Threshold {
   return {
     name: `seuil ${kind}`,
     kind,
+    role,
     value: 0.7,
     rationale: 'une raison',
     percent: false,
@@ -88,5 +93,36 @@ describe('le texte est celui du backend', () => {
     expect(html).toContain(o.statement)
     expect(html).toContain('corrélation forte = 0,7 — seuil CHOISI à la main')
     expect(html).toContain(o.provenance)
+  })
+})
+
+describe('« Seuil » pour une frontière, « Référence » pour une valeur du portefeuille', () => {
+  // DESIGN.md §9.2. Dans « diversification apparente », la corrélation de la
+  // paire la plus corrélée était titrée « Seuil : » comme le vrai seuil choisi
+  // affiché juste au-dessus d'elle.
+  const choisi = seuil('chosen', 'corrélation forte = 0,70 — seuil CHOISI à la main')
+  const paire = seuil('portfolio_relative', 'corrélation JNJ–KO = 0,42 — relatif au portefeuille')
+
+  it('la paire la plus corrélée est une référence, le seuil choisi reste un seuil', () => {
+    const html = rendu(observation([choisi, paire]))
+    expect(html).toMatch(/Seuil : <\/span>corrélation forte = 0,70/)
+    expect(html).toMatch(/Référence : <\/span>corrélation JNJ–KO = 0,42/)
+    expect(html).not.toMatch(/Seuil : <\/span>corrélation JNJ–KO/)
+  })
+
+  it("la part de capital d'une ligne, dérivée du portefeuille, est une référence", () => {
+    const html = rendu(
+      observation([seuil('derived', 'part de JPM dans la valeur = 25,6 %', 'reference')]),
+    )
+    expect(html).toContain('Référence : ')
+    expect(html).not.toContain('Seuil : ')
+  })
+
+  it("un seuil dérivé qui se démontre reste un seuil : l'étiquette suit role, pas kind", () => {
+    const html = rendu(
+      observation([seuil('derived', 'nombre minimal de séances estimables = 3', 'threshold')]),
+    )
+    expect(html).toContain('Seuil : ')
+    expect(html).not.toContain('Référence')
   })
 })

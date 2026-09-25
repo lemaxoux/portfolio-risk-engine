@@ -13,6 +13,15 @@
  *    effacer exactement la qualité qu'on veut rendre visible, une mesure qui
  *    parle d'elle-même.
  *
+ * ═══ « SEUIL » OU « RÉFÉRENCE » ═══
+ *
+ * L'étiquette suit `role`, pas `kind`. Une valeur calculée sur CE portefeuille
+ * (la part de capital d'une ligne, la corrélation de sa paire la plus
+ * corrélée) est une RÉFÉRENCE : l'écrire « Seuil » la ferait passer pour une
+ * frontière posée d'avance, comme le vrai seuil choisi affiché juste au-dessus.
+ * `kind` ne suffit pas : `derived` couvre aussi le nombre minimal de séances
+ * estimables, qui est bien un seuil.
+ *
  * ═══ LE TEXTE EST CELUI DU BACKEND ═══
  *
  * `statement`, `threshold.rendered` et `provenance` sont affichés tels quels,
@@ -21,9 +30,14 @@
  * d'afficher le point repose sur `kind`, un champ MACHINE — jamais sur la
  * présence du mot « CHOISI » dans le texte.
  */
-import type { Observation as ObservationApi } from '../api/types'
+import type { Observation as ObservationApi, Threshold } from '../api/types'
 import { Provenance } from './Provenance'
 import styles from './Observation.module.css'
+
+const ETIQUETTE: Record<Threshold['role'], string> = {
+  threshold: 'Seuil',
+  reference: 'Référence',
+}
 
 export function Observation({ observation }: { observation: ObservationApi }) {
   return (
@@ -44,7 +58,7 @@ export function Observation({ observation }: { observation: ObservationApi }) {
           >
             {choisi && <span className={styles.point} aria-hidden="true" />}
             <span>
-              <span className={styles.etiquette}>Seuil : </span>
+              <span className={styles.etiquette}>{ETIQUETTE[seuil.role]} : </span>
               {seuil.rendered}
             </span>
           </p>

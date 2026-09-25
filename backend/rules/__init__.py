@@ -39,6 +39,7 @@ from .thresholds import (
     STRONG_CORRELATION,
     Threshold,
     ThresholdKind,
+    ThresholdRole,
 )
 
 __all__ = [
@@ -55,6 +56,7 @@ __all__ = [
     "RulesReport",
     "Threshold",
     "ThresholdKind",
+    "ThresholdRole",
     "acceptance_sections",
     "acceptance_text",
     "apparent_diversification",

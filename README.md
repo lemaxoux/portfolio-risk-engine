@@ -697,6 +697,16 @@ le dit en toutes lettres — « seuil CHOISI à la main, non dérivé des donné
 selon la même règle de provenance que les fenêtres d'estimation et les dates de
 valorisation.
 
+**Un seuil n'est pas une référence.** Chaque ligne porte un `role` en plus de
+son `kind`. Un **seuil** est une frontière posée d'avance, la même pour tout
+portefeuille : la corrélation forte à 0,70, choisie, ou les 3 séances
+estimables, démontrées. Une **référence** est une valeur calculée sur ce
+portefeuille, à laquelle la mesure se compare : la part de capital d'une ligne,
+ou la corrélation de sa paire la plus corrélée. L'interface écrit « Seuil : »
+ou « Référence : » d'après ce champ (DESIGN.md §9.2). `kind` ne suffit pas à
+trancher, puisque `derived` couvre les deux cas. Le constructeur refuse une
+référence choisie à la main et un seuil relatif au portefeuille.
+
 Illustration sur le portefeuille de démonstration (données au 9 septembre 2026) :
 
 > Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque (inverse de la somme des carrés des poids, puis des contributions à la variance). En capital, l'équipondération en donnerait 6. Le risque se concentre davantage que le capital : la lecture en capital seule est la plus flatteuse des deux.

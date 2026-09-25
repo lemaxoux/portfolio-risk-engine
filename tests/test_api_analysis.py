@@ -396,6 +396,30 @@ def test_chaque_seuil_porte_son_kind_machine(analyse_reelle):
         assert isinstance(seuil["value"], (int, float))
 
 
+def test_chaque_seuil_dit_s_il_est_un_seuil_ou_une_reference(analyse_reelle):
+    """`role`, champ machine : le client écrit « Seuil » ou « Référence » sans
+    déduire l'un de l'autre à partir de `kind`, qui ne suffit pas."""
+    observations = analyse_reelle.json()["observations"]
+    for observation in observations:
+        for seuil in observation["thresholds"]:
+            assert seuil["role"] in ("threshold", "reference")
+            if seuil["kind"] == "chosen":
+                assert seuil["role"] == "threshold"
+            if seuil["kind"] == "portfolio_relative":
+                assert seuil["role"] == "reference"
+
+    (diversification,) = [
+        o for o in observations if o["rule"] == "apparent_diversification"
+    ]
+    assert [s["role"] for s in diversification["thresholds"]] == [
+        "threshold",
+        "reference",
+    ]
+    assert "Référence : corrélation JNJ–KO" in diversification["rendered"]
+    for contribution in (o for o in observations if o["rule"] == "variance_contribution"):
+        assert contribution["thresholds"][0]["role"] == "reference"
+
+
 def test_un_seuil_choisi_le_dit_dans_le_champ_et_dans_le_texte(analyse_reelle):
     choisis = [
         seuil
