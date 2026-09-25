@@ -639,6 +639,106 @@ def systematic_share(report: RiskReport) -> list[Observation]:
 # ------------------------------------------------ 5. Dégradation en crise --
 
 
+def _hausse(c: RegimeComparison) -> bool:
+    return c.systematic_share_change > 0
+
+
+def _episodes(crises: Sequence[RegimeComparison]) -> str:
+    """« l'épisode Krach COVID (23 séances) », ou son pluriel.
+
+    « L'épisode » plutôt qu'un article devant le nom : les noms du catalogue
+    n'ont pas tous le même genre.
+    """
+    noms = [
+        f"{c.scenario.name} ({_seances(c.crisis_beta.observations)})" for c in crises
+    ]
+    return ("l'épisode " if len(crises) == 1 else "les épisodes ") + _enumeration(noms)
+
+
+def _trop_mince(crises: Sequence[RegimeComparison]) -> str:
+    if len(crises) == 1:
+        return "l'échantillon est trop mince pour conclure"
+    return "leurs échantillons sont trop minces pour conclure"
+
+
+def _conclusion_des_crises(
+    suffisantes: Sequence[RegimeComparison], minces: Sequence[RegimeComparison]
+) -> list[str]:
+    """Ce que les crises rejouées permettent de conclure, et ce qu'elles ne
+    permettent pas.
+
+    Seules les crises estimées sur au moins MIN_REGRESSION_SAMPLE séances
+    entrent dans le décompte. Une crise dont la même phrase vient de qualifier
+    l'échantillon de trop mince ne peut pas être comptée ensuite comme une
+    preuve. Elle est citée à part, avec le sens où elle va. Sans aucune
+    estimation suffisante, aucune conclusion générale n'est tirée.
+    """
+    phrases: list[str] = []
+    total = len(suffisantes)
+    hausses = sum(1 for c in suffisantes if _hausse(c))
+    # Sans crise mince, la portée va de soi ; avec, elle doit se dire.
+    portee = "estimée sur assez de séances" if minces else "rejouée"
+    portees = "estimées sur assez de séances" if minces else "rejouées"
+
+    if total == 0:
+        phrases.append(
+            "La crise rejouée n'est pas estimée sur assez de séances : aucune "
+            "conclusion n'en est tirée."
+            if len(minces) == 1
+            else f"Aucune des {len(minces)} crises rejouées n'est estimée sur "
+            "assez de séances : aucune conclusion générale n'en est tirée."
+        )
+    elif hausses == total:
+        phrases.append(
+            (f"Elle augmente dans la crise {portee}" if total == 1
+             else f"Elle augmente dans les {total} crises {portees}")
+            + " : la diversification entre lignes s'est affaiblie précisément "
+            + ("pendant l'épisode où elle aurait servi." if total == 1
+               else "pendant les épisodes où elle aurait servi.")
+        )
+    elif hausses == 0:
+        phrases.append(
+            f"Elle n'augmente pas dans la crise {portee}." if total == 1
+            else f"Elle n'augmente dans aucune des {total} crises {portees}."
+            if minces
+            else "Elle n'augmente dans aucune des crises rejouées."
+        )
+    else:
+        crises = "crise" if hausses == 1 else "crises"
+        phrases.append(
+            f"Elle augmente dans {hausses} {crises} sur {total}"
+            + (f" {portees}." if minces else ".")
+        )
+
+    if not minces:
+        return phrases
+
+    unanime = total > 0 and hausses in (0, total)
+    if unanime:
+        sens_de_la_conclusion = hausses == total
+        memes = [c for c in minces if _hausse(c) == sens_de_la_conclusion]
+        contraires = [c for c in minces if _hausse(c) != sens_de_la_conclusion]
+        for groupe, sens in ((memes, "dans le même sens"), (contraires, "en sens contraire")):
+            if groupe:
+                verbe = "va" if len(groupe) == 1 else "vont"
+                episodes = _episodes(groupe)
+                phrases.append(
+                    f"{episodes[0].upper()}{episodes[1:]} {verbe} {sens}, mais "
+                    f"{_trop_mince(groupe)}."
+                )
+    else:
+        for groupe, verbe in (
+            ([c for c in minces if _hausse(c)], "augmente"),
+            ([c for c in minces if not _hausse(c)], "n'augmente pas"),
+        ):
+            if groupe:
+                phrases.append(
+                    f"Elle {verbe} pendant {_episodes(groupe)}, mais "
+                    f"{_trop_mince(groupe)}."
+                )
+    return phrases
+
+
 def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]:
     """Part systématique en régime calme face à chaque crise rejouée."""
     valides = [c for c in regimes if c.unavailable_reason is None]
@@ -675,29 +775,9 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
             f"chaque scénario, passe {_enumeration(morceaux)}."
         ]
 
-    hausses = sum(1 for c in valides if c.systematic_share_change > 0)
-    total = len(valides)
-    if hausses == total:
-        phrases.append(
-            ("Elle augmente dans la crise rejouée" if total == 1
-             else f"Elle augmente dans les {total} crises rejouées")
-            + " : la diversification entre lignes s'est affaiblie précisément "
-            "pendant les épisodes où elle aurait servi."
-        )
-    elif hausses == 0:
-        phrases.append("Elle n'augmente dans aucune des crises rejouées.")
-    else:
-        phrases.append(f"Elle augmente dans {hausses} crises sur {total}.")
-
+    suffisantes = [c for c in valides if not c.crisis_beta.sample_too_thin]
     minces = [c for c in valides if c.crisis_beta.sample_too_thin]
-    if minces:
-        phrases.append(
-            f"Un R² de crise estimé sur moins de "
-            f"{_seances(int(MIN_REGRESSION_SAMPLE.value))} repose sur un "
-            "échantillon trop mince ("
-            + _enumeration([c.scenario.name for c in minces])
-            + ")."
-        )
+    phrases.extend(_conclusion_des_crises(suffisantes, minces))
 
     exclus = [c for c in regimes if c.unavailable_reason is not None]
     if exclus:
@@ -707,10 +787,16 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
             + "."
         )
 
+    # Les décomptes suivent la phrase : ceux qui fondent la conclusion ne
+    # portent que sur les crises estimées sur assez de séances, et les crises
+    # sous le seuil sont comptées à part. Un lecteur des faits ne doit pas
+    # retrouver le « 3 sur 3 » que la phrase n'a plus le droit d'écrire.
     faits: dict[str, float | int | str | None] = {
         "r2_calme": calmes[0] if calme_commun else None,
-        "crises_en_hausse": hausses,
-        "crises_comparees": total,
+        "crises_comparees": len(suffisantes),
+        "crises_en_hausse": sum(1 for c in suffisantes if _hausse(c)),
+        "crises_comparees_echantillon_mince": len(minces),
+        "crises_en_hausse_echantillon_mince": sum(1 for c in minces if _hausse(c)),
     }
     for c in valides:
         faits[f"r2_crise:{c.scenario.key}"] = c.crisis_beta.r_squared

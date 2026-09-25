@@ -511,7 +511,7 @@ def regime(key, nom, r2_crise, observations, r2_calme=0.49):
     )
 
 
-def test_la_part_systematique_monte_dans_les_trois_crises():
+def test_la_part_systematique_monte_dans_les_crises_suffisantes():
     (obs,) = crisis_degradation([
         regime("gfc", "Crise 2008", 0.86, 355),
         regime("covid", "COVID", 0.98, 23),
@@ -522,9 +522,11 @@ def test_la_part_systematique_monte_dans_les_trois_crises():
         "passe de 49 % en régime calme à 86 % (Crise 2008), 98 % (COVID — échantillon "
         "trop mince) et 79 % (Resserrement 2022)"
     ) in obs.statement
-    assert "Elle augmente dans les 3 crises rejouées" in obs.statement
+    assert "Elle augmente dans les 2 crises estimées sur assez de séances" in obs.statement
+    assert "3 crises" not in obs.statement
     assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
-    assert obs.facts["crises_en_hausse"] == 3
+    assert obs.facts["crises_en_hausse"] == 2
+    assert obs.facts["crises_en_hausse_echantillon_mince"] == 1
 
 
 def test_une_baisse_est_dite_telle_quelle_sans_seuil_superflu():
@@ -533,6 +535,110 @@ def test_une_baisse_est_dite_telle_quelle_sans_seuil_superflu():
     ])
     assert "Elle augmente dans 2 crises sur 3" in obs.statement
     assert obs.thresholds == ()
+
+
+# Une conclusion ne compte que les crises estimées sur au moins
+# MIN_REGRESSION_SAMPLE séances. Celles sous le seuil sont citées à part, avec
+# leur sens, hors du décompte : la même phrase ne peut pas qualifier un
+# échantillon de trop mince puis le compter comme une preuve.
+
+
+def test_toutes_les_crises_suffisantes_entrent_dans_la_conclusion():
+    (obs,) = crisis_degradation([
+        regime("gfc", "Crise 2008", 0.86, 355),
+        regime("covid", "COVID", 0.98, 100),
+        regime("taux", "Resserrement 2022", 0.79, 195),
+    ])
+
+    assert (
+        "Elle augmente dans les 3 crises rejouées : la diversification entre lignes "
+        "s'est affaiblie précisément pendant les épisodes où elle aurait servi."
+    ) in obs.statement
+    assert "trop mince" not in obs.statement
+    assert obs.thresholds == ()
+    assert obs.facts["crises_comparees"] == 3
+    assert obs.facts["crises_en_hausse"] == 3
+    assert obs.facts["crises_comparees_echantillon_mince"] == 0
+
+
+def test_une_crise_mince_est_citee_a_part_hors_du_decompte():
+    (obs,) = crisis_degradation([
+        regime("gfc", "Crise 2008", 0.86, 355),
+        regime("covid", "COVID", 0.98, 23),
+        regime("taux", "Resserrement 2022", 0.79, 195),
+    ])
+
+    assert (
+        "Elle augmente dans les 2 crises estimées sur assez de séances : la "
+        "diversification entre lignes s'est affaiblie précisément pendant les "
+        "épisodes où elle aurait servi. L'épisode COVID (23\u00a0séances) va dans le "
+        "même sens, mais l'échantillon est trop mince pour conclure."
+    ) in obs.statement
+    assert obs.facts["crises_comparees"] == 2
+    assert obs.facts["crises_en_hausse"] == 2
+    assert obs.facts["crises_comparees_echantillon_mince"] == 1
+    assert obs.facts["crises_en_hausse_echantillon_mince"] == 1
+
+
+def test_une_crise_mince_en_sens_contraire_le_dit():
+    (obs,) = crisis_degradation([
+        regime("gfc", "Crise 2008", 0.86, 355),
+        regime("covid", "COVID", 0.30, 23),
+        regime("taux", "Resserrement 2022", 0.79, 195),
+    ])
+
+    assert "Elle augmente dans les 2 crises estimées sur assez de séances" in obs.statement
+    assert (
+        "L'épisode COVID (23\u00a0séances) va en sens contraire, mais l'échantillon "
+        "est trop mince pour conclure."
+    ) in obs.statement
+
+
+def test_quand_les_crises_suffisantes_divergent_la_crise_mince_dit_son_sens():
+    # « Même sens » n'aurait pas de référent : le sens est dit en clair.
+    (obs,) = crisis_degradation([
+        regime("a", "A", 0.80, 200),
+        regime("b", "B", 0.40, 200),
+        regime("covid", "COVID", 0.98, 23),
+    ])
+
+    assert "Elle augmente dans 1 crise sur 2 estimées sur assez de séances." in obs.statement
+    assert (
+        "Elle augmente pendant l'épisode COVID (23\u00a0séances), mais l'échantillon "
+        "est trop mince pour conclure."
+    ) in obs.statement
+    assert "même sens" not in obs.statement
+
+
+def test_sans_crise_suffisante_aucune_conclusion_generale():
+    (obs,) = crisis_degradation([
+        regime("covid", "COVID", 0.98, 23),
+        regime("x", "Flash", 0.70, 40),
+    ])
+
+    assert (
+        "Aucune des 2 crises rejouées n'est estimée sur assez de séances : aucune "
+        "conclusion générale n'en est tirée."
+    ) in obs.statement
+    assert (
+        "Elle augmente pendant les épisodes COVID (23\u00a0séances) et Flash "
+        "(40\u00a0séances), mais leurs échantillons sont trop minces pour conclure."
+    ) in obs.statement
+    assert "affaiblie" not in obs.statement
+    assert "Elle augmente dans" not in obs.statement
+    assert obs.facts["crises_comparees"] == 0
+    assert obs.facts["crises_en_hausse"] == 0
+    assert obs.facts["crises_comparees_echantillon_mince"] == 2
+
+
+def test_une_seule_crise_mince_ne_conclut_rien():
+    (obs,) = crisis_degradation([regime("covid", "COVID", 0.98, 23)])
+
+    assert (
+        "La crise rejouée n'est pas estimée sur assez de séances : aucune conclusion "
+        "n'en est tirée."
+    ) in obs.statement
+    assert "affaiblie" not in obs.statement
 
 
 def test_sans_comparaison_disponible_aucune_observation():

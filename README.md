@@ -593,8 +593,21 @@ contribution négative signale une ligne qui a évolué à rebours du reste.
 | 2. Contribution à la variance | part du risque face à la part du capital, et parcours de la ligne dans les crises rejouées | référence calculée : la part de capital de la ligne ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun en régime normal ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
-| 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée | 60 séances **choisies** pour signaler un échantillon trop mince |
+| 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée ; la conclusion ne compte que les crises estimées sur assez de séances, les autres sont citées à part avec leur sens | 60 séances **choisies** pour signaler un échantillon trop mince |
 | 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
+
+**Une crise estimée sur trop peu de séances n'entre pas dans une conclusion.**
+La règle 5 écrivait que la part systématique « augmente dans les 3 crises
+rejouées », alors que la même phrase qualifiait le krach COVID (23 séances)
+d'échantillon trop mince. Un chiffre qu'on vient de juger fragile ne peut pas
+être compté ensuite comme une preuve. Le décompte ne porte désormais que sur
+les crises estimées sur au moins 60 séances. Les autres sont citées à part, et
+chacune dit si elle va dans le même sens. Sans aucune crise suffisante, aucune
+conclusion générale n'est tirée. Les faits publiés suivent la phrase :
+`crises_comparees` et `crises_en_hausse` ne comptent que les crises
+suffisantes, et `crises_comparees_echantillon_mince` et
+`crises_en_hausse_echantillon_mince` comptent les autres à part. Aucune autre
+règle ne publie de décompte de ce type.
 
 **Deux régimes de taille d'échantillon, et la frontière entre eux n'est pas une
 convention.** Les **quatre** règles qui reposent sur la matrice de covariance —
@@ -694,7 +707,7 @@ Illustration sur le portefeuille de démonstration (données au 9 septembre 2026
 >
 > Sur 504 séances, 49 % de la variance du portefeuille s'explique par les mouvements de SPY (R² 0,49). Cette part est du risque de marché : elle est commune aux actions américaines, et en détenir davantage ne la dilue pas. Les 51 % restants sont propres aux lignes détenues ; c'est sur eux seuls que la diversification entre lignes a prise.
 >
-> La part systématique du risque passe de 49 % en régime calme à 86 % (Crise financière 2008), 98 % (Krach COVID — échantillon trop mince) et 79 % (Resserrement monétaire 2022) dans les crises rejouées. Elle augmente dans les 3 crises rejouées : la diversification entre lignes s'est affaiblie précisément pendant les épisodes où elle aurait servi. Un R² de crise estimé sur moins de 60 séances repose sur un échantillon trop mince (Krach COVID).
+> La part systématique du risque passe de 49 % en régime calme à 86 % (Crise financière 2008), 98 % (Krach COVID — échantillon trop mince) et 79 % (Resserrement monétaire 2022) dans les crises rejouées. Elle augmente dans les 2 crises estimées sur assez de séances : la diversification entre lignes s'est affaiblie précisément pendant les épisodes où elle aurait servi. L'épisode Krach COVID (23 séances) va dans le même sens, mais l'échantillon est trop mince pour conclure.
 
 ### Texte du bandeau d'acceptation
 
