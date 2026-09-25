@@ -19,20 +19,52 @@
  * périodes, et le bandeau ne parle pas pour eux. Chaque bloc `<Measure>`
  * continue d'afficher la sienne ; le bandeau ne dispense de rien.
  */
+import { useEffect, useRef } from 'react'
+
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './Bandeau.module.css'
 
+/**
+ * La hauteur du bandeau, publiée en variable CSS (`--hauteur-bandeau`) pour
+ * que les ancres de section s'arrêtent SOUS lui. Elle suit son contenu —
+ * deux, trois ou quatre lignes, et bien davantage à 390 px — : une marge
+ * écrite en dur laisserait le titre de la section sous le bandeau collant.
+ */
+function useHauteurPubliee() {
+  const bandeau = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const noeud = bandeau.current
+    if (noeud === null) return
+    const racine = document.documentElement
+    const observateur = new ResizeObserver(([entree]) => {
+      if (entree) {
+        racine.style.setProperty(
+          '--hauteur-bandeau',
+          `${Math.ceil(entree.borderBoxSize[0]?.blockSize ?? noeud.offsetHeight)}px`,
+        )
+      }
+    })
+    observateur.observe(noeud)
+    return () => {
+      observateur.disconnect()
+      racine.style.removeProperty('--hauteur-bandeau')
+    }
+  }, [])
+  return bandeau
+}
+
 export function Bandeau({ analyse }: { analyse: Analysis }) {
   const reduite = phraseFenetreReduite(
     analyse.estimation_window,
     analyse.limiting_positions,
   )
+  const bandeau = useHauteurPubliee()
 
   return (
-    <header className={styles.bandeau}>
+    <header ref={bandeau} className={styles.bandeau}>
       <div className={styles.identite}>
         <span className={styles.marque}>Mx Risk MGT</span>
         <span className={styles.portefeuille}>{analyse.portfolio.name}</span>

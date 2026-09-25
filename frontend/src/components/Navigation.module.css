@@ -1,0 +1,86 @@
+/* Navigation — §7, §8.2. */
+
+.numero {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────────────────────────────────────── Rail, au-dessus de 900 px ── */
+
+.rail {
+  position: sticky;
+  /* Sous le bandeau collant, dont la hauteur suit son contenu et qu'il publie
+   * lui-même (`--hauteur-bandeau`). */
+  inset-block-start: var(--hauteur-bandeau, var(--space-8));
+  align-self: start;
+  padding-block-start: var(--space-6);
+  font-size: var(--text-sm);
+}
+
+.rail ol,
+.ancres ol {
+  list-style: none;
+  padding: 0;
+}
+
+.rail a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 2px solid var(--border);
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--motion-hover), border-color var(--motion-hover);
+}
+
+.rail a:hover {
+  border-inline-start-color: var(--border-strong);
+  color: var(--text-1);
+}
+
+/* La section en cours : l'état actif, en --accent (§5.3). Le filet ET la
+ * couleur du texte changent — la couleur seule ne suffirait pas. */
+.rail a.actif {
+  border-inline-start-color: var(--accent);
+  color: var(--text-1);
+  font-weight: var(--weight-medium);
+}
+
+.rail a.actif .numero {
+  color: var(--accent);
+}
+
+@media (width < 900px) {
+  .rail {
+    display: none;
+  }
+}
+
+/* ────────────────────────────── Ancres en tête de page, sous 900 px ── */
+
+.ancres {
+  display: none;
+}
+
+@media (width < 900px) {
+  .ancres {
+    display: block;
+    margin-block-end: var(--space-6);
+    padding-block-end: var(--space-4);
+    border-block-end: 1px solid var(--border);
+    font-size: var(--text-sm);
+  }
+
+  .ancres ol {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+    gap: var(--space-1) var(--space-4);
+  }
+
+  /* Une cible de toucher confortable : la ligne entière, pas le seul mot. */
+  .ancres a {
+    display: block;
+    padding-block: var(--space-2);
+    color: var(--text-1);
+    text-decoration: none;
+  }
+}

@@ -26,6 +26,7 @@ import { ApiErreur, getAnalysis, getDisclaimer, getPortfolios } from './api/clie
 import type { Analysis, Disclaimer } from './api/types'
 import { Bandeau } from './components/Bandeau'
 import { MessageErreur } from './components/MessageErreur'
+import { AncresSections, RailSections } from './components/Navigation'
 import { aAccepte } from './lib/acceptation'
 import { Acceptation } from './views/Acceptation'
 import { SectionAuPire } from './views/SectionAuPire'
@@ -43,15 +44,6 @@ type Etat =
   | { phase: 'vide' }
   | { phase: 'analyse'; analyse: Analysis }
 
-/** Les sections réellement construites. Le rail est engendré depuis cette liste. */
-const SECTIONS = [
-  { ancre: 'portefeuille', libelle: 'Le portefeuille' },
-  { ancre: 'jour-ordinaire', libelle: 'Un jour ordinaire' },
-  { ancre: 'au-pire', libelle: 'Au pire' },
-  { ancre: 'qui-porte', libelle: 'Qui porte le risque' },
-  { ancre: 'en-crise', libelle: 'En crise' },
-  { ancre: 'moteur', libelle: 'Ce que le moteur en dit' },
-] as const
 
 function enErreur(cause: unknown): Etat {
   return {
@@ -113,17 +105,7 @@ export function App() {
       {etat.phase === 'analyse' && <Bandeau analyse={etat.analyse} />}
 
       <div className={styles.page}>
-        {etat.phase === 'analyse' && (
-          <nav className={styles.rail} aria-label="Sections de l'analyse">
-            <ul>
-              {SECTIONS.map((section) => (
-                <li key={section.ancre}>
-                  <a href={`#${section.ancre}`}>{section.libelle}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+        {etat.phase === 'analyse' && <RailSections />}
 
         <main id="contenu" className={styles.contenu}>
           {etat.phase === 'chargement' && <Squelette />}
@@ -131,6 +113,7 @@ export function App() {
           {etat.phase === 'vide' && <AucunPortefeuille />}
           {etat.phase === 'analyse' && (
             <>
+              <AncresSections />
               <SectionPortefeuille valorisation={etat.analyse.valuation} />
               <SectionJourOrdinaire
                 risque={etat.analyse.risk}

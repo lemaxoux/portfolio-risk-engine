@@ -27,8 +27,9 @@
 
 /*
  * Colonne de lecture centrée, et un rail de 220 px à sa gauche (§7).
- * Le rail s'escamote sous 900 px : sur un téléphone, une navigation de section
- * coûte plus de place qu'elle n'en fait gagner.
+ * Le rail s'escamote sous 900 px : sur un téléphone, un rail collant coûte
+ * plus de place qu'il n'en fait gagner. Une liste d'ancres le remplace alors
+ * en tête de page (voir `components/Navigation`).
  */
 .page {
   display: grid;
@@ -45,41 +46,11 @@
   }
 }
 
-.rail {
-  position: sticky;
-  /* Sous le bandeau collant, dont la hauteur suit son contenu : `align-self`
-   * et une position relative à la grille évitent d'inscrire une hauteur. */
-  inset-block-start: var(--space-8);
-  align-self: start;
-  padding-block-start: var(--space-6);
-  font-size: var(--text-sm);
-}
-
-@media (width < 900px) {
-  .rail {
-    display: none;
-  }
-}
-
-.rail ul {
-  list-style: none;
-}
-
-.rail a {
-  display: block;
-  padding: var(--space-2) var(--space-3);
-  border-inline-start: 2px solid var(--border);
-  color: var(--text-2);
-  text-decoration: none;
-  transition: color var(--motion-hover), border-color var(--motion-hover);
-}
-
-.rail a:hover {
-  border-inline-start-color: var(--border-strong);
-  color: var(--text-1);
-}
-
 .contenu {
+  /* Toujours dans la colonne de lecture, que le rail soit rendu ou non : sans
+   * cela, un écran sans rail (chargement, erreur) tomberait dans la colonne
+   * de 220 px. */
+  grid-column: -2 / -1;
   padding-block: var(--space-6) var(--space-8);
   min-inline-size: 0;
 }

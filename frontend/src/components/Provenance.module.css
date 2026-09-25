@@ -44,5 +44,15 @@
 .enLigne .ligne {
   display: inline-flex;
   gap: var(--space-2);
+  max-inline-size: 100%;
+}
+
+/* Le libellé ne se coupe jamais ; une valeur plus longue que la ligne, si —
+ * à l'intérieur de sa paire, sans pousser la page en défilement horizontal. */
+.enLigne .libelle {
   white-space: nowrap;
+}
+
+.enLigne .valeur {
+  min-inline-size: 0;
 }

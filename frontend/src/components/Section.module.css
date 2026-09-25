@@ -9,9 +9,9 @@
 .section {
   margin-block-end: var(--space-8);
   /* L'ancre ne doit pas arriver SOUS le bandeau collant, dont la hauteur suit
-   * son contenu : une marge de défilement généreuse plutôt qu'une hauteur
-   * inscrite quelque part. */
-  scroll-margin-block-start: var(--space-8);
+   * son contenu : le bandeau publie sa hauteur mesurée (`--hauteur-bandeau`),
+   * et la marge de défilement s'y ajoute. */
+  scroll-margin-block-start: calc(var(--hauteur-bandeau, var(--space-8)) + var(--space-4));
 }
 
 .titre {
