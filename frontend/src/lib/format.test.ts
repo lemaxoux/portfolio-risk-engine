@@ -161,7 +161,7 @@ describe('compte — accord et espace insécable', () => {
 })
 
 describe('valeur de portefeuille', () => {
-  it("n'invente aucune devise — l'API n'en publie pas", () => {
+  it("écrit le nombre seul, sans devise — le code ISO publié s'ajoute par montant()", () => {
     const ecrit = valeurDePortefeuille(83185.85)
     expect(ecrit).toBe(`83${ESPACE_FINE}185,85`)
     expect(ecrit).not.toContain('$')
