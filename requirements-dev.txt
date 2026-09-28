@@ -7,3 +7,8 @@ pytest==9.1.1
 # déprécie httpx au profit de httpx2 ; aucun test ne sort sur le réseau, le
 # client parle directement à l'application ASGI en mémoire.
 httpx2==2.13.0
+
+# Sert UNIQUEMENT à régénérer la police de l'espace fine (python -m
+# tools.espace_fine), jamais à l'application. Épinglé : la version 4.66.0
+# reproduit octet pour octet frontend/src/styles/fonts/espace-fine.ttf.
+fonttools==4.66.0

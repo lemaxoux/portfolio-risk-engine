@@ -208,7 +208,7 @@ sont le ratio WCAG contre le fond de page du thème.
 |---|---|
 | `--accent` | Élément sélectionné, onglet actif, lien, anneau de focus clavier. **Jamais** pour décorer un titre, un chiffre ou une bordure de bloc. |
 | `--caveat` | Une seule chose : **ce chiffre repose sur quelque chose de contestable**. Concrètement : un seuil `ThresholdKind.CHOSEN`, le `caveat` permanent du CVaR 99 %, une fenêtre trop courte pour la régression, un scénario dont la couverture est incomplète. Un point plein de 6 px devant la ligne concernée, plus la phrase en `--caveat`. Jamais un fond coloré, jamais une icône d'alerte. |
-| `--loss` / `--gain` | **Uniquement dans le tableau par ligne d'un scénario de stress**, seul endroit où le signe varie réellement d'une position à l'autre. Partout ailleurs, interdits. Ce sont des couleurs de **marque** (une petite barre à côté du chiffre), **jamais de texte** : le chiffre lui-même reste en `--text-1`. Le couple choisi est brique/bleu et non rouge/vert : un daltonisme deutan ou protan (≈ 8 % des hommes) rend rouge/vert indistinguables, brique/bleu non. Et la couleur y est le **troisième** canal, après le signe explicite (`+`/`−`) et l'ordre de tri. |
+| `--loss` / `--gain` | **Uniquement là où s'affiche l'apport signé d'une ligne à un scénario de crise** : le tableau par ligne d'un scénario de stress (section 5) et le tableau des apports par crise rejouée de « Qui porte le risque » (section 4). Ce sont les seuls endroits où le signe varie réellement d'une position à l'autre ; dans la section 4, il empêche de lire une grosse part de variance comme une ligne qui fait perdre. Partout ailleurs, interdits. Ce sont des couleurs de **marque** (une petite barre à côté du chiffre), **jamais de texte** : le chiffre lui-même reste en `--text-1`. Le couple choisi est brique/bleu et non rouge/vert : un daltonisme deutan ou protan (≈ 8 % des hommes) rend rouge/vert indistinguables, brique/bleu non. Et la couleur y est le **troisième** canal, après le signe explicite (`+`/`−`) et l'ordre de tri. |
 | `--series-1` | La teinte des données quand il n'y a **qu'une série** : barres de poids, barres de part de variance. Même famille que l'accent, à une luminosité de données ; l'état sélectionné se signale par un contour, jamais par ce remplissage. |
 | `--div-*` | Uniquement l'échelle divergente de la heatmap de corrélation (§5.4). |
 
@@ -257,8 +257,23 @@ L OKLCH   .52 / .64    .74 / .47   .90 / .34   .74 / .47  .52 / .64
 Interpolation en espace Lab entre ces cinq points. Les pas intermédiaires
 (±0,5) tombent autour de 2:1 contre la surface : c'est admis pour une échelle
 continue, **à condition que la valeur soit écrite dans chaque cellule** (deux
-décimales, `--text-1` ou `--text-2` selon le fond). La valeur écrite est le
-canal de secours, la couleur n'est qu'une lecture rapide.
+décimales). La valeur écrite est le canal de secours, la couleur n'est qu'une
+lecture rapide.
+
+**L'encre de la valeur est choisie par contraste avec sa cellule : `--text-1`
+ou `--surface-0`, la plus contrastée des deux.** `--text-2` ne sert pas ici.
+Aux extrémités de l'échelle, ni `--text-1` ni `--text-2` ne suffisent : sur la
+brique de +1, `--text-1` ne donne que 2,6:1 en thème clair et 2,8:1 en thème
+sombre. Sur ces cellules saturées, il faut l'encre inverse, la surface de la
+page (`encreDeCellule`, `src/components/charts/correlation.ts`).
+
+**La diagonale ne prend pas la couleur de +1.** La corrélation d'une ligne avec
+elle-même vaut 1 par définition ; peinte à la teinte la plus forte, elle
+attirerait l'œil sans rien apprendre. Elle est posée sur `--surface-1`, hors
+échelle, et son « 1,00 » est écrit en `--text-2`. Pas sur `--surface-2`, qui se
+confond en thème clair avec le gris `--div-zero` d'une corrélation nulle
+(#E7E5DE contre #DFDEDB). La légende nomme la diagonale. Le domaine reste fixé
+à [−1, +1].
 
 Quand la corrélation n'est pas estimable (`correlation: null`), **on ne dessine
 pas de heatmap vide** : on affiche `correlation_undefined_reason`, en texte.
@@ -321,6 +336,14 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   dans les phrases qu'il rédige : une interface qui afficherait `1.38%` à
   côté d'une phrase en `1,38 %` créerait deux conventions dans un même
   produit.
+- **U+202F en Spectral : une face dédiée.** Ni Spectral ni IBM Plex Sans ne
+  dessinent U+202F, et le sous-ensemble latin de Spectral le revendique dans
+  sa `unicode-range` sans l'avoir : Chrome synthétise alors une demi-espace,
+  et comme Spectral serre ses chiffres, « 50 % » se lit « 50% ». Une police
+  de 644 octets (`src/styles/fonts/espace-fine.ttf`, engendrée par
+  `tools/espace_fine.py`) est déclarée dans la famille 'Spectral' pour
+  U+202F seulement, en 400 et 500 : une espace vide de 0,200 em, qui ramène
+  le blanc au niveau de Plex. Mesures dans le README, section 10.
 - Dates en `YYYY-MM-DD` dans les blocs de provenance (non ambigu, triable,
   cohérent avec l'API) ; en toutes lettres dans la prose.
 
@@ -435,6 +458,14 @@ qualificatif se lit dollar canadien.
 └────────────┴─────────────────────────────────────────────────────────────┘
 ```
 
+**Section 1 sous 900 px.** L'ordre des colonnes devient ticker, valeur,
+poids, puis nom, quantité, prix : à 390 px, l'ordre large rejetait hors de
+l'écran les deux colonnes les plus utiles. Les trois premières tiennent sans
+défilement ; les autres ne sont pas masquées, le cadre les fait défiler, le
+ticker restant en place. Le nom ne se coupe pas (`nowrap`). L'ordre vient de
+`useEtroit()` (`src/lib/largeur.ts`), le CSS ne sachant pas déplacer une
+cellule.
+
 Autres écrans, volontairement pauvres : **saisie / import du portefeuille**
 (tableau éditable + zone de dépôt CSV avec le format affiché en clair) et
 **méthodologie** (le README rendu, une colonne de prose à 66 caractères).
@@ -541,7 +572,17 @@ elle doit se voir.
 
 Le composant le plus utilisé du produit. Il mérite du soin.
 
-- En-tête sur `--surface-2`, graisse 500, casse phrase, collant au défilement.
+- En-tête sur `--surface-2`, graisse 500, casse phrase. **Pas d'en-tête
+  collant.** Un tableau trop large défile à l'horizontale dans son propre
+  cadre (`overflow-x: auto`), et ce cadre devient le conteneur de défilement
+  de ses cellules : un en-tête collant s'y accrocherait, pas à la page, et ne
+  collerait donc jamais, à aucune largeur. Le faire coller demanderait un
+  défilement vertical imbriqué (piège au pouce sur mobile) ou un en-tête
+  dupliqué et synchronisé en script. Les tableaux du produit font au plus une
+  quinzaine de lignes : l'en-tête reste presque toujours visible, le coût ne
+  se justifie pas.
+- **La première colonne (le ticker) est collante à l'horizontale** : quand le
+  cadre défile, elle reste en place et nomme la ligne.
 - Séparateurs horizontaux `1px solid var(--border)` uniquement. **Pas de
   bordures verticales** : l'alignement des chiffres suffit à séparer les
   colonnes, et une grille complète alourdit inutilement.
