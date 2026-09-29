@@ -273,6 +273,48 @@ def test_une_fenetre_trop_courte_est_refusee(conn):
         build_portfolio_series(conn, 1, window=1)
 
 
+def test_deux_seances_communes_ne_font_pas_un_rapport(conn):
+    """Deux séances ne donnent qu'un rendement : aucune dispersion n'existe.
+
+    La SÉRIE existe — l'alignement des dates se vérifie sur un rendement
+    unique, plus haut —, mais le RAPPORT non. Le refus est une
+    `PortfolioError`, l'état de la base, et non la `ValueError` que levait la
+    mesure plus loin et que l'API rendait comme un refus de la requête. Le
+    message dit ce qui a été reçu et ce qu'il faut.
+    """
+    communes = 2
+    j = seances(10)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0 + i) for i, d in enumerate(j)],
+            # B n'est coté que sur les deux dernières séances de A.
+            "B": [(d, 50.0 + i) for i, d in enumerate(j[-communes:])],
+        },
+        {"A": 1, "B": 1},
+    )
+    assert build_portfolio_series(conn, 1, window=504).window.observations == 1
+    with pytest.raises(PortfolioError, match="il en faut au moins 3") as refus:
+        analyse_portfolio(conn, 1, window=504, benchmark=None)
+    assert f"{communes}\u00a0séance" in str(refus.value)
+    assert "2\u00a0rendements" in str(refus.value)
+
+
+def test_trois_seances_communes_suffisent(conn):
+    """La frontière : trois cotations en commun, deux rendements, un rapport."""
+    j = seances(10)
+    peupler(
+        conn,
+        {
+            "A": [(d, 100.0 + i) for i, d in enumerate(j)],
+            "B": [(d, 50.0 + i) for i, d in enumerate(j[-3:])],
+        },
+        {"A": 1, "B": 1},
+    )
+    rapport = analyse_portfolio(conn, 1, window=504, benchmark=None)
+    assert rapport.window.observations == 2
+
+
 # ------------------------------------------------------------- Composition --
 
 

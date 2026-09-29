@@ -1451,6 +1451,28 @@ def analyse_portfolio(
     serie = build_portfolio_series(
         conn, portfolio_id, window=window, benchmark=benchmark
     )
+
+    # Une série d'un seul rendement est un objet valide — l'alignement des
+    # dates se vérifie dessus —, mais aucun RAPPORT ne peut en sortir : une
+    # dispersion d'échantillon demande DDOF + 1 rendements. En deçà, c'est
+    # l'ÉTAT de la base qui manque, pas la requête qui est fautive, d'où
+    # `PortfolioError`, que l'API rend en 409. Sans cette garde, `_sample_std`
+    # levait une `ValueError`, que l'API rendait en 422.
+    #
+    # `window >= 2` est garanti par `build_portfolio_series` : moins de deux
+    # observations veut donc dire que tout le panel aligné a servi, et qu'il
+    # compte une séance de plus que de rendements.
+    rendements_minimaux = DDOF + 1
+    if serie.window.observations < rendements_minimaux:
+        raise PortfolioError(
+            "Les titres n'ont que "
+            f"{typography.sessions(serie.window.observations + 1)} en commun, "
+            f"il en faut au moins {rendements_minimaux + 1} : une dispersion "
+            "d'échantillon demande "
+            f"{typography.counted(rendements_minimaux, 'rendement')}. Vérifier "
+            "la couverture avec `python -m backend.ingestion status`."
+        )
+
     ajustement = student_fit(serie) if monte_carlo else None
     return RiskReport(
         portfolio_id=portfolio_id,

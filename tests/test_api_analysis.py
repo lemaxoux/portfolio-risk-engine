@@ -909,6 +909,25 @@ def test_sur_un_echantillon_mince_les_deux_observations_portent_le_seuil_choisi(
         assert minimum[0]["value"] == 60.0
 
 
+@pytest.mark.parametrize("seances_courtes", [1, 2])
+def test_sous_trois_seances_communes_l_analyse_repond_409_et_non_422(
+    analyse_historique_court, seances_courtes
+):
+    """Moins de deux rendements : c'est l'état de la base, pas la requête.
+
+    Deux cotations en commun ne donnent qu'un rendement. L'API répondait alors
+    422 « Au moins 2 observations sont nécessaires (reçu : 1). », comme si la
+    requête était fautive. Elle est correcte : 409, avec ce qui a été reçu et
+    ce qu'il faut, et la commande qui permet de vérifier.
+    """
+    reponse = analyse_historique_court(seances_courtes)
+    assert reponse.status_code == 409, reponse.text
+    detail = reponse.json()["detail"]
+    assert "python -m backend.ingestion status" in detail
+    if seances_courtes == 2:
+        assert "il en faut au moins 3" in detail
+
+
 def test_sous_trois_seances_l_api_refuse_de_chiffrer_et_dit_pourquoi(
     analyse_historique_court,
 ):

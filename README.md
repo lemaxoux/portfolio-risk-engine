@@ -1073,7 +1073,7 @@ aveu d'impuissance.
 | Code | Quand | Exemple |
 |---|---|---|
 | 404 | le portefeuille n'existe pas | vérifié par une lecture explicite, jamais en cherchant un mot dans un message |
-| 409 | il existe mais n'est pas analysable | aucune position, aucun prix pour une ligne, benchmark absent |
+| 409 | il existe mais n'est pas analysable | aucune position, aucun prix pour une ligne, benchmark absent, moins de trois séances communes à tous les titres |
 | 422 | la requête est refusée | ticker inconnu, quantité négative, doublon, CSV illisible, fenêtre hors domaine |
 
 Un refus porte toujours la même forme, y compris pour les rejets de validation

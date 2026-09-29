@@ -15,7 +15,7 @@ LA CORRESPONDANCE, et pourquoi :
   langue d'un message serait cassé par une reformulation.
 * **409** — le portefeuille existe mais n'est pas analysable en l'état : aucune
   position, aucun prix pour une ligne, valeur totale nulle, benchmark absent de
-  la base. Ce n'est pas la requête qui est malformée, c'est l'état de la base ;
+  la base, moins de trois séances communes à tous les titres. Ce n'est pas la requête qui est malformée, c'est l'état de la base ;
   et la suite est une action de l'utilisateur, décrite dans le message.
 * **422** — la requête elle-même est refusée : paramètre hors domaine, CSV
   invalide, ticker inconnu dans les positions soumises. `problems` détaille
