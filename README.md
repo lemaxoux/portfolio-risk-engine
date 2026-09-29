@@ -922,7 +922,10 @@ française, avec des espaces **insécables** (`backend/typography.py`) :
 Deux tests balaient la réponse `/analysis` entière et refusent toute espace
 ordinaire dans ces deux positions ; un troisième vérifie en sens inverse que les
 caractères sont bien présents, sans quoi les deux premiers surveilleraient une
-absence vide.
+absence vide. Le portefeuille de référence est couvert à 100 % par les trois
+crises : un quatrième test balaie donc une réponse à couverture partielle, seul
+endroit où se publie la justification du seuil de couverture de 80 %. Elle
+portait deux espaces ordinaires avant « % ».
 
 Le frontend applique la même convention de son côté pour les nombres qu'il
 formate lui-même. Les messages d'erreur de validation de l'API n'y sont pas

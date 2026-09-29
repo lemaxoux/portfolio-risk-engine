@@ -1540,6 +1540,56 @@ def test_aucune_espace_secable_entre_un_nombre_et_le_mot_qu_il_compte(
     assert not fautes, f"{len(fautes)} lien(s) sécable(s) : {fautes[:3]}"
 
 
+def test_une_couverture_partielle_n_a_aucune_espace_secable_avant_un_pourcent(
+    base_figee, client_factory
+):
+    """La justification du seuil de couverture (« à 80 % … à 50 % ») n'est
+    publiée que sous 80 % de couverture : le portefeuille de référence, couvert
+    à 100 %, ne la montrait jamais aux sondes ci-dessus. Elle portait deux
+    espaces ordinaires avant « % ».
+
+    Sur la copie figée propre au test, JPM perd son historique avant 2023 : les
+    trois crises l'excluent, et la couverture tombe à 74 %.
+    """
+    from contextlib import closing
+
+    from .conftest import PORTEFEUILLE_DEMO
+
+    with closing(connect(base_figee)) as conn, conn:
+        conn.execute("DELETE FROM prices WHERE ticker = 'JPM' AND date < '2023-01-01'")
+
+    with client_factory(base_figee) as client:
+        identifiant = client.post("/api/portfolios", json={"name": "Partielle"}).json()["id"]
+        client.put(
+            f"/api/portfolios/{identifiant}/positions",
+            json={
+                "positions": [
+                    {"ticker": ticker, "quantity": quantite}
+                    for ticker, quantite in PORTEFEUILLE_DEMO.items()
+                ]
+            },
+        )
+        corps = client.get(f"/api/portfolios/{identifiant}/analysis").json()
+
+    # Témoin : la réponse publie bien le seuil de couverture, sans quoi la
+    # sonde surveillerait une absence.
+    seuils = [
+        seuil
+        for observation in corps["observations"]
+        for seuil in observation["thresholds"]
+        if seuil["name"] == "couverture minimale d'un scénario"
+    ]
+    assert seuils, "aucune observation ne cite le seuil de couverture"
+    assert all(s["value"] == 0.80 for s in seuils)
+
+    fautes = [
+        (chemin, extrait)
+        for chemin, texte in toutes_les_chaines(corps)
+        for extrait in ESPACE_AVANT_POURCENT.findall(texte)
+    ]
+    assert not fautes, f"{len(fautes)} espace(s) sécable(s) avant % : {fautes[:3]}"
+
+
 def test_le_texte_contient_bien_les_deux_caracteres_attendus(analyse_reelle):
     """Contrôle en sens inverse.
 

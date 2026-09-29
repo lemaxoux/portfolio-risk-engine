@@ -134,9 +134,10 @@ MIN_SCENARIO_COVERAGE = Threshold(
     rationale=(
         "le biais de la renormalisation est orienté — la partie exclue est plus "
         "récente, donc en moyenne plus spéculative —, un seuil plus strict qu'un "
-        "pile ou face s'impose ; à 80 %, même si la partie exclue avait perdu deux "
-        "fois plus que la partie couverte, la perte de l'ensemble ne dépasserait le "
-        "chiffre affiché que d'un cinquième, contre moitié plus à 50 %"
+        f"pile ou face s'impose ; à {typography.percent(0.80, 0)}, même si la "
+        "partie exclue avait perdu deux fois plus que la partie couverte, la perte "
+        "de l'ensemble ne dépasserait le chiffre affiché que d'un cinquième, contre "
+        f"moitié plus à {typography.percent(0.50, 0)}"
     ),
     percent=True,
 )
