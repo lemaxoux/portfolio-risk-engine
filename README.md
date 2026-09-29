@@ -870,6 +870,7 @@ qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
 | GET | `/api/portfolios/{id}` | un portefeuille ; positions stockées et valorisées |
 | PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions ; `line` facultatif par position, renvoyé dans les refus |
 | POST | `/api/portfolios/{id}/positions/csv` | import CSV (multipart) |
+| GET | `/api/csv-format` | format lu par l'import CSV : colonnes, séparateurs, décimales, encodages, limites, exemple |
 | DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
 | GET | `/api/portfolios/{id}/analysis` | rapport, scénarios, régimes, observations, bandeau |
 
@@ -1204,6 +1205,19 @@ la main.
 
 Sont refusés avec un message situé à la ligne : ticker inconnu, ticker sans
 historique de prix, quantité nulle ou négative, doublon, en-tête absent.
+
+**Le format est publié par le lecteur lui-même : `GET /api/csv-format`.**
+L'écran d'import l'affiche en clair, sur place, et le lit là plutôt que d'en
+garder une copie, qui deviendrait le format affiché le jour où le lecteur
+changerait — même raison que pour `GET /api/disclaimer`. Chaque valeur vient
+de la table ou de la constante que le lecteur consulte : colonnes requises et
+facultatives, séparateurs de champs et décimales admises pour chacun
+(`DECIMALES_ADMISES`, par laquelle le lecteur tranche lui-même), espaces de
+milliers, encodages, taille et nombre de lignes maximaux, et un exemple — le
+fichier ci-dessus. Les tests ne comparent pas la réponse à des constantes
+recopiées : ils font lire au vrai lecteur chaque séparateur, chaque décimale,
+chaque espace et chaque encodage annoncés, et importent l'exemple sur la copie
+figée.
 
 ### 10. Frontend
 

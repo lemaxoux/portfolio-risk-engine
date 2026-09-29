@@ -74,8 +74,27 @@ DELIMITERS: tuple[str, ...] = (";", ",")
 COLONNE_TICKER = "ticker"
 COLONNE_QUANTITE = "quantity"
 COLONNE_PRIX_REVIENT = "cost_basis"
+COLONNES_REQUISES: tuple[str, ...] = (COLONNE_TICKER, COLONNE_QUANTITE)
+COLONNES_FACULTATIVES: tuple[str, ...] = (COLONNE_PRIX_REVIENT,)
 
 EN_TETE_ATTENDU = "ticker;quantity[;cost_basis]"
+
+# Séparateurs décimaux ADMIS selon le séparateur de champs. La virgule n'est une
+# décimale qu'avec `;` : avec `,`, elle termine une colonne (voir `_nombre`).
+# Le lecteur tranche avec CETTE table, et `GET /api/csv-format` la publie : la
+# règle affichée à l'utilisateur est celle qui est appliquée, pas une copie.
+DECIMALES_ADMISES: dict[str, tuple[str, ...]] = {";": (",", "."), ",": (".",)}
+
+# La marque d'ordre des octets est cherchée à part (voir `decode`) ; les deux
+# autres encodages sont essayés dans cet ordre.
+ENCODAGE_BOM = "utf-8-sig"
+ENCODAGES_ESSAYES: tuple[str, ...] = ("utf-8", "cp1252")
+
+# L'exemple publié avec le format : ce qu'exporte un Excel français —
+# point-virgule, virgule décimale —, avec un prix de revient laissé vide.
+# `tests/test_api_csv.py` le fait lire par ce lecteur et importer sur la copie
+# figée : un exemple qui ne s'importerait pas serait pire que pas d'exemple.
+EXEMPLE = "ticker;quantity;cost_basis\nAAPL;40;185,20\nMSFT;25;\n"
 
 # Séparateurs décimaux tels qu'ils peuvent être OBSERVÉS dans un fichier.
 # `mixte` et `aucune` ne sont pas des cas d'erreur : le premier signale un
@@ -121,8 +140,8 @@ class CsvError(Exception):
 def decode(payload: bytes) -> tuple[str, str]:
     """Texte et nom de l'encodage retenu. Lève `CsvError` si aucun ne convient."""
     if payload.startswith(codecs.BOM_UTF8):
-        return payload.decode("utf-8-sig"), "utf-8-sig"
-    for encodage in ("utf-8", "cp1252"):
+        return payload.decode(ENCODAGE_BOM), ENCODAGE_BOM
+    for encodage in ENCODAGES_ESSAYES:
         try:
             return payload.decode(encodage), encodage
         except UnicodeDecodeError:
@@ -198,9 +217,7 @@ def _decimale_observee(vues: set[str]) -> str:
 def _colonnes(entete: list[str]) -> dict[str, int]:
     noms = [champ.strip().lower().lstrip("﻿") for champ in entete]
     index = {nom: position for position, nom in enumerate(noms)}
-    manquantes = [
-        nom for nom in (COLONNE_TICKER, COLONNE_QUANTITE) if nom not in index
-    ]
+    manquantes = [nom for nom in COLONNES_REQUISES if nom not in index]
     if manquantes:
         raise CsvError(
             f"Colonnes manquantes dans l'en-tête : {', '.join(manquantes)}. "
@@ -233,7 +250,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
     separateur = sniff_delimiter(premiere)
     # Avec `;`, la virgule est ADMISE comme décimale ; ce qui sera ANNONCÉ
     # dépend de ce que les nombres contiennent réellement.
-    virgule_admise = separateur == ";"
+    virgule_admise = "," in DECIMALES_ADMISES[separateur]
 
     lecteur = csv.reader(io.StringIO(texte), delimiter=separateur)
     lignes = [ligne for ligne in lecteur]

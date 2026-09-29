@@ -61,6 +61,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/csv-format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Csv Format
+         * @description Le format que lit l'import CSV, EN LECTURE SEULE et sans base.
+         *
+         *     L'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,
+         *     §13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient
+         *     de la table ou de la constante que le lecteur consulte lui-même, si bien
+         *     qu'un format affiché ne peut pas diverger du format lu.
+         */
+        get: operations["read_csv_format_api_csv_format_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/securities": {
         parameters: {
             query?: never;
@@ -378,6 +403,64 @@ export interface components {
             covered_count: number;
             /** Total Count */
             total_count: number;
+        };
+        /**
+         * CsvDelimiterOut
+         * @description Un séparateur de champs, et les séparateurs décimaux qu'il admet.
+         *
+         *     La règle tient en une table parce qu'elle dépend du séparateur : avec `;`,
+         *     la virgule est une décimale ; avec `,`, elle termine une colonne.
+         */
+        CsvDelimiterOut: {
+            /**
+             * Delimiter
+             * @enum {string}
+             */
+            delimiter: "," | ";";
+            /** Decimal Separators */
+            decimal_separators: string[];
+        };
+        /**
+         * CsvFormatOut
+         * @description Le format que lit l'import CSV, publié par le lecteur lui-même.
+         *
+         *     Chaque champ est lu dans `csv_import` ou `validation`, là où le lecteur
+         *     prend ses décisions : la règle affichée à l'utilisateur est celle qui est
+         *     appliquée. Une description embarquée dans le frontend deviendrait le format
+         *     affiché le jour où le lecteur changerait — même raison que pour
+         *     `GET /api/disclaimer`.
+         *
+         *     `expected_header` est l'écriture que citent les messages de refus ;
+         *     `example` est un fichier complet, que les tests font lire au vrai lecteur.
+         */
+        CsvFormatOut: {
+            /** Expected Header */
+            expected_header: string;
+            /** Required Columns */
+            required_columns: string[];
+            /** Optional Columns */
+            optional_columns: string[];
+            /** Delimiters */
+            delimiters: components["schemas"]["CsvDelimiterOut"][];
+            /**
+             * Thousands Separators
+             * @description Espaces admises dans un nombre et retirées avant lecture : celles qu'un tableur glisse entre les milliers.
+             */
+            thousands_separators: string[];
+            /**
+             * Encodings
+             * @description Encodages reconnus, tels que `source.encoding` les annonce après un import. `utf-8-sig` désigne un UTF-8 précédé de sa marque d'ordre des octets.
+             */
+            encodings: string[];
+            /** Max Bytes */
+            max_bytes: number;
+            /**
+             * Max Positions
+             * @description Nombre maximal de lignes, le même pour une saisie et un import.
+             */
+            max_positions: number;
+            /** Example */
+            example: string;
         };
         /** CsvImportOut */
         CsvImportOut: {
@@ -1390,6 +1473,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DisclaimerOut"];
+                };
+            };
+        };
+    };
+    read_csv_format_api_csv_format_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvFormatOut"];
                 };
             };
         };

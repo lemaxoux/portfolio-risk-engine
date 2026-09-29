@@ -407,7 +407,52 @@ class CsvImportOut(PositionsWrittenOut):
     source: CsvSourceOut
 
 
-# ═══════════════════════════════════════════════════════════════ Mesures ══
+class CsvDelimiterOut(Schema):
+    """Un séparateur de champs, et les séparateurs décimaux qu'il admet.
+
+    La règle tient en une table parce qu'elle dépend du séparateur : avec `;`,
+    la virgule est une décimale ; avec `,`, elle termine une colonne.
+    """
+
+    delimiter: Literal[",", ";"]
+    decimal_separators: list[str]
+
+
+class CsvFormatOut(Schema):
+    """Le format que lit l'import CSV, publié par le lecteur lui-même.
+
+    Chaque champ est lu dans `csv_import` ou `validation`, là où le lecteur
+    prend ses décisions : la règle affichée à l'utilisateur est celle qui est
+    appliquée. Une description embarquée dans le frontend deviendrait le format
+    affiché le jour où le lecteur changerait — même raison que pour
+    `GET /api/disclaimer`.
+
+    `expected_header` est l'écriture que citent les messages de refus ;
+    `example` est un fichier complet, que les tests font lire au vrai lecteur.
+    """
+
+    expected_header: str
+    required_columns: list[str]
+    optional_columns: list[str]
+    delimiters: list[CsvDelimiterOut]
+    thousands_separators: list[str] = Field(
+        description=(
+            "Espaces admises dans un nombre et retirées avant lecture : celles "
+            "qu'un tableur glisse entre les milliers."
+        )
+    )
+    encodings: list[str] = Field(
+        description=(
+            "Encodages reconnus, tels que `source.encoding` les annonce après "
+            "un import. `utf-8-sig` désigne un UTF-8 précédé de sa marque "
+            "d'ordre des octets."
+        )
+    )
+    max_bytes: int
+    max_positions: int = Field(
+        description="Nombre maximal de lignes, le même pour une saisie et un import."
+    )
+    example: str
 
 
 class VolatilityOut(Schema):

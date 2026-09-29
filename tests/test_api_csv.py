@@ -345,3 +345,85 @@ def test_la_virgule_decimale_n_est_admise_qu_en_separateur_point_virgule():
 def test_un_encodage_illisible_leve_une_erreur_explicite():
     with pytest.raises(CsvError, match="ni UTF-8 ni CP1252"):
         read(b"ticker;quantity\n\x81\x8d;10\n")
+
+
+# ═══════════════════════════════════════════════════════ Le format publié ══
+#
+# `GET /api/csv-format` publie ce que le lecteur accepte, pour que l'écran
+# d'import l'affiche sans en garder une copie : une copie embarquée dans le
+# bundle deviendrait le format affiché le jour où le lecteur changerait. Ces
+# tests ne comparent pas la réponse à des constantes recopiées : ils font lire
+# au VRAI lecteur ce que la réponse annonce.
+
+
+@pytest.fixture
+def format_publie(client_synthetique):
+    reponse = client_synthetique.get("/api/csv-format")
+    assert reponse.status_code == 200, reponse.text
+    return reponse.json()
+
+
+def test_le_format_publie_nomme_les_colonnes_et_les_limites(format_publie):
+    from backend.api.csv_import import MAX_BYTES
+    from backend.api.validation import MAX_POSITIONS
+
+    assert format_publie["required_columns"] == ["ticker", "quantity"]
+    assert format_publie["optional_columns"] == ["cost_basis"]
+    assert format_publie["max_bytes"] == MAX_BYTES
+    assert format_publie["max_positions"] == MAX_POSITIONS
+
+
+def test_l_exemple_publie_est_lu_par_le_vrai_lecteur(format_publie):
+    lecture = read(format_publie["example"].encode("utf-8"))
+    assert lecture.problems == ()
+    assert [(p.ticker, p.quantity, p.cost_basis) for p in lecture.positions] == [
+        ("AAPL", 40.0, 185.2),
+        ("MSFT", 25.0, None),
+    ]
+    # L'exemple montre ce qu'exporte un Excel français : point-virgule,
+    # virgule décimale, prix de revient laissé vide.
+    assert lecture.source.delimiter == ";"
+    assert lecture.source.decimal_separator == ","
+
+
+def test_l_exemple_publie_s_importe_sur_la_copie_figee(base_figee, client_factory):
+    """Bout à bout, sur de vrais titres : la copie figée propre au test."""
+    with client_factory(base_figee) as client:
+        identifiant = client.post("/api/portfolios", json={"name": "Exemple"}).json()["id"]
+        exemple = client.get("/api/csv-format").json()["example"]
+        reponse = depose(client, identifiant, exemple.encode("utf-8"), "exemple.csv")
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["positions_count"] == 2
+
+
+def test_chaque_separateur_et_chaque_decimale_publies_sont_lus(format_publie):
+    regles = format_publie["delimiters"]
+    assert {r["delimiter"] for r in regles} == {";", ","}
+    for regle in regles:
+        separateur = regle["delimiter"]
+        for decimale in regle["decimal_separators"]:
+            lecture = read(
+                f"ticker{separateur}quantity\nALFA{separateur}1{decimale}5\n".encode()
+            )
+            assert lecture.problems == (), (separateur, decimale)
+            assert lecture.positions[0].quantity == 1.5, (separateur, decimale)
+
+
+def test_chaque_espace_de_milliers_publiee_est_lue(format_publie):
+    espaces = format_publie["thousands_separators"]
+    assert espaces, "au moins l'espace ordinaire"
+    for espace in espaces:
+        lecture = read(f"ticker;quantity\nALFA;1{espace}000\n".encode("utf-8"))
+        assert lecture.positions[0].quantity == 1000.0, repr(espace)
+
+
+def test_chaque_encodage_publie_est_reconnu_et_annonce(format_publie):
+    for encodage in format_publie["encodings"]:
+        lecture = read("ticker;quantity\nÉLAN;10\n".encode(encodage))
+        assert lecture.source.encoding == encodage, encodage
+
+
+def test_l_en_tete_attendu_publie_est_celui_des_messages_de_refus(format_publie):
+    with pytest.raises(CsvError) as refus:
+        read(b"ticker;quantite\nALFA;10\n")
+    assert format_publie["expected_header"] in str(refus.value)

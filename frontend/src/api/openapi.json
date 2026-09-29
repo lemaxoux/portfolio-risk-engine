@@ -50,6 +50,28 @@
         }
       }
     },
+    "/api/csv-format": {
+      "get": {
+        "tags": [
+          "méta"
+        ],
+        "summary": "Read Csv Format",
+        "description": "Le format que lit l'import CSV, EN LECTURE SEULE et sans base.\n\nL'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,\n§13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient\nde la table ou de la constante que le lecteur consulte lui-même, si bien\nqu'un format affiché ne peut pas diverger du format lu.",
+        "operationId": "read_csv_format_api_csv_format_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvFormatOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/securities": {
       "get": {
         "tags": [
@@ -725,6 +747,106 @@
         ],
         "title": "CoverageOut",
         "description": "Quelle part du portefeuille le scénario a réellement pu couvrir.\n\n`value_share` est une fraction de la VALEUR, pas une fraction des lignes :\nécarter une ligne à 1 % et une ligne à 40 % n'ont pas la même portée, alors\nque « 5 lignes sur 6 » se dirait pareil. Le biais est orienté — la partie\nexclue est plus récente, donc en moyenne plus spéculative —, ce qui rend la\nperte affichée vraisemblablement optimiste à mesure que `value_share` baisse."
+      },
+      "CsvDelimiterOut": {
+        "properties": {
+          "delimiter": {
+            "type": "string",
+            "enum": [
+              ",",
+              ";"
+            ],
+            "title": "Delimiter"
+          },
+          "decimal_separators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decimal Separators"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "delimiter",
+          "decimal_separators"
+        ],
+        "title": "CsvDelimiterOut",
+        "description": "Un séparateur de champs, et les séparateurs décimaux qu'il admet.\n\nLa règle tient en une table parce qu'elle dépend du séparateur : avec `;`,\nla virgule est une décimale ; avec `,`, elle termine une colonne."
+      },
+      "CsvFormatOut": {
+        "properties": {
+          "expected_header": {
+            "type": "string",
+            "title": "Expected Header"
+          },
+          "required_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Columns"
+          },
+          "optional_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Optional Columns"
+          },
+          "delimiters": {
+            "items": {
+              "$ref": "#/components/schemas/CsvDelimiterOut"
+            },
+            "type": "array",
+            "title": "Delimiters"
+          },
+          "thousands_separators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Thousands Separators",
+            "description": "Espaces admises dans un nombre et retirées avant lecture : celles qu'un tableur glisse entre les milliers."
+          },
+          "encodings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Encodings",
+            "description": "Encodages reconnus, tels que `source.encoding` les annonce après un import. `utf-8-sig` désigne un UTF-8 précédé de sa marque d'ordre des octets."
+          },
+          "max_bytes": {
+            "type": "integer",
+            "title": "Max Bytes"
+          },
+          "max_positions": {
+            "type": "integer",
+            "title": "Max Positions",
+            "description": "Nombre maximal de lignes, le même pour une saisie et un import."
+          },
+          "example": {
+            "type": "string",
+            "title": "Example"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_header",
+          "required_columns",
+          "optional_columns",
+          "delimiters",
+          "thousands_separators",
+          "encodings",
+          "max_bytes",
+          "max_positions",
+          "example"
+        ],
+        "title": "CsvFormatOut",
+        "description": "Le format que lit l'import CSV, publié par le lecteur lui-même.\n\nChaque champ est lu dans `csv_import` ou `validation`, là où le lecteur\nprend ses décisions : la règle affichée à l'utilisateur est celle qui est\nappliquée. Une description embarquée dans le frontend deviendrait le format\naffiché le jour où le lecteur changerait — même raison que pour\n`GET /api/disclaimer`.\n\n`expected_header` est l'écriture que citent les messages de refus ;\n`example` est un fichier complet, que les tests font lire au vrai lecteur."
       },
       "CsvImportOut": {
         "properties": {
