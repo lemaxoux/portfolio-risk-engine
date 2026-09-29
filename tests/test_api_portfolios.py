@@ -286,6 +286,54 @@ def test_un_doublon_est_refuse_en_nommant_les_deux_lignes(
     assert "apparaît deux fois" in reponse.json()["problems"][0]["problem"]
 
 
+def test_le_numero_de_ligne_d_une_saisie_revient_dans_ses_refus(
+    client_synthetique, portefeuille_synthetique
+):
+    """`line` est le numéro de la ligne telle que l'utilisateur la voit, fourni
+    par qui le connaît : le lecteur CSV pour un fichier, le client pour un
+    tableau de saisie. L'API le renvoie tel quel, sans l'interpréter — chaque
+    refus se rattache à sa ligne sans que le client lise la phrase."""
+    reponse = client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions",
+        json={
+            "positions": [
+                {"ticker": "ALFA", "quantity": 10, "line": 1},
+                {"ticker": "XYZ", "quantity": 10, "line": 2},
+                {"ticker": "MIKE", "quantity": -1, "line": 3},
+                {"ticker": "ALFA", "quantity": 5, "line": 4},
+                {"ticker": "ZULU", "quantity": 2, "cost_basis": -3.0, "line": 5},
+            ]
+        },
+    )
+    assert reponse.status_code == 422
+    par_ligne = {p["line"]: p for p in reponse.json()["problems"]}
+    assert set(par_ligne) == {2, 3, 4, 5}
+    assert par_ligne[2]["field"] == "ticker"
+    assert par_ligne[3]["field"] == "quantity"
+    assert par_ligne[4]["field"] == "ticker"
+    assert "déjà ligne 1" in par_ligne[4]["problem"]
+    assert par_ligne[5]["field"] == "cost_basis"
+
+
+def test_sans_numero_de_ligne_un_refus_n_en_invente_pas(
+    client_synthetique, portefeuille_synthetique
+):
+    reponse = client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions",
+        json={"positions": [{"ticker": "XYZ", "quantity": 10}]},
+    )
+    assert reponse.json()["problems"][0]["line"] is None
+
+
+def test_un_numero_de_ligne_commence_a_un(client_synthetique, portefeuille_synthetique):
+    reponse = client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions",
+        json={"positions": [{"ticker": "ALFA", "quantity": 10, "line": 0}]},
+    )
+    assert reponse.status_code == 422
+    assert reponse.json()["problems"][0]["field"] == "line"
+
+
 def test_tous_les_refus_sont_rendus_d_un_coup(
     client_synthetique, portefeuille_synthetique
 ):

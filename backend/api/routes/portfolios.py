@@ -179,13 +179,19 @@ def replace_positions(
     payload: PositionsReplace,
     conn: sqlite3.Connection = Depends(get_connection),
 ) -> PositionsWrittenOut:
-    """Remplace TOUTES les positions du portefeuille."""
+    """Remplace TOUTES les positions du portefeuille.
+
+    `line`, quand le client le fournit, suit la position jusqu'à ses refus :
+    c'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une
+    ligne de fichier pour l'import CSV. L'API ne l'interprète pas.
+    """
     _require(conn, portfolio_id)
     soumises = [
         SubmittedPosition(
             ticker=position.ticker,
             quantity=position.quantity,
             cost_basis=position.cost_basis,
+            line=position.line,
         )
         for position in payload.positions
     ]

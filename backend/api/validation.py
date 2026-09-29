@@ -37,8 +37,9 @@ MAX_POSITIONS = 200
 class SubmittedPosition:
     """Une ligne soumise, telle qu'elle a été reçue.
 
-    `line` est le numéro de ligne dans le fichier CSV, tel qu'un tableur
-    l'affiche. Il vaut None pour une soumission JSON, qui n'a pas de lignes.
+    `line` est le numéro de ligne tel que l'utilisateur le voit : dans le
+    fichier CSV, tel qu'un tableur l'affiche, ou dans le tableau de saisie,
+    quand le client le fournit avec une soumission JSON. Il vaut None sinon.
     """
 
     ticker: str

@@ -230,7 +230,7 @@
           "portefeuilles"
         ],
         "summary": "Replace Positions",
-        "description": "Remplace TOUTES les positions du portefeuille.",
+        "description": "Remplace TOUTES les positions du portefeuille.\n\n`line`, quand le client le fournit, suit la position jusqu'à ses refus :\nc'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une\nligne de fichier pour l'import CSV. L'API ne l'interprète pas.",
         "operationId": "replace_positions_api_portfolios__portfolio_id__positions_put",
         "parameters": [
           {
@@ -1525,6 +1525,19 @@
               }
             ],
             "title": "Cost Basis"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line",
+            "description": "Numéro de la ligne telle que l'utilisateur la voit — le rang dans un tableau de saisie, par exemple. Facultatif, jamais interprété : renvoyé tel quel dans `problems[].line`, comme l'est le numéro de ligne d'un fichier CSV."
           }
         },
         "additionalProperties": false,

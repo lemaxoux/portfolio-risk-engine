@@ -208,6 +208,16 @@ class PositionIn(Schema):
     ticker: str = Field(min_length=1, max_length=20)
     quantity: float
     cost_basis: float | None = None
+    line: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Numéro de la ligne telle que l'utilisateur la voit — le rang dans "
+            "un tableau de saisie, par exemple. Facultatif, jamais interprété : "
+            "renvoyé tel quel dans `problems[].line`, comme l'est le numéro de "
+            "ligne d'un fichier CSV."
+        ),
+    )
 
 
 class PositionsReplace(Schema):

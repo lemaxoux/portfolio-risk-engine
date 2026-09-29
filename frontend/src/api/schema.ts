@@ -141,6 +141,10 @@ export interface paths {
         /**
          * Replace Positions
          * @description Remplace TOUTES les positions du portefeuille.
+         *
+         *     `line`, quand le client le fournit, suit la position jusqu'à ses refus :
+         *     c'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une
+         *     ligne de fichier pour l'import CSV. L'API ne l'interprète pas.
          */
         put: operations["replace_positions_api_portfolios__portfolio_id__positions_put"];
         post?: never;
@@ -812,6 +816,11 @@ export interface components {
             quantity: number;
             /** Cost Basis */
             cost_basis?: number | null;
+            /**
+             * Line
+             * @description Numéro de la ligne telle que l'utilisateur la voit — le rang dans un tableau de saisie, par exemple. Facultatif, jamais interprété : renvoyé tel quel dans `problems[].line`, comme l'est le numéro de ligne d'un fichier CSV.
+             */
+            line?: number | null;
         };
         /**
          * PositionOut

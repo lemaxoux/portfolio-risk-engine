@@ -868,7 +868,7 @@ qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
 | POST | `/api/portfolios` | crée un portefeuille, renvoie son `id` |
 | GET | `/api/portfolios` | liste ; positions stockées, et valorisées quand elles le sont |
 | GET | `/api/portfolios/{id}` | un portefeuille ; positions stockées et valorisées |
-| PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions |
+| PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions ; `line` facultatif par position, renvoyé dans les refus |
 | POST | `/api/portfolios/{id}/positions/csv` | import CSV (multipart) |
 | DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
 | GET | `/api/portfolios/{id}/analysis` | rapport, scénarios, régimes, observations, bandeau |
@@ -1151,6 +1151,14 @@ de FastAPI :
   "problems": [{"line": 3, "field": "ticker", "value": "XYZ", "problem": "…"}]
 }
 ```
+
+`line` est le numéro de ligne tel que l'utilisateur le voit : celui du fichier
+pour un import CSV, en-tête compris ; pour une saisie en JSON, celui que le
+client fournit avec chaque position (`PositionIn.line`), par exemple le rang
+dans son tableau ; `null` sinon. L'API ne l'interprète pas, elle le renvoie.
+Sans lui, un refus de quantité en JSON ne portait ni ligne ni ticker
+structuré, et le client n'aurait pu le rattacher à sa ligne qu'en lisant la
+phrase.
 
 Rien n'est écrit tant que tout n'est pas valide : les problèmes sont accumulés
 et rendus ensemble, jamais levés au premier rencontré. Un import à moitié
