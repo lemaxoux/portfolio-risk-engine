@@ -826,6 +826,89 @@ def test_une_student_a_queues_epaisses_reste_ajustee(conn):
     assert student_fit(serie).nu < MAX_STUDENT_NU
 
 
+# ------------------------------- Monte Carlo normal et volet Student séparés --
+#
+# Le Monte Carlo NORMAL ne dépend pas de ν. Un refus de la Student — au-delà de
+# ν = 30, fréquent sur fenêtre courte, ou ν ≤ 2 — ne doit pas l'emporter : il
+# reste la vérification croisée de la VaR paramétrique. Et quand le Monte Carlo
+# normal est lui-même impossible, il a SA raison, que celle de la Student ne
+# masque pas.
+
+
+def _monte_carlo_normal_present(rapport, observations):
+    for niveau in (0.95, 0.99):
+        simule = rapport.monte_carlo_var[niveau]
+        assert simule.method == "Monte Carlo"
+        assert "graine" in simule.detail
+        assert simule.window.observations == observations
+    assert rapport.monte_carlo_unavailable_reason is None
+
+
+def test_une_student_indiscernable_de_la_normale_laisse_le_monte_carlo_normal(conn):
+    _serie_a_deux_lignes(conn, cours, (21, 22), 300, 250)
+    rapport = analyse_portfolio(conn, 1, window=250, benchmark=None, monte_carlo=True)
+
+    assert rapport.student_fit is None
+    assert rapport.student_parametric_var is None
+    assert rapport.student_monte_carlo_var is None
+    assert "ne se distingue pas de la normale" in rapport.student_unavailable_reason
+    _monte_carlo_normal_present(rapport, 250)
+
+
+def test_nu_inferieur_ou_egal_a_deux_laisse_le_monte_carlo_normal(conn, monkeypatch):
+    """ν ≤ 2 est refusé plus loin que l'ajustement, par la VaR Student elle-même
+    (variance infinie). Le Monte Carlo normal n'en dépend pas davantage."""
+    from backend.risk_engine import var
+
+    _serie_a_deux_lignes(conn, cours_student, (21, 22), 300, 250)
+    monkeypatch.setattr(
+        var,
+        "fit_student_t",
+        lambda rendements: var.StudentFit(
+            nu=1.9, loc=0.0, scale=0.01, log_likelihood=0.0, observations=250
+        ),
+    )
+    rapport = analyse_portfolio(conn, 1, window=250, benchmark=None, monte_carlo=True)
+
+    assert rapport.student_fit is None
+    assert rapport.student_parametric_var is None
+    assert "≤ 2" in rapport.student_unavailable_reason
+    _monte_carlo_normal_present(rapport, 250)
+
+
+def test_student_et_monte_carlo_impossibles_ont_chacun_leur_raison(conn):
+    """Trois séances d'observation pour trois lignes : la covariance est de rang
+    deux au plus, le Monte Carlo normal n'a pas de facteur de Cholesky. La
+    Student, elle, manque de séances. Deux raisons distinctes, et aucune ne
+    remplace l'autre."""
+    j = seances(4)
+    peupler(
+        conn,
+        {
+            "A": cours(j, 100.0, 0.011, graine=31),
+            "B": cours(j, 70.0, 0.013, graine=32),
+            "C": cours(j, 40.0, 0.015, graine=33),
+        },
+        {"A": 10, "B": 12, "C": 20},
+    )
+    rapport = analyse_portfolio(conn, 1, window=504, benchmark=None, monte_carlo=True)
+    assert rapport.window.observations == 3
+
+    assert rapport.monte_carlo_var is None
+    assert "non définie positive" in rapport.monte_carlo_unavailable_reason
+    assert rapport.student_fit is None
+    assert "Au moins 30 observations" in rapport.student_unavailable_reason
+    assert rapport.monte_carlo_unavailable_reason != rapport.student_unavailable_reason
+
+
+def test_sans_monte_carlo_demande_aucune_raison_n_est_inventee(conn):
+    _serie_a_deux_lignes(conn, cours, (21, 22), 300, 250)
+    rapport = analyse_portfolio(conn, 1, window=250, benchmark=None)
+    assert rapport.monte_carlo_var is None and rapport.student_fit is None
+    assert rapport.monte_carlo_unavailable_reason is None
+    assert rapport.student_unavailable_reason is None
+
+
 # ------------------------------------------------ Catalogue de la base --
 #
 # Deux lectures ajoutées pour la phase 7A. Elles ne produisent aucun chiffre de

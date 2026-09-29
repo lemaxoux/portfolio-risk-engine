@@ -2235,7 +2235,7 @@
           "expected_shortfall"
         ],
         "title": "TailRiskLevelOut",
-        "description": "Toutes les mesures de queue d'UN niveau de confiance, dans un seul objet.\n\nLa VaR normale et sa contrepartie Student sont voisines de champ, parce que\nl'écart entre les deux chiffre le coût de l'hypothèse de normalité : afficher\nla normale seule la ferait passer pour le dernier mot. Quand le volet Student\nest indisponible, ces champs valent `null` et\n`TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres."
+        "description": "Toutes les mesures de queue d'UN niveau de confiance, dans un seul objet.\n\nLa VaR normale et sa contrepartie Student sont voisines de champ, parce que\nl'écart entre les deux chiffre le coût de l'hypothèse de normalité : afficher\nla normale seule la ferait passer pour le dernier mot. Quand le volet Student\nest indisponible, ces champs valent `null` et\n`TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres ;\nquand le Monte Carlo normal l'est, `TailRiskOut.monte_carlo_unavailable_reason`."
       },
       "TailRiskOut": {
         "properties": {
@@ -2266,6 +2266,17 @@
               }
             ],
             "title": "Student Unavailable Reason"
+          },
+          "monte_carlo_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monte Carlo Unavailable Reason"
           }
         },
         "additionalProperties": false,
@@ -2273,9 +2284,11 @@
         "required": [
           "levels",
           "student_fit",
-          "student_unavailable_reason"
+          "student_unavailable_reason",
+          "monte_carlo_unavailable_reason"
         ],
-        "title": "TailRiskOut"
+        "title": "TailRiskOut",
+        "description": "Les niveaux de confiance, l'ajustement de Student, et pourquoi un volet\nsimulé manque.\n\nDeux raisons, pas une : le Monte Carlo normal et le volet Student sont\nindépendants et tombent pour des causes différentes — une covariance non\ndéfinie positive pour le premier, une série trop courte ou une Student\nindiscernable de la normale pour le second. Chacune vaut `null` quand son\nvolet existe ; sinon elle dit pourquoi, et l'une ne tient jamais lieu de\nl'autre. Même règle que `correlation_undefined_reason` : le moteur rédige\nla raison, l'API la publie."
       },
       "ThresholdOut": {
         "properties": {

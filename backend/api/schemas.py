@@ -744,7 +744,8 @@ class TailRiskLevelOut(Schema):
     l'écart entre les deux chiffre le coût de l'hypothèse de normalité : afficher
     la normale seule la ferait passer pour le dernier mot. Quand le volet Student
     est indisponible, ces champs valent `null` et
-    `TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres.
+    `TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres ;
+    quand le Monte Carlo normal l'est, `TailRiskOut.monte_carlo_unavailable_reason`.
     """
 
     confidence: float
@@ -757,12 +758,25 @@ class TailRiskLevelOut(Schema):
 
 
 class TailRiskOut(Schema):
+    """Les niveaux de confiance, l'ajustement de Student, et pourquoi un volet
+    simulé manque.
+
+    Deux raisons, pas une : le Monte Carlo normal et le volet Student sont
+    indépendants et tombent pour des causes différentes — une covariance non
+    définie positive pour le premier, une série trop courte ou une Student
+    indiscernable de la normale pour le second. Chacune vaut `null` quand son
+    volet existe ; sinon elle dit pourquoi, et l'une ne tient jamais lieu de
+    l'autre. Même règle que `correlation_undefined_reason` : le moteur rédige
+    la raison, l'API la publie.
+    """
+
     levels: list[TailRiskLevelOut]
     student_fit: StudentFitOut | None
     student_unavailable_reason: str | None
+    monte_carlo_unavailable_reason: str | None
 
     @classmethod
-    def of(cls, report: RiskReport, student_reason: str | None) -> TailRiskOut:
+    def of(cls, report: RiskReport) -> TailRiskOut:
         def _niveau(confiance: float, source: dict | None) -> VarResult | None:
             return None if source is None else source.get(confiance)
 
@@ -792,7 +806,8 @@ class TailRiskOut(Schema):
                 if report.student_fit is None
                 else StudentFitOut.of(report.student_fit)
             ),
-            student_unavailable_reason=student_reason,
+            student_unavailable_reason=report.student_unavailable_reason,
+            monte_carlo_unavailable_reason=report.monte_carlo_unavailable_reason,
         )
 
 
@@ -841,9 +856,7 @@ class RiskOut(Schema):
     tail_risk: TailRiskOut
 
     @classmethod
-    def of(
-        cls, report: RiskReport, tickers: list[str], student_reason: str | None
-    ) -> RiskOut:
+    def of(cls, report: RiskReport, tickers: list[str]) -> RiskOut:
         return cls(
             volatility=VolatilityOut.of(report.volatility),
             ewma_volatility=VolatilityOut.of(report.ewma_volatility),
@@ -857,7 +870,7 @@ class RiskOut(Schema):
                 report.variance_contributions, tickers
             ),
             beta=None if report.beta is None else BetaOut.of(report.beta),
-            tail_risk=TailRiskOut.of(report, student_reason),
+            tail_risk=TailRiskOut.of(report),
         )
 
 

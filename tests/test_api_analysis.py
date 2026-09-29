@@ -663,19 +663,21 @@ def test_la_var_normale_et_la_var_student_voyagent_ensemble(analyse_reelle):
 def test_un_volet_student_indisponible_sort_null_avec_la_raison_du_moteur(
     client_synthetique, portefeuille_synthetique, monkeypatch
 ):
-    """ν ≤ 2 ne doit pas emporter tout le rapport.
+    """Une erreur imprévue des simulations ne doit pas emporter tout le rapport.
 
-    Le refus du moteur est relayé MOT POUR MOT : c'est lui qui explique que sans
-    variance finie, une VaR « à variance ajustée » n'a pas de sens — et le
-    lecteur a besoin de savoir que les autres mesures de la même page reposent
-    elles aussi sur une variance.
+    Le moteur absorbe lui-même les refus qu'il connaît — volet Student, dont
+    ν ≤ 2, et Monte Carlo normal sur une covariance singulière — et en range
+    les raisons dans le rapport. Ce test simule une `ValueError` qu'il n'aurait
+    PAS prévue, levée seulement quand les simulations sont demandées : le filet
+    de la route sert alors le rapport sans simulations, et relaie le message
+    MOT POUR MOT comme raison. Jamais un blanc sans raison.
     """
     from backend.api.routes import analysis as module
 
     reel = module.analyse_portfolio
     message = (
-        "ν = 1.900 ≤ 2 : la loi de Student n'a pas de variance finie. "
-        "Aucune matrice d'échelle ne peut reproduire la covariance observée."
+        "Erreur imprévue dans les simulations : aucun tirage n'a pu être "
+        "produit."
     )
 
     def faux(conn, portfolio_id, *, monte_carlo=False, **reste):
@@ -704,6 +706,30 @@ def test_un_volet_student_indisponible_sort_null_avec_la_raison_du_moteur(
         assert niveau["expected_shortfall"]["value"] is not None
 
 
+def test_le_filet_de_la_route_donne_aussi_sa_raison_au_monte_carlo(
+    client_synthetique, portefeuille_synthetique, monkeypatch
+):
+    """Sur le filet, les deux volets manquent pour la même cause : chacun la
+    porte. Un Monte Carlo à `null` sans raison serait un blanc inexpliqué."""
+    from backend.api.routes import analysis as module
+
+    reel = module.analyse_portfolio
+    message = "Erreur imprévue dans les simulations."
+
+    def faux(conn, portfolio_id, *, monte_carlo=False, **reste):
+        if monte_carlo:
+            raise ValueError(message)
+        return reel(conn, portfolio_id, monte_carlo=False, **reste)
+
+    monkeypatch.setattr(module, "analyse_portfolio", faux)
+    queue = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis?window=250"
+    ).json()["risk"]["tail_risk"]
+
+    assert queue["monte_carlo_unavailable_reason"] == message
+    assert queue["student_unavailable_reason"] == message
+
+
 def test_une_student_indiscernable_de_la_normale_sort_null_avec_sa_raison(
     analyse_historique_court,
 ):
@@ -727,6 +753,51 @@ def test_une_student_indiscernable_de_la_normale_sort_null_avec_sa_raison(
     for niveau in queue["levels"]:
         assert niveau["student_parametric_var"] is None
         assert niveau["parametric_var"]["value"] is not None
+
+
+def test_une_student_refusee_laisse_le_monte_carlo_normal_avec_sa_provenance(
+    analyse_historique_court,
+):
+    """Le Monte Carlo normal ne dépend pas de ν : le refus de la Student ne
+    l'emporte plus. Il reste la vérification croisée de la VaR paramétrique,
+    avec sa graine et sa fenêtre."""
+    corps = analyse_historique_court(40).json()
+    queue = corps["risk"]["tail_risk"]
+    seances = corps["estimation_window"]["observations"]
+
+    assert queue["student_fit"] is None
+    assert queue["student_unavailable_reason"] is not None
+    assert queue["monte_carlo_unavailable_reason"] is None
+    for niveau in queue["levels"]:
+        simule = niveau["monte_carlo_var"]
+        assert simule is not None
+        assert simule["method"] == "Monte Carlo"
+        assert "graine" in simule["detail"]
+        assert simule["window"]["observations"] == seances
+
+
+def test_student_et_monte_carlo_impossibles_publient_chacun_leur_raison(
+    analyse_historique_court,
+):
+    """Deux séances d'observation pour deux lignes : la covariance est de rang
+    un, le Monte Carlo normal n'a pas de facteur de Cholesky ; la Student
+    manque de séances. Aucun des deux blancs n'est sans raison, et aucune
+    raison ne tient lieu de l'autre."""
+    queue = analyse_historique_court(3).json()["risk"]["tail_risk"]
+
+    assert queue["student_fit"] is None
+    assert "Au moins 30 observations" in queue["student_unavailable_reason"]
+    assert "non définie positive" in queue["monte_carlo_unavailable_reason"]
+    for niveau in queue["levels"]:
+        assert niveau["monte_carlo_var"] is None
+        assert niveau["student_parametric_var"] is None
+
+
+def test_la_reference_n_a_ni_refus_student_ni_refus_monte_carlo(analyse_reelle):
+    queue = analyse_reelle.json()["risk"]["tail_risk"]
+    assert queue["student_unavailable_reason"] is None
+    assert queue["monte_carlo_unavailable_reason"] is None
+    assert all(niveau["monte_carlo_var"] is not None for niveau in queue["levels"])
 
 
 def test_une_erreur_qui_n_est_pas_celle_de_student_remonte_en_4xx(

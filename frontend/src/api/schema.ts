@@ -1055,7 +1055,8 @@ export interface components {
          *     l'écart entre les deux chiffre le coût de l'hypothèse de normalité : afficher
          *     la normale seule la ferait passer pour le dernier mot. Quand le volet Student
          *     est indisponible, ces champs valent `null` et
-         *     `TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres.
+         *     `TailRiskOut.student_unavailable_reason` dit pourquoi, en toutes lettres ;
+         *     quand le Monte Carlo normal l'est, `TailRiskOut.monte_carlo_unavailable_reason`.
          */
         TailRiskLevelOut: {
             /** Confidence */
@@ -1067,13 +1068,27 @@ export interface components {
             student_monte_carlo_var: components["schemas"]["VarOut"] | null;
             expected_shortfall: components["schemas"]["ExpectedShortfallOut"];
         };
-        /** TailRiskOut */
+        /**
+         * TailRiskOut
+         * @description Les niveaux de confiance, l'ajustement de Student, et pourquoi un volet
+         *     simulé manque.
+         *
+         *     Deux raisons, pas une : le Monte Carlo normal et le volet Student sont
+         *     indépendants et tombent pour des causes différentes — une covariance non
+         *     définie positive pour le premier, une série trop courte ou une Student
+         *     indiscernable de la normale pour le second. Chacune vaut `null` quand son
+         *     volet existe ; sinon elle dit pourquoi, et l'une ne tient jamais lieu de
+         *     l'autre. Même règle que `correlation_undefined_reason` : le moteur rédige
+         *     la raison, l'API la publie.
+         */
         TailRiskOut: {
             /** Levels */
             levels: components["schemas"]["TailRiskLevelOut"][];
             student_fit: components["schemas"]["StudentFitOut"] | null;
             /** Student Unavailable Reason */
             student_unavailable_reason: string | null;
+            /** Monte Carlo Unavailable Reason */
+            monte_carlo_unavailable_reason: string | null;
         };
         /**
          * ThresholdOut

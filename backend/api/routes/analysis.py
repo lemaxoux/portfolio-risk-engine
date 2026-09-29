@@ -20,12 +20,16 @@ la ferait passer pour le dernier mot.
 Quand le moteur refuse d'ajuster une Student — ν ≤ 2, série trop courte, série
 constante, ou ν au-delà de 30, où elle ne se distingue plus de la normale —,
 le volet sort à `null` avec la raison du moteur, mot pour mot, et
-le reste du rapport est servi. Le refus est relayé, pas reformulé.
+le reste du rapport est servi, Monte Carlo normal compris : il ne dépend pas
+de ν. Le moteur rédige la raison et la range dans le rapport
+(`RiskReport.student_unavailable_reason`) ; la route la publie, elle ne la
+reformule pas. Le Monte Carlo normal porte la sienne, de la même façon.
 """
 
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -76,27 +80,29 @@ def _analyse(
     portfolio_id: int,
     window: int,
     benchmark: str | None,
-) -> tuple[RiskReport, str | None]:
-    """Rapport avec le volet Student, ou sans lui et avec la raison du refus.
+) -> RiskReport:
+    """Rapport avec ses simulations, chacune présente ou accompagnée de sa raison.
 
-    LE RÉESSAI EST LE DISCRIMINANT. `analyse_portfolio` lève `ValueError` pour
-    deux familles de causes : l'ajustement de Student (ν ≤ 2, ν au-delà de 30,
-    moins de 30 séances, série constante) et les paramètres eux-mêmes (fenêtre
-    trop courte).
-    Rejouer sans Monte Carlo les sépare sans avoir à lire le message : si
-    l'erreur persiste, elle ne venait pas du volet Student, et elle remonte à la
-    route qui la traduira en 422.
+    Le moteur absorbe lui-même les refus qu'il connaît — volet Student,
+    Monte Carlo normal sur une covariance singulière — et range leurs raisons
+    dans le rapport. Rien à faire ici dans ce cas : le rapport est servi tel
+    quel.
+
+    LE RÉESSAI RESTE UN FILET, pour une `ValueError` que le moteur n'aurait
+    pas prévue dans ses simulations. Rejouer sans Monte Carlo la sépare d'une
+    erreur de paramètres (fenêtre trop courte) sans avoir à lire le message :
+    si elle disparaît, elle venait des simulations, et les deux volets sortent
+    à `null` avec ce message pour raison — jamais un blanc sans raison. Si
+    elle persiste, elle remonte à la route qui la traduira en 422.
     """
     arguments = {"window": window, "benchmark": benchmark}
     try:
-        return (
-            analyse_portfolio(conn, portfolio_id, monte_carlo=True, **arguments),
-            None,
-        )
+        return analyse_portfolio(conn, portfolio_id, monte_carlo=True, **arguments)
     except ValueError as exc:
-        return (
+        return replace(
             analyse_portfolio(conn, portfolio_id, monte_carlo=False, **arguments),
-            str(exc),
+            monte_carlo_unavailable_reason=str(exc),
+            student_unavailable_reason=str(exc),
         )
 
 
@@ -144,7 +150,7 @@ def analyse(
     indice = normalise_ticker(benchmark) if benchmark else None
 
     try:
-        report, student_reason = _analyse(conn, portfolio_id, window, indice)
+        report = _analyse(conn, portfolio_id, window, indice)
         scenarios = run_all_scenarios(conn, portfolio_id)
         regimes = compare_all_regimes(conn, portfolio_id, window=window)
     except PortfolioError as exc:
@@ -200,7 +206,7 @@ def analyse(
             benchmark=indice,
             confidence_levels=list(CONFIDENCE_LEVELS),
         ),
-        risk=RiskOut.of(report, tickers, student_reason),
+        risk=RiskOut.of(report, tickers),
         series=PortfolioSeriesOut.of(report),
         histogram=ReturnHistogramOut.of(report),
         scenarios=[ScenarioOut.of(s) for s in scenarios],

@@ -389,6 +389,14 @@ class RiskReport:
     student_parametric_var: dict[float, VarResult] | None = None
     student_monte_carlo_var: dict[float, VarResult] | None = None
     limiting_positions: tuple[LimitingPosition, ...] = ()
+    # Pourquoi un volet demandé manque, sur le modèle de
+    # `CovarianceResult.correlation_undefined_reason` : le moteur produit la
+    # raison, l'API la publie. Deux champs, pas un : le Monte Carlo normal et la
+    # Student échouent pour des causes différentes, et l'une ne doit pas masquer
+    # l'autre. Nuls quand le volet existe, ou quand `monte_carlo=False` : rien
+    # n'a été demandé, il n'y a rien à expliquer.
+    monte_carlo_unavailable_reason: str | None = None
+    student_unavailable_reason: str | None = None
 
 
 # ------------------------------------------------------------------ Séries --
@@ -836,8 +844,9 @@ def student_fit(serie: PortfolioSeries) -> var.StudentFit:
     Lève `ValueError` quand ν dépasse `MAX_STUDENT_NU`, seuil choisi à la
     main : la Student ne se distingue plus de la normale, et un ν de 10¹⁵ n'est
     pas une mesure de la queue. L'estimateur rend son maximum tel quel ; c'est
-    ici que le moteur refuse de s'en servir. L'API relaie la raison dans
-    `student_unavailable_reason` et sert le reste du rapport.
+    ici que le moteur refuse de s'en servir. `analyse_portfolio` range la
+    raison dans `RiskReport.student_unavailable_reason`, et sert le reste du
+    rapport, Monte Carlo normal compris.
 
     La phrase décrit un RÉSULTAT, pas une panne : sur cette fenêtre, les
     rendements ne montrent pas de queues plus épaisses que la normale. Elle
@@ -850,7 +859,8 @@ def student_fit(serie: PortfolioSeries) -> var.StudentFit:
             f"Sur cette fenêtre de {typography.sessions(ajustement.observations)}, "
             "la loi de Student ne se distingue pas de la normale (ν estimé "
             f"supérieur à {typography.number(MAX_STUDENT_NU, 0)}, seuil choisi à "
-            "la main) : les rendements ne montrent pas de queues plus épaisses. "
+            "la main) : les rendements ne montrent pas de queues plus épaisses "
+            "que la normale. "
             "Sur une fenêtre courte, cela peut aussi signifier qu'aucun choc "
             "extrême n'y figure."
         )
@@ -1468,8 +1478,14 @@ def analyse_portfolio(
     `monte_carlo=True` ajoute les simulations — normale et Student — ainsi que
     l'ajustement de ν par maximum de vraisemblance et la VaR Student en forme
     fermée. Désactivé par défaut : les simulations sont déterministes (graine
-    fixe), mais restent un calcul qu'on ne paie que si on le demande. Lève
-    `ValueError` si ν estimé est ≤ 2 (variance infinie).
+    fixe), mais restent un calcul qu'on ne paie que si on le demande.
+
+    Les deux volets sont INDÉPENDANTS, et aucun ne fait tomber le rapport. Le
+    Monte Carlo normal ne dépend pas de ν : un refus de la Student — moins de
+    30 séances, ν au-delà de 30, ν ≤ 2 — ne l'emporte pas. Chaque volet
+    indisponible porte sa propre raison (`monte_carlo_unavailable_reason`,
+    `student_unavailable_reason`) : une covariance singulière et une série
+    trop courte sont deux faits, et l'un ne masque pas l'autre.
     """
     serie = build_portfolio_series(
         conn, portfolio_id, window=window, benchmark=benchmark
@@ -1496,7 +1512,41 @@ def analyse_portfolio(
             "la couverture avec `python -m backend.ingestion status`."
         )
 
-    ajustement = student_fit(serie) if monte_carlo else None
+    simulation_normale: dict[float, VarResult] | None = None
+    raison_normale: str | None = None
+    ajustement: var.StudentFit | None = None
+    student_forme_fermee: dict[float, VarResult] | None = None
+    student_simulee: dict[float, VarResult] | None = None
+    raison_student: str | None = None
+    if monte_carlo:
+        # Deux blocs séparés, parce que leurs refus n'ont pas la même cause. Le
+        # Monte Carlo normal ne tombe que sur une covariance non définie
+        # positive — moins de séances que de lignes, une ligne en double. Le
+        # volet Student tombe sur l'ajustement (séances, série constante, ν
+        # au-delà de 30) ou sur ν ≤ 2, que refusent les VaR Student elles-mêmes.
+        # Les graines sont propres à chaque simulation : l'ordre des blocs ne
+        # change aucun chiffre.
+        try:
+            simulation_normale = {
+                c: monte_carlo_var(serie, c) for c in confidence_levels
+            }
+        except ValueError as exc:
+            raison_normale = str(exc)
+        try:
+            ajustement = student_fit(serie)
+            student_forme_fermee = {
+                c: student_parametric_var(serie, c, ajustement)
+                for c in confidence_levels
+            }
+            student_simulee = {
+                c: student_monte_carlo_var(serie, c, ajustement)
+                for c in confidence_levels
+            }
+        except ValueError as exc:
+            # Tout le volet ou rien : un ν ≤ 2 ajusté n'est pas publié seul.
+            ajustement = student_forme_fermee = student_simulee = None
+            raison_student = str(exc)
+
     return RiskReport(
         portfolio_id=portfolio_id,
         as_of=serie.weights.as_of,
@@ -1523,20 +1573,10 @@ def analyse_portfolio(
         valuation=serie.weights,
         limiting_positions=serie.limiting_positions,
         beta=beta_vs_benchmark(serie) if benchmark else None,
-        monte_carlo_var=(
-            {c: monte_carlo_var(serie, c) for c in confidence_levels}
-            if monte_carlo
-            else None
-        ),
+        monte_carlo_var=simulation_normale,
         student_fit=ajustement,
-        student_parametric_var=(
-            {c: student_parametric_var(serie, c, ajustement) for c in confidence_levels}
-            if monte_carlo
-            else None
-        ),
-        student_monte_carlo_var=(
-            {c: student_monte_carlo_var(serie, c, ajustement) for c in confidence_levels}
-            if monte_carlo
-            else None
-        ),
+        student_parametric_var=student_forme_fermee,
+        student_monte_carlo_var=student_simulee,
+        monte_carlo_unavailable_reason=raison_normale,
+        student_unavailable_reason=raison_student,
     )

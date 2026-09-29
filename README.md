@@ -381,8 +381,9 @@ multivariée donne à la simulation une raison d'exister. Activé par
   - *Ce qui est publié* décrit un résultat, pas une panne, et n'écrit jamais
     ν : « Sur cette fenêtre de 60 séances, la loi de Student ne se distingue
     pas de la normale (ν estimé supérieur à 30, seuil choisi à la main) : les
-    rendements ne montrent pas de queues plus épaisses. Sur une fenêtre
-    courte, cela peut aussi signifier qu'aucun choc extrême n'y figure. »
+    rendements ne montrent pas de queues plus épaisses que la normale. Sur une
+    fenêtre courte, cela peut aussi signifier qu'aucun choc extrême n'y
+    figure. »
   - *Ce que cela change.* Mesuré sur la copie figée : à 504 séances, rien — ni
     sur les quatorze titres seuls, ni sur le portefeuille de démonstration,
     dont la réponse est identique octet pour octet (ν = 4,07). Sur 60, 120 et
@@ -1047,6 +1048,24 @@ une Student — ν ≤ 2, série trop courte, ν au-delà de 30 —, les champs 
 rapport étant servi normalement. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
 
+**Le Monte Carlo normal ne dépend pas de ν, et ne tombe plus avec la
+Student.** Il tombait avec elle : le moteur levait une exception pour tout
+refus de la Student, et la route rejouait l'analyse sans aucune simulation.
+Rare tant que seul ν ≤ 2 était refusé, courant depuis le seuil de 30 — douze
+cas sur quarante-cinq sur la copie figée, fenêtres de 60 à 252 séances. Les
+deux volets sont désormais calculés séparément par `analyse_portfolio`, et
+chacun porte SA raison : `student_unavailable_reason` pour la Student,
+`monte_carlo_unavailable_reason` pour le Monte Carlo normal, qui ne tombe que
+sur une covariance non définie positive — moins de séances que de lignes,
+une ligne en double. Sur une fenêtre de trois séances pour trois lignes, les
+deux manquent, chacun pour sa cause, et aucune raison ne tient lieu de
+l'autre. Le moteur rédige les deux, l'API les publie, comme
+`correlation_undefined_reason`. La route garde un filet pour une erreur
+imprévue des simulations : elle sert alors le rapport sans elles, avec ce
+message pour raison des deux volets. La réponse du portefeuille de
+démonstration est identique octet pour octet, hormis le nouveau champ à
+`null`.
+
 **`limiting_positions` nomme la ligne qui raccourcit la fenêtre.** Le panel est
 aligné sur l'**intersection** des dates : une ligne à 5 % du portefeuille, cotée
 depuis quarante séances, ramène toutes les mesures à son propre historique — le
@@ -1414,6 +1433,8 @@ l'ordre chronologique.
       et non 422 à deux séances communes ; Student refusée au-delà de
       ν = 30, quatrième seuil choisi à la main ; `typography.number` écrit
       tout nombre fini
+    - Monte Carlo normal et volet Student découplés : chacun sa raison
+      (`monte_carlo_unavailable_reason`, `student_unavailable_reason`)
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie
