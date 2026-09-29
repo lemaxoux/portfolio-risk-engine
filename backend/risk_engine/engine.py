@@ -25,6 +25,7 @@ from .config import (
     DEFAULT_BENCHMARK,
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
+    MAX_STUDENT_NU,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
@@ -830,8 +831,30 @@ def monte_carlo_var(
 
 def student_fit(serie: PortfolioSeries) -> var.StudentFit:
     """ν par maximum de vraisemblance sur la série du portefeuille (voir
-    `var.fit_student_t` pour le choix de l'estimateur)."""
-    return var.fit_student_t(serie.returns)
+    `var.fit_student_t` pour le choix de l'estimateur).
+
+    Lève `ValueError` quand ν dépasse `MAX_STUDENT_NU`, seuil choisi à la
+    main : la Student ne se distingue plus de la normale, et un ν de 10¹⁵ n'est
+    pas une mesure de la queue. L'estimateur rend son maximum tel quel ; c'est
+    ici que le moteur refuse de s'en servir. L'API relaie la raison dans
+    `student_unavailable_reason` et sert le reste du rapport.
+
+    La phrase décrit un RÉSULTAT, pas une panne : sur cette fenêtre, les
+    rendements ne montrent pas de queues plus épaisses que la normale. Elle
+    n'écrit jamais ν — au-delà du seuil, sa valeur ne mesure plus rien, et
+    l'écrire rendrait plausible un nombre qui peut valoir 10¹⁵.
+    """
+    ajustement = var.fit_student_t(serie.returns)
+    if ajustement.nu > MAX_STUDENT_NU:
+        raise ValueError(
+            f"Sur cette fenêtre de {typography.sessions(ajustement.observations)}, "
+            "la loi de Student ne se distingue pas de la normale (ν estimé "
+            f"supérieur à {typography.number(MAX_STUDENT_NU, 0)}, seuil choisi à "
+            "la main) : les rendements ne montrent pas de queues plus épaisses. "
+            "Sur une fenêtre courte, cela peut aussi signifier qu'aucun choc "
+            "extrême n'y figure."
+        )
+    return ajustement
 
 
 def student_parametric_var(

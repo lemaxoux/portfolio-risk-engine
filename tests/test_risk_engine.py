@@ -10,6 +10,7 @@ si la base locale existe, et se saute proprement sur un clone frais.
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 import numpy as np
@@ -18,6 +19,7 @@ import pytest
 from backend.db.init_db import connect, init_db
 from backend.risk_engine.config import (
     DEFAULT_RISK_FREE_RATE,
+    MAX_STUDENT_NU,
     RISK_FREE_RATE_OBSERVED_ON,
 )
 from backend.risk_engine.engine import (
@@ -26,7 +28,9 @@ from backend.risk_engine.engine import (
     analyse_portfolio,
     build_portfolio_series,
     concentration,
+    student_fit,
 )
+from backend.risk_engine.var import fit_student_t
 from backend.risk_engine.measures import max_drawdown
 from backend.risk_engine.portfolio import (
     PortfolioError,
@@ -66,6 +70,23 @@ def cours(dates, initial=100.0, sigma=0.01, derive=0.0002, graine=1):
 
     rng = np.random.default_rng(graine)
     rendements = rng.normal(derive, sigma, len(dates))
+    niveaux = initial * np.cumprod(1.0 + rendements)
+    return [(d, float(v)) for d, v in zip(dates, niveaux, strict=True)]
+
+
+def cours_student(dates, initial=100.0, sigma=0.01, derive=0.0002, graine=1, nu=4):
+    """Comme `cours`, avec des innovations de Student à ν degrés de liberté,
+    ramenées au même écart-type σ.
+
+    Une Student à ν degrés de liberté a pour variance ν/(ν − 2) : le facteur
+    √((ν − 2)/ν) la ramène à 1. Des rendements NORMAUX ne se prêtent pas à
+    l'ajustement d'une Student — le maximum de vraisemblance y pousse ν vers
+    l'infini, et le moteur refuse l'ajustement au-delà de `MAX_STUDENT_NU`.
+    Un test qui veut un volet Student a besoin de queues épaisses.
+    """
+    rng = np.random.default_rng(graine)
+    tirages = rng.standard_t(nu, len(dates))
+    rendements = derive + sigma * np.sqrt((nu - 2) / nu) * tirages
     niveaux = initial * np.cumprod(1.0 + rendements)
     return [(d, float(v)) for d, v in zip(dates, niveaux, strict=True)]
 
@@ -721,8 +742,8 @@ def test_le_monte_carlo_est_optionnel_et_reproductible(conn):
     peupler(
         conn,
         {
-            "A": cours(j, 100.0, 0.011, graine=12),
-            "B": cours(j, 70.0, 0.013, graine=13),
+            "A": cours_student(j, 100.0, 0.011, graine=12),
+            "B": cours_student(j, 70.0, 0.013, graine=13),
             "SPY": cours(j, 400.0, 0.009, graine=14),
         },
         {"A": 10, "B": 12},
@@ -742,8 +763,8 @@ def test_le_rapport_porte_l_ajustement_student_et_nu_dans_chaque_var(conn):
     peupler(
         conn,
         {
-            "A": cours(j, 100.0, 0.011, graine=21),
-            "B": cours(j, 70.0, 0.013, graine=22),
+            "A": cours_student(j, 100.0, 0.011, graine=21),
+            "B": cours_student(j, 70.0, 0.013, graine=22),
             "SPY": cours(j, 400.0, 0.009, graine=23),
         },
         {"A": 10, "B": 12},
@@ -764,6 +785,45 @@ def test_le_rapport_porte_l_ajustement_student_et_nu_dans_chaque_var(conn):
         assert rapport.student_monte_carlo_var[niveau].value == pytest.approx(
             rapport.student_parametric_var[niveau].value, rel=0.03
         )
+
+
+def _serie_a_deux_lignes(conn, fabrique, graines, seances_totales, fenetre):
+    j = seances(seances_totales)
+    peupler(
+        conn,
+        {
+            "A": fabrique(j, 100.0, 0.011, graine=graines[0]),
+            "B": fabrique(j, 70.0, 0.013, graine=graines[1]),
+        },
+        {"A": 10, "B": 12},
+    )
+    return build_portfolio_series(conn, 1, window=fenetre, benchmark=None)
+
+
+def test_une_student_indiscernable_de_la_normale_est_refusee_sans_ecrire_nu(conn):
+    """Sur des rendements normaux, le maximum de vraisemblance pousse ν vers
+    l'infini : ici 1,5 × 10¹⁴. Au-delà de `MAX_STUDENT_NU`, seuil choisi, le
+    moteur refuse l'ajustement.
+
+    La raison décrit un résultat — pas de queues plus épaisses sur la fenêtre —
+    et n'écrit jamais ν : les seuls nombres de la phrase sont la taille de la
+    fenêtre et le seuil.
+    """
+    serie = _serie_a_deux_lignes(conn, cours, (21, 22), 300, 250)
+    assert fit_student_t(serie.returns).nu > 1e12, "l'estimateur, lui, rend son maximum"
+
+    with pytest.raises(ValueError) as refus:
+        student_fit(serie)
+    raison = str(refus.value)
+    assert "la loi de Student ne se distingue pas de la normale" in raison
+    assert "seuil choisi à la main" in raison
+    assert "aucun choc extrême" in raison
+    assert set(re.findall(r"\d+", raison)) == {"250", "30"}
+
+
+def test_une_student_a_queues_epaisses_reste_ajustee(conn):
+    serie = _serie_a_deux_lignes(conn, cours_student, (21, 22), 300, 250)
+    assert student_fit(serie).nu < MAX_STUDENT_NU
 
 
 # ------------------------------------------------ Catalogue de la base --

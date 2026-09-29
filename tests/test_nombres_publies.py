@@ -40,6 +40,7 @@ Aucun de ces messages ne sort dans une réponse 200.
 from __future__ import annotations
 
 import re
+import sys
 
 import pytest
 
@@ -229,3 +230,33 @@ def test_un_nombre_non_fini_n_est_jamais_ecrit():
             typography.number(valeur, 2)
         with pytest.raises(ValueError):
             typography.compact(valeur)
+
+
+@pytest.mark.parametrize(
+    "valeur",
+    [
+        # ν de Student relevés sur historique court, qui faisaient tomber
+        # l'analyse en 500 : au-delà de 28 chiffres, `quantize` levait.
+        3.5730354042096355e27,
+        2.0602619888175704e31,
+        6.006274911096697e15,
+        1e300,
+        sys.float_info.max,
+        -sys.float_info.max,
+    ],
+)
+def test_tout_nombre_fini_s_ecrit_sans_exception(valeur):
+    """Quel que soit le nombre, s'il est fini, il s'écrit — et juste.
+
+    Ces flottants sont tous des entiers : leur écriture exacte, relue, rend le
+    même flottant. C'est ce qui prouve que la précision a suivi le nombre au
+    lieu de le tronquer.
+    """
+    for decimales in (0, 2, 4):
+        texte = typography.number(valeur, decimales)
+        entier, _, fraction = texte.partition(",")
+        assert fraction == "0" * decimales
+        relu = entier.replace(typography.NARROW_NBSP, "").replace(
+            typography.MINUS, "-"
+        )
+        assert float(int(relu)) == valeur

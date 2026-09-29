@@ -40,6 +40,7 @@ from backend.rules import (
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
     STRONG_CORRELATION,
+    STUDENT_NU_CEILING,
     Observation,
     RuleId,
     RulesReport,
@@ -504,6 +505,31 @@ def test_les_seuils_fixes_restent_des_seuils():
     for seuil in (STRONG_CORRELATION, MIN_SCENARIO_COVERAGE, MIN_REGRESSION_SAMPLE, MIN_ESTIMABLE_SAMPLE):
         assert seuil.role is ThresholdRole.THRESHOLD, seuil.name
     assert MIN_ESTIMABLE_SAMPLE.kind is ThresholdKind.DERIVED, "kind ne suffit pas à trancher"
+
+
+def test_le_plafond_de_nu_est_le_quatrieme_seuil_choisi():
+    """Appliqué par le moteur, qui ne peut pas importer les règles, mais déclaré
+    ici avec les trois autres : la liste des seuils choisis à la main est
+    complète au même endroit, et la valeur est celle du moteur."""
+    from backend.risk_engine.config import MAX_STUDENT_NU
+
+    assert STUDENT_NU_CEILING.chosen
+    assert STUDENT_NU_CEILING.role is ThresholdRole.THRESHOLD
+    assert STUDENT_NU_CEILING.value == MAX_STUDENT_NU == 30.0
+    assert STUDENT_NU_CEILING.displayed == "30"
+    choisis = [
+        seuil
+        for seuil in (
+            STRONG_CORRELATION,
+            MIN_SCENARIO_COVERAGE,
+            MIN_REGRESSION_SAMPLE,
+            MIN_ESTIMABLE_SAMPLE,
+            STUDENT_NU_CEILING,
+        )
+        if seuil.chosen
+    ]
+    assert len(choisis) == 4
+    assert "seuil CHOISI à la main" in str(STUDENT_NU_CEILING)
 
 
 def test_un_role_incoherent_avec_la_provenance_est_refuse():

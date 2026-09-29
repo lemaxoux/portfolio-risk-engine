@@ -45,7 +45,7 @@ le point : c'est du code, et une virgule le rendrait faux.
 from __future__ import annotations
 
 import math
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 NARROW_NBSP = " "
 NBSP = " "
@@ -114,9 +114,18 @@ def number(
         raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
     # `Decimal(float)` est la valeur binaire EXACTE : les égalités à la moitié
     # sont de vraies égalités, et ROUND_HALF_UP les tranche comme `toFixed`.
-    arrondi = Decimal(abs(valeur)).quantize(
-        Decimal(1).scaleb(-decimales), rounding=ROUND_HALF_UP
-    )
+    exacte = Decimal(abs(valeur))
+    # La précision par défaut de `decimal` est de 28 chiffres, et `quantize`
+    # lève `InvalidOperation` quand le résultat en demande davantage : un ν de
+    # Student à 3,6 × 10²⁷ écrit à deux décimales faisait tomber l'analyse en
+    # 500. La précision suit donc le nombre — chiffres de la partie entière,
+    # plus les décimales demandées. Tout flottant fini s'écrit.
+    chiffres = max(exacte.adjusted() + 1, 1) + decimales + 1
+    with localcontext() as contexte:
+        contexte.prec = max(contexte.prec, chiffres)
+        arrondi = exacte.quantize(
+            Decimal(1).scaleb(-decimales), rounding=ROUND_HALF_UP
+        )
     entier, _, fraction = f"{arrondi:f}".partition(".")
     if trim and not fraction.strip("0"):
         fraction = ""

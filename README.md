@@ -294,7 +294,7 @@ Aucun chiffre ne doit être ininterprétable isolément.
 | CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue |
 | Contribution à la variance | `wᵢ·(Σw)ᵢ / (wᵀΣw)` | somme exactement à 100 % ; poids ET corrélation ; peut être négative |
 | Monte Carlo | Cholesky + tirages normaux, graine fixe | même hypothèse de normalité que la VaR paramétrique |
-| Monte Carlo Student | ν par maximum de vraisemblance, échelle `S = Σ·(ν−2)/ν` | queues épaisses à covariance inchangée ; `ν ≤ 2` refusé |
+| Monte Carlo Student | ν par maximum de vraisemblance, échelle `S = Σ·(ν−2)/ν` | queues épaisses à covariance inchangée ; `ν ≤ 2` refusé ; `ν > 30` refusé, la Student ne se distinguant plus de la normale (seuil choisi) |
 
 **Une seule convention de degrés de liberté : `config.DDOF = 1`.** numpy n'est
 pas cohérent avec lui-même — `np.cov` utilise `ddof=1`, `np.std` et `np.var`
@@ -357,6 +357,40 @@ multivariée donne à la simulation une raison d'exister. Activé par
   paramétrique. Près de ν = 2, cette géométrie s'inverse : l'ajustement de
   variance y écrase les quantiles modérés. Un ν estimé à peine au-dessus de 2 est
   donc d'abord le symptôme probable d'un ajustement raté.
+- **Au-delà de ν = 30, pas de Student : le quatrième seuil choisi à la main du
+  projet** (`config.MAX_STUDENT_NU`, déclaré dans
+  `rules.thresholds.STUDENT_NU_CEILING`).
+  - *Le défaut.* La normale est la limite de la Student quand ν tend vers
+    l'infini : sur des rendements sans queue épaisse, le maximum de
+    vraisemblance pousse ν vers l'infini. Sur la base réelle, un titre seul sur
+    une fenêtre courte rendait ν = 6 × 10¹⁵ (PG, 60 séances), et de 10¹² à
+    10¹⁴ pour BAC, CVX, JNJ, NVDA, PFE et SPY. La provenance publiait ce
+    nombre, et au-delà de 10²⁷ son écriture faisait tomber l'analyse en 500 —
+    c'était le cas du portefeuille de démonstration demandé sur 60 séances.
+  - *Pourquoi 30.* À variance égale, la VaR Student s'écarte de la normale de
+    2,05 % au plus à 99 % et de 0,31 % au plus à 95 %, en relatif ; l'écart ne
+    passe sous 2 % à 99 % qu'à partir de ν ≈ 30,7. C'est bien moins que
+    l'erreur d'estimation elle-même : l'erreur type relative d'un écart-type
+    d'échantillon vaut environ 1/√(2n), soit 9 % sur 60 séances et 3,2 % encore
+    sur 504. Ce chiffre est calculé sous normalité ; avec des queues épaisses,
+    l'erreur est plus grande encore, et l'argument est donc prudent.
+    `tests/test_student.py` tient ces écarts.
+  - *Un refus, pas un plafond.* Borner ν à 30 dans l'optimiseur publierait
+    « ν = 30 » comme s'il avait été estimé. `var.fit_student_t` rend toujours
+    son maximum ; c'est `engine.student_fit` qui refuse de s'en servir.
+  - *Ce qui est publié* décrit un résultat, pas une panne, et n'écrit jamais
+    ν : « Sur cette fenêtre de 60 séances, la loi de Student ne se distingue
+    pas de la normale (ν estimé supérieur à 30, seuil choisi à la main) : les
+    rendements ne montrent pas de queues plus épaisses. Sur une fenêtre
+    courte, cela peut aussi signifier qu'aucun choc extrême n'y figure. »
+  - *Ce que cela change.* Mesuré sur la copie figée : à 504 séances, rien — ni
+    sur les quatorze titres seuls, ni sur le portefeuille de démonstration,
+    dont la réponse est identique octet pour octet (ν = 4,07). Sur 60, 120 et
+    252 séances, 15 des 45 cas passent en « Student refusée », dont des ν
+    modérés juste au-dessus du seuil (PG 30,7, démonstration 34, JNJ 45).
+  - `typography.number` écrit désormais tout nombre fini, jusqu'au plus grand
+    flottant : la précision de `decimal` suit le nombre au lieu de rester à 28
+    chiffres.
 
 Le refus d'un poids négatif est délibérément une exception levée par le moteur :
 rendre un nombre ininterprétable serait pire qu'échouer. Il revient à la couche
@@ -1007,7 +1041,8 @@ couverte.
 
 **Le volet Student accompagne toujours la VaR normale.** L'écart entre les deux
 chiffre le coût de l'hypothèse de normalité. Quand le moteur refuse d'ajuster
-une Student — ν ≤ 2, série trop courte —, les champs sortent à `null` et
+une Student — ν ≤ 2, série trop courte, ν au-delà de 30 —, les champs sortent
+à `null` et
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
 rapport étant servi normalement. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
@@ -1361,8 +1396,8 @@ l'ordre chronologique.
   - [x] **7C — Corrections avant 7B.3** : données, règles, retouches
     - Dividendes : `refresh` recharge tout l'historique d'un titre sur
       `divCash` comme sur split ; `ingestion rebuild` répare une base déjà
-      écrite, après sauvegarde. **À lancer par Maxence sur
-      `data/mx_risk.sqlite`** (14 appels)
+      écrite, après sauvegarde. Lancé par Maxence sur `data/mx_risk.sqlite`
+      le 2026-09-28 (14 appels)
     - Tous les tests sur base réelle passent par la copie figée ; une garde
       l'impose
     - Règle 5 : une crise estimée sur trop peu de séances n'entre plus dans
@@ -1372,7 +1407,15 @@ l'ordre chronologique.
     - Espace fine avant « % » en Spectral : une face qui dessine U+202F
     - Section 1 sous 900 px : ticker, valeur, poids d'abord ; diagonale de la
       carte de corrélation hors échelle ; `CLAUDE.md`
-  - [ ] 7B.3 — Saisie et import du portefeuille
+  - [ ] **7B.3a — Saisie, import, choix du portefeuille, quatre états**
+    (en cours)
+    - En-tête des tableaux non collant (DESIGN.md §9.3)
+    - Correctifs du moteur trouvés en préparant l'état « insuffisant » : 409
+      et non 422 à deux séances communes ; Student refusée au-delà de
+      ν = 30, quatrième seuil choisi à la main ; `typography.number` écrit
+      tout nombre fini
+  - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
+    graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
 

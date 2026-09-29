@@ -704,6 +704,31 @@ def test_un_volet_student_indisponible_sort_null_avec_la_raison_du_moteur(
         assert niveau["expected_shortfall"]["value"] is not None
 
 
+def test_une_student_indiscernable_de_la_normale_sort_null_avec_sa_raison(
+    analyse_historique_court,
+):
+    """Rendements synthétiques NORMAUX : le maximum de vraisemblance pousse ν
+    vers l'infini, et le moteur refuse l'ajustement au-delà de 30, seuil
+    choisi. Sans ce refus, la provenance publiait un ν de l'ordre de 10²⁰, et
+    au-delà de 10²⁷ l'analyse tombait en 500.
+
+    La raison est relayée telle quelle, et n'écrit jamais ν : ses seuls
+    nombres sont la taille de la fenêtre et le seuil.
+    """
+    corps = analyse_historique_court(40).json()
+    queue = corps["risk"]["tail_risk"]
+    seances = corps["estimation_window"]["observations"]
+
+    assert queue["student_fit"] is None
+    raison = queue["student_unavailable_reason"]
+    assert "la loi de Student ne se distingue pas de la normale" in raison
+    assert "seuil choisi à la main" in raison
+    assert set(re.findall(r"\d+", raison)) == {str(seances), "30"}
+    for niveau in queue["levels"]:
+        assert niveau["student_parametric_var"] is None
+        assert niveau["parametric_var"]["value"] is not None
+
+
 def test_une_erreur_qui_n_est_pas_celle_de_student_remonte_en_4xx(
     client_synthetique, portefeuille_synthetique, monkeypatch
 ):

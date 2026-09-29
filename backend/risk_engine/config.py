@@ -155,6 +155,44 @@ MIN_REGRESSION_OBSERVATIONS = 60
 # rupture, là où elle vaut 0,122 à n = 2 contre 0,069 à n = 3.
 MIN_ESTIMABLE_OBSERVATIONS = 3
 
+# ------------------------------------------ ν maximal d'une loi de Student --
+#
+# Au-delà de ν = 30, l'ajustement d'une loi de Student est REFUSÉ, avec sa
+# raison : elle ne se distingue plus de la normale sur la fenêtre. SEUIL CHOISI
+# À LA MAIN, le quatrième du projet, déclaré comme tel dans
+# `rules.thresholds.STUDENT_NU_CEILING`.
+#
+# ── Le défaut qu'il corrige ──
+#
+# La normale est la limite de la Student quand ν tend vers l'infini. Sur des
+# rendements sans queue épaisse, le maximum de vraisemblance pousse donc ν
+# vers l'infini, et l'optimiseur s'arrête où il peut. Sur la base réelle, un
+# titre seul sur une fenêtre courte : PG sur 60 séances rendait ν = 6 × 10¹⁵,
+# CVX, PFE et SPY sur 60 à 120 séances de 10¹³ à 10¹⁴. La provenance de la VaR
+# Student publiait ce nombre (DESIGN.md §9.1 : jamais un nombre astronomique),
+# et au-delà de 10²⁷ son écriture faisait tomber l'analyse.
+#
+# ── Pourquoi 30 ──
+#
+# À variance égale, la VaR Student s'écarte de la VaR normale de +2,05 % à
+# 99 % et de −0,31 % à 95 % pour ν = 30, en relatif, et de moins encore
+# au-delà : 2,05 % au plus à 99 %, 0,31 % au plus à 95 %. C'est bien en deçà
+# de l'erreur d'estimation elle-même : l'erreur type relative d'un écart-type
+# d'échantillon vaut environ 1/√(2n) — 9 % sur 60 séances, 3,2 % encore sur
+# 504. Ce chiffre est calculé SOUS NORMALITÉ ; avec des queues épaisses,
+# l'erreur est plus grande encore, si bien que l'argument est prudent. Un ν
+# au-delà de 30 ne dit rien que la normale ne dise déjà ; le publier ferait
+# passer un nombre sans signification pour une mesure de la queue.
+# `tests/test_student.py` vérifie ces écarts.
+#
+# ── Pourquoi un refus, et non un plafond ──
+#
+# Borner ν à 30 dans l'optimiseur publierait « ν = 30 » comme s'il avait été
+# estimé : la borne deviendrait une mesure. Le refus garde l'estimateur
+# honnête — `var.fit_student_t` rend toujours son maximum — et c'est le
+# moteur (`engine.student_fit`) qui décide de ne pas s'en servir.
+MAX_STUDENT_NU = 30.0
+
 # ------------------------------------------------------------ Monte Carlo --
 #
 # Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas

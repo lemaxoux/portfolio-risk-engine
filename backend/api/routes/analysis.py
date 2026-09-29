@@ -18,7 +18,8 @@ les deux chiffrant le coût de l'hypothèse de normalité. Publier la normale se
 la ferait passer pour le dernier mot.
 
 Quand le moteur refuse d'ajuster une Student — ν ≤ 2, série trop courte, série
-constante —, le volet sort à `null` avec la raison du moteur, mot pour mot, et
+constante, ou ν au-delà de 30, où elle ne se distingue plus de la normale —,
+le volet sort à `null` avec la raison du moteur, mot pour mot, et
 le reste du rapport est servi. Le refus est relayé, pas reformulé.
 """
 
@@ -79,8 +80,9 @@ def _analyse(
     """Rapport avec le volet Student, ou sans lui et avec la raison du refus.
 
     LE RÉESSAI EST LE DISCRIMINANT. `analyse_portfolio` lève `ValueError` pour
-    deux familles de causes : l'ajustement de Student (ν ≤ 2, moins de 30
-    séances, série constante) et les paramètres eux-mêmes (fenêtre trop courte).
+    deux familles de causes : l'ajustement de Student (ν ≤ 2, ν au-delà de 30,
+    moins de 30 séances, série constante) et les paramètres eux-mêmes (fenêtre
+    trop courte).
     Rejouer sans Monte Carlo les sépare sans avoir à lire le message : si
     l'erreur persiste, elle ne venait pas du volet Student, et elle remonte à la
     route qui la traduira en 422.

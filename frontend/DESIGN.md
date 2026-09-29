@@ -563,10 +563,16 @@ effacer exactement la qualité qu'on veut rendre visible.
 
 `Threshold.__str__` produit déjà les trois formulations côté backend.
 L'interface n'a qu'à les rendre — et à ajouter le point `--caveat` pour le seul
-cas `CHOSEN`. Il n'existe aujourd'hui que **trois** seuils choisis à la main
+cas `CHOSEN`. Il n'existe aujourd'hui que **quatre** seuils choisis à la main
 dans tout le projet (corrélation forte 0,70 ; couverture minimale d'un scénario
-80 % ; nombre minimal de séances d'une régression). Leur rareté est un résultat :
-elle doit se voir.
+80 % ; nombre minimal de séances d'une régression ; ν maximal d'une loi de
+Student, 30). Leur rareté est un résultat : elle doit se voir.
+
+Le quatrième n'apparaît dans aucune observation : c'est le moteur qui
+l'applique, en refusant l'ajustement de la Student au-delà de ν = 30. Il se
+lit dans la phrase qui remplace la VaR Student en section 2
+(`student_unavailable_reason`), qui dit « seuil choisi à la main » et
+n'écrit jamais ν.
 
 ### 9.3 Tableaux
 

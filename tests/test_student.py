@@ -191,6 +191,32 @@ def test_la_var_student_converge_vers_la_normale_quand_nu_tend_vers_l_infini():
     assert simulee.value == pytest.approx(parametric_var(SIGMA_PORTEFEUILLE, 0.99), rel=0.01)
 
 
+def test_au_dela_de_nu_30_la_student_s_ecarte_a_peine_de_la_normale():
+    """La justification chiffrée de `MAX_STUDENT_NU`, seuil choisi à la main.
+
+    À variance égale et en relatif, la VaR Student s'écarte de la normale de
+    +2,05 % à 99 % et de −0,31 % à 95 % pour ν = 30, et de moins encore
+    au-delà. Ces nombres sont écrits dans la configuration, dans le seuil
+    déclaré et dans le README : ce test les tient.
+    """
+    from backend.risk_engine.config import MAX_STUDENT_NU
+
+    assert MAX_STUDENT_NU == 30.0
+    sigma = 0.012
+
+    def ecart(nu, niveau):
+        return student_t_var(sigma, nu, niveau) / parametric_var(sigma, niveau) - 1.0
+
+    assert 0.0204 < ecart(MAX_STUDENT_NU, 0.99) < 0.0205
+    assert -0.0032 < ecart(MAX_STUDENT_NU, 0.95) < -0.0031
+    for niveau in (0.95, 0.99):
+        au_dela = [abs(ecart(nu, niveau)) for nu in (MAX_STUDENT_NU, 30.7, 50, 100, 1_000)]
+        assert au_dela == sorted(au_dela, reverse=True), "l'écart ne fait que diminuer"
+    # « au plus 2,05 % » et non « au plus 2 % » : l'écart ne passe sous 2 % à
+    # 99 % qu'à partir de ν ≈ 30,7.
+    assert ecart(30.5, 0.99) > 0.02 > ecart(30.7, 0.99)
+
+
 def test_le_monte_carlo_student_converge_vers_la_forme_fermee():
     """Vérification croisée, comme le Monte Carlo normal face à la paramétrique."""
     for niveau in (0.95, 0.99):

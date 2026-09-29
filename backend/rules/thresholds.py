@@ -26,6 +26,7 @@ from enum import Enum
 
 from backend import typography
 from backend.risk_engine.config import (
+    MAX_STUDENT_NU,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
 )
@@ -148,6 +149,29 @@ MIN_REGRESSION_SAMPLE = Threshold(
     rationale=(
         "environ trois mois ; en deçà, quelques journées extrêmes dictent la pente "
         "à elles seules"
+    ),
+)
+
+# Le quatrième seuil choisi, et le seul qui ne serve à aucune règle : c'est le
+# MOTEUR qui l'applique, en refusant l'ajustement d'une Student
+# (`engine.student_fit`), parce qu'il ne peut pas importer ce module sans
+# cycle. Il est déclaré ici pour que la liste des seuils choisis à la main soit
+# complète au même endroit. La constante vit dans le moteur, le seuil — le
+# nombre plus sa provenance — ici, comme pour `MIN_REGRESSION_SAMPLE`.
+STUDENT_NU_CEILING = Threshold(
+    name="ν maximal d'une loi de Student",
+    kind=ThresholdKind.CHOSEN,
+    value=MAX_STUDENT_NU,
+    decimals=0,
+    rationale=(
+        "au-delà, la loi de Student ne se distingue pas de la normale : à "
+        f"variance égale, sa VaR s'en écarte de {typography.percent(0.0205, 2)} "
+        f"au plus à {typography.percent(0.99, 0)} et de "
+        f"{typography.percent(0.0031, 2)} au plus à {typography.percent(0.95, 0)}, "
+        "bien moins que l'erreur type d'un écart-type d'échantillon, environ "
+        f"1/√(2n) sous normalité — {typography.percent(0.09, 0)} sur "
+        f"{typography.sessions(60)}, {typography.percent(0.032, 1)} sur "
+        f"{typography.sessions(504)} — et davantage avec des queues épaisses"
     ),
 )
 
