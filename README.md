@@ -1247,6 +1247,12 @@ document. Hors navigateur, l'ordre est l'ordre large. Le nom ne se coupe
 plus : coupé, il faisait passer sa rangée sur trois lignes, loin des 36 px
 de §9.3.
 
+L'en-tête d'un tableau n'est pas collant, à aucune largeur (DESIGN.md §9.3) :
+dans le cadre qui défile à l'horizontale, il s'accrocherait au cadre et non à
+la page. Seule la première colonne reste collante, à l'horizontale.
+`DataTable.test.ts` lit la feuille de style et le vérifie, avec la première
+colonne pour témoin.
+
 #### La diagonale de la carte de corrélation
 
 La corrélation d'une ligne avec elle-même vaut 1 par définition. Peinte à la

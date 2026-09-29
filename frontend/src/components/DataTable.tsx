@@ -5,7 +5,10 @@
  *
  * ═══ CE QU'IL FAIT ═══
  *
- * - En-tête collant sur `--surface-2`, graisse 500, casse phrase.
+ * - En-tête sur `--surface-2`, graisse 500, casse phrase. Il n'est pas
+ *   collant (§9.3) : dans un cadre qui défile à l'horizontale, il collerait
+ *   au cadre et non à la page. La première colonne, elle, reste collante à
+ *   l'horizontale.
  * - Séparateurs HORIZONTAUX seulement : l'alignement des chiffres sépare les
  *   colonnes, une grille complète alourdirait sans rien dire.
  * - Colonnes de chiffres à droite, tabulaires. Le nombre de décimales est

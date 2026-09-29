@@ -29,9 +29,13 @@
   text-align: start;
 }
 
+/*
+ * L'en-tête n'est PAS collant (§9.3). Dans `.cadre`, qui défile à
+ * l'horizontale, un en-tête collant s'accroche au cadre et non à la page : il
+ * ne collerait donc jamais, à aucune largeur. Les tableaux du produit font au
+ * plus une quinzaine de lignes, et l'en-tête reste presque toujours visible.
+ */
 .entete {
-  position: sticky;
-  inset-block-start: 0;
   block-size: 36px;
   padding: 0 var(--space-3);
   border-block-end: 1px solid var(--border-strong);
