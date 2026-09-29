@@ -1335,6 +1335,14 @@
             ],
             "title": "Updated At"
           },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionOut"
+            },
+            "type": "array",
+            "title": "Positions",
+            "description": "Positions telles que stockées — ticker, quantité, prix de revient —, présentes même quand la valorisation échoue. Liste vide pour un portefeuille sans position."
+          },
           "valuation": {
             "anyOf": [
               {
@@ -1364,11 +1372,12 @@
           "name",
           "owner",
           "updated_at",
+          "positions",
           "valuation",
           "valuation_error"
         ],
         "title": "PortfolioDetailOut",
-        "description": "Portefeuille et sa valorisation.\n\n`valuation` est `null` quand le portefeuille existe mais n'est pas\nvalorisable — aucune position, aucun prix pour une ligne. `valuation_error`\nporte alors le message du moteur, qui dit quoi faire. Les deux champs\nvoyagent ensemble : un `null` seul serait un blanc inexpliqué.\n\nCette tolérance vaut pour la LISTE, où un portefeuille cassé ne doit pas\npriver des autres. Interrogé seul, un portefeuille non valorisable répond en\n409 : c'est la ressource demandée qui est en cause."
+        "description": "Portefeuille et sa valorisation.\n\n`valuation` est `null` quand le portefeuille existe mais n'est pas\nvalorisable — aucune position, aucun prix pour une ligne. `valuation_error`\nporte alors le message du moteur, qui dit quoi faire. Les deux champs\nvoyagent ensemble : un `null` seul serait un blanc inexpliqué.\n\nCette tolérance vaut pour la LISTE, où un portefeuille cassé ne doit pas\npriver des autres. Interrogé seul, un portefeuille non valorisable répond en\n409 : c'est la ressource demandée qui est en cause.\n\n`positions` rend les lignes telles qu'elles sont stockées, valorisables ou\nnon, dans l'ordre des tickers. Un portefeuille vide se reconnaît à sa liste\nvide, et non au texte de `valuation_error` ; un portefeuille dont une ligne\na perdu ses prix reste lisible, donc réparable depuis l'écran de saisie."
       },
       "PortfolioOut": {
         "properties": {
@@ -1525,6 +1534,38 @@
           "quantity"
         ],
         "title": "PositionIn"
+      },
+      "PositionOut": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "cost_basis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker",
+          "quantity",
+          "cost_basis"
+        ],
+        "title": "PositionOut",
+        "description": "Une ligne TELLE QU'ELLE EST STOCKÉE : ni prix, ni valeur, ni poids.\n\nDistincte de `ValuedPositionOut` parce qu'elle existe même quand la\nvalorisation échoue. `cost_basis` est le prix de revient saisi, facultatif,\nqui ne sert à aucune mesure."
       },
       "PositionsReplace": {
         "properties": {

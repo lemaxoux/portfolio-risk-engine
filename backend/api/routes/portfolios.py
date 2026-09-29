@@ -34,6 +34,7 @@ from ..schemas import (
     PortfolioCreate,
     PortfolioDetailOut,
     PortfolioOut,
+    PositionOut,
     PositionsReplace,
     PositionsWrittenOut,
     ValuationOut,
@@ -54,7 +55,13 @@ def _detail(
     déguisé en succès. Dans la LISTE, le même portefeuille ressort avec
     `valuation: null` et sa raison : un portefeuille cassé ne doit pas priver
     l'utilisateur des autres.
+
+    Les positions stockées sont lues UNE fois et servent aux deux usages : la
+    liste brute (`positions`), publiée même sans valorisation, et la
+    valorisation elle-même. Deux lectures pourraient décrire deux états.
     """
+    stockees = store.load_positions(conn, row.id)
+    positions = [PositionOut.of(ligne) for ligne in stockees]
     try:
         poids = market_value_weights(conn, row.id)
     except PortfolioError as exc:
@@ -65,6 +72,7 @@ def _detail(
             name=row.name,
             owner=row.owner,
             updated_at=row.updated_at,
+            positions=positions,
             valuation=None,
             valuation_error=str(exc),
         )
@@ -74,9 +82,10 @@ def _detail(
         name=row.name,
         owner=row.owner,
         updated_at=row.updated_at,
+        positions=positions,
         valuation=ValuationOut.of(
             poids,
-            store.load_positions(conn, row.id),
+            stockees,
             {titre.ticker: titre.name for titre in load_securities(conn)},
         ),
         valuation_error=None,

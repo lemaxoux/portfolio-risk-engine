@@ -235,6 +235,23 @@ class PortfolioOut(Schema):
         )
 
 
+class PositionOut(Schema):
+    """Une ligne TELLE QU'ELLE EST STOCKÉE : ni prix, ni valeur, ni poids.
+
+    Distincte de `ValuedPositionOut` parce qu'elle existe même quand la
+    valorisation échoue. `cost_basis` est le prix de revient saisi, facultatif,
+    qui ne sert à aucune mesure.
+    """
+
+    ticker: str
+    quantity: float
+    cost_basis: float | None
+
+    @classmethod
+    def of(cls, row: PositionRow) -> PositionOut:
+        return cls(ticker=row.ticker, quantity=row.quantity, cost_basis=row.cost_basis)
+
+
 class ValuedPositionOut(Schema):
     """Une ligne valorisée à la dernière clôture connue.
 
@@ -319,12 +336,24 @@ class PortfolioDetailOut(Schema):
     Cette tolérance vaut pour la LISTE, où un portefeuille cassé ne doit pas
     priver des autres. Interrogé seul, un portefeuille non valorisable répond en
     409 : c'est la ressource demandée qui est en cause.
+
+    `positions` rend les lignes telles qu'elles sont stockées, valorisables ou
+    non, dans l'ordre des tickers. Un portefeuille vide se reconnaît à sa liste
+    vide, et non au texte de `valuation_error` ; un portefeuille dont une ligne
+    a perdu ses prix reste lisible, donc réparable depuis l'écran de saisie.
     """
 
     id: int
     name: str
     owner: str
     updated_at: date | None
+    positions: list[PositionOut] = Field(
+        description=(
+            "Positions telles que stockées — ticker, quantité, prix de revient —, "
+            "présentes même quand la valorisation échoue. Liste vide pour un "
+            "portefeuille sans position."
+        )
+    )
     valuation: ValuationOut | None
     valuation_error: str | None
 

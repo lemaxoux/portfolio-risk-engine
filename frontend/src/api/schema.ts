@@ -714,6 +714,11 @@ export interface components {
          *     Cette tolérance vaut pour la LISTE, où un portefeuille cassé ne doit pas
          *     priver des autres. Interrogé seul, un portefeuille non valorisable répond en
          *     409 : c'est la ressource demandée qui est en cause.
+         *
+         *     `positions` rend les lignes telles qu'elles sont stockées, valorisables ou
+         *     non, dans l'ordre des tickers. Un portefeuille vide se reconnaît à sa liste
+         *     vide, et non au texte de `valuation_error` ; un portefeuille dont une ligne
+         *     a perdu ses prix reste lisible, donc réparable depuis l'écran de saisie.
          */
         PortfolioDetailOut: {
             /** Id */
@@ -724,6 +729,11 @@ export interface components {
             owner: string;
             /** Updated At */
             updated_at: string | null;
+            /**
+             * Positions
+             * @description Positions telles que stockées — ticker, quantité, prix de revient —, présentes même quand la valorisation échoue. Liste vide pour un portefeuille sans position.
+             */
+            positions: components["schemas"]["PositionOut"][];
             valuation: components["schemas"]["ValuationOut"] | null;
             /** Valuation Error */
             valuation_error: string | null;
@@ -802,6 +812,22 @@ export interface components {
             quantity: number;
             /** Cost Basis */
             cost_basis?: number | null;
+        };
+        /**
+         * PositionOut
+         * @description Une ligne TELLE QU'ELLE EST STOCKÉE : ni prix, ni valeur, ni poids.
+         *
+         *     Distincte de `ValuedPositionOut` parce qu'elle existe même quand la
+         *     valorisation échoue. `cost_basis` est le prix de revient saisi, facultatif,
+         *     qui ne sert à aucune mesure.
+         */
+        PositionOut: {
+            /** Ticker */
+            ticker: string;
+            /** Quantity */
+            quantity: number;
+            /** Cost Basis */
+            cost_basis: number | null;
         };
         /** PositionsReplace */
         PositionsReplace: {

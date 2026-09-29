@@ -866,8 +866,8 @@ qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
 | GET | `/api/meta` | dernière séance en base, taille de l'univers |
 | GET | `/api/securities` | univers : ticker, nom, secteur, première et dernière date de prix |
 | POST | `/api/portfolios` | crée un portefeuille, renvoie son `id` |
-| GET | `/api/portfolios` | liste, positions valorisées |
-| GET | `/api/portfolios/{id}` | un portefeuille, positions valorisées |
+| GET | `/api/portfolios` | liste ; positions stockées, et valorisées quand elles le sont |
+| GET | `/api/portfolios/{id}` | un portefeuille ; positions stockées et valorisées |
 | PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions |
 | POST | `/api/portfolios/{id}/positions/csv` | import CSV (multipart) |
 | DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
@@ -932,6 +932,15 @@ formate lui-même. Les messages d'erreur de validation de l'API n'y sont pas
 soumis : ce sont des diagnostics, pas du texte de rapport.
 
 #### Les choix de sérialisation qui comptent
+
+**Les positions stockées voyagent avec le portefeuille.** `positions` rend
+chaque ligne telle qu'elle est en base — ticker, quantité, prix de revient —,
+que la valorisation réussisse ou non. Sans elles, un portefeuille vide ne se
+reconnaissait qu'en cherchant « sans position » dans le texte de
+`valuation_error`, et un portefeuille dont une ligne a perdu ses prix ne
+pouvait pas être prérempli pour être réparé : `GET /{id}` répond 409, et la
+liste ne rendait que `valuation: null`. Les positions sont lues une seule fois
+et servent aussi à la valorisation, pour ne pas décrire deux états.
 
 **Pas de `dataclasses.asdict()`.** Il copie les champs et ignore silencieusement
 les `@property` et les méthodes. Un convertisseur générique aurait publié une

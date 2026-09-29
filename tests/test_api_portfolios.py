@@ -137,6 +137,72 @@ def test_le_prix_de_revient_est_conserve_et_reste_optionnel(
     assert lignes["MIKE"]["cost_basis"] is None
 
 
+# ═══════════════════════════════════════════════════ Positions stockées ══
+#
+# `positions` rend les lignes TELLES QU'ELLES SONT STOCKÉES — ticker, quantité,
+# prix de revient —, que le portefeuille soit valorisable ou non. C'est ce que
+# l'écran de saisie préremplit, et c'est ce qui dit qu'un portefeuille est vide
+# sans aller chercher « sans position » dans le texte de `valuation_error`.
+
+
+def test_les_positions_stockees_voyagent_avec_le_portefeuille(
+    client_synthetique, portefeuille_synthetique
+):
+    client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions",
+        json={
+            "positions": [
+                {"ticker": "MIKE", "quantity": 5},
+                {"ticker": "alfa", "quantity": 2.5, "cost_basis": 42.5},
+            ]
+        },
+    )
+    attendues = [
+        {"ticker": "ALFA", "quantity": 2.5, "cost_basis": 42.5},
+        {"ticker": "MIKE", "quantity": 5.0, "cost_basis": None},
+    ]
+    seul = client_synthetique.get(f"/api/portfolios/{portefeuille_synthetique}").json()
+    assert seul["positions"] == attendues, "stockées : ticker normalisé, ordre des tickers"
+
+    (dans_la_liste,) = client_synthetique.get("/api/portfolios").json()
+    assert dans_la_liste["positions"] == attendues
+
+
+def test_un_portefeuille_vide_se_reconnait_a_ses_positions(client_synthetique):
+    client_synthetique.post("/api/portfolios", json={"name": "Vide"})
+    (vide,) = client_synthetique.get("/api/portfolios").json()
+    assert vide["positions"] == []
+    assert vide["valuation"] is None
+
+
+def test_un_portefeuille_non_valorisable_garde_ses_positions(tmp_path, client_factory):
+    """Une ligne dont les prix ont disparu : pas de valorisation, mais les
+    positions restent lisibles — sans elles, l'écran de saisie ne pourrait pas
+    préremplir le portefeuille à réparer."""
+    from .conftest import construire_base
+
+    chemin = construire_base(
+        tmp_path / "cassee.sqlite",
+        {"ALFA": ("Alfa Inc", "Financials", [100.0, 101.0, 102.0])},
+        3,
+    )
+    with client_factory(chemin) as client:
+        identifiant = client.post("/api/portfolios", json={"name": "Cassé"}).json()["id"]
+        client.put(
+            f"/api/portfolios/{identifiant}/positions",
+            json={"positions": [{"ticker": "ALFA", "quantity": 3, "cost_basis": 90.0}]},
+        )
+        conn = connect(chemin)
+        with conn:
+            conn.execute("DELETE FROM prices WHERE ticker = 'ALFA'")
+        conn.close()
+        (casse,) = client.get("/api/portfolios").json()
+
+    assert casse["valuation"] is None
+    assert casse["valuation_error"]
+    assert casse["positions"] == [{"ticker": "ALFA", "quantity": 3.0, "cost_basis": 90.0}]
+
+
 # ═══════════════════════════════════════════════════════════════ Refus ══
 
 
