@@ -182,6 +182,65 @@ def test_un_csv_fautif_n_ecrit_rien(
     assert apres == avant
 
 
+def test_une_colonne_en_trop_non_vide_est_refusee_avec_son_numero_de_ligne():
+    """Avec `,` en séparateur, « 1,5 » est deux colonnes : 1 et 5. Le lecteur
+    lisait la quantité 1 et ignorait le 5, sans rien dire — une lecture fausse
+    et silencieuse. Une colonne en trop non vide est désormais refusée."""
+    lecture = read(b"ticker,quantity\nALFA,10\nMIKE,1,5\n")
+    (probleme,) = lecture.problems
+    assert probleme.line == 3
+    assert probleme.problem.startswith("3 colonnes lues, l'en-tête en a 2")
+    assert "une virgule décimale coupe le nombre en deux" in probleme.problem
+    assert [p.ticker for p in lecture.positions] == ["ALFA"]
+
+
+def test_un_prix_de_revient_a_virgule_decimale_est_refuse_en_separateur_virgule():
+    lecture = read(b"ticker,quantity,cost_basis\nALFA,10,185,20\n")
+    (probleme,) = lecture.problems
+    assert probleme.line == 2
+    assert probleme.problem.startswith("4 colonnes lues, l'en-tête en a 3")
+    assert "une virgule décimale coupe le nombre en deux" in probleme.problem
+
+
+def test_une_colonne_en_trop_vide_est_toleree():
+    """Un séparateur final, fréquent dans un export Excel, n'est pas une
+    donnée : la colonne vide qui le suit est ignorée."""
+    lecture = read(b"ticker,quantity\nALFA,15,\n")
+    assert lecture.problems == ()
+    assert lecture.positions[0].quantity == 15.0
+
+
+def test_l_indice_de_virgule_decimale_ne_s_ajoute_que_s_il_a_un_sens():
+    """Une colonne en trop qui n'est pas faite de chiffres, ou un séparateur
+    `;`, ne vient pas d'une virgule décimale : le message s'en tient au
+    décompte."""
+    texte = read(b"ticker,quantity\nALFA,10,achat\n").problems[0].problem
+    assert texte.startswith("3 colonnes lues, l'en-tête en a 2")
+    assert "virgule décimale" not in texte
+
+    point_virgule = read(b"ticker;quantity\nALFA;10;99\n").problems[0].problem
+    assert point_virgule.startswith("3 colonnes lues, l'en-tête en a 2")
+    assert "virgule décimale" not in point_virgule
+
+
+def test_une_colonne_en_trop_n_ecrit_rien(client_synthetique, portefeuille_synthetique):
+    """Tout ou rien, aussi quand le refus vient de la LECTURE et non de la
+    validation : une seule ligne refusée, aucune position écrite."""
+    avant = client_synthetique.get(f"/api/portfolios/{portefeuille_synthetique}").json()
+
+    reponse = depose(
+        client_synthetique,
+        portefeuille_synthetique,
+        b"ticker,quantity\nALFA,999\nMIKE,1,5\nZULU,7\n",
+    )
+    assert reponse.status_code == 422
+    assert [p["line"] for p in reponse.json()["problems"]] == [3]
+
+    apres = client_synthetique.get(f"/api/portfolios/{portefeuille_synthetique}").json()
+    assert apres["positions"] == avant["positions"]
+    assert apres["updated_at"] == avant["updated_at"]
+
+
 def test_une_quantite_negative_est_refusee_en_csv(
     client_synthetique, portefeuille_synthetique
 ):

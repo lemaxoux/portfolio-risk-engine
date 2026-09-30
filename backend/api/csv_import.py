@@ -214,6 +214,47 @@ def _decimale_observee(vues: set[str]) -> str:
     return vues.pop()
 
 
+def _largeur(champs: list[str]) -> int:
+    """Nombre de colonnes, colonnes VIDES finales exclues.
+
+    Un séparateur en fin de ligne, fréquent dans un export de tableur, ajoute
+    une colonne vide qui n'est pas une donnée. Même compte pour l'en-tête et
+    pour les lignes, pour qu'une colonne vide de chaque côté ne décale rien.
+    """
+    # Le rang, compté depuis 1, de la dernière colonne non vide : sa position
+    # EST la largeur. Écrit sans arithmétique, comme tout `backend/api/`.
+    return max(
+        (rang for rang, champ in enumerate(champs, start=1) if champ.strip()),
+        default=0,
+    )
+
+
+def _colonnes_en_trop(ligne: list[str], largeur_entete: int, separateur: str) -> str | None:
+    """Le refus d'une ligne plus large que l'en-tête, ou None.
+
+    Sans ce contrôle, le lecteur lisait les colonnes qu'il connaissait et
+    ignorait les autres : avec `,` en séparateur, « ALFA,1,5 » donnait la
+    quantité 1, et « 185,20 » le prix de revient 185, sans un mot. Une lecture
+    fausse et silencieuse est le pire des deux mondes.
+
+    L'indice sur la virgule décimale n'est ajouté que lorsqu'il a un sens : le
+    séparateur est la virgule, et ce qui déborde n'est fait que de chiffres.
+    """
+    largeur = _largeur(ligne)
+    if largeur <= largeur_entete:
+        return None
+    en_trop = [champ.strip() for champ in ligne[largeur_entete:largeur]]
+    decimale_coupee = separateur == "," and all(
+        champ.isdigit() for champ in en_trop if champ
+    )
+    indice = (
+        " : avec le séparateur `,`, une virgule décimale coupe le nombre en deux"
+        if decimale_coupee
+        else ""
+    )
+    return f"{largeur} colonnes lues, l'en-tête en a {largeur_entete}{indice}."
+
+
 def _colonnes(entete: list[str]) -> dict[str, int]:
     noms = [champ.strip().lower().lstrip("﻿") for champ in entete]
     index = {nom: position for position, nom in enumerate(noms)}
@@ -258,6 +299,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
         raise CsvError("Fichier vide.")
 
     index = _colonnes(lignes[0])
+    largeur_entete = _largeur(lignes[0])
     positions: list[SubmittedPosition] = []
     problemes: list[Problem] = []
     vues: set[str] = set()
@@ -266,6 +308,11 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
     # compris — le numéro que l'utilisateur lit dans son tableur.
     for numero, ligne in enumerate(lignes[1:], start=2):
         if not any(champ.strip() for champ in ligne):
+            continue
+
+        debord = _colonnes_en_trop(ligne, largeur_entete, separateur)
+        if debord is not None:
+            problemes.append(Problem(line=numero, problem=debord))
             continue
 
         if len(ligne) <= index[COLONNE_QUANTITE]:

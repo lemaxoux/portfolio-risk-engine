@@ -1204,7 +1204,19 @@ dernières sont des informations en soi — un fichier mixte sort d'un assemblag
 la main.
 
 Sont refusés avec un message situé à la ligne : ticker inconnu, ticker sans
-historique de prix, quantité nulle ou négative, doublon, en-tête absent.
+historique de prix, quantité nulle ou négative, doublon, en-tête absent,
+colonne en trop non vide.
+
+**Une colonne en trop n'est jamais ignorée en silence.** Le lecteur lisait les
+colonnes qu'il connaissait et laissait tomber les autres : avec `,` en
+séparateur, `ALFA,1,5` donnait la quantité 1 et `185,20` le prix de revient
+185, sans un mot. Une ligne plus large que l'en-tête est désormais refusée :
+« 3 colonnes lues, l'en-tête en a 2 », suivi de « avec le séparateur `,`, une
+virgule décimale coupe le nombre en deux » quand le séparateur est la virgule
+et que ce qui déborde n'est fait que de chiffres. Une colonne en trop VIDE —
+le séparateur final d'un export de tableur — reste tolérée, en ligne comme en
+en-tête. Le refus tombe à la lecture, avant toute écriture : une seule ligne
+refusée, aucune position écrite.
 
 **Le format est publié par le lecteur lui-même : `GET /api/csv-format`.**
 L'écran d'import l'affiche en clair, sur place, et le lit là plutôt que d'en
