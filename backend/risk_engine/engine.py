@@ -1458,6 +1458,27 @@ def compare_all_regimes(
 # ----------------------------------------------------------------- Rapport --
 
 
+def _raison_monte_carlo(serie: PortfolioSeries, exc: ValueError) -> str:
+    """Pourquoi le Monte Carlo normal manque, dans les mots d'un particulier.
+
+    La cause la plus fréquente est une fenêtre trop courte : n séances pour k
+    lignes donnent une covariance de rang n − 1 au plus, donc singulière dès
+    que n ≤ k. C'est une certitude algébrique, pas une supposition sur le
+    message : dans ce cas, la raison le dit en clair. Pour toute autre cause —
+    deux lignes aux rendements identiques, une variance nulle —, le message
+    technique du moteur reste, parce qu'il nomme ce qu'il faut vérifier.
+    """
+    seances = serie.window.observations
+    lignes = len(serie.weights.weights)
+    if seances <= lignes:
+        return (
+            f"La fenêtre compte {typography.sessions(seances)} pour "
+            f"{typography.lines(lignes)} : il en faut davantage que de lignes "
+            "pour simuler le portefeuille."
+        )
+    return str(exc)
+
+
 def analyse_portfolio(
     conn: sqlite3.Connection,
     portfolio_id: int,
@@ -1531,7 +1552,7 @@ def analyse_portfolio(
                 c: monte_carlo_var(serie, c) for c in confidence_levels
             }
         except ValueError as exc:
-            raison_normale = str(exc)
+            raison_normale = _raison_monte_carlo(serie, exc)
         try:
             ajustement = student_fit(serie)
             student_forme_fermee = {

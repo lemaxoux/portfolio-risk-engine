@@ -787,7 +787,8 @@ def test_student_et_monte_carlo_impossibles_publient_chacun_leur_raison(
 
     assert queue["student_fit"] is None
     assert "Au moins 30 observations" in queue["student_unavailable_reason"]
-    assert "non définie positive" in queue["monte_carlo_unavailable_reason"]
+    assert queue["monte_carlo_unavailable_reason"].startswith("La fenêtre compte 2")
+    assert "davantage que de lignes" in queue["monte_carlo_unavailable_reason"]
     for niveau in queue["levels"]:
         assert niveau["monte_carlo_var"] is None
         assert niveau["student_parametric_var"] is None

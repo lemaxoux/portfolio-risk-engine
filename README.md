@@ -1072,7 +1072,13 @@ chacun porte SA raison : `student_unavailable_reason` pour la Student,
 sur une covariance non définie positive — moins de séances que de lignes,
 une ligne en double. Sur une fenêtre de trois séances pour trois lignes, les
 deux manquent, chacun pour sa cause, et aucune raison ne tient lieu de
-l'autre. Le moteur rédige les deux, l'API les publie, comme
+l'autre. La raison du Monte Carlo sera lue par un particulier : quand la
+cause est la longueur de la fenêtre — n séances pour k lignes donnent une
+covariance de rang n − 1 au plus, singulière dès que n ≤ k, ce qui est une
+certitude et non une supposition —, elle le dit en clair : « La fenêtre
+compte 8 séances pour 9 lignes : il en faut davantage que de lignes pour
+simuler le portefeuille. » Les autres causes gardent le message technique,
+qui nomme ce qu'il faut vérifier. Le moteur rédige les deux, l'API les publie, comme
 `correlation_undefined_reason`. La route garde un filet pour une erreur
 imprévue des simulations : elle sert alors le rapport sans elles, avec ce
 message pour raison des deux volets. La réponse du portefeuille de

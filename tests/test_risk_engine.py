@@ -895,10 +895,33 @@ def test_student_et_monte_carlo_impossibles_ont_chacun_leur_raison(conn):
     assert rapport.window.observations == 3
 
     assert rapport.monte_carlo_var is None
-    assert "non définie positive" in rapport.monte_carlo_unavailable_reason
+    # En clair pour un particulier : la cause est la longueur de la fenêtre.
+    raison = rapport.monte_carlo_unavailable_reason
+    assert raison.startswith("La fenêtre compte 3")
+    assert "il en faut davantage que de lignes pour simuler le portefeuille" in raison
+    assert "non définie positive" not in raison
     assert rapport.student_fit is None
     assert "Au moins 30 observations" in rapport.student_unavailable_reason
     assert rapport.monte_carlo_unavailable_reason != rapport.student_unavailable_reason
+
+
+def test_une_covariance_singuliere_pour_une_autre_cause_garde_le_message_technique(conn):
+    """Dix séances pour deux lignes, mais B vaut exactement deux fois A : mêmes
+    rendements, covariance de rang un. La fenêtre n'y est pour rien ; le
+    message du moteur, qui nomme les causes à vérifier, reste tel quel."""
+    j = seances(11)
+    prix_a = cours(j, 100.0, 0.011, graine=41)
+    peupler(
+        conn,
+        {"A": prix_a, "B": [(d, 2.0 * v) for d, v in prix_a]},
+        {"A": 10, "B": 12},
+    )
+    rapport = analyse_portfolio(conn, 1, window=504, benchmark=None, monte_carlo=True)
+    assert rapport.window.observations == 10
+
+    assert rapport.monte_carlo_var is None
+    assert "non définie positive" in rapport.monte_carlo_unavailable_reason
+    assert not rapport.monte_carlo_unavailable_reason.startswith("La fenêtre compte")
 
 
 def test_sans_monte_carlo_demande_aucune_raison_n_est_inventee(conn):
