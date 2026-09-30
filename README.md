@@ -900,6 +900,15 @@ vérifiée en inspectant l'arbre syntaxique des modules
 sort d'un attribut, d'une propriété ou d'une méthode du moteur, déjà testés. Si
 une valeur manque, elle s'ajoute au moteur avec son test.
 
+**Une connexion SQLite par requête**, jamais partagée entre requêtes, ouverte
+et refermée par la dépendance `get_connection`. FastAPI l'ouvre, exécute la
+route et la referme dans trois fils du pool qui peuvent différer : la
+connexion est donc ouverte avec `check_same_thread=False`
+(`connect(cross_thread=True)`). Elle passe de main en main sans jamais servir à
+deux fils en même temps. Sans cela, des requêtes simultanées — la page de
+saisie en envoie plusieurs — répondaient 500 au hasard
+(`tests/test_api_dependencies.py`).
+
 **Elle ne fait aucun SQL.** Les lectures sur les données de marché vivent dans
 `risk_engine/portfolio.py`, les écritures de données utilisateur dans
 `db/portfolios.py`. Une requête dans la couche HTTP créerait une troisième

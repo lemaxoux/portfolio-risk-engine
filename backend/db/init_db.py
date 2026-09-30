@@ -35,16 +35,22 @@ def get_db_path() -> Path:
     return Path(override).expanduser() if override else DEFAULT_DB_PATH
 
 
-def connect(db_path: Path | None = None) -> sqlite3.Connection:
+def connect(db_path: Path | None = None, *, cross_thread: bool = False) -> sqlite3.Connection:
     """Ouvre une connexion avec les contraintes de clés étrangères actives.
 
     SQLite désactive les foreign keys par défaut, et le PRAGMA est local à la
     connexion : il doit être réémis à chaque ouverture, pas seulement à la
     création de la base.
+
+    `cross_thread` lève le contrôle de `sqlite3` qui refuse qu'une connexion
+    serve hors du fil qui l'a ouverte. Réservé à la connexion d'UNE requête
+    HTTP, qui passe d'un fil à l'autre sans jamais être utilisée par deux à la
+    fois (voir `backend/api/dependencies.py`). Jamais pour une connexion
+    partagée.
     """
     path = db_path or get_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=not cross_thread)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     return conn
