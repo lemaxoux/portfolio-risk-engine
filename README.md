@@ -1380,6 +1380,41 @@ bandeau changerait. L'acceptation est mémorisée dans le navigateur sous
 l'**empreinte du texte** : on ne mémorise pas « a accepté » mais « a accepté ce
 texte-là », et une limite reformulée fait revenir l'écran.
 
+#### Les pages et leurs adresses
+
+Quatre adresses, lues par `src/lib/route.ts` sans bibliothèque de routage :
+`/`, `/portefeuilles`, `/portefeuilles/<id>` (l'analyse) et
+`/portefeuilles/<id>/positions` (la saisie). De vraies adresses et non des
+fragments : les fragments servent déjà aux ancres des sections, et une
+adresse se recharge, se partage, s'ouvre dans un onglet. FastAPI rend
+`index.html` pour toute adresse hors de `/api`, Vite aussi en développement.
+Les liens internes restent de vrais `<a href>` (`components/Lien.tsx`) : clic
+du milieu et Ctrl + clic ouvrent un onglet, comme partout.
+
+- **`/`** rouvre le dernier portefeuille consulté, mémorisé dans le
+  navigateur comme le thème, ou le premier de la liste, ou la liste vide.
+  C'est une redirection, qui remplace l'entrée d'historique.
+- **La liste des portefeuilles est chargée une fois**, puis relue après chaque
+  écriture (`src/lib/liste.ts`). Chaque page y lit ce qu'elle doit savoir d'un
+  portefeuille avant tout autre appel — qu'il existe, son nom, qu'il est vide
+  (`positions`) —, sans attendre un 404 ni lire le texte d'un 409.
+- **La page Portefeuilles** choisit, crée et supprime. La suppression se
+  confirme sur place, sous le tableau ; la question reçoit le focus et nomme ce
+  qui disparaît. Un menu déroulant dans le bandeau a été écarté : il changerait
+  de page au moindre coup de flèche (WCAG 3.2.2). DESIGN.md §8.2.
+- **Une annonce, une page.** Ce qu'une action vient de faire (« Portefeuille
+  « Démo » supprimé. ») est écrit dans une seule région `role="status"`,
+  présente même vide, et n'apparaît que sur la page à laquelle elle est
+  adressée. Le chargement n'est pas annoncé : la page porte `aria-busy`.
+- **Le focus suit la page.** Après une navigation décidée par l'utilisateur, le
+  titre de la nouvelle page (`<h1 tabIndex={-1}>`) reçoit le focus, et
+  l'onglet prend son titre. Pas au chargement, ni après une redirection.
+- **La garde des modifications non enregistrées** : une page peut en poser une
+  (`poserGarde`) ; toute navigation interne la consulte et, si elle refuse,
+  rien ne bouge et la page affiche sa confirmation sur place. Le retour
+  arrière du navigateur, qui ne se laisse pas annuler, remet la page courante
+  dans l'historique avant de la consulter.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -1487,6 +1522,10 @@ l'ordre chronologique.
       tout nombre fini
     - Monte Carlo normal et volet Student découplés : chacun sa raison
       (`monte_carlo_unavailable_reason`, `student_unavailable_reason`)
+    - API : positions stockées dans la liste, numéro de ligne d'une saisie,
+      format CSV publié ; colonne en trop d'un CSV refusée
+    - Routes et page Portefeuilles : choix, création, suppression confirmée
+      sur place ; `/` rouvre le dernier portefeuille consulté
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

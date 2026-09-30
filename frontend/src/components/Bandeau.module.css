@@ -34,8 +34,16 @@
 }
 
 .portefeuille {
-  color: var(--text-2);
+  color: var(--text-1);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* Le lien vers la liste des portefeuilles : un lien, donc en --accent et
+ * souligné (§5.3) — la couleur seule ne dirait pas qu'il se clique. */
+.changer {
+  font-size: var(--text-sm);
+  text-underline-offset: 3px;
 }
 
 .conditions {

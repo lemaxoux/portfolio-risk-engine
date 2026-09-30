@@ -8,7 +8,15 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiErreur, getDisclaimer, getMeta, segmenter } from './client'
+import {
+  ApiErreur,
+  deletePortfolio,
+  getDisclaimer,
+  getMeta,
+  importCsv,
+  putPositions,
+  segmenter,
+} from './client'
 
 // Recopiés mot pour mot du moteur.
 const BENCHMARK_ABSENT =
@@ -159,5 +167,64 @@ describe('lecture', () => {
     expect(erreur).toBeInstanceOf(ApiErreur)
     expect((erreur as ApiErreur).detail).toContain('404')
     expect((erreur as ApiErreur).detail).not.toContain('doctype')
+  })
+})
+
+describe('écritures', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function espionner(statut: number, corps: string) {
+    const espion = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: statut < 400,
+      status: statut,
+      text: async () => corps,
+    }))
+    vi.stubGlobal('fetch', espion)
+    return espion
+  }
+
+  it('remplace les positions par un PUT en JSON, numéros de ligne compris', async () => {
+    const espion = espionner(
+      200,
+      JSON.stringify({ portfolio_id: 3, positions_count: 1, updated_at: '2026-09-30', replaced: true }),
+    )
+    await putPositions(3, [{ ticker: 'AAPL', quantity: 40, cost_basis: 185.2, line: 1 }])
+    const [url, init] = espion.mock.calls[0] ?? []
+    expect(url).toBe('/api/portfolios/3/positions')
+    expect(init?.method).toBe('PUT')
+    expect(JSON.parse(String(init?.body))).toEqual({
+      positions: [{ ticker: 'AAPL', quantity: 40, cost_basis: 185.2, line: 1 }],
+    })
+  })
+
+  it('une suppression réussie n’a pas de corps, et ce n’est pas une erreur', async () => {
+    espionner(204, '')
+    await expect(deletePortfolio(3)).resolves.toBeUndefined()
+  })
+
+  it('une suppression refusée porte le détail du backend', async () => {
+    espionner(404, JSON.stringify({ detail: 'Portefeuille 3 introuvable.', problems: [] }))
+    await expect(deletePortfolio(3)).rejects.toMatchObject({
+      statut: 404,
+      detail: 'Portefeuille 3 introuvable.',
+    })
+  })
+
+  it('envoie le fichier en multipart, sous le champ que la route attend', async () => {
+    const espion = espionner(
+      200,
+      JSON.stringify({ portfolio_id: 3, positions_count: 2, updated_at: '2026-09-30', replaced: true }),
+    )
+    const fichier = new File(['ticker;quantity\nAAPL;40\n'], 'positions.csv', { type: 'text/csv' })
+    await importCsv(3, fichier)
+    const [url, init] = espion.mock.calls[0] ?? []
+    expect(url).toBe('/api/portfolios/3/positions/csv')
+    expect(init?.method).toBe('POST')
+    const corps = init?.body as FormData
+    expect((corps.get('file') as File).name).toBe('positions.csv')
+    // Pas d'en-tête Content-Type écrit à la main : le navigateur pose la frontière.
+    expect(new Headers(init?.headers).has('Content-Type')).toBe(false)
   })
 })

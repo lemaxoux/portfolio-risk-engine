@@ -1,0 +1,47 @@
+/* État en cours — §13. La FORME de ce qui arrive, sans aucune animation (§10). */
+
+.squelette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.titre {
+  inline-size: 18rem;
+  max-inline-size: 100%;
+  block-size: var(--text-lg);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+}
+
+/* Un bloc mesure, à sa hauteur, avec sa bordure. */
+.blocs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+}
+
+.bloc {
+  block-size: 12rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+/* Un tableau : l'en-tête sur --surface-2, des rangées de 36 px séparées par
+ * un filet horizontal, comme §9.3. */
+.tableau {
+  display: flex;
+  flex-direction: column;
+}
+
+.entete {
+  block-size: 36px;
+  border-block-end: 1px solid var(--border-strong);
+  background-color: var(--surface-2);
+}
+
+.rangee {
+  block-size: 36px;
+  border-block-end: 1px solid var(--border);
+}

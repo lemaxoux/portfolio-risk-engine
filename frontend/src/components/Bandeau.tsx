@@ -24,8 +24,59 @@ import { useEffect, useRef } from 'react'
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
+import { cheminDe } from '../lib/route'
+import { Lien } from './Lien'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './Bandeau.module.css'
+
+/**
+ * La marque, et le portefeuille en vue quand il y en a un.
+ *
+ * Le choix du portefeuille est une PAGE (`/portefeuilles`), et non un menu
+ * déroulant qui changerait de page à la sélection : un tel menu déplace
+ * l'utilisateur au moindre coup de flèche (WCAG 3.2.2). Le lien le dit en
+ * toutes lettres, sous le nom.
+ */
+function Identite({ nom, navigation = true }: { nom: string | null; navigation?: boolean }) {
+  return (
+    <div className={styles.identite}>
+      <span className={styles.marque}>Mx Risk MGT</span>
+      {nom !== null && <span className={styles.portefeuille}>{nom}</span>}
+      {navigation && (
+        <Lien vers={cheminDe({ vue: 'portefeuilles' })} className={styles.changer}>
+          {nom === null ? 'Portefeuilles' : 'Changer de portefeuille'}
+        </Lien>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Le bandeau des pages sans analyse — liste, saisie. Ni date de
+ * valorisation, ni fenêtre d'estimation : aucun chiffre de ces pages n'en
+ * dépend, et les afficher ferait croire le contraire. La marque, le
+ * portefeuille en vue, la bascule de thème.
+ *
+ * `navigation` vaut `false` avant l'acceptation : rien ne mène ailleurs tant
+ * que le bandeau d'acceptation n'a pas été traversé (§15).
+ */
+export function BandeauSimple({
+  portefeuille,
+  navigation = true,
+}: {
+  portefeuille: string | null
+  navigation?: boolean
+}) {
+  const bandeau = useHauteurPubliee()
+  return (
+    <header ref={bandeau} className={styles.bandeau}>
+      <Identite nom={portefeuille} navigation={navigation} />
+      <div className={styles.total}>
+        <ThemeToggle />
+      </div>
+    </header>
+  )
+}
 
 /**
  * La hauteur du bandeau, publiée en variable CSS (`--hauteur-bandeau`) pour
@@ -33,7 +84,7 @@ import styles from './Bandeau.module.css'
  * deux, trois ou quatre lignes, et bien davantage à 390 px — : une marge
  * écrite en dur laisserait le titre de la section sous le bandeau collant.
  */
-function useHauteurPubliee() {
+export function useHauteurPubliee() {
   const bandeau = useRef<HTMLElement>(null)
   useEffect(() => {
     const noeud = bandeau.current
@@ -65,10 +116,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
 
   return (
     <header ref={bandeau} className={styles.bandeau}>
-      <div className={styles.identite}>
-        <span className={styles.marque}>Mx Risk MGT</span>
-        <span className={styles.portefeuille}>{analyse.portfolio.name}</span>
-      </div>
+      <Identite nom={analyse.portfolio.name} />
 
       <div className={styles.conditions}>
         {/* Chaque condition est une PAIRE insécable : un libellé ne se sépare

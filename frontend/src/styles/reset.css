@@ -96,6 +96,27 @@ input[type='radio'] {
 }
 
 /*
+ * Visuellement caché, mais lu — un titre de page qu'un lecteur d'écran doit
+ * trouver, le libellé d'un champ de tableau que l'en-tête de colonne nomme
+ * déjà à l'œil. `display: none` retirerait l'élément de l'arbre
+ * d'accessibilité, ce qui est l'inverse du but. Classe GLOBALE, la seule de ce
+ * fichier : elle sert partout, et la recopier par module la ferait diverger.
+ * Pas d'exception au focus : un titre caché qui reçoit le focus au changement
+ * de page doit rester caché (le lien « aller au contenu » a son propre style).
+ */
+.visuellement-cache {
+  position: absolute !important;
+  overflow: hidden !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+/*
  * Mouvement réduit (§10) — toutes les durées à zéro.
  *
  * Les durées sont des tokens, donc il suffit de les annuler à la source : rien

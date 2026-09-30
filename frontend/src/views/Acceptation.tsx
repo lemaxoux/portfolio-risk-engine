@@ -12,7 +12,7 @@
  * dans le bundle serait le texte réellement lu le jour où le serveur change le
  * sien.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { Disclaimer } from '../api/types'
 import { memoriserAcceptation } from '../lib/acceptation'
@@ -25,6 +25,11 @@ interface Props {
 
 export function Acceptation({ bandeau, onAccepte }: Props) {
   const [coche, setCoche] = useState(false)
+
+  // L'onglet dit où l'on est, comme sur toute autre page.
+  useEffect(() => {
+    document.title = `${bandeau.title} — Mx Risk MGT`
+  }, [bandeau.title])
 
   return (
     <main className={styles.page} id="contenu">

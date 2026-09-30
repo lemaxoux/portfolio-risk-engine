@@ -18,9 +18,24 @@
 }
 
 .rail ol,
-.ancres ol {
+.rail ul,
+.ancres ol,
+.ancres ul {
   list-style: none;
   padding: 0;
+}
+
+/* Les pages de l'application, sous les sections : un séparateur, comme dans
+ * la maquette de §8.2 (« Importer », « Méthodologie »). */
+.pages {
+  margin-block-start: var(--space-5);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border);
+}
+
+/* Seules, sur une page qui n'a pas de sections : pas de séparateur. */
+.pagesSeules {
+  margin: 0;
 }
 
 .rail a {
@@ -70,10 +85,28 @@
     font-size: var(--text-sm);
   }
 
-  .ancres ol {
+  .ancres ol,
+  .ancres ul {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
     gap: var(--space-1) var(--space-4);
+  }
+
+  /* Les pages, sous les ancres des sections quand il y en a. */
+  .ancres ol + .pagesEtroites,
+  .ancres nav + .pagesEtroites {
+    margin-block-start: var(--space-3);
+    padding-block-start: var(--space-3);
+    border-block-start: 1px solid var(--border);
+  }
+
+  .ancres .actif {
+    color: var(--text-1);
+    font-weight: var(--weight-medium);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
   }
 
   /* Une cible de toucher confortable : la ligne entière, pas le seul mot. */

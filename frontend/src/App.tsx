@@ -1,194 +1,200 @@
 /**
- * Coquille de l'application et enchaînement des états — DESIGN.md §13.
- *
- * Les quatre états sont dessinés, pas seulement l'état nominal : EN COURS
- * (squelettes de la forme finale, jamais un rond qui tourne), VIDE (aucun
- * portefeuille, et ce qu'on peut faire), ERREUR (ce qui a échoué et l'action
- * suivante, dans la voix du moteur) et NOMINAL.
+ * Coquille de l'application : l'acceptation, puis les routes — DESIGN.md §13,
+ * §15.
  *
  * ═══ L'ACCEPTATION PRÉCÈDE TOUT ═══
  *
  * Le bandeau d'acceptation est demandé AVANT la liste des portefeuilles et
- * avant l'analyse. Ce n'est pas un détail d'ordonnancement : une page qui
- * afficherait des chiffres puis demanderait l'acceptation par-dessus aurait
- * déjà montré ce que l'acceptation encadre.
+ * avant l'analyse, quelle que soit l'adresse d'arrivée. Ce n'est pas un détail
+ * d'ordonnancement : une page qui afficherait des chiffres puis demanderait
+ * l'acceptation par-dessus aurait déjà montré ce que l'acceptation encadre.
  *
- * ═══ N'AFFICHER QUE CE QUI EST CONSTRUIT ═══
+ * ═══ LA LISTE AVANT LES PAGES ═══
  *
- * Le rail de navigation ne liste que les sections qui existent. Pas de section
- * vide, pas de « bientôt », pas de texte provisoire : une entrée grisée
- * promettrait un contenu, et une page de démonstration qui promet vaut moins
- * qu'une page courte qui tient.
+ * La liste des portefeuilles est chargée une fois, puis relue après chaque
+ * écriture. Toutes les pages y lisent ce qu'elles doivent savoir d'un
+ * portefeuille avant tout autre appel — qu'il existe, son nom, qu'il est vide.
+ *
+ * ═══ UNE ANNONCE PAR PAGE ═══
+ *
+ * « Portefeuille « Démo » créé. » est adressé à la page où l'on arrive, et ne
+ * s'affiche que là : l'annonce d'une action ne suit pas l'utilisateur de page
+ * en page.
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import { ApiErreur, getAnalysis, getDisclaimer, getPortfolios } from './api/client'
-import type { Analysis, Disclaimer } from './api/types'
-import { Bandeau } from './components/Bandeau'
+import { ApiErreur, getDisclaimer, versApiErreur } from './api/client'
+import type { Disclaimer } from './api/types'
+import { BandeauSimple } from './components/Bandeau'
+import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
-import { AncresSections, RailSections } from './components/Navigation'
+import { SqueletteAnalyse } from './components/Squelette'
 import { aAccepte } from './lib/acceptation'
+import { useListe, type EtatListe } from './lib/liste'
+import {
+  cheminDe,
+  dernierPortefeuille,
+  naviguer,
+  portefeuilleDAccueil,
+  useRoute,
+} from './lib/route'
+import controles from './styles/controles.module.css'
 import { Acceptation } from './views/Acceptation'
-import { SectionAuPire } from './views/SectionAuPire'
-import { SectionCrise } from './views/SectionCrise'
-import { SectionJourOrdinaire } from './views/SectionJourOrdinaire'
-import { SectionMoteur } from './views/SectionMoteur'
-import { SectionPortefeuille } from './views/SectionPortefeuille'
-import { SectionRisque } from './views/SectionRisque'
-import styles from './App.module.css'
+import { VueAnalyse } from './views/Analyse'
+import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
+import { VuePortefeuilles } from './views/Portefeuilles'
 
-type Etat =
-  | { phase: 'chargement' }
+type EtatAcceptation =
+  | { phase: 'verification' }
   | { phase: 'erreur'; erreur: ApiErreur }
   | { phase: 'acceptation'; bandeau: Disclaimer }
-  | { phase: 'vide' }
-  | { phase: 'analyse'; analyse: Analysis }
-
-
-function enErreur(cause: unknown): Etat {
-  return {
-    phase: 'erreur',
-    erreur:
-      cause instanceof ApiErreur
-        ? cause
-        : new ApiErreur(0, `Erreur inattendue du client : ${String(cause)}`),
-  }
-}
+  | { phase: 'acceptee' }
 
 export function App() {
-  const [etat, setEtat] = useState<Etat>({ phase: 'chargement' })
-
-  const chargerAnalyse = useCallback(async () => {
-    setEtat({ phase: 'chargement' })
-    try {
-      const portefeuilles = await getPortfolios()
-      const premier = portefeuilles[0]
-      if (premier === undefined) {
-        setEtat({ phase: 'vide' })
-        return
-      }
-      setEtat({ phase: 'analyse', analyse: await getAnalysis(premier.id) })
-    } catch (cause) {
-      setEtat(enErreur(cause))
-    }
-  }, [])
+  const [etat, setEtat] = useState<EtatAcceptation>({ phase: 'verification' })
 
   useEffect(() => {
     let vivant = true
-    void (async () => {
-      try {
-        const bandeau = await getDisclaimer()
+    getDisclaimer().then(
+      (bandeau) => {
         if (!vivant) return
-        if (aAccepte(bandeau.text)) await chargerAnalyse()
-        else setEtat({ phase: 'acceptation', bandeau })
-      } catch (cause) {
-        if (vivant) setEtat(enErreur(cause))
-      }
-    })()
+        setEtat(aAccepte(bandeau.text) ? { phase: 'acceptee' } : { phase: 'acceptation', bandeau })
+      },
+      (cause: unknown) => {
+        if (vivant) setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
+      },
+    )
     return () => {
       vivant = false
     }
-  }, [chargerAnalyse])
+  }, [])
 
   if (etat.phase === 'acceptation') {
-    return (
-      <Acceptation bandeau={etat.bandeau} onAccepte={() => void chargerAnalyse()} />
-    )
+    return <Acceptation bandeau={etat.bandeau} onAccepte={() => setEtat({ phase: 'acceptee' })} />
   }
+  if (etat.phase === 'acceptee') return <Application />
 
   return (
-    <>
-      <a className={styles.evitement} href="#contenu">
-        Aller au contenu
-      </a>
-
-      {etat.phase === 'analyse' && <Bandeau analyse={etat.analyse} />}
-
-      <div className={styles.page}>
-        {etat.phase === 'analyse' && <RailSections />}
-
-        <main id="contenu" className={styles.contenu}>
-          {etat.phase === 'chargement' && <Squelette />}
-          {etat.phase === 'erreur' && <MessageErreur erreur={etat.erreur} />}
-          {etat.phase === 'vide' && <AucunPortefeuille />}
-          {etat.phase === 'analyse' && (
-            <>
-              <AncresSections />
-              <SectionPortefeuille valorisation={etat.analyse.valuation} />
-              <SectionJourOrdinaire
-                risque={etat.analyse.risk}
-                histogramme={etat.analyse.histogram}
-                asOf={etat.analyse.as_of}
-              />
-              <SectionAuPire
-                serie={etat.analyse.series}
-                creux={etat.analyse.risk.drawdown}
-                asOf={etat.analyse.as_of}
-              />
-              <SectionRisque
-                variance={etat.analyse.risk.variance_contributions}
-                concentration={etat.analyse.risk.concentration}
-                matrices={etat.analyse.risk.matrices}
-                scenarios={etat.analyse.scenarios}
-                asOf={etat.analyse.as_of}
-              />
-              <SectionCrise
-                scenarios={etat.analyse.scenarios}
-                regimes={etat.analyse.regimes}
-                asOf={etat.analyse.as_of}
-              />
-              <SectionMoteur
-                observations={etat.analyse.observations}
-                bandeau={etat.analyse.disclaimer}
-                asOf={etat.analyse.as_of}
-              />
-            </>
-          )}
-        </main>
-      </div>
-    </>
+    <Cadre
+      titre={etat.phase === 'erreur' ? 'API injoignable' : 'Chargement'}
+      page="demarrage"
+      occupe={etat.phase === 'verification'}
+      entete={<BandeauSimple portefeuille={null} navigation={false} />}
+    >
+      {etat.phase === 'verification' ? (
+        <SqueletteAnalyse />
+      ) : (
+        <MessageErreur
+          erreur={etat.erreur}
+          action={
+            <button
+              type="button"
+              className={controles.bouton}
+              onClick={() => window.location.reload()}
+            >
+              Recharger la page
+            </button>
+          }
+        />
+      )}
+    </Cadre>
   )
 }
 
-/**
- * État EN COURS — la forme de ce qui arrive, pas un rond qui tourne (§13).
- *
- * Sans animation : §10 interdit tout mouvement au chargement, et une pulsation
- * sur des blocs vides est le marqueur d'interface générée le plus reconnaissable.
- */
-function Squelette() {
-  return (
-    <div className={styles.squelette} aria-hidden="true">
-      <span className={styles.squeletteTitre} />
-      <div className={styles.squeletteRangee}>
-        <span className={styles.squeletteBloc} />
-        <span className={styles.squeletteBloc} />
-      </div>
-    </div>
-  )
+interface Annonce {
+  readonly texte: string
+  readonly page: string
+}
+
+function Application() {
+  const route = useRoute()
+  const { etat: liste, recharger } = useListe()
+  const [annonce, setAnnonce] = useState<Annonce | null>(null)
+
+  const annoncer = useCallback((texte: string, page: string) => {
+    setAnnonce({ texte, page })
+  }, [])
+
+  const chemin = route.vue === 'inconnue' ? route.chemin : cheminDe(route)
+  const annonceIci = annonce !== null && annonce.page === chemin ? annonce.texte : null
+
+  switch (route.vue) {
+    case 'accueil':
+      return <Accueil liste={liste} recharger={recharger} />
+    case 'portefeuilles':
+      return (
+        <VuePortefeuilles
+          liste={liste}
+          recharger={recharger}
+          annonce={annonceIci}
+          annoncer={annoncer}
+        />
+      )
+    case 'analyse': {
+      if (liste.phase !== 'prete') {
+        return <ListeEnAttente liste={liste} recharger={recharger} page={chemin} />
+      }
+      const portefeuille = liste.portefeuilles.find((p) => p.id === route.id)
+      if (portefeuille === undefined) {
+        return <PortefeuilleIntrouvable id={route.id} page={chemin} />
+      }
+      return <VueAnalyse portefeuille={portefeuille} annonce={annonceIci} />
+    }
+    case 'positions':
+    case 'inconnue':
+      return <PageInconnue chemin={chemin} />
+  }
 }
 
 /**
- * État VIDE — aucun portefeuille en base.
- *
- * La saisie et l'import arrivent plus tard ; en attendant, cet écran dit ce
- * qui est possible AUJOURD'HUI plutôt que d'annoncer un écran qui n'existe
- * pas. Le format CSV n'est pas décrit ici : il le sera par l'écran qui le lit,
- * et le recopier créerait une deuxième description à tenir à jour.
+ * `/` : le dernier portefeuille ouvert s'il existe encore, sinon le premier,
+ * sinon la liste — vide, avec sa proposition de créer. Une REDIRECTION, qui
+ * remplace l'entrée d'historique : le retour arrière ne ramène pas ici.
  */
-function AucunPortefeuille() {
+function Accueil({ liste, recharger }: { liste: EtatListe; recharger: () => Promise<void> }) {
+  useEffect(() => {
+    if (liste.phase !== 'prete') return
+    const id = portefeuilleDAccueil(
+      liste.portefeuilles.map((p) => p.id),
+      dernierPortefeuille(),
+    )
+    naviguer(id === null ? cheminDe({ vue: 'portefeuilles' }) : cheminDe({ vue: 'analyse', id }), {
+      remplacer: true,
+    })
+  }, [liste])
+
+  return <ListeEnAttente liste={liste} recharger={recharger} page="/" />
+}
+
+/** La liste n'est pas encore là, ou n'a pas pu être lue. */
+function ListeEnAttente({
+  liste,
+  recharger,
+  page,
+}: {
+  liste: EtatListe
+  recharger: () => Promise<void>
+  page: string
+}) {
   return (
-    <div className={styles.vide}>
-      <h1 className={styles.videTitre}>Aucun portefeuille en base</h1>
-      <p className={styles.videTexte}>
-        L'analyse décrit un portefeuille : il en faut un. Les positions
-        s'écrivent par l'API, qui vérifie chaque ticker contre l'univers chargé
-        et refuse ligne à ligne ce qu'elle ne reconnaît pas.
-      </p>
-      <code className={styles.videCommande}>POST /api/portfolios</code>
-      <code className={styles.videCommande}>
-        PUT /api/portfolios/&lt;id&gt;/positions
-      </code>
-    </div>
+    <Cadre
+      titre={liste.phase === 'erreur' ? 'Portefeuilles illisibles' : 'Chargement'}
+      page={page}
+      occupe={liste.phase !== 'erreur'}
+      entete={<BandeauSimple portefeuille={null} />}
+    >
+      {liste.phase === 'erreur' ? (
+        <MessageErreur
+          erreur={liste.erreur}
+          action={
+            <button type="button" className={controles.bouton} onClick={() => void recharger()}>
+              Recharger la liste
+            </button>
+          }
+        />
+      ) : (
+        <SqueletteAnalyse />
+      )}
+    </Cadre>
   )
 }

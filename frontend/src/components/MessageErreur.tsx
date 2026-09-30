@@ -11,10 +11,23 @@
  * coupe pas en fin de ligne. C'est le seul endroit de l'interface où le
  * monospace est autorisé — du contenu réellement code (§6.1).
  */
+import type { ReactNode } from 'react'
+
 import type { ApiErreur } from '../api/client'
 import styles from './MessageErreur.module.css'
 
-export function MessageErreur({ erreur }: { erreur: ApiErreur }) {
+/**
+ * `action` est l'ACTION SUIVANTE, quand l'interface en a une à offrir :
+ * « Recharger » après un chargement échoué. Un message qui dit ce qui a
+ * échoué sans dire quoi faire ensuite ne tient que la moitié de §13.
+ */
+export function MessageErreur({
+  erreur,
+  action,
+}: {
+  erreur: ApiErreur
+  action?: ReactNode
+}) {
   return (
     <div className={styles.bloc} role="alert">
       <p className={styles.phrase}>
@@ -41,6 +54,8 @@ export function MessageErreur({ erreur }: { erreur: ApiErreur }) {
           ))}
         </ul>
       )}
+
+      {action !== undefined && <div className={styles.action}>{action}</div>}
     </div>
   )
 }

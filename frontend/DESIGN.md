@@ -470,6 +470,26 @@ Autres écrans, volontairement pauvres : **saisie / import du portefeuille**
 (tableau éditable + zone de dépôt CSV avec le format affiché en clair) et
 **méthodologie** (le README rendu, une colonne de prose à 66 caractères).
 
+**Portefeuilles** (`/portefeuilles`, ajouté en 7B.3a) : le choix du
+portefeuille affiché. Un tableau — nom (lien vers son analyse), lignes,
+valeur, date de valorisation, date de modification des positions ; un
+portefeuille vide ou non valorisable le dit dans sa ligne, avec la raison du
+moteur —, une création explicite (un nom, puis le portefeuille existe, vide),
+et une suppression confirmée **sur place**, sous le tableau, jamais en
+modale : la question nomme ce qui disparaît avec lui, ses positions. Le
+bandeau y mène par « Changer de portefeuille », sous le nom du portefeuille.
+Un menu déroulant qui changerait de page à la sélection est écarté : il
+déplace l'utilisateur au moindre coup de flèche (WCAG 3.2.2). `/` rouvre le
+dernier portefeuille consulté, mémorisé dans le navigateur comme le thème, ou
+à défaut le premier.
+
+Sous les six sections, après un séparateur, le rail liste les pages de
+l'application — « Analyse », « Positions et import », « Portefeuilles » —, la
+page courante marquée comme l'est la section en cours. Sous 900 px, la même
+liste suit les ancres, en tête de page. Hors de l'analyse, le bandeau se
+réduit à la marque, au portefeuille en vue et à la bascule de thème : la date
+de valorisation et la fenêtre d'estimation n'y conditionnent aucun chiffre.
+
 ---
 
 ## 9. Composants

@@ -22,7 +22,18 @@
  * cas le navigateur ne voit qu'une origine, et il n'y a pas d'adresse d'API à
  * configurer quelque part — donc pas d'adresse à se tromper.
  */
-import type { Analysis, Disclaimer, Meta, PortfolioDetail } from './types'
+import type {
+  Analysis,
+  CsvFormat,
+  CsvImport,
+  Disclaimer,
+  Meta,
+  Portfolio,
+  PortfolioDetail,
+  PositionIn,
+  PositionsWritten,
+  Security,
+} from './types'
 
 const BASE = '/api'
 
@@ -111,19 +122,72 @@ export class ApiErreur extends Error {
   }
 }
 
+/**
+ * Toute erreur en `ApiErreur` : celles de l'API passent telles quelles, une
+ * erreur du client est nommée comme telle plutôt que tue.
+ */
+export function versApiErreur(cause: unknown): ApiErreur {
+  return cause instanceof ApiErreur
+    ? cause
+    : new ApiErreur(0, `Erreur inattendue du client : ${String(cause)}`)
+}
+
 const SERVEUR_INJOIGNABLE =
   "L'API ne répond pas. La démarrer : python -m backend.api"
 
-async function lire<T>(chemin: string): Promise<T> {
+/**
+ * Ce qu'une requête envoie. `json` est sérialisé ; `fichier` part en
+ * multipart, sous le nom de champ que la route attend (`file`), et c'est le
+ * navigateur qui pose l'en-tête `Content-Type` avec sa frontière — l'écrire à
+ * la main la perdrait.
+ */
+interface Envoi {
+  readonly methode: 'POST' | 'PUT' | 'DELETE'
+  readonly json?: unknown
+  readonly fichier?: File
+}
+
+async function lire<T>(chemin: string, envoi?: Envoi): Promise<T> {
   let reponse: Response
   try {
-    reponse = await fetch(`${BASE}${chemin}`, {
-      headers: { Accept: 'application/json' },
-    })
+    reponse = await fetch(`${BASE}${chemin}`, requete(envoi))
   } catch {
     throw new ApiErreur(0, SERVEUR_INJOIGNABLE)
   }
+  return decoder<T>(reponse)
+}
 
+function requete(envoi: Envoi | undefined): RequestInit {
+  const entetes: Record<string, string> = { Accept: 'application/json' }
+  if (envoi === undefined) return { headers: entetes }
+  if (envoi.fichier !== undefined) {
+    const corps = new FormData()
+    corps.append('file', envoi.fichier, envoi.fichier.name)
+    return { method: envoi.methode, headers: entetes, body: corps }
+  }
+  if (envoi.json !== undefined) {
+    return {
+      method: envoi.methode,
+      headers: { ...entetes, 'Content-Type': 'application/json' },
+      body: JSON.stringify(envoi.json),
+    }
+  }
+  return { method: envoi.methode, headers: entetes }
+}
+
+/** Une écriture qui ne rend rien (204) : le succès EST la réponse. */
+async function ecrireSansCorps(chemin: string, envoi: Envoi): Promise<void> {
+  let reponse: Response
+  try {
+    reponse = await fetch(`${BASE}${chemin}`, requete(envoi))
+  } catch {
+    throw new ApiErreur(0, SERVEUR_INJOIGNABLE)
+  }
+  if (reponse.ok) return
+  await decoder<never>(reponse)
+}
+
+async function decoder<T>(reponse: Response): Promise<T> {
   // Le corps est lu comme du TEXTE avant d'être décodé : si l'API rendait autre
   // chose que du JSON, `response.json()` lèverait une erreur de syntaxe qui ne
   // dirait pas ce qui est arrivé. Ici on peut montrer ce qu'on a reçu.
@@ -172,7 +236,48 @@ export function getAnalysis(portfolioId: number): Promise<Analysis> {
   return lire<Analysis>(`/portfolios/${portfolioId}/analysis`)
 }
 
-/** La liste des portefeuilles, pour savoir s'il en existe un. */
+/**
+ * La liste des portefeuilles : nom, positions telles que stockées, et
+ * valorisation quand elle est possible. C'est elle qui dit qu'un portefeuille
+ * est vide — par ses positions, jamais par le texte d'une erreur.
+ */
 export function getPortfolios(): Promise<PortfolioDetail[]> {
   return lire<PortfolioDetail[]>('/portfolios')
+}
+
+/** L'univers : tickers, noms, et première séance de prix de chacun. */
+export function getSecurities(): Promise<Security[]> {
+  return lire<Security[]>('/securities')
+}
+
+/** Le format que lit l'import CSV, publié par le lecteur lui-même. */
+export function getCsvFormat(): Promise<CsvFormat> {
+  return lire<CsvFormat>('/csv-format')
+}
+
+export function createPortfolio(nom: string): Promise<Portfolio> {
+  return lire<Portfolio>('/portfolios', { methode: 'POST', json: { name: nom } })
+}
+
+export function deletePortfolio(portfolioId: number): Promise<void> {
+  return ecrireSansCorps(`/portfolios/${portfolioId}`, { methode: 'DELETE' })
+}
+
+/** Remplace TOUTES les positions : le tableau envoyé EST le portefeuille. */
+export function putPositions(
+  portfolioId: number,
+  positions: readonly PositionIn[],
+): Promise<PositionsWritten> {
+  return lire<PositionsWritten>(`/portfolios/${portfolioId}/positions`, {
+    methode: 'PUT',
+    json: { positions },
+  })
+}
+
+/** Importe un fichier CSV, qui remplace lui aussi toutes les positions. */
+export function importCsv(portfolioId: number, fichier: File): Promise<CsvImport> {
+  return lire<CsvImport>(`/portfolios/${portfolioId}/positions/csv`, {
+    methode: 'POST',
+    fichier,
+  })
 }

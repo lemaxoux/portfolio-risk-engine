@@ -1,0 +1,112 @@
+/*
+ * Contrôles de formulaire communs — DESIGN.md §7, §12, §13.
+ *
+ * Boutons, champs, libellés, aides et refus, partagés par les pages de saisie
+ * et de gestion. Aucune couleur d'erreur : la palette n'en a pas (§5.3), et
+ * le rouge est interdit. Un champ refusé se reconnaît à son contour plus
+ * épais ET à son message écrit — jamais à une couleur seule.
+ */
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  transition: background-color var(--motion-hover);
+}
+
+.bouton:hover:enabled {
+  background-color: var(--surface-2);
+}
+
+/* `--text-muted` est réservé au désactivé (§5.3). Un bouton n'est désactivé
+ * qu'APRÈS un envoi, contre le double envoi : jamais pour bloquer une saisie. */
+.bouton:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* L'action principale d'un formulaire : même forme, contour plus appuyé. */
+.principal {
+  border-width: 2px;
+  border-color: var(--text-1);
+}
+
+/* Un bouton qui se lit comme un lien, dans une ligne de tableau. */
+.discret {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.discret:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.groupe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Un champ et son libellé : le libellé AU-DESSUS, plus proche du champ que du
+ * groupe suivant. */
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-inline-size: var(--prose-width);
+}
+
+.libelle {
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.aide {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+/* Contour à 3:1 au moins contre le fond (--border-strong, §5), taille de
+ * police du corps pour que le téléphone ne zoome pas au focus. */
+.saisie {
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--text-body);
+}
+
+.saisie[aria-invalid='true'] {
+  border-width: 2px;
+  border-color: var(--text-1);
+}
+
+/* Le refus d'un champ : un texte, en --text-1, précédé d'un trait — la
+ * couleur ne porte rien. */
+.refus {
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.refus::before {
+  content: '— ';
+}

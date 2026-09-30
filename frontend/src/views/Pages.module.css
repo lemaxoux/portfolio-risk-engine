@@ -1,0 +1,74 @@
+/*
+ * Pages hors analyse — liste, saisie, pages introuvables. DESIGN.md §7, §8.2
+ * (« volontairement pauvres »), §13.
+ */
+
+.titre {
+  margin-block-end: var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+/* Un sous-titre de page, calme (§3.3). */
+.sousTitre {
+  margin-block: var(--space-7) var(--space-3);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* Le texte d'une page est de la prose : Spectral, 66 caractères (§6.3). */
+.texte {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-4);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+.vide {
+  max-inline-size: var(--prose-width);
+}
+
+/* Une date ne se coupe pas : « 2026- » puis « 09-25 » se lit mal. */
+.date {
+  white-space: nowrap;
+}
+
+/* L'état d'une ligne de la liste, sous son nom : en --text-2, à la taille
+ * des libellés. */
+.etat {
+  display: block;
+  max-inline-size: 28rem;
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  white-space: normal;
+}
+
+/* La confirmation d'une suppression, SUR PLACE, sous le tableau : pas de
+ * modale, pas de fond assombri (§15). Un bloc surélevé, comme un message. */
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.question {
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}

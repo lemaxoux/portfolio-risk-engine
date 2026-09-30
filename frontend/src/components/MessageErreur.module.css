@@ -36,6 +36,10 @@
   user-select: all;
 }
 
+.action {
+  margin-block-start: var(--space-4);
+}
+
 /* Les refus ligne à ligne d'un 422. Liste à puces simple, pas de badge. */
 .problemes {
   margin-block-start: var(--space-3);

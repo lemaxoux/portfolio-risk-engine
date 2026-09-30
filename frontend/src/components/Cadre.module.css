@@ -1,0 +1,69 @@
+/* Mise en page commune — DESIGN.md §7 (grille), §13 (états). */
+
+/*
+ * Lien « aller au contenu » (§13). Il n'est pas caché : il est hors cadre tant
+ * qu'il n'a pas le focus, et il revient dès qu'on l'atteint au clavier.
+ * `display: none` le retirerait de l'ordre de tabulation, ce qui le rendrait
+ * exactement inutile.
+ */
+.evitement {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: 2;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transform: translateY(-300%);
+}
+
+.evitement:focus-visible {
+  transform: none;
+}
+
+/*
+ * Colonne de lecture centrée, et un rail de 220 px à sa gauche (§7).
+ * Le rail s'escamote sous 900 px : sur un téléphone, un rail collant coûte
+ * plus de place qu'il n'en fait gagner. Une liste d'ancres le remplace alors
+ * en tête de page (voir `components/Navigation`).
+ */
+.page {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  gap: var(--space-6);
+  max-inline-size: var(--reading-width);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+@media (width < 900px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.contenu {
+  /* Toujours dans la colonne de lecture, que le rail soit rendu ou non : sans
+   * cela, une page sans rail tomberait dans la colonne de 220 px. */
+  grid-column: -2 / -1;
+  padding-block: var(--space-6) var(--space-8);
+  min-inline-size: 0;
+}
+
+/* La région d'annonce existe toujours ; vide, elle ne prend aucune place. */
+.annonce {
+  max-inline-size: var(--prose-width);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.annonce:not(:empty) {
+  margin-block-end: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 2px solid var(--accent);
+  background-color: var(--surface-1);
+}
