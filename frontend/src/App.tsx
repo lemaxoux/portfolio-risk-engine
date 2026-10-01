@@ -28,7 +28,7 @@ import type { Disclaimer } from './api/types'
 import { BandeauSimple } from './components/Bandeau'
 import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
-import { SqueletteAnalyse } from './components/Squelette'
+import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
 import { aAccepte } from './lib/acceptation'
 import { useListe, type EtatListe } from './lib/liste'
 import {
@@ -134,7 +134,14 @@ function Application() {
     case 'analyse':
     case 'positions': {
       if (liste.phase !== 'prete') {
-        return <ListeEnAttente liste={liste} recharger={recharger} page={chemin} />
+        return (
+          <ListeEnAttente
+            liste={liste}
+            recharger={recharger}
+            page={chemin}
+            forme={route.vue === 'positions' ? 'tableau' : 'analyse'}
+          />
+        )
       }
       const portefeuille = liste.portefeuilles.find((p) => p.id === route.id)
       if (portefeuille === undefined) {
@@ -176,18 +183,23 @@ function Accueil({ liste, recharger }: { liste: EtatListe; recharger: () => Prom
     })
   }, [liste])
 
-  return <ListeEnAttente liste={liste} recharger={recharger} page="/" />
+  return <ListeEnAttente liste={liste} recharger={recharger} page="/" forme="analyse" />
 }
 
-/** La liste n'est pas encore là, ou n'a pas pu être lue. */
+/**
+ * La liste n'est pas encore là, ou n'a pas pu être lue. Le squelette a la
+ * forme de la page attendue (§13) : l'analyse, ou le tableau de saisie.
+ */
 function ListeEnAttente({
   liste,
   recharger,
   page,
+  forme,
 }: {
   liste: EtatListe
   recharger: () => Promise<void>
   page: string
+  forme: 'analyse' | 'tableau'
 }) {
   return (
     <Cadre
@@ -205,6 +217,8 @@ function ListeEnAttente({
             </button>
           }
         />
+      ) : forme === 'tableau' ? (
+        <SqueletteTableau rangees={6} />
       ) : (
         <SqueletteAnalyse />
       )}
