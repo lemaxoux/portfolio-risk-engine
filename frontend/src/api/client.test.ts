@@ -78,6 +78,19 @@ describe('segmenter — la commande sort du texte courant', () => {
     const message = 'Le moteur est écrit en python et ne calcule rien ici.'
     expect(segmenter(message).every((s) => s.genre === 'texte')).toBe(true)
   })
+
+  it('un séparateur cité entre accents graves reste dans la phrase, en littéral', () => {
+    // Recopié de `backend/api/csv_import._colonnes_en_trop`. Pris pour une
+    // commande, « , » perdait sa ponctuation finale — lui-même — et
+    // disparaissait.
+    const message =
+      "3 colonnes lues, l'en-tête en a 2 : avec le séparateur `,`, une virgule " +
+      'décimale coupe le nombre en deux.'
+    const segments = segmenter(message)
+    expect(segments.find((s) => s.genre === 'litteral')?.contenu).toBe(',')
+    expect(segments.some((s) => s.genre === 'commande')).toBe(false)
+    expect(segments.map((s) => s.contenu).join('')).toBe(message.replaceAll('`', ''))
+  })
 })
 
 describe('ApiErreur', () => {

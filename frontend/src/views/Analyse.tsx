@@ -16,6 +16,7 @@ import { ApiErreur, getAnalysis, versApiErreur } from '../api/client'
 import type { Analysis, PortfolioDetail } from '../api/types'
 import { Bandeau, BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
+import { FormatCsv } from '../components/FormatCsv'
 import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
 import {
@@ -97,6 +98,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
           <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
             Saisir ou importer les positions
           </Lien>
+          <FormatCsv niveau={2} />
         </div>
       </Cadre>
     )

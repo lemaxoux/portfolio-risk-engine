@@ -109,12 +109,12 @@ export function TableauSaisie({
           {messages.map(({ id, message }) => (
             <p key={id} id={id} className={controles.refus}>
               {segmenter(message).map((segment, index) =>
-                segment.genre === 'commande' ? (
+                segment.genre === 'texte' ? (
+                  <span key={index}>{segment.contenu}</span>
+                ) : (
                   <code key={index} className={styles.commande}>
                     {segment.contenu}
                   </code>
-                ) : (
-                  <span key={index}>{segment.contenu}</span>
                 ),
               )}
             </p>

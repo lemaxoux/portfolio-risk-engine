@@ -1,0 +1,53 @@
+/* Format CSV affiché sur place — §8.2, §13. */
+
+.bloc {
+  max-inline-size: var(--prose-width);
+}
+
+.titre {
+  margin-block: var(--space-5) var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.texte {
+  margin-block-end: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+/* L'exemple : un vrai fichier, en monospace (§6.1), sur une surface
+ * surélevée. Il se sélectionne d'un geste pour être recopié. */
+.exemple {
+  margin-block-end: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+  color: var(--text-1);
+  line-height: var(--leading-ui);
+  user-select: all;
+}
+
+.regles {
+  padding-inline-start: var(--space-5);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  list-style: disc;
+}
+
+.regles li + li {
+  margin-block-start: var(--space-1);
+}
+
+.regles code {
+  font-size: var(--text-micro);
+}
+
+.squelette {
+  block-size: 6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+}

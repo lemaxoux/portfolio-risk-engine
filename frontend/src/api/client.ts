@@ -44,10 +44,17 @@ export interface Probleme {
   problem: string
 }
 
-/** Un morceau de message : du texte courant, ou une commande à recopier. */
+/**
+ * Un morceau de message : du texte courant, une commande à recopier, ou un
+ * littéral cité — un séparateur, une décimale — qui se lit dans la phrase.
+ */
 export type Segment =
   | { readonly genre: 'texte'; readonly contenu: string }
   | { readonly genre: 'commande'; readonly contenu: string }
+  | { readonly genre: 'litteral'; readonly contenu: string }
+
+/** Ce qui fait d'un passage entre accents graves une commande. */
+const COMMANDE = /^python -m /
 
 /**
  * Sépare les commandes du texte courant dans un message du backend.
@@ -60,6 +67,13 @@ export type Segment =
  * Les reconnaître ici plutôt que d'uniformiser le backend est un choix : ces
  * messages sont aussi lus dans un terminal, où les accents graves seraient du
  * bruit. C'est l'affichage qui s'adapte au texte, pas le texte à l'affichage.
+ *
+ * TOUT CE QUI EST ENTRE ACCENTS GRAVES N'EST PAS UNE COMMANDE. L'import CSV
+ * cite ainsi ses séparateurs : « avec le séparateur `,`, une virgule
+ * décimale… ». Pris pour une commande, `,` perdait sa ponctuation finale —
+ * c'est-à-dire lui-même — et disparaissait de la phrase. Un passage qui ne
+ * commence pas par `python -m` est un LITTÉRAL, rendu en code dans la ligne,
+ * tel quel.
  */
 export function segmenter(message: string): Segment[] {
   const segments: Segment[] = []
@@ -78,7 +92,8 @@ export function segmenter(message: string): Segment[] {
   //    découpage sont, par construction, ce qu'ils encadraient.
   message.split('`').forEach((morceau, index) => {
     if (index % 2 === 1) {
-      pousserCommande(morceau)
+      if (COMMANDE.test(morceau)) pousserCommande(morceau)
+      else if (morceau.length > 0) segments.push({ genre: 'litteral', contenu: morceau })
       return
     }
     // 2. Hors accents graves, une commande commence par « python -m » et court

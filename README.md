@@ -1468,6 +1468,32 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   ligne (« Quantité ligne 3 »), sans libellé recopié. Pendant l'envoi, le
   bouton dit ce qu'il fait et se désactive ; il retrouve ensuite le focus.
 
+#### L'import et le format affiché
+
+- **Le format est celui que publie le lecteur** (`GET /api/csv-format`),
+  affiché en clair par `components/FormatCsv.tsx` : l'exemple, un vrai
+  fichier, puis les règles. Le frontend ne fait que nommer en français les
+  codes publiés (`lib/csv.ts`). Il n'existe qu'un composant, montré partout
+  où l'on arrive sans portefeuille ou sans position (§13) : la liste vide,
+  l'analyse d'un portefeuille vide, la page de saisie.
+- **Un vrai champ de fichier, et une zone de dépôt autour**
+  (`components/DepotCsv.tsx`) : le champ natif se prend au clavier ; un
+  fichier glissé lui est confié.
+- **Rien n'est écrit sans confirmation.** Choisir un fichier ne l'importe
+  pas : la phrase dit ce qui sera remplacé (« les 6 lignes actuelles de
+  « Démo » ») et si le tableau porte des modifications non enregistrées, qui
+  seront perdues ; le bouton dit le geste, « Importer le portefeuille ».
+- **Ce qui a été lu** s'affiche après l'import comme une provenance :
+  fichier, encodage, séparateur, décimale observée, lignes lues.
+- **Les messages du serveur sont découpés** (`segmenter`) : une commande
+  `python -m …` sort en bloc, un littéral cité entre accents graves (« le
+  séparateur `,` ») reste dans la phrase, en code. Un refus unique ne
+  s'affiche qu'une fois, avec son numéro de ligne.
+- **Limites connues** : pas d'aperçu, l'API n'ayant pas de lecture sans
+  écriture ; et un fichier dont la lecture refuse une ligne ne passe pas à
+  la validation, si bien qu'un ticker inconnu ailleurs dans le fichier ne
+  se voit qu'au dépôt suivant.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -1582,6 +1608,9 @@ l'ordre chronologique.
     - Page de saisie : tableau éditable, refus rangés à leur ligne, garde des
       modifications non enregistrées ; un même lecteur de nombres pour le
       tableau et le CSV ; connexion SQLite d'une requête entre fils
+    - Import CSV : zone de dépôt, confirmation de ce qui est remplacé,
+      provenance de la lecture ; format affiché en clair dans les trois
+      états vides
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

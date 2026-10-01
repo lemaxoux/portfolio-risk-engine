@@ -36,6 +36,16 @@
   user-select: all;
 }
 
+/* Un littéral cité dans la phrase — un séparateur, une décimale : en code,
+ * dans la ligne, sans le sortir du texte comme une commande. */
+.litteral {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
 .action {
   margin-block-start: var(--space-4);
 }

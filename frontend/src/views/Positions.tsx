@@ -32,7 +32,9 @@ import { Cadre } from '../components/Cadre'
 import { MessageErreur } from '../components/MessageErreur'
 import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
 import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
-import { dateISO, lignes as compteLignes } from '../lib/format'
+import { DepotCsv } from '../components/DepotCsv'
+import { FormatCsv } from '../components/FormatCsv'
+import { dateEnToutesLettres, lignes as compteLignes } from '../lib/format'
 import { cite } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
 import {
@@ -189,7 +191,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     try {
       const ecrit = await putPositions(portefeuille.id, positions)
       annoncer(
-        `Positions enregistrées le ${dateISO(ecrit.updated_at)} : ${compteLignes(ecrit.positions_count)}.`,
+        `Positions enregistrées le ${dateEnToutesLettres(ecrit.updated_at)} : ${compteLignes(ecrit.positions_count)}.`,
         page,
       )
       await recharger()
@@ -316,6 +318,22 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
           {modifie && <span className={controles.aide}>Modifications non enregistrées.</span>}
         </div>
       </form>
+
+      <h2 className={styles.sousTitre}>Importer un fichier CSV</h2>
+      <DepotCsv
+        portefeuilleId={portefeuille.id}
+        nom={nom}
+        positionsActuelles={portefeuille.positions.length}
+        modifie={modifie}
+        importe={async (lu) => {
+          annoncer(
+            `Portefeuille importé depuis ${cite(lu.source.filename ?? 'le fichier')} : ${compteLignes(lu.positions_count)}.`,
+            page,
+          )
+          await recharger()
+        }}
+      />
+      <FormatCsv niveau={3} />
     </Cadre>
   )
 }

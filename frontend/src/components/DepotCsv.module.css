@@ -1,0 +1,61 @@
+/* Import CSV — §8.2, §13. Ni ombre, ni dégradé, ni icône (§12). */
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: var(--prose-width);
+}
+
+/* La zone de dépôt : un cadre en tirets, la forme habituelle d'un endroit où
+ * lâcher un fichier. Le survol d'un fichier glissé la marque en --accent ET
+ * par un trait plein : la couleur seule ne suffirait pas (§5.3). */
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.survol {
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--accent);
+}
+
+.consigne {
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.champ {
+  max-inline-size: 100%;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.question {
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+/* Ce qui a été lu : une provenance, comme sous une mesure. */
+.lu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}

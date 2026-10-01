@@ -33,6 +33,7 @@ import type { PortfolioDetail } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { DataTable, type Colonne } from '../components/DataTable'
+import { FormatCsv } from '../components/FormatCsv'
 import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
 import { SqueletteTableau } from '../components/Squelette'
@@ -105,6 +106,11 @@ function AucunPortefeuille({
         d'abord en créer un, puis saisir ou importer ses positions.
       </p>
       <Creation recharger={recharger} annoncer={annoncer} titre="Créer un portefeuille" />
+      <p className={styles.texte}>
+        Ses positions se saisissent ligne à ligne, ou s'importent d'un fichier CSV — par
+        exemple l'export d'un tableur — sur la page qui s'ouvre à la création.
+      </p>
+      <FormatCsv niveau={2} />
     </div>
   )
 }

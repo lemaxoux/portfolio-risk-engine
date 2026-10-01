@@ -13,13 +13,42 @@
  */
 import type { ReactNode } from 'react'
 
-import type { ApiErreur } from '../api/client'
+import { segmenter, type ApiErreur } from '../api/client'
 import styles from './MessageErreur.module.css'
+
+/**
+ * Un message du backend, découpé : la commande en bloc, à recopier ; un
+ * littéral cité (« le séparateur `,` ») en code dans la ligne ; le reste en
+ * texte.
+ */
+function Segments({ message }: { message: string }) {
+  return (
+    <>
+      {segmenter(message).map((segment, index) =>
+        segment.genre === 'commande' ? (
+          <code key={index} className={styles.commande}>
+            {segment.contenu}
+          </code>
+        ) : segment.genre === 'litteral' ? (
+          <code key={index} className={styles.litteral}>
+            {segment.contenu}
+          </code>
+        ) : (
+          <span key={index}>{segment.contenu}</span>
+        ),
+      )}
+    </>
+  )
+}
 
 /**
  * `action` est l'ACTION SUIVANTE, quand l'interface en a une à offrir :
  * « Recharger » après un chargement échoué. Un message qui dit ce qui a
  * échoué sans dire quoi faire ensuite ne tient que la moitié de §13.
+ *
+ * UN REFUS UNIQUE NE S'ÉCRIT QU'UNE FOIS. L'API reprend alors le refus comme
+ * détail (`_resume`) : la phrase porte son numéro de ligne, et la liste, qui
+ * le répéterait, n'est pas affichée.
  */
 export function MessageErreur({
   erreur,
@@ -28,28 +57,22 @@ export function MessageErreur({
   erreur: ApiErreur
   action?: ReactNode
 }) {
+  const [premier] = erreur.problems
+  const unique =
+    erreur.problems.length === 1 && premier !== undefined && premier.problem === erreur.detail
   return (
     <div className={styles.bloc} role="alert">
       <p className={styles.phrase}>
-        {erreur.segments.map((segment, index) =>
-          segment.genre === 'commande' ? (
-            <code key={index} className={styles.commande}>
-              {segment.contenu}
-            </code>
-          ) : (
-            <span key={index}>{segment.contenu}</span>
-          ),
-        )}
+        {unique && premier.line !== null && `Ligne ${premier.line} — `}
+        <Segments message={erreur.detail} />
       </p>
 
-      {erreur.problems.length > 0 && (
+      {erreur.problems.length > 0 && !unique && (
         <ul className={styles.problemes}>
           {erreur.problems.map((probleme, index) => (
             <li key={index}>
               {probleme.line !== null && `Ligne ${probleme.line} — `}
-              {probleme.field !== null && `${probleme.field} : `}
-              {probleme.problem}
-              {probleme.value !== null && ` (« ${probleme.value} »)`}
+              <Segments message={probleme.problem} />
             </li>
           ))}
         </ul>
