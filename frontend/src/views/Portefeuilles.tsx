@@ -106,7 +106,7 @@ function AucunPortefeuille({
         d'abord en créer un, puis saisir ou importer ses positions.
       </p>
       <Creation recharger={recharger} annoncer={annoncer} titre="Créer un portefeuille" />
-      <p className={styles.texte}>
+      <p className={`${styles.texte} ${styles.suite}`}>
         Ses positions se saisissent ligne à ligne, ou s'importent d'un fichier CSV — par
         exemple l'export d'un tableur — sur la page qui s'ouvre à la création.
       </p>

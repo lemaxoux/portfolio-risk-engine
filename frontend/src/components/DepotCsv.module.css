@@ -37,6 +37,25 @@
   font-size: var(--text-sm);
 }
 
+/* Le bouton du champ natif, à la forme des autres boutons : le gris clair du
+ * navigateur détonnerait en thème sombre. Le champ, lui, reste natif. */
+.champ::file-selector-button {
+  margin-inline-end: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-0);
+  color: var(--text-1);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  transition: background-color var(--motion-hover);
+}
+
+.champ:hover::file-selector-button {
+  background-color: var(--surface-2);
+}
+
 .confirmation {
   display: flex;
   flex-direction: column;

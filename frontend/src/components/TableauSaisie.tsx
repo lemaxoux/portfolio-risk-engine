@@ -161,15 +161,15 @@ export function TableauSaisie({
               return (
                 <Fragment key={ligne.cle}>
                 <tr className={styles.rangee}>
-                  <th scope="row" id={`saisie-rang-${ligne.cle}`} className={`${styles.cellule} ${styles.numero}`}>
+                  <th scope="row" id={`saisie-rang-${ligne.cle}`} className={`${styles.cellule} ${styles.numero} ${styles.surLeChamp}`}>
                     <span className="visuellement-cache">ligne </span>
                     {rang + 1}
                   </th>
                   <td className={styles.cellule}>{champ(ligne, rang, 'ticker', 'saisie-col-ticker')}</td>
-                  <td className={`${styles.cellule} ${styles.nom}`}>
+                  <td className={`${styles.cellule} ${styles.nom} ${styles.surLeChamp}`}>
                     {titre !== undefined ? titre.name : tape && univers !== null ? 'Titre inconnu' : '—'}
                   </td>
-                  <td className={`${styles.cellule} ${styles.date}`}>
+                  <td className={`${styles.cellule} ${styles.date} ${styles.surLeChamp}`}>
                     {titre?.first_price_date != null ? dateISO(titre.first_price_date) : '—'}
                   </td>
                   <td className={`${styles.cellule} ${styles.nombre}`}>
@@ -178,7 +178,7 @@ export function TableauSaisie({
                   <td className={`${styles.cellule} ${styles.nombre}`}>
                     {champ(ligne, rang, 'prixRevient', 'saisie-col-prix')}
                   </td>
-                  <td className={styles.cellule}>
+                  <td className={`${styles.cellule} ${styles.surLeChamp}`}>
                     <button type="button" className={controles.discret} onClick={() => retirer(rang)}>
                       Retirer<span className="visuellement-cache"> la ligne {rang + 1}</span>
                     </button>

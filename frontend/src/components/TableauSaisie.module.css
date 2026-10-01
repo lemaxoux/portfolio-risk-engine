@@ -61,14 +61,17 @@
   text-align: end;
 }
 
-.nom {
-  min-inline-size: 7rem;
-  /* Aligné sur le texte des champs voisins. */
+/* Le texte d'une cellule sans champ — numéro, nom, date, « Retirer » —
+ * aligné sur le texte des champs voisins, et non sur leur bordure. */
+.surLeChamp {
   padding-block-start: calc(var(--space-2) + var(--space-2));
 }
 
+.nom {
+  min-inline-size: 7rem;
+}
+
 .date {
-  padding-block-start: calc(var(--space-2) + var(--space-2));
   white-space: nowrap;
 }
 

@@ -1484,7 +1484,9 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   « Démo » ») et si le tableau porte des modifications non enregistrées, qui
   seront perdues ; le bouton dit le geste, « Importer le portefeuille ».
 - **Ce qui a été lu** s'affiche après l'import comme une provenance :
-  fichier, encodage, séparateur, décimale observée, lignes lues.
+  fichier, encodage, séparateur, décimale observée, lignes lues. Ce bloc
+  reçoit le focus, le bouton d'import ayant disparu ; un import refusé rend
+  le focus au bouton, désactivé pendant l'envoi.
 - **Les messages du serveur sont découpés** (`segmenter`) : une commande
   `python -m …` sort en bloc, un littéral cité entre accents graves (« le
   séparateur `,` ») reste dans la phrase, en code. Un refus unique ne

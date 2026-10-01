@@ -29,7 +29,7 @@ import { ApiErreur, putPositions, versApiErreur } from '../api/client'
 import type { PortfolioDetail } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
-import { MessageErreur } from '../components/MessageErreur'
+import { MessageErreur, Segments } from '../components/MessageErreur'
 import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
 import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
 import { DepotCsv } from '../components/DepotCsv'
@@ -293,11 +293,13 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
                 </p>
                 <ul className={styles.refusListe}>
                   {generaux.map((texte) => (
-                    <li key={texte}>{texte}</li>
+                    <li key={texte}>
+                      <Segments message={texte} />
+                    </li>
                   ))}
                   {tousLesRefus.map((r) => (
                     <li key={cleDeRefus(r.ligne, r.champ)}>
-                      Ligne {r.ligne} — {r.message}
+                      Ligne {r.ligne} — <Segments message={r.message} />
                     </li>
                   ))}
                 </ul>

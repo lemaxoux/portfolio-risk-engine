@@ -19,9 +19,10 @@ import styles from './MessageErreur.module.css'
 /**
  * Un message du backend, découpé : la commande en bloc, à recopier ; un
  * littéral cité (« le séparateur `,` ») en code dans la ligne ; le reste en
- * texte.
+ * texte. Exporté pour les listes de refus qui ne passent pas par un
+ * `MessageErreur` : un même message du backend s'écrit partout de même.
  */
-function Segments({ message }: { message: string }) {
+export function Segments({ message }: { message: string }) {
   return (
     <>
       {segmenter(message).map((segment, index) =>

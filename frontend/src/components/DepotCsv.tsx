@@ -22,7 +22,7 @@
  * mesure : encodage, séparateur, décimale OBSERVÉE, lignes lues. Un fichier
  * « mixte » se voit, et un résultat inattendu se comprend au lieu de se subir.
  */
-import { useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 
 import { ApiErreur, importCsv, versApiErreur } from '../api/client'
 import type { CsvImport } from '../api/types'
@@ -52,6 +52,21 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const [resultat, setResultat] = useState<CsvImport | null>(null)
+  const blocLu = useRef<HTMLDivElement>(null)
+  const bouton = useRef<HTMLButtonElement>(null)
+
+  // Le focus après l'envoi. Réussi, l'import retire son bouton : le focus va
+  // à ce qui a été lu, juste en dessous. Refusé, le bouton reste mais a été
+  // désactivé pendant l'envoi, ce qui lui a fait perdre le focus : il le
+  // retrouve. Dans les deux cas, la tabulation ne repart pas du haut de la
+  // page. Un effet, et non un appel direct : l'élément visé n'existe, ou
+  // n'est réactivé, qu'au rendu qui suit.
+  const [cibleDuFocus, setCibleDuFocus] = useState<{ cible: 'lu' | 'bouton' } | null>(null)
+  useEffect(() => {
+    if (cibleDuFocus === null) return
+    const noeud = cibleDuFocus.cible === 'lu' ? blocLu.current : bouton.current
+    noeud?.focus()
+  }, [cibleDuFocus])
 
   const choisir = (choisi: File | null) => {
     setFichier(choisi)
@@ -82,8 +97,10 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
       setFichier(null)
       if (champ.current !== null) champ.current.value = ''
       await importe(lu)
+      setCibleDuFocus({ cible: 'lu' })
     } catch (cause) {
       setErreur(versApiErreur(cause))
+      setCibleDuFocus({ cible: 'bouton' })
     } finally {
       setEnCours(false)
     }
@@ -130,6 +147,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
           </p>
           <div className={controles.groupe}>
             <button
+              ref={bouton}
               type="submit"
               className={`${controles.bouton} ${controles.principal}`}
               disabled={enCours}
@@ -143,7 +161,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
       {erreur !== null && <MessageErreur erreur={erreur} />}
 
       {resultat !== null && (
-        <div className={styles.lu}>
+        <div ref={blocLu} tabIndex={-1} className={styles.lu}>
           <p className={styles.consigne}>Lu dans le fichier :</p>
           <Provenance
             lignes={[
