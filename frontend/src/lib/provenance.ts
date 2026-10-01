@@ -53,6 +53,7 @@ export function lignesDeFenetre(fenetre: Window): LigneProvenance[] {
 export function provenanceDeVar(
   resultat: Var,
   controle: Var | null = null,
+  raisonSansControle: string | null = null,
 ): LigneProvenance[] {
   const lignes: LigneProvenance[] = [{ libelle: 'Méthode', valeur: resultat.method }]
 
@@ -79,6 +80,11 @@ export function provenanceDeVar(
       libelle: 'Contrôle',
       valeur: `${resultat.method === controle.method ? '' : `${controle.method} : `}${pourcentage(controle.value, 2)} — ${controle.detail}`,
     })
+  } else if (raisonSansControle !== null) {
+    // Le contrôle manque, et le moteur dit pourquoi
+    // (`monte_carlo_unavailable_reason`) : une ligne absente sans raison
+    // serait un blanc inexpliqué.
+    lignes.push({ libelle: 'Contrôle', valeur: `indisponible — ${raisonSansControle}` })
   }
 
   return lignes

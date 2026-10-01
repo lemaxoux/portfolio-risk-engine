@@ -14,6 +14,20 @@
   background-color: var(--surface-1);
 }
 
+/* Le titre d'une section suivante : la marge qui sépare deux sections. */
+.section {
+  margin-block-start: var(--space-7);
+}
+
+/* Une ligne de provenance, sous le titre d'une section. */
+.provenance {
+  inline-size: 24rem;
+  max-inline-size: 100%;
+  block-size: var(--text-micro);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+}
+
 /* Un bloc mesure, à sa hauteur, avec sa bordure. */
 .blocs {
   display: grid;

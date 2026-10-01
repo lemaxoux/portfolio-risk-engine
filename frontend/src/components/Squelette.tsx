@@ -23,11 +23,23 @@ export function SqueletteTableau({ rangees = 4 }: { rangees?: number }) {
   )
 }
 
-/** Un titre de section et deux blocs mesure. */
-export function SqueletteAnalyse() {
+/**
+ * Le début de la page d'analyse, à sa forme : la section 1 (titre, ligne de
+ * provenance, tableau des positions), puis le titre de la section 2 et deux
+ * blocs mesure. Ce qui arrive se reconnaît avant d'arriver.
+ */
+export function SqueletteAnalyse({ rangees = 6 }: { rangees?: number }) {
   return (
     <div className={styles.squelette} aria-hidden="true">
       <span className={styles.titre} />
+      <span className={styles.provenance} />
+      <div className={styles.tableau}>
+        <span className={styles.entete} />
+        {Array.from({ length: rangees }, (_, rang) => (
+          <span key={rang} className={styles.rangee} />
+        ))}
+      </div>
+      <span className={`${styles.titre} ${styles.section}`} />
       <div className={styles.blocs}>
         <span className={styles.bloc} />
         <span className={styles.bloc} />

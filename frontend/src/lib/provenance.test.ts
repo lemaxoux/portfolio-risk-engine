@@ -84,3 +84,16 @@ describe('provenance d’un graphique (§9.4)', () => {
     expect(lignes[3]?.valeur).toBe('2026-09-09')
   })
 })
+
+describe('le contrôle Monte Carlo absent', () => {
+  it('dit pourquoi, avec la raison du moteur, au lieu de disparaître', () => {
+    const raison =
+      'La fenêtre compte 7 séances pour 7 lignes : il en faut davantage que de lignes pour simuler le portefeuille.'
+    const controle = provenanceDeVar(NORMALE, null, raison).find((l) => l.libelle === 'Contrôle')
+    expect(controle?.valeur).toBe(`indisponible — ${raison}`)
+  })
+
+  it('n’ajoute aucune ligne quand rien n’a été demandé', () => {
+    expect(provenanceDeVar(NORMALE).map((l) => l.libelle)).not.toContain('Contrôle')
+  })
+})

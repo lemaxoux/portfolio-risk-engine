@@ -6,9 +6,20 @@
  * se reconnaît donc à sa structure, sans appel d'analyse et sans lire le
  * texte d'un 409.
  *
- * L'analyse est redemandée quand les positions changent (`updated_at`) : une
- * page qui montrerait l'analyse d'avant un enregistrement décrirait un
- * portefeuille qui n'existe plus.
+ * L'analyse est redemandée quand les positions changent — leur CONTENU, et non
+ * `updated_at`, daté au jour près : deux enregistrements le même jour
+ * laisseraient sinon l'analyse du premier. Une page qui montrerait l'analyse
+ * d'avant un enregistrement décrirait un portefeuille qui n'existe plus.
+ *
+ * ═══ LES QUATRE ÉTATS (§13) ═══
+ *
+ * Vide : aucune position, reconnu à la liste — invitation, lien vers la
+ * saisie, format CSV. En cours : la forme de la page, sans animation.
+ * Insuffisant : le moteur a les positions mais n'en tire pas d'analyse (409,
+ * moins de trois séances communes, indice absent) — son message, et la
+ * section 1 depuis la valorisation de la liste ; une fenêtre seulement
+ * COURTE, elle, donne une analyse, où chaque mesure indisponible dit
+ * pourquoi. Erreur : le message et l'action suivante.
  */
 import { useEffect, useState } from 'react'
 
@@ -40,6 +51,7 @@ import styles from './Pages.module.css'
 type Etat =
   | { phase: 'chargement' }
   | { phase: 'erreur'; erreur: ApiErreur }
+  | { phase: 'insuffisant'; raison: ApiErreur }
   | { phase: 'analyse'; analyse: Analysis }
 
 interface Props {
@@ -49,6 +61,7 @@ interface Props {
 
 export function VueAnalyse({ portefeuille, annonce }: Props) {
   const vide = portefeuille.positions.length === 0
+  const positionsStockees = JSON.stringify(portefeuille.positions)
   const [etat, setEtat] = useState<Etat>({ phase: 'chargement' })
   const [essai, setEssai] = useState(0)
 
@@ -65,13 +78,21 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         if (vivant) setEtat({ phase: 'analyse', analyse })
       },
       (cause: unknown) => {
-        if (vivant) setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
+        if (!vivant) return
+        const refus = versApiErreur(cause)
+        // 409 : le portefeuille existe, il a des positions, mais il n'est pas
+        // analysable en l'état. C'est un ÉTAT de la base, pas une panne.
+        setEtat(
+          refus.statut === 409
+            ? { phase: 'insuffisant', raison: refus }
+            : { phase: 'erreur', erreur: refus },
+        )
       },
     )
     return () => {
       vivant = false
     }
-  }, [portefeuille.id, portefeuille.updated_at, vide, essai])
+  }, [portefeuille.id, positionsStockees, vide, essai])
 
   const nom = portefeuille.name
   const pages = pagesApplication('analyse', portefeuille.id)
@@ -100,6 +121,38 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
           </Lien>
           <FormatCsv niveau={2} />
         </div>
+      </Cadre>
+    )
+  }
+
+  if (etat.phase === 'insuffisant') {
+    return (
+      <Cadre
+        titre={titre}
+        page={page}
+        annonce={annonce}
+        entete={<BandeauSimple portefeuille={nom} />}
+        rail={<RailPages pages={pages} />}
+      >
+        <AncresSections pages={pages} sections={false} />
+        <div className={styles.vide}>
+          <h1 tabIndex={-1} className={styles.titre}>
+            {cite(nom)} ne s'analyse pas en l'état
+          </h1>
+          <p className={styles.texte}>
+            Ses positions sont en base, mais le moteur n'en tire pas d'analyse. Il dit
+            pourquoi, et ce qu'il faut faire :
+          </p>
+          <MessageErreur erreur={etat.raison} alerte={false} />
+          <p className={`${styles.texte} ${styles.suite}`}>
+            <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
+              Revoir les positions
+            </Lien>
+          </p>
+        </div>
+        {portefeuille.valuation !== null && (
+          <SectionPortefeuille valorisation={portefeuille.valuation} />
+        )}
       </Cadre>
     )
   }

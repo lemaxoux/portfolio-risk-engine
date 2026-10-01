@@ -1494,6 +1494,34 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   la validation, si bien qu'un ticker inconnu ailleurs dans le fichier ne
   se voit qu'au dépôt suivant.
 
+#### Les quatre états de l'analyse
+
+DESIGN.md §13 : vide, insuffisant, en cours, erreur, et pas seulement l'état
+nominal (`views/Analyse.tsx`).
+
+- **Vide** — le portefeuille n'a aucune position, ce que la liste dit sans
+  appel d'analyse : une invitation, un lien vers la saisie, le format CSV.
+- **Insuffisant, pour la page** — le moteur a les positions mais n'en tire
+  pas d'analyse : l'API répond 409 (moins de trois séances communes, indice
+  absent). C'est un état de la base, pas une panne : le message du moteur,
+  sans le ton d'une alerte, la commande à lancer en bloc, un lien vers la
+  saisie, et la section 1 depuis la valorisation de la liste.
+- **Insuffisant, pour une mesure** — une fenêtre courte donne une analyse,
+  où chaque mesure indisponible dit pourquoi, avec ce qui a été reçu et ce
+  qu'il faut : corrélation, contributions, Student (« reçu : 7 » pour 30),
+  Monte Carlo normal (« La fenêtre compte 7 séances pour 7 lignes »), crises
+  non couvertes. Le bandeau nomme la ligne qui raccourcit la fenêtre.
+  Vérifié sur une copie de la base où JMKE, SPCX et ASBH, cotés depuis 2026,
+  ont été ajoutés par `ingestion add` : fenêtres de 40, 72 et 7 séances.
+- **En cours** — la forme du début de la page, sans animation : section 1 et
+  son tableau, puis deux blocs mesure ; `aria-busy`, et un titre de page lu.
+- **Erreur** — le message de l'API et l'action suivante, « Recharger
+  l'analyse ».
+
+L'analyse est redemandée quand le CONTENU des positions change, et non leur
+`updated_at`, daté au jour près : deux enregistrements le même jour auraient
+sinon laissé l'analyse du premier.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -1611,6 +1639,8 @@ l'ordre chronologique.
     - Import CSV : zone de dépôt, confirmation de ce qui est remplacé,
       provenance de la lecture ; format affiché en clair dans les trois
       états vides
+    - Les quatre états de l'analyse : vide, insuffisant (page et mesure,
+      raison du Monte Carlo comprise), en cours, erreur
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

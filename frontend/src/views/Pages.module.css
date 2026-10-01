@@ -30,6 +30,11 @@
   max-inline-size: var(--prose-width);
 }
 
+/* L'action qui suit un message : séparée de lui. */
+.suite {
+  margin-block-start: var(--space-4);
+}
+
 /* Les actions d'une ligne de la liste, côte à côte. */
 .actions {
   display: inline-flex;

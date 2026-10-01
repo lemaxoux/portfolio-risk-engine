@@ -61,9 +61,11 @@ function niveauLu(confiance: number): string {
 function CoupleParametrique({
   niveau,
   raisonStudent,
+  raisonMonteCarlo,
 }: {
   niveau: TailRiskLevel
   raisonStudent: string | null
+  raisonMonteCarlo: string | null
 }) {
   const confiance = niveauLu(niveau.confidence)
   const student = niveau.student_parametric_var
@@ -78,6 +80,7 @@ function CoupleParametrique({
         provenance={provenanceDeVar(
           niveau.parametric_var,
           niveau.monte_carlo_var,
+          raisonMonteCarlo,
         )}
       />
 
@@ -128,6 +131,7 @@ interface Props {
 export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
   const niveaux = risque.tail_risk.levels
   const raisonStudent = risque.tail_risk.student_unavailable_reason
+  const raisonMonteCarlo = risque.tail_risk.monte_carlo_unavailable_reason
   const options = useCallback(
     (contexte: ContexteGraphique) => optionsHistogramme({ histogramme, niveaux }, contexte),
     [histogramme, niveaux],
@@ -185,6 +189,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           key={niveau.confidence}
           niveau={niveau}
           raisonStudent={raisonStudent}
+          raisonMonteCarlo={raisonMonteCarlo}
         />
       ))}
 

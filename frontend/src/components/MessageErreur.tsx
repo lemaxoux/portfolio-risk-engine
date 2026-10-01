@@ -53,15 +53,22 @@ function Segments({ message }: { message: string }) {
 export function MessageErreur({
   erreur,
   action,
+  alerte = true,
 }: {
   erreur: ApiErreur
   action?: ReactNode
+  /**
+   * `false` quand le message décrit un ÉTAT et non une panne — un portefeuille
+   * que le moteur ne peut pas analyser en l'état. Il n'interrompt pas la
+   * lecture : il fait partie de la page.
+   */
+  alerte?: boolean
 }) {
   const [premier] = erreur.problems
   const unique =
     erreur.problems.length === 1 && premier !== undefined && premier.problem === erreur.detail
   return (
-    <div className={styles.bloc} role="alert">
+    <div className={styles.bloc} role={alerte ? 'alert' : undefined}>
       <p className={styles.phrase}>
         {unique && premier.line !== null && `Ligne ${premier.line} — `}
         <Segments message={erreur.detail} />
