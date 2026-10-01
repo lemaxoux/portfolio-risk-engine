@@ -35,9 +35,11 @@
   margin-block-start: var(--space-4);
 }
 
-/* Les actions d'une ligne de la liste, côte à côte. */
+/* Les actions d'une ligne de la liste, côte à côte, sur la même ligne de
+ * base : un lien et un bouton n'ont pas la même boîte. */
 .actions {
   display: inline-flex;
+  align-items: baseline;
   gap: var(--space-4);
   font-size: var(--text-sm);
   white-space: nowrap;

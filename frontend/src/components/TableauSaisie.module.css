@@ -14,6 +14,7 @@
   position: relative;
   max-inline-size: 100%;
   overflow-x: auto;
+  container-type: inline-size;
 }
 
 .tableau {
@@ -23,7 +24,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* La légende a la largeur du TABLEAU, qui dépasse l'écran à 390 px : elle
+ * serait coupée au bord du cadre. Bornée à la largeur du cadre (`cqi`), elle
+ * passe à la ligne ; collante, elle reste en place quand le cadre défile. */
 .legende {
+  position: sticky;
+  inset-inline-start: 0;
+  max-inline-size: 100cqi;
   padding-block-end: var(--space-2);
   color: var(--text-2);
   font-size: var(--text-sm);
@@ -98,6 +105,14 @@
   padding: 0 var(--space-2) var(--space-3);
   border-block-end: 1px solid var(--border);
   text-align: start;
+}
+
+/* Même raison que la légende : la cellule a la largeur du tableau. Ses
+ * messages sont bornés au cadre et restent en place quand il défile. */
+.celluleRefus > p {
+  position: sticky;
+  inset-inline-start: var(--space-2);
+  max-inline-size: calc(100cqi - var(--space-2) - var(--space-2));
 }
 
 .celluleRefus p + p {

@@ -1374,6 +1374,14 @@ document. Hors navigateur, l'ordre est l'ordre large. Le nom ne se coupe
 plus : coupé, il faisait passer sa rangée sur trois lignes, loin des 36 px
 de §9.3.
 
+Une `<caption>` a la largeur de son tableau, pas celle de l'écran : à 390 px,
+« Positions détenues, valorisées à la dernière clôture » courait sur 673 px
+et se coupait au bord du cadre. Le cadre est un conteneur (`container-type:
+inline-size`), et la légende est bornée à `100cqi` et collée à gauche : elle
+passe à la ligne et ne défile pas avec les colonnes. Les refus sous une ligne
+du tableau de saisie, dans une cellule qui couvre toute la rangée, suivent la
+même règle. À 1280 px, cadre et tableau ont la même largeur : rien ne change.
+
 L'en-tête d'un tableau n'est pas collant, à aucune largeur (DESIGN.md §9.3) :
 dans le cadre qui défile à l'horizontale, il s'accrocherait au cadre et non à
 la page. Seule la première colonne reste collante, à l'horizontale.
