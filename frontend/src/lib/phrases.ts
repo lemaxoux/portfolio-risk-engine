@@ -14,6 +14,7 @@
 import type { LimitingPosition, Window } from '../api/types'
 import {
   ESPACE_FINE,
+  ESPACE_INSECABLE,
   compte,
   dateEnToutesLettres,
   dateISO,
@@ -21,6 +22,15 @@ import {
   pourcentage,
   seances,
 } from './format'
+
+/**
+ * Un nom cité entre guillemets français : « Démo ». Les espaces qui les
+ * séparent du nom sont INSÉCABLES, sinon le « » » part seul en début de ligne
+ * — le même défaut que le « % » que `format.ts` retient par une espace fine.
+ */
+export function cite(texte: string): string {
+  return `«${ESPACE_INSECABLE}${texte}${ESPACE_INSECABLE}»`
+}
 
 /**
  * « Une séance sur vingt » : la fréquence qui accompagne un niveau de

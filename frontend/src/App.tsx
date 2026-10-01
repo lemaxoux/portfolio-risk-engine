@@ -43,6 +43,7 @@ import { Acceptation } from './views/Acceptation'
 import { VueAnalyse } from './views/Analyse'
 import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
 import { VuePortefeuilles } from './views/Portefeuilles'
+import { VuePositions } from './views/Positions'
 
 type EtatAcceptation =
   | { phase: 'verification' }
@@ -130,7 +131,8 @@ function Application() {
           annoncer={annoncer}
         />
       )
-    case 'analyse': {
+    case 'analyse':
+    case 'positions': {
       if (liste.phase !== 'prete') {
         return <ListeEnAttente liste={liste} recharger={recharger} page={chemin} />
       }
@@ -138,9 +140,20 @@ function Application() {
       if (portefeuille === undefined) {
         return <PortefeuilleIntrouvable id={route.id} page={chemin} />
       }
-      return <VueAnalyse portefeuille={portefeuille} annonce={annonceIci} />
+      return route.vue === 'analyse' ? (
+        <VueAnalyse portefeuille={portefeuille} annonce={annonceIci} />
+      ) : (
+        // Une clé par portefeuille : passer de l'un à l'autre repart d'un
+        // tableau neuf, jamais des lignes du précédent.
+        <VuePositions
+          key={portefeuille.id}
+          portefeuille={portefeuille}
+          recharger={recharger}
+          annonce={annonceIci}
+          annoncer={annoncer}
+        />
+      )
     }
-    case 'positions':
     case 'inconnue':
       return <PageInconnue chemin={chemin} />
   }

@@ -37,16 +37,23 @@ export interface PageApplication {
  * montrer.
  */
 export function pagesApplication(
-  courante: 'analyse' | 'portefeuilles',
+  courante: 'analyse' | 'positions' | 'portefeuilles',
   id: number | null,
 ): PageApplication[] {
   const pages: PageApplication[] = []
   if (id !== null) {
-    pages.push({
-      vers: cheminDe({ vue: 'analyse', id }),
-      libelle: 'Analyse',
-      courante: courante === 'analyse',
-    })
+    pages.push(
+      {
+        vers: cheminDe({ vue: 'analyse', id }),
+        libelle: 'Analyse',
+        courante: courante === 'analyse',
+      },
+      {
+        vers: cheminDe({ vue: 'positions', id }),
+        libelle: 'Positions et import',
+        courante: courante === 'positions',
+      },
+    )
   }
   pages.push({
     vers: cheminDe({ vue: 'portefeuilles' }),

@@ -241,6 +241,39 @@ def test_une_colonne_en_trop_n_ecrit_rien(client_synthetique, portefeuille_synth
     assert apres["updated_at"] == avant["updated_at"]
 
 
+def test_le_prix_de_revient_survit_a_un_import_puis_a_un_enregistrement(
+    client_synthetique, portefeuille_synthetique
+):
+    """Le tableau de saisie se préremplit avec les positions STOCKÉES, puis les
+    renvoie telles quelles par un PUT. Un prix de revient importé à « 185,20 »
+    doit en ressortir intact, comme la quantité fractionnaire : enregistrer le
+    tableau sans y toucher ne change pas le portefeuille. Le client, lui, relit
+    ce qu'il écrit à l'identique (`frontend/src/lib/saisie.test.ts`)."""
+    chemin = f"/api/portfolios/{portefeuille_synthetique}"
+    depose(
+        client_synthetique,
+        portefeuille_synthetique,
+        b"ticker;quantity;cost_basis\nALFA;12,5;185,20\nMIKE;3;\n",
+    )
+    importees = client_synthetique.get(chemin).json()["positions"]
+    assert importees == [
+        {"ticker": "ALFA", "quantity": 12.5, "cost_basis": 185.2},
+        {"ticker": "MIKE", "quantity": 3.0, "cost_basis": None},
+    ]
+
+    renvoi = client_synthetique.put(
+        f"{chemin}/positions",
+        json={
+            "positions": [
+                {**position, "line": rang}
+                for rang, position in enumerate(importees, start=1)
+            ]
+        },
+    )
+    assert renvoi.status_code == 200, renvoi.text
+    assert client_synthetique.get(chemin).json()["positions"] == importees
+
+
 def test_une_quantite_negative_est_refusee_en_csv(
     client_synthetique, portefeuille_synthetique
 ):

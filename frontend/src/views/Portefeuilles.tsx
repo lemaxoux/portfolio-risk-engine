@@ -38,6 +38,7 @@ import { MessageErreur } from '../components/MessageErreur'
 import { SqueletteTableau } from '../components/Squelette'
 import { dateISO, decimal, lignes, montant, TIRET_INDEFINI } from '../lib/format'
 import type { EtatListe } from '../lib/liste'
+import { cite } from '../lib/phrases'
 import { cheminDe, naviguer, oublierPortefeuille } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import styles from './Pages.module.css'
@@ -180,12 +181,17 @@ function Liste({
       titre: 'Actions',
       nature: 'texte',
       cellule: (p) => (
-        // Jamais désactivé pendant une confirmation : « Annuler » doit pouvoir
-        // lui rendre le focus, et en choisir un autre change simplement la
-        // question.
-        <button type="button" className={controles.discret} onClick={() => demander(p)}>
-          Supprimer<span className="visuellement-cache"> « {p.name} »</span>
-        </button>
+        <span className={styles.actions}>
+          <Lien vers={cheminDe({ vue: 'positions', id: p.id })}>
+            Positions<span className="visuellement-cache"> de « {p.name} »</span>
+          </Lien>
+          {/* Jamais désactivé pendant une confirmation : « Annuler » doit
+              pouvoir lui rendre le focus, et en choisir un autre change
+              simplement la question. */}
+          <button type="button" className={controles.discret} onClick={() => demander(p)}>
+            Supprimer<span className="visuellement-cache"> « {p.name} »</span>
+          </button>
+        </span>
       ),
     },
   ]
@@ -207,7 +213,7 @@ function Liste({
           annuler={annuler}
           supprime={async () => {
             oublierPortefeuille(aSupprimer.id)
-            annoncer(`Portefeuille « ${aSupprimer.name} » supprimé.`, PAGE)
+            annoncer(`Portefeuille ${cite(aSupprimer.name)} supprimé.`, PAGE)
             setASupprimer(null)
             await recharger()
             // La question a disparu avec la ligne : le focus revient au
@@ -274,7 +280,7 @@ function ConfirmationSuppression({
   return (
     <div className={styles.confirmation}>
       <p className={styles.question} tabIndex={-1} ref={question}>
-        Supprimer « {portefeuille.name} » ?{' '}
+        Supprimer {cite(portefeuille.name)} ?{' '}
         {nombre === 0
           ? "Il n'a aucune position."
           : `Ses ${lignes(nombre)} seront effacées avec lui.`}{' '}
@@ -324,8 +330,9 @@ function Creation({
     setErreur(null)
     try {
       const cree = await createPortfolio(propre)
-      const destination = cheminDe({ vue: 'analyse', id: cree.id })
-      annoncer(`Portefeuille « ${cree.name} » créé.`, destination)
+      // Un portefeuille créé est vide : on arrive là où il se remplit.
+      const destination = cheminDe({ vue: 'positions', id: cree.id })
+      annoncer(`Portefeuille ${cite(cree.name)} créé.`, destination)
       await recharger()
       naviguer(destination)
     } catch (cause) {

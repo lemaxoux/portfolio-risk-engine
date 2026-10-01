@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import type { LimitingPosition, Window } from '../api/types'
 import { ESPACE_FINE, ESPACE_INSECABLE } from './format'
 import {
+  cite,
   frequenceLue,
   lectureDeCVaR,
   lectureDeVar,
@@ -172,5 +173,11 @@ describe('fenêtre réduite (§8.1)', () => {
     // que le rapport n'a pas.
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('504')
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('40')
+  })
+})
+
+describe('cite', () => {
+  it('relie les guillemets au nom par des espaces insécables', () => {
+    expect(cite('Démo')).toBe('«\u00A0Démo\u00A0»')
   })
 })

@@ -1210,6 +1210,18 @@ admis. La virgule décimale n'est acceptée qu'avec le séparateur `;` : avec `,
 en séparateur de champs, une virgule dans un nombre est une fin de colonne.
 Fichiers limités à 1 Mo — un portefeuille fait quelques kilo-octets.
 
+**Un nombre suit une grammaire, pas `float()`.** Une fois ses espaces de
+milliers retirées, il doit s'écrire `[+-]chiffres[,|.chiffres]` : signe
+facultatif, chiffres latins, au plus une décimale suivie de chiffres
+(`csv_import.NOMBRE`). `float()`, qui servait jusqu'en 7B.3a, acceptait aussi
+`1e3`, `inf`, `nan`, `1_000`, `.5` et des chiffres d'autres écritures : rien
+de ce qu'écrit un tableur, et rien que le tableau de saisie saurait lire. Le
+lecteur du client applique la même expression, et une liste de cas partagée
+(`frontend/src/lib/nombres-saisis.json`) est lue par les deux suites de
+tests : ils acceptent et refusent exactement les mêmes entrées. Le signe moins
+reste admis à la lecture, pour que la validation refuse une quantité négative
+avec la bonne explication.
+
 **`decimal_separator` rend ce qui a été OBSERVÉ, pas ce qui était admis.** Avec
 `;`, la virgule *est* acceptée — mais un fichier `;` dont les quantités s'écrivent
 `40.5` n'en contient aucune, et annoncer `,` décrirait la règle de lecture plutôt
@@ -1424,6 +1436,38 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   arrière du navigateur, qui ne se laisse pas annuler, remet la page courante
   dans l'historique avant de la consulter.
 
+#### La page de saisie
+
+`/portefeuilles/<id>/positions` (`views/Positions.tsx`,
+`components/TableauSaisie.tsx`, `lib/saisie.ts`).
+
+- **Le tableau est le portefeuille.** L'enregistrer envoie un `PUT`, qui
+  remplace toutes les positions. Il s'ouvre sur les positions telles que
+  stockées, prix de revient compris, et repart d'elles après chaque écriture.
+  Un nombre stocké est réécrit avec juste assez de décimales pour se relire à
+  l'identique : enregistrer le tableau sans y toucher ne change rien, ce
+  qu'un test vérifie de bout en bout (import CSV de « 185,20 », puis renvoi
+  par le tableau).
+- **Le seul contrôle local est syntaxique** : un nombre tapé se lit-il ? Même
+  grammaire que l'import CSV, et mêmes cas de test. Ticker inconnu, doublon,
+  quantité nulle ou négative, ligne sans ticker : c'est le serveur qui les
+  refuse, avec le numéro de ligne affiché (`line`), et chaque refus va sous
+  sa ligne, relié à son champ (`aria-describedby`, `aria-invalid`). Une
+  commande à lancer y sort en code. La liste des refus est reprise au-dessus
+  du bouton, et reçoit le focus.
+- **« Historique depuis »** montre la première séance de prix de chaque
+  ligne, lue dans `/api/securities` : une ligne cotée depuis peu raccourcira
+  la fenêtre de toute l'analyse, et on le voit avant d'enregistrer. C'est
+  l'état « insuffisant » de cette page. Le prix de revient est facultatif, et
+  la page dit qu'il ne sert à aucune mesure.
+- **Des modifications non enregistrées ne se perdent pas en silence** :
+  avertissement natif à la fermeture ou au rechargement (`beforeunload`), et
+  garde sur la navigation interne, dont la question s'affiche sur place, en
+  tête de page, focalisée.
+- **Chaque champ est nommé** par l'en-tête de sa colonne et le numéro de sa
+  ligne (« Quantité ligne 3 »), sans libellé recopié. Pendant l'envoi, le
+  bouton dit ce qu'il fait et se désactive ; il retrouve ensuite le focus.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -1535,6 +1579,9 @@ l'ordre chronologique.
       format CSV publié ; colonne en trop d'un CSV refusée
     - Routes et page Portefeuilles : choix, création, suppression confirmée
       sur place ; `/` rouvre le dernier portefeuille consulté
+    - Page de saisie : tableau éditable, refus rangés à leur ligne, garde des
+      modifications non enregistrées ; un même lecteur de nombres pour le
+      tableau et le CSV ; connexion SQLite d'une requête entre fils
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

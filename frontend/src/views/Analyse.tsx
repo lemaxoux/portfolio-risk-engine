@@ -16,6 +16,7 @@ import { ApiErreur, getAnalysis, versApiErreur } from '../api/client'
 import type { Analysis, PortfolioDetail } from '../api/types'
 import { Bandeau, BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
+import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
 import {
   AncresSections,
@@ -24,6 +25,7 @@ import {
   RailSections,
 } from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
+import { cite } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import { SectionAuPire } from './SectionAuPire'
@@ -72,7 +74,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
 
   const nom = portefeuille.name
   const pages = pagesApplication('analyse', portefeuille.id)
-  const titre = `Analyse de « ${nom} »`
+  const titre = `Analyse de ${cite(nom)}`
   const page = cheminDe({ vue: 'analyse', id: portefeuille.id })
 
   if (vide) {
@@ -87,11 +89,14 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         <AncresSections pages={pages} sections={false} />
         <div className={styles.vide}>
           <h1 tabIndex={-1} className={styles.titre}>
-            « {nom} » n'a encore aucune position
+            {cite(nom)} n'a encore aucune position
           </h1>
           <p className={styles.texte}>
             L'analyse décrit des positions : ce portefeuille n'en a aucune.
           </p>
+          <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
+            Saisir ou importer les positions
+          </Lien>
         </div>
       </Cadre>
     )

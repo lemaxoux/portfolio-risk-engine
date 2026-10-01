@@ -49,6 +49,7 @@ from __future__ import annotations
 import codecs
 import csv
 import io
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -100,6 +101,14 @@ EXEMPLE = "ticker;quantity;cost_basis\nAAPL;40;185,20\nMSFT;25;\n"
 # `mixte` et `aucune` ne sont pas des cas d'erreur : le premier signale un
 # fichier assemblé à la main, le second un fichier sans aucune décimale.
 DECIMALES_OBSERVEES = ("." , "," , "mixte", "aucune")
+
+# Ce qu'est un nombre, une fois ses espaces de milliers retirées : un signe
+# facultatif, des chiffres LATINS, et au plus une décimale — virgule ou point —
+# suivie de chiffres. Ni exposant, ni « inf », ni « nan », ni souligné. Le
+# signe moins est admis ici pour que la VALIDATION, et non la lecture, refuse
+# une quantité négative avec la bonne explication. Le client applique la même
+# expression (`frontend/src/lib/saisie.ts`).
+NOMBRE = re.compile(r"[+-]?[0-9]+(?:[.,][0-9]+)?")
 
 # Espaces qu'un tableur glisse dans les milliers : fine insécable, insécable,
 # ordinaire. Retirées avant lecture d'un nombre.
@@ -180,10 +189,20 @@ def _nombre(brut: str, virgule_admise: bool) -> tuple[float, str | None]:
     est `;`. Avec `,` en séparateur de champs, une virgule dans un nombre est une
     fin de colonne, pas une décimale : accepter les deux sens du même caractère
     dans le même fichier rendrait `1,5` indécidable.
+
+    UNE GRAMMAIRE, PAS `float()`. `float()` accepte aussi `1e3`, `inf`, `nan`,
+    `1_000` et des chiffres d'autres écritures : ce n'est pas ce qu'un tableur
+    écrit, et le tableau de saisie ne saurait pas lire la même chose. Le nombre
+    doit donc correspondre à `NOMBRE` une fois ses espaces de milliers
+    retirées. Le lecteur du client (`frontend/src/lib/saisie.ts`) applique la
+    même grammaire, et `tests/test_nombres_saisis.py` fait lire aux deux la
+    même liste de cas.
     """
     texte = brut.strip()
     for espace in ESPACES:
         texte = texte.replace(espace, "")
+    if NOMBRE.fullmatch(texte) is None:
+        raise ValueError(f"Nombre illisible : {brut!r}")
 
     observee: str | None = None
     if virgule_admise and "," in texte:

@@ -8,6 +8,7 @@
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { Lien } from '../components/Lien'
+import { cite } from '../lib/phrases'
 import { cheminDe } from '../lib/route'
 import styles from './Pages.module.css'
 
@@ -18,7 +19,7 @@ export function PageInconnue({ chemin }: { chemin: string }) {
         <h1 tabIndex={-1} className={styles.titre}>
           Aucune page à cette adresse
         </h1>
-        <p className={styles.texte}>« {chemin} » ne correspond à aucune page de l'application.</p>
+        <p className={styles.texte}>{cite(chemin)} ne correspond à aucune page de l'application.</p>
         <Lien vers={cheminDe({ vue: 'portefeuilles' })}>Voir les portefeuilles</Lien>
       </div>
     </Cadre>

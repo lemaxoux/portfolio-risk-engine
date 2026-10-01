@@ -1,0 +1,125 @@
+/*
+ * Tableau de saisie — §9.3, avec des champs dans les cellules.
+ *
+ * Mêmes règles que `DataTable` : séparateurs horizontaux seulement, en-tête
+ * sur --surface-2, chiffres à droite, première colonne collante quand le
+ * cadre défile. Les rangées sont plus hautes que 36 px : un champ de saisie
+ * lisible au doigt ne tient pas dans 36 px.
+ */
+
+/* `position: relative` : un texte visuellement caché, positionné en absolu
+ * dans une cellule, prendrait sinon la page pour bloc conteneur, échapperait
+ * au défilement du cadre et élargirait la PAGE à 390 px. */
+.cadre {
+  position: relative;
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+.tableau {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.legende {
+  padding-block-end: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: start;
+}
+
+.entete {
+  block-size: 36px;
+  padding: 0 var(--space-2);
+  border-block-end: 1px solid var(--border-strong);
+  background-color: var(--surface-2);
+  color: var(--text-2);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  text-align: start;
+  text-wrap: balance;
+}
+
+.cellule {
+  padding: var(--space-2);
+  border-block-end: 1px solid var(--border);
+  color: var(--text-1);
+  font-weight: var(--weight-normal);
+  text-align: start;
+  vertical-align: top;
+}
+
+.nombre {
+  text-align: end;
+}
+
+/* Le numéro de ligne : celui que citent les refus. */
+.numero {
+  color: var(--text-2);
+  text-align: end;
+}
+
+.nom {
+  min-inline-size: 7rem;
+  /* Aligné sur le texte des champs voisins. */
+  padding-block-start: calc(var(--space-2) + var(--space-2));
+}
+
+.date {
+  padding-block-start: calc(var(--space-2) + var(--space-2));
+  white-space: nowrap;
+}
+
+/* Pas de `text-transform` : le champ montrerait « AAPL » en contenant
+ * « aapl ». La casse est normalisée par le serveur, qui la rend dans la
+ * liste relue. */
+.saisieTicker {
+  inline-size: 6rem;
+}
+
+.saisieNombre {
+  inline-size: 6.5rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Les refus d'une ligne, sur toute la largeur, sous elle. La ligne et ses
+ * refus forment un bloc : pas de filet entre les deux. */
+.rangee:has(+ .rangeeRefus) > * {
+  border-block-end: none;
+}
+
+.celluleRefus {
+  padding: 0 var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border);
+  text-align: start;
+}
+
+.celluleRefus p + p {
+  margin-block-start: var(--space-1);
+}
+
+/* Une commande à lancer, en code — le seul usage du monospace (§6.1). */
+.commande {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* La première colonne reste en place quand le cadre défile, comme dans
+ * `DataTable` : chaque champ garde sous les yeux le numéro de sa ligne. */
+.tableau tr > :first-child {
+  position: sticky;
+  inset-inline-start: 0;
+  background-color: var(--surface-0);
+}
+
+.tableau thead tr > :first-child {
+  background-color: var(--surface-2);
+}

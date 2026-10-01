@@ -1,0 +1,43 @@
+{
+  "_lire": "Cas partagés par le lecteur de nombres du tableau de saisie (frontend/src/lib/saisie.ts) et celui de l'import CSV avec le séparateur « ; » (backend/api/csv_import.py, _nombre). Les deux doivent accepter et refuser exactement les mêmes entrées : tests/test_nombres_saisis.py et src/lib/saisie.test.ts lisent ce fichier.",
+  "acceptes": [
+    ["40", 40],
+    ["12,5", 12.5],
+    ["12.5", 12.5],
+    ["185,20", 185.2],
+    ["0,000001", 1e-06],
+    ["1 000", 1000],
+    ["1\u202f000,25", 1000.25],
+    ["1\u00a0000", 1000],
+    ["  7  ", 7],
+    ["-5", -5],
+    ["+3", 3],
+    ["0", 0],
+    ["007", 7]
+  ],
+  "refuses": [
+    "",
+    "   ",
+    "abc",
+    "1,000.5",
+    "1.000,5",
+    "1,2,3",
+    "1e3",
+    "1E3",
+    "inf",
+    "nan",
+    "Infinity",
+    "1_000",
+    ",5",
+    "5,",
+    ".5",
+    "5.",
+    "--5",
+    "+-5",
+    "5-",
+    "\u0661\u0662",
+    "12 %",
+    "12€",
+    "0x10"
+  ]
+}

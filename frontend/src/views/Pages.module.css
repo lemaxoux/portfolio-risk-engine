@@ -30,6 +30,14 @@
   max-inline-size: var(--prose-width);
 }
 
+/* Les actions d'une ligne de la liste, côte à côte. */
+.actions {
+  display: inline-flex;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
 /* Une date ne se coupe pas : « 2026- » puis « 09-25 » se lit mal. */
 .date {
   white-space: nowrap;
@@ -52,7 +60,7 @@
   flex-direction: column;
   gap: var(--space-4);
   max-inline-size: var(--prose-width);
-  margin-block-start: var(--space-5);
+  margin-block: var(--space-5);
   padding: var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -64,6 +72,38 @@
   font-family: var(--font-serif);
   font-size: var(--text-body);
   line-height: var(--leading-prose);
+}
+
+/* Le formulaire de saisie : le tableau, ses notes, ses refus, son bouton. */
+.saisie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Un sous-titre qui ouvre un formulaire, sans la grande marge de page. */
+.sousTitreProche {
+  margin-block: var(--space-5) 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* La liste des refus d'un envoi, au-dessus du bouton : un bloc, comme un
+ * message d'erreur (§12 : ni fond coloré, ni icône d'alerte). */
+.resume {
+  max-inline-size: var(--prose-width);
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.refusListe {
+  margin-block-start: var(--space-3);
+  padding-inline-start: var(--space-5);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  list-style: disc;
 }
 
 .formulaire {

@@ -11,6 +11,10 @@
  * c'est le tableau qui glisse, pas le bandeau ni la prose.
  */
 .cadre {
+  /* Bloc conteneur des textes visuellement cachés des cellules : sans lui,
+   * positionnés en absolu, ils échapperaient au défilement du cadre et
+   * élargiraient la page. */
+  position: relative;
   max-inline-size: 100%;
   overflow-x: auto;
 }

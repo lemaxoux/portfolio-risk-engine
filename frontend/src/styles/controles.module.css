@@ -107,6 +107,7 @@
   font-size: var(--text-sm);
 }
 
+/* Le tiret est un repère visuel : texte alternatif vide, il n'est pas lu. */
 .refus::before {
-  content: '— ';
+  content: '— ' / '';
 }
