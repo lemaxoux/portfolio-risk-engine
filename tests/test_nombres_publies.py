@@ -182,9 +182,14 @@ def test_le_catalogue_et_le_bandeau_n_ecrivent_aucun_nombre_au_point(
 
 
 def test_le_refus_de_student_ecrit_nu_a_la_virgule():
-    """ν ≤ 2 : la raison du refus est publiée telle quelle dans
-    `student_unavailable_reason`, dans une réponse 200. Aucune base réelle ne la
-    déclenche aujourd'hui ; elle est donc vérifiée à la source."""
+    """ν ≤ 2 : le message de `var.student_t_var` écrit ν à la virgule, sans
+    aucun nombre au point.
+
+    Ce message n'est plus publié tel quel : pour ν ≤ 2, `student_unavailable_
+    reason` porte la raison que le moteur rédige en clair et sans la lettre ν
+    (`engine._raison_student`). Il reste celui que reçoit qui appelle `var`
+    directement, et il suit la même convention. Aucune base réelle ne déclenche
+    ce refus : il est vérifié à la source."""
     with pytest.raises(ValueError) as refus:
         var.student_t_var(0.01, 1.9, 0.95)
     message = str(refus.value)
