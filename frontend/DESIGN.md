@@ -207,7 +207,7 @@ sont le ratio WCAG contre le fond de page du thème.
 | Token | Seul usage autorisé |
 |---|---|
 | `--accent` | Élément sélectionné, onglet actif, lien, anneau de focus clavier. **Jamais** pour décorer un titre, un chiffre ou une bordure de bloc. |
-| `--caveat` | Une seule chose : **ce chiffre repose sur quelque chose de contestable**. Concrètement : un seuil `ThresholdKind.CHOSEN`, le `caveat` permanent du CVaR 99 %, une fenêtre trop courte pour la régression, un scénario dont la couverture est incomplète. Un point plein de 6 px devant la ligne concernée, plus la phrase en `--caveat`. Jamais un fond coloré, jamais une icône d'alerte. |
+| `--caveat` | Une seule chose : **ce chiffre repose sur quelque chose de contestable**. Concrètement : un seuil `ThresholdKind.CHOSEN`, le `caveat` permanent du CVaR 99 %, une fenêtre trop courte pour la régression, une volatilité ou une VaR paramétrique estimée sur moins de 30 séances, un scénario dont la couverture est incomplète. Un point plein de 6 px devant la ligne concernée, plus la phrase en `--caveat`. Jamais un fond coloré, jamais une icône d'alerte. |
 | `--loss` / `--gain` | **Uniquement là où s'affiche l'apport signé d'une ligne à un scénario de crise** : le tableau par ligne d'un scénario de stress (section 5) et le tableau des apports par crise rejouée de « Qui porte le risque » (section 4). Ce sont les seuls endroits où le signe varie réellement d'une position à l'autre ; dans la section 4, il empêche de lire une grosse part de variance comme une ligne qui fait perdre. Partout ailleurs, interdits. Ce sont des couleurs de **marque** (une petite barre à côté du chiffre), **jamais de texte** : le chiffre lui-même reste en `--text-1`. Le couple choisi est brique/bleu et non rouge/vert : un daltonisme deutan ou protan (≈ 8 % des hommes) rend rouge/vert indistinguables, brique/bleu non. Et la couleur y est le **troisième** canal, après le signe explicite (`+`/`−`) et l'ordre de tri. |
 | `--series-1` | La teinte des données quand il n'y a **qu'une série** : barres de poids, barres de part de variance. Même famille que l'accent, à une luminosité de données ; l'état sélectionné se signale par un contour, jamais par ce remplissage. |
 | `--div-*` | Uniquement l'échelle divergente de la heatmap de corrélation (§5.4). |
@@ -452,8 +452,9 @@ qualificatif se lit dollar canadien.
 │   le risque │     │ Vol. ann.│ │ VaR 95 % │ │ VaR 99 % │                  │
 │ ▸ En crise  │     └──────────┘ └──────────┘ └──────────┘                  │
 │ ▸ Ce que le │     Histogramme des rendements quotidiens, avec les         │
-│   moteur en │     quantiles VaR marqués et la queue CVaR ombrée.          │
-│   dit       │     Sous l'histogramme : le couple normale / Student        │
+│   moteur en │     quantiles VaR marqués et la queue CVaR ombrée, sauf     │
+│   dit       │     ceux d'un niveau que le moteur refuse.                  │
+│             │     Sous l'histogramme : le couple normale / Student        │
 │            │     côte à côte (§11.5).                                    │
 │ ─────────── ├─────────────────────────────────────────────────────────────┤
 │ Importer    │  3. Ce qu'il a perdu au pire                                │

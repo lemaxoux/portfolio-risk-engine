@@ -27,6 +27,7 @@ export type Volatility = S['VolatilityOut']
 export type TailRisk = S['TailRiskOut']
 export type TailRiskLevel = S['TailRiskLevelOut']
 export type Var = S['VarOut']
+export type HistoricalVar = S['HistoricalVarOut']
 export type ExpectedShortfall = S['ExpectedShortfallOut']
 export type StudentFit = S['StudentFitOut']
 

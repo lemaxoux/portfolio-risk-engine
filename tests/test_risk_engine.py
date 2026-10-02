@@ -772,6 +772,74 @@ def test_le_seuil_des_estimations_minces_est_celui_de_la_student():
     assert var.STUDENT_MIN_OBSERVATIONS == MIN_DISTRIBUTION_OBSERVATIONS == 30
 
 
+# ------------------------------------------- Une queue qui contient une séance --
+#
+# Sous 1/(1 − α) séances — 20 à 95 %, 100 à 99 % —, aucune ne tombe dans la
+# queue : la VaR historique et la CVaR du même niveau sont refusées.
+
+
+@pytest.mark.parametrize(
+    "confiance, minimum",
+    [(0.95, 20), (0.99, 100)],
+)
+def test_la_var_historique_et_sa_cvar_sont_refusees_juste_sous_le_minimum(
+    conn, confiance, minimum
+):
+    rapport = _rapport_sur(conn, minimum - 1)
+    var_historique = rapport.historical_var[confiance]
+    cvar = rapport.expected_shortfall[confiance]
+
+    assert var_historique.value is None
+    assert var_historique.method == "historique"
+    assert var_historique.window.observations == minimum - 1
+    assert cvar.value is None and cvar.threshold is None
+    assert cvar.tail_observations is None and cvar.caveat is None
+    assert var_historique.undefined_reason.endswith(
+        f"il en faut au moins {minimum} pour une VaR historique à "
+        f"{int(confiance * 100)}\u202f%."
+    )
+    assert cvar.undefined_reason.endswith(
+        f"il en faut au moins {minimum} pour une CVaR à {int(confiance * 100)}\u202f%."
+    )
+
+
+@pytest.mark.parametrize("confiance, minimum", [(0.95, 20), (0.99, 100)])
+def test_au_minimum_la_queue_contient_une_seance_et_les_mesures_sont_publiees(
+    conn, confiance, minimum
+):
+    rapport = _rapport_sur(conn, minimum)
+    assert rapport.historical_var[confiance].value is not None
+    assert rapport.historical_var[confiance].undefined_reason is None
+    cvar = rapport.expected_shortfall[confiance]
+    assert cvar.value is not None and cvar.tail_observations >= 1
+    assert cvar.undefined_reason is None
+
+
+def test_la_raison_dit_ce_qui_a_ete_recu_et_ce_qu_il_faut(conn):
+    """La phrase de Maxence, à sept séances, aux deux niveaux."""
+    rapport = _rapport_sur(conn, 7)
+    assert rapport.historical_var[0.99].undefined_reason == (
+        "Sur 7\u00a0séances, aucune ne tombe dans le 1\u202f% des pires : il en "
+        "faut au moins 100 pour une VaR historique à 99\u202f%."
+    )
+    assert rapport.historical_var[0.95].undefined_reason == (
+        "Sur 7\u00a0séances, aucune ne tombe dans les 5\u202f% des pires : il en "
+        "faut au moins 20 pour une VaR historique à 95\u202f%."
+    )
+
+
+def test_le_minimum_d_une_mesure_de_queue_est_un_inverse_arrondi_juste():
+    """1 − 0,9 vaut 0,09999999999999998 en flottant : sans arrondi, le plafond
+    de 1/(1 − 0,9) donnerait 11."""
+    from backend.risk_engine.config import historical_var_min_observations
+
+    assert [historical_var_min_observations(c) for c in (0.9, 0.95, 0.99, 0.999)] == [
+        10, 20, 100, 1000,
+    ]
+    with pytest.raises(ValueError):
+        historical_var_min_observations(1.0)
+
+
 def test_les_matrices_du_rapport_sont_coherentes(conn):
     j = seances(120)
     peupler(
@@ -1412,16 +1480,25 @@ def test_les_contributions_reviennent_des_trois_seances(conn):
     assert vc.has_negative_contribution in (True, False)
 
 
-def test_la_volatilite_et_la_var_restent_publiees_a_deux_seances(conn):
-    """La ligne de partage : on refuse ce qui ne dépend plus des données.
+def test_a_deux_seances_la_volatilite_reste_publiee_la_var_historique_est_refusee(conn):
+    """La ligne de partage : on refuse ce qui ne dépend plus des données, et
+    ce qui n'est plus la mesure annoncée.
 
     Une volatilité sur deux observations est une estimation à un seul degré de
     liberté — très mauvaise, mais elle BOUGE avec les données, contrairement à
-    une corrélation qui vaut ±1 quoi qu'il arrive.
+    une corrélation qui vaut ±1 quoi qu'il arrive : publiée, et signalée.
+
+    La VaR historique, elle, est refusée : sur deux séances, aucune ne tombe
+    dans les 5 % des pires, et le quantile ne serait que le minimum de la
+    fenêtre. Ce test affirmait le contraire jusqu'à la 7B.3a.
     """
     rapport = base_a_deux_seances(conn)
 
     assert rapport.volatility.annualised > 0.0
     assert rapport.matrices.covariance is not None
-    assert rapport.historical_var[0.95].value is not None
+    var_historique = rapport.historical_var[0.95]
+    assert var_historique.value is None
+    assert var_historique.undefined_reason.startswith(
+        "Sur 2\u00a0séances, aucune ne tombe dans les 5\u202f% des pires"
+    )
     assert rapport.drawdown.value <= 0.0

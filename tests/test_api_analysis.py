@@ -825,6 +825,38 @@ def test_a_fenetre_pleine_aucune_reserve_d_estimation_mince(analyse_reelle):
             assert niveau[var]["caveat"] is None, var
 
 
+def test_sur_sept_seances_var_historique_et_cvar_sont_refusees_aux_deux_niveaux(
+    analyse_historique_court,
+):
+    for niveau in analyse_historique_court(8).json()["risk"]["tail_risk"]["levels"]:
+        var_historique, cvar = niveau["historical_var"], niveau["expected_shortfall"]
+        assert var_historique["value"] is None
+        assert var_historique["undefined_reason"].startswith("Sur 7\u00a0séances")
+        assert cvar["value"] is None and cvar["threshold"] is None
+        assert cvar["tail_observations"] is None and cvar["caveat"] is None
+        assert "pour une CVaR à" in cvar["undefined_reason"]
+        # Les autres VaR restent : paramétrique marquée mince, Monte Carlo.
+        assert niveau["parametric_var"]["value"] is not None
+
+
+def test_sur_trente_neuf_seances_seul_le_niveau_99_est_refuse(analyse_historique_court):
+    niveaux = {
+        n["confidence"]: n
+        for n in analyse_historique_court(40).json()["risk"]["tail_risk"]["levels"]
+    }
+    assert niveaux[0.95]["historical_var"]["value"] is not None
+    assert niveaux[0.95]["expected_shortfall"]["value"] is not None
+    assert niveaux[0.99]["historical_var"]["value"] is None
+    assert niveaux[0.99]["expected_shortfall"]["value"] is None
+
+
+def test_la_reference_ne_refuse_aucune_mesure_de_queue(analyse_reelle):
+    for niveau in analyse_reelle.json()["risk"]["tail_risk"]["levels"]:
+        assert niveau["historical_var"]["value"] is not None
+        assert niveau["historical_var"]["undefined_reason"] is None
+        assert niveau["expected_shortfall"]["undefined_reason"] is None
+
+
 def test_la_reference_n_a_ni_refus_student_ni_refus_monte_carlo(analyse_reelle):
     queue = analyse_reelle.json()["risk"]["tail_risk"]
     assert queue["student_unavailable_reason"] is None
@@ -1493,21 +1525,25 @@ def test_les_poids_restent_publies_quand_les_contributions_refusent(
     assert corps["risk"]["concentration"]["hhi"] > 0.0
 
 
-def test_la_volatilite_et_la_var_restent_publiees_sous_trois_seances(
+def test_sous_trois_seances_la_volatilite_reste_publiee_la_var_historique_est_refusee(
     analyse_historique_court,
 ):
     """La ligne de partage, vue du client.
 
-    On refuse ce qui ne dépend plus des données ; on signale ce qui en dépend
-    mal. Une volatilité sur deux observations est mauvaise, pas dégénérée — et
-    `window.observations`, `limiting_positions` et le seuil de 60 séances la
-    couvrent.
+    On refuse ce qui ne dépend plus des données, et ce qui n'est plus la mesure
+    annoncée ; on signale ce qui en dépend mal. Une volatilité sur deux
+    observations est mauvaise, pas dégénérée — et `window.observations`,
+    `limiting_positions` et le seuil de 60 séances la couvrent. Une VaR
+    historique sur deux séances n'est que le minimum de la fenêtre : refusée,
+    avec sa raison. Ce test affirmait le contraire jusqu'à la 7B.3a.
     """
     risque = analyse_historique_court(3).json()["risk"]
 
     assert risque["volatility"]["annualised"] > 0.0
     assert risque["matrices"]["covariance"]["values"]
-    assert risque["tail_risk"]["levels"][0]["historical_var"]["value"] is not None
+    var_historique = risque["tail_risk"]["levels"][0]["historical_var"]
+    assert var_historique["value"] is None
+    assert var_historique["undefined_reason"].startswith("Sur 2\u00a0séances, aucune ne tombe")
     assert risque["volatility"]["window"]["observations"] == 2
 
 

@@ -597,6 +597,20 @@ def test_le_moteur_de_regles_ne_lit_ni_volatilite_ni_var(entrees):
     assert {o.rule for o in rapport.observations} == set(RuleId)
 
 
+def test_le_minimum_d_une_var_historique_est_un_seuil_derive():
+    """Démontré, pas choisi : la queue doit contenir au moins une séance."""
+    from backend.rules.thresholds import historical_var_sample
+
+    for confiance, minimum in ((0.95, 20), (0.99, 100)):
+        seuil = historical_var_sample(confiance)
+        assert seuil.kind is ThresholdKind.DERIVED
+        assert not seuil.chosen
+        assert seuil.role is ThresholdRole.THRESHOLD
+        assert seuil.value == minimum
+        assert seuil.displayed == str(minimum)
+        assert "référence calculée" in str(seuil)
+
+
 def test_un_role_incoherent_avec_la_provenance_est_refuse():
     with pytest.raises(ValueError, match="choisi"):
         replace(STRONG_CORRELATION, role=ThresholdRole.REFERENCE)

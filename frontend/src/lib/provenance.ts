@@ -18,6 +18,7 @@
 import type { LigneProvenance } from '../components/Provenance'
 import type {
   ExpectedShortfall,
+  HistoricalVar,
   Var,
   Volatility,
   Window,
@@ -51,7 +52,7 @@ export function lignesDeFenetre(fenetre: Window): LigneProvenance[] {
  * à côte se lisent comme deux mesures indépendantes qui concordent.
  */
 export function provenanceDeVar(
-  resultat: Var,
+  resultat: Var | HistoricalVar,
   controle: Var | null = null,
   raisonSansControle: string | null = null,
 ): LigneProvenance[] {
@@ -102,6 +103,11 @@ export function provenanceDeVar(
  * deux conventions dans le même bloc sans étiquette seraient un piège.
  */
 export function provenanceDeCVaR(resultat: ExpectedShortfall): LigneProvenance[] {
+  // Refusée sous 1/(1 − α) séances : il n'y a ni queue à compter ni seuil à
+  // écrire. Reste la fenêtre, sur laquelle le refus a été prononcé.
+  if (resultat.tail_observations === null || resultat.threshold === null) {
+    return lignesDeFenetre(resultat.window)
+  }
   return [
     // « Séances dans la queue » et non « Queue moyennée » : le libellé dit ce
     // que COMPTE le nombre, des séances. « Moyennée » décrivait l'opération

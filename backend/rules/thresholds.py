@@ -30,6 +30,7 @@ from backend.risk_engine.config import (
     MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
+    historical_var_min_observations,
 )
 
 
@@ -238,6 +239,30 @@ MIN_ESTIMABLE_SAMPLE = Threshold(
     ),
 )
 
+
+
+def historical_var_sample(confidence: float) -> Threshold:
+    """Séances minimales d'une VaR et d'une CVaR historiques au niveau
+    `confidence` : 1/(1 − α), 20 à 95 %, 100 à 99 %.
+
+    Un seuil DÉMONTRÉ, comme `MIN_ESTIMABLE_SAMPLE` : il se lit dans la
+    définition du quantile. Appliqué par le moteur, déclaré ici.
+    """
+    return Threshold(
+        name=(
+            "nombre minimal de séances d'une VaR historique à "
+            f"{typography.percent(confidence, 0)}"
+        ),
+        kind=ThresholdKind.DERIVED,
+        value=float(historical_var_min_observations(confidence)),
+        decimals=0,
+        rationale=(
+            "la queue au-delà du quantile compte n·(1 − α) séances ; en deçà "
+            "d'une, aucune n'y tombe, et le chiffre ne serait que le pire "
+            "rendement de la fenêtre, pas un quantile — la CVaR, qui moyenne "
+            "cette queue, se réduirait au même minimum"
+        ),
+    )
 
 
 def capital_share(ticker: str, weight: float) -> Threshold:

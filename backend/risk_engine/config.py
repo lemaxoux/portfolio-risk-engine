@@ -7,6 +7,7 @@ les hypothèses sans lire le code.
 
 from __future__ import annotations
 
+import math
 import os
 from datetime import date
 
@@ -154,6 +155,34 @@ MIN_REGRESSION_OBSERVATIONS = 60
 # passe de 0,034 à n = 7 (Σ singulière) à 0,031 à n = 8 (Σ inversible), sans
 # rupture, là où elle vaut 0,122 à n = 2 contre 0,069 à n = 3.
 MIN_ESTIMABLE_OBSERVATIONS = 3
+
+# ----------------------------------- Séances minimales d'une mesure de queue --
+#
+# SEUIL DÉMONTRÉ, pas choisi : comme `MIN_ESTIMABLE_OBSERVATIONS`, il se lit dans
+# la définition de l'estimateur.
+#
+# La VaR historique au niveau α est le quantile empirique à 1 − α : le seuil
+# sous lequel tombe la part 1 − α des séances de la fenêtre. Sur n séances,
+# cette queue en compte n·(1 − α). Sous une, AUCUNE séance n'y tombe, et le
+# quantile « lower » rend le pire rendement de la fenêtre, quel que soit α :
+# sur 7 séances, la VaR 95 % et la VaR 99 % valaient toutes deux le même
+# minimum, 0,50 %, et la page lisait « une séance sur cent » sous un chiffre
+# qui n'était que le pire de sept jours. Ce n'est plus la mesure annoncée. La
+# CVaR du même niveau, qui moyenne cette queue, se réduisait au même minimum.
+#
+# D'où n ≥ 1/(1 − α) : 20 séances à 95 %, 100 à 99 %. En deçà, les deux sont
+# refusées, avec leur raison. Déclaré comme seuil DÉRIVÉ dans
+# `rules.thresholds.historical_var_sample`.
+def historical_var_min_observations(confidence: float) -> int:
+    """Séances minimales d'une VaR ou d'une CVaR historique : 1/(1 − α)."""
+    if not 0.0 < confidence < 1.0:
+        raise ValueError(
+            f"Le niveau de confiance doit être strictement entre 0 et 1 "
+            f"(reçu : {confidence})."
+        )
+    # `round` d'abord : 1 − 0,9 vaut 0,09999999999999998 en flottant, si bien que
+    # 1/(1 − 0,9) dépasse 10 d'un rien, que le plafond porterait à 11.
+    return math.ceil(round(1.0 / (1.0 - confidence), 9))
 
 # ------------------------------------------ ν maximal d'une loi de Student --
 #

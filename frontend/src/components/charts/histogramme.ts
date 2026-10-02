@@ -24,6 +24,13 @@
  * 95 %. Ces séances sont ombrées — une aire à 0,15 d'opacité, sans dégradé
  * (§9.4) — et leur nombre, `tail_observations`, est écrit dans l'aire : ce
  * sont les barres qu'on voit, comptées par le moteur.
+ *
+ * ═══ UN NIVEAU REFUSÉ NE SE DESSINE PAS ═══
+ *
+ * Sous 1/(1 − α) séances, le moteur refuse la VaR historique et la CVaR du
+ * niveau (`value: null`) : aucune séance ne tombe dans la queue. Ni trait, ni
+ * étiquette, ni ombre — un trait posé au minimum de la fenêtre dessinerait
+ * exactement le quantile que le moteur a refusé d'écrire.
  */
 import * as Plot from '@observablehq/plot'
 
@@ -73,14 +80,19 @@ export function optionsHistogramme(
   const classes = histogramme.bins
   const debut = classes[0]?.lower ?? 0
   const fin = classes[classes.length - 1]?.upper ?? 0
-  const niveau95 = niveaux.find((niveau) => niveau.confidence === 0.95)
+  const traces = niveaux.filter(
+    (niveau) =>
+      niveau.expected_shortfall.threshold !== null && niveau.historical_var.value !== null,
+  )
+  const niveau95 = traces.find((niveau) => niveau.confidence === 0.95)
 
   const marques: Plot.Markish[] = [
     Plot.gridY({ stroke: couleurs.bordure, strokeOpacity: 1 }),
   ]
 
-  if (niveau95 !== undefined) {
-    const queue = niveau95.expected_shortfall
+  const queue = niveau95?.expected_shortfall
+  if (queue !== undefined && queue.threshold !== null && queue.tail_observations !== null) {
+    const nombre = queue.tail_observations
     marques.push(
       // Sans canal y, le rectangle couvre toute la hauteur du cadre : aucune
       // hauteur n'est calculée ici.
@@ -98,7 +110,7 @@ export function optionsHistogramme(
         frameAnchor: 'left',
         dx: 4,
         text: (q: typeof queue) =>
-          `queue à ${pourcentage(q.confidence, 0)}\u00a0:\n${seances(q.tail_observations)}`,
+          `queue à ${pourcentage(q.confidence, 0)}\u00a0:\n${seances(nombre)}`,
         textAnchor: 'start',
         lineAnchor: 'middle',
         ...halo(couleurs, couleurs.texte2),
@@ -123,8 +135,10 @@ export function optionsHistogramme(
   // Les quantiles. L'étiquette du niveau le plus proche de zéro se pose à
   // DROITE de son trait, celle du plus lointain à GAUCHE du sien : elles
   // s'écartent l'une de l'autre au lieu de traverser le trait voisin.
-  niveaux.forEach((niveau, rang) => {
+  traces.forEach((niveau, rang) => {
     const quantile = niveau.expected_shortfall.threshold
+    const valeur = niveau.historical_var.value
+    if (quantile === null || valeur === null) return
     const aDroite = rang === 0
     marques.push(
       Plot.ruleX([quantile], { stroke: couleurs.texte1, strokeWidth: 1.5 }),
@@ -137,7 +151,7 @@ export function optionsHistogramme(
         lineAnchor: 'top',
         ...halo(couleurs, couleurs.texte1),
         text: () =>
-          `VaR ${pourcentage(niveau.confidence, 0)}\n${pourcentage(niveau.historical_var.value, 2)}`,
+          `VaR ${pourcentage(niveau.confidence, 0)}\n${pourcentage(valeur, 2)}`,
       }),
     )
   })

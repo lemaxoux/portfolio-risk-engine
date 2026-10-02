@@ -592,24 +592,29 @@ export interface components {
          *     Relation exacte, vérifiée par un test : `threshold` vaut l'opposé de
          *     `historical_var.value` du même niveau de confiance, les deux sortant du même
          *     quantile empirique.
+         *
+         *     Refusée AVEC cette VaR, sous 1/(1 − α) séances : `value`, `threshold` et
+         *     `tail_observations` valent alors `null`, et `undefined_reason` dit pourquoi.
          */
         ExpectedShortfallOut: {
             /**
              * Value
              * @description Perte moyenne au-delà du quantile, en PERTE POSITIVE et en fraction : 0.03 se lit « perte moyenne de 3 % ».
              */
-            value: number;
+            value: number | null;
             /** Confidence */
             confidence: number;
             /** Tail Observations */
-            tail_observations: number;
+            tail_observations: number | null;
             /**
              * Threshold
              * @description Quantile qui borne la queue, en convention de RENDEMENT et non de perte : négatif pour une perte. Signe opposé à `value`, qui est une perte positive. Vaut l'opposé de `historical_var.value` au même niveau de confiance.
              */
-            threshold: number;
+            threshold: number | null;
             /** Caveat */
             caveat: string | null;
+            /** Undefined Reason */
+            undefined_reason: string | null;
             window: components["schemas"]["WindowOut"];
         };
         /** HTTPValidationError */
@@ -625,6 +630,33 @@ export interface components {
             upper: number;
             /** Count */
             count: number;
+        };
+        /**
+         * HistoricalVarOut
+         * @description VaR historique, éventuellement refusée — et alors elle le dit.
+         *
+         *     Sous 1/(1 − α) séances (20 à 95 %, 100 à 99 %), aucune séance ne tombe
+         *     dans la queue : le quantile ne serait que le minimum de la fenêtre.
+         *     `value` vaut alors `null` avec `undefined_reason`, sur le modèle de
+         *     `SortinoOut`. Un type à part de `VarOut` : les autres VaR — paramétriques,
+         *     simulées — ne sont jamais refusées ainsi, et leur `value` reste requise.
+         */
+        HistoricalVarOut: {
+            /** Value */
+            value: number | null;
+            /** Confidence */
+            confidence: number;
+            /** Method */
+            method: string;
+            /** Detail */
+            detail: string;
+            /** Nu */
+            nu: number | null;
+            /** Caveat */
+            caveat: string | null;
+            /** Undefined Reason */
+            undefined_reason: string | null;
+            window: components["schemas"]["WindowOut"];
         };
         /**
          * LimitingPositionOut
@@ -1179,7 +1211,7 @@ export interface components {
         TailRiskLevelOut: {
             /** Confidence */
             confidence: number;
-            historical_var: components["schemas"]["VarOut"];
+            historical_var: components["schemas"]["HistoricalVarOut"];
             parametric_var: components["schemas"]["VarOut"];
             monte_carlo_var: components["schemas"]["VarOut"] | null;
             student_parametric_var: components["schemas"]["VarOut"] | null;

@@ -28,6 +28,11 @@
  * moteur (`caveat`) : point `--caveat` et phrase sous la provenance, comme la
  * CVaR à 99 %. Le chiffre reste affiché — marqué, pas refusé.
  *
+ * Sous 1/(1 − α) séances, la VaR historique et la CVaR du niveau sont, elles,
+ * REFUSÉES par le moteur : le tiret cadratin à la place du chiffre, la raison
+ * du moteur à la place de la phrase de lecture (§9.1, règle 3). Jamais le
+ * minimum de la fenêtre présenté comme un quantile.
+ *
  * ═══ CE QUE CE COMPOSANT NE FAIT PAS ═══
  *
  * Aucun calcul. Aucun écart n'est soustrait entre normale et Student : les
@@ -42,7 +47,7 @@ import { optionsHistogramme } from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import { points, pourcentage, seances } from '../lib/format'
+import { points, pourcentage, seances, TIRET_INDEFINI } from '../lib/format'
 import { lectureDeCVaR, lectureDeVar } from '../lib/phrases'
 import {
   provenanceDeCVaR,
@@ -116,15 +121,17 @@ export function descriptionHistogramme(
   histogramme: ReturnHistogram,
   niveaux: readonly TailRiskLevel[],
 ): string {
-  const quantiles = niveaux.map(
-    (niveau) =>
-      `rendement sous ${pourcentage(niveau.expected_shortfall.threshold, 2)} ` +
-      `au niveau ${pourcentage(niveau.confidence, 0)}`,
-  )
-  return (
+  const quantiles = niveaux.flatMap((niveau) => {
+    const seuil = niveau.expected_shortfall.threshold
+    return seuil === null
+      ? []
+      : [`rendement sous ${pourcentage(seuil, 2)} au niveau ${pourcentage(niveau.confidence, 0)}`]
+  })
+  const debut =
     `Rendements quotidiens de ${seances(histogramme.window.observations)}, en classes de ` +
-    `${points(histogramme.bin_width, 2)}\u00a0: ${quantiles.join(' ; ')}.`
-  )
+    `${points(histogramme.bin_width, 2)}`
+  // Aucun niveau calculable : la phrase s'arrête aux classes, sans quantile.
+  return quantiles.length === 0 ? `${debut}.` : `${debut}\u00a0: ${quantiles.join(' ; ')}.`
 }
 
 interface Props {
@@ -150,19 +157,22 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
         loi n'est supposée&nbsp;: ce sont les séances qui ont eu lieu.
       </p>
       <div className={commun.rangee}>
-        {niveaux.map((niveau) => (
-          <Measure
-            key={niveau.confidence}
-            libelle={`VaR ${niveauLu(niveau.confidence)} historique, horizon 1 séance`}
-            valeur={pourcentage(niveau.historical_var.value, 2)}
-            lecture={lectureDeVar(
-              niveau.historical_var.value,
-              niveau.confidence,
-              2,
-            )}
-            provenance={provenanceDeVar(niveau.historical_var)}
-          />
-        ))}
+        {niveaux.map((niveau) => {
+          const valeur = niveau.historical_var.value
+          return (
+            <Measure
+              key={niveau.confidence}
+              libelle={`VaR ${niveauLu(niveau.confidence)} historique, horizon 1 séance`}
+              valeur={valeur === null ? TIRET_INDEFINI : pourcentage(valeur, 2)}
+              lecture={
+                valeur === null
+                  ? (niveau.historical_var.undefined_reason ?? 'Non calculée, sans raison publiée.')
+                  : lectureDeVar(valeur, niveau.confidence, 2)
+              }
+              provenance={provenanceDeVar(niveau.historical_var)}
+            />
+          )
+        })}
       </div>
 
       <div className={styles.histogramme}>
@@ -215,16 +225,23 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
         combien on perd, en moyenne, les jours où ce niveau est dépassé.
       </p>
       <div className={commun.rangee}>
-        {niveaux.map((niveau) => (
-          <Measure
-            key={niveau.confidence}
-            libelle={`CVaR ${niveauLu(niveau.confidence)}, horizon 1 séance`}
-            valeur={pourcentage(niveau.expected_shortfall.value, 2)}
-            lecture={lectureDeCVaR(niveau.confidence)}
-            provenance={provenanceDeCVaR(niveau.expected_shortfall)}
-            caveat={niveau.expected_shortfall.caveat}
-          />
-        ))}
+        {niveaux.map((niveau) => {
+          const cvar = niveau.expected_shortfall
+          return (
+            <Measure
+              key={niveau.confidence}
+              libelle={`CVaR ${niveauLu(niveau.confidence)}, horizon 1 séance`}
+              valeur={cvar.value === null ? TIRET_INDEFINI : pourcentage(cvar.value, 2)}
+              lecture={
+                cvar.value === null
+                  ? (cvar.undefined_reason ?? 'Non calculée, sans raison publiée.')
+                  : lectureDeCVaR(niveau.confidence)
+              }
+              provenance={provenanceDeCVaR(cvar)}
+              caveat={cvar.caveat}
+            />
+          )
+        })}
       </div>
     </Section>
   )

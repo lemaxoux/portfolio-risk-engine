@@ -33,6 +33,7 @@ from .config import (
     MONTE_CARLO_SEED,
     MONTE_CARLO_SIMULATIONS,
     daily_risk_free_rate,
+    historical_var_min_observations,
     risk_free_observation_date,
     risk_free_rate,
 )
@@ -273,15 +274,21 @@ class VarResult:
 
     `caveat` marque une VaR paramétrique normale estimée sur moins de
     `MIN_DISTRIBUTION_OBSERVATIONS` séances, comme `VolatilityResult.caveat`.
+
+    `value` vaut None pour une VaR historique sur moins de 1/(1 − α) séances,
+    avec `undefined_reason` : aucune séance ne tombe dans la queue, et le
+    chiffre ne serait que le minimum de la fenêtre (voir
+    `config.historical_var_min_observations`).
     """
 
-    value: float
+    value: float | None
     confidence: float
     method: str
     window: Window
     detail: str = ""
     nu: float | None = None
     caveat: str | None = None
+    undefined_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -301,15 +308,18 @@ class ExpectedShortfallResult:
     déclenché par lui.
     """
 
-    value: float
+    value: float | None
     confidence: float
-    tail_observations: int
-    threshold: float
+    tail_observations: int | None
+    threshold: float | None
     window: Window
+    # Refusée avec la VaR historique du même niveau, sous 1/(1 − α) séances :
+    # elle moyenne une queue qui ne contient alors aucune séance.
+    undefined_reason: str | None = None
 
     @property
     def caveat(self) -> str | None:
-        if self.confidence < 0.99:
+        if self.confidence < 0.99 or self.tail_observations is None:
             return None
         return (
             f"Moyenne de {typography.sessions(self.tail_observations)} seulement, "
@@ -799,15 +809,49 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
 # ------------------------------------------------------------------- VaR --
 
 
+def _queue_vide(window: Window, confidence: float, quoi: str) -> str | None:
+    """Raison du refus d'une mesure de queue historique, ou None.
+
+    Sous 1/(1 − α) séances, aucune ne tombe dans la queue : le quantile n'est
+    que le minimum de la fenêtre (voir `config.historical_var_min_observations`).
+    La phrase dit ce qui a été reçu, ce que la queue aurait dû contenir, et ce
+    qu'il faut — sans formule, pour un particulier.
+    """
+    minimum = historical_var_min_observations(confidence)
+    if window.observations >= minimum:
+        return None
+    part = 1.0 - confidence
+    # « le 1 % », « les 5 % » : le singulier en deçà de deux, comme
+    # `typography.counted`.
+    article = "le" if part * 100.0 < 2.0 else "les"
+    return (
+        f"Sur {typography.sessions(window.observations)}, aucune ne tombe dans "
+        f"{article} {typography.percent(part, 0)} des pires : il en faut au moins "
+        f"{minimum} pour {quoi} à {typography.percent(confidence, 0)}."
+    )
+
+
 def historical_var(
     serie: PortfolioSeries, confidence: float = 0.95
 ) -> VarResult:
+    """Quantile empirique, ou refus sous 1/(1 − α) séances."""
+    detail = f"quantile empirique, interpolation {var.QUANTILE_METHOD!r}"
+    refus = _queue_vide(serie.window, confidence, "une VaR historique")
+    if refus:
+        return VarResult(
+            value=None,
+            confidence=confidence,
+            method="historique",
+            window=serie.window,
+            detail=detail,
+            undefined_reason=refus,
+        )
     return VarResult(
         value=var.historical_var(serie.returns, confidence),
         confidence=confidence,
         method="historique",
         window=serie.window,
-        detail=f"quantile empirique, interpolation {var.QUANTILE_METHOD!r}",
+        detail=detail,
     )
 
 
@@ -841,6 +885,18 @@ def parametric_var(
 def expected_shortfall(
     serie: PortfolioSeries, confidence: float = 0.95
 ) -> ExpectedShortfallResult:
+    """Perte moyenne de la queue, refusée avec la VaR historique du même
+    niveau : elle moyenne la queue que ce quantile borne."""
+    refus = _queue_vide(serie.window, confidence, "une CVaR")
+    if refus:
+        return ExpectedShortfallResult(
+            value=None,
+            confidence=confidence,
+            tail_observations=None,
+            threshold=None,
+            window=serie.window,
+            undefined_reason=refus,
+        )
     brut = var.expected_shortfall(serie.returns, confidence)
     return ExpectedShortfallResult(
         value=brut.value,

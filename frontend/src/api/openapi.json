@@ -1068,7 +1068,14 @@
       "ExpectedShortfallOut": {
         "properties": {
           "value": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Value",
             "description": "Perte moyenne au-delà du quantile, en PERTE POSITIVE et en fraction : 0.03 se lit « perte moyenne de 3 % »."
           },
@@ -1077,11 +1084,25 @@
             "title": "Confidence"
           },
           "tail_observations": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Tail Observations"
           },
           "threshold": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Threshold",
             "description": "Quantile qui borne la queue, en convention de RENDEMENT et non de perte : négatif pour une perte. Signe opposé à `value`, qui est une perte positive. Vaut l'opposé de `historical_var.value` au même niveau de confiance."
           },
@@ -1096,6 +1117,17 @@
             ],
             "title": "Caveat"
           },
+          "undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undefined Reason"
+          },
           "window": {
             "$ref": "#/components/schemas/WindowOut"
           }
@@ -1108,10 +1140,11 @@
           "tail_observations",
           "threshold",
           "caveat",
+          "undefined_reason",
           "window"
         ],
         "title": "ExpectedShortfallOut",
-        "description": "CVaR, avec la taille de la queue qu'il moyenne et son avertissement.\n\n`caveat` est une `@property` du moteur, allumée en PERMANENCE à 99 % et\nau-delà : à ce niveau la queue ne compte que 1 % de la fenêtre, ce n'est pas\nune anomalie mais la structure du chiffre. Un convertisseur générique\nl'aurait perdue sans rien signaler.\n\n═══ DEUX CONVENTIONS DE SIGNE DANS LE MÊME OBJET ═══\n\n`value` est une PERTE POSITIVE (0,0300 = perte moyenne de 3 %), `threshold`\nest un RENDEMENT (−0,0173 = le quantile sous lequel se trouve la queue).\nLes deux décrivent le même événement par les deux bouts, et l'en-tête de\n`risk_engine.var` annonce pourtant que « toutes les valeurs de ce module\nsont des pertes positives ».\n\nL'écart est dans le moteur, pas ici : `expected_shortfall` rend\n`value=-queue.mean()` mais `threshold=seuil`, le quantile brut. Le\nsérialiser tel quel est le choix retenu — le retourner dans la couche API\nserait de l'arithmétique, et surtout publierait un nombre que le moteur n'a\njamais produit. Le champ porte donc sa convention dans sa description.\n\nRelation exacte, vérifiée par un test : `threshold` vaut l'opposé de\n`historical_var.value` du même niveau de confiance, les deux sortant du même\nquantile empirique."
+        "description": "CVaR, avec la taille de la queue qu'il moyenne et son avertissement.\n\n`caveat` est une `@property` du moteur, allumée en PERMANENCE à 99 % et\nau-delà : à ce niveau la queue ne compte que 1 % de la fenêtre, ce n'est pas\nune anomalie mais la structure du chiffre. Un convertisseur générique\nl'aurait perdue sans rien signaler.\n\n═══ DEUX CONVENTIONS DE SIGNE DANS LE MÊME OBJET ═══\n\n`value` est une PERTE POSITIVE (0,0300 = perte moyenne de 3 %), `threshold`\nest un RENDEMENT (−0,0173 = le quantile sous lequel se trouve la queue).\nLes deux décrivent le même événement par les deux bouts, et l'en-tête de\n`risk_engine.var` annonce pourtant que « toutes les valeurs de ce module\nsont des pertes positives ».\n\nL'écart est dans le moteur, pas ici : `expected_shortfall` rend\n`value=-queue.mean()` mais `threshold=seuil`, le quantile brut. Le\nsérialiser tel quel est le choix retenu — le retourner dans la couche API\nserait de l'arithmétique, et surtout publierait un nombre que le moteur n'a\njamais produit. Le champ porte donc sa convention dans sa description.\n\nRelation exacte, vérifiée par un test : `threshold` vaut l'opposé de\n`historical_var.value` du même niveau de confiance, les deux sortant du même\nquantile empirique.\n\nRefusée AVEC cette VaR, sous 1/(1 − α) séances : `value`, `threshold` et\n`tail_observations` valent alors `null`, et `undefined_reason` dit pourquoi."
       },
       "HTTPValidationError": {
         "properties": {
@@ -1149,6 +1182,83 @@
           "count"
         ],
         "title": "HistogramBinOut"
+      },
+      "HistoricalVarOut": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "nu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nu"
+          },
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat"
+          },
+          "undefined_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undefined Reason"
+          },
+          "window": {
+            "$ref": "#/components/schemas/WindowOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "confidence",
+          "method",
+          "detail",
+          "nu",
+          "caveat",
+          "undefined_reason",
+          "window"
+        ],
+        "title": "HistoricalVarOut",
+        "description": "VaR historique, éventuellement refusée — et alors elle le dit.\n\nSous 1/(1 − α) séances (20 à 95 %, 100 à 99 %), aucune séance ne tombe\ndans la queue : le quantile ne serait que le minimum de la fenêtre.\n`value` vaut alors `null` avec `undefined_reason`, sur le modèle de\n`SortinoOut`. Un type à part de `VarOut` : les autres VaR — paramétriques,\nsimulées — ne sont jamais refusées ainsi, et leur `value` reste requise."
       },
       "LimitingPositionOut": {
         "properties": {
@@ -2360,7 +2470,7 @@
             "title": "Confidence"
           },
           "historical_var": {
-            "$ref": "#/components/schemas/VarOut"
+            "$ref": "#/components/schemas/HistoricalVarOut"
           },
           "parametric_var": {
             "$ref": "#/components/schemas/VarOut"

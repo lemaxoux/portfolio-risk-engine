@@ -38,9 +38,10 @@ const HISTOGRAMME: ReturnHistogram = {
 
 function niveau(confiance: number, var_: number, seuil: number, queue: number): TailRiskLevel {
   const vr = { value: var_, confidence: confiance, method: 'historique', detail: '', nu: null, caveat: null, window: FENETRE }
+  const historique = { ...vr, undefined_reason: null }
   return {
     confidence: confiance,
-    historical_var: vr,
+    historical_var: historique,
     parametric_var: vr,
     monte_carlo_var: null,
     student_parametric_var: null,
@@ -51,7 +52,25 @@ function niveau(confiance: number, var_: number, seuil: number, queue: number): 
       tail_observations: queue,
       threshold: seuil,
       caveat: null,
+      undefined_reason: null,
       window: FENETRE,
+    },
+  }
+}
+
+/** Un niveau que le moteur a refusé : VaR historique et CVaR sans valeur. */
+function niveauRefuse(confiance: number): TailRiskLevel {
+  const base = niveau(confiance, 0.004, -0.004, 1)
+  const raison = 'Sur 6 séances, aucune ne tombe dans la queue.'
+  return {
+    ...base,
+    historical_var: { ...base.historical_var, value: null, undefined_reason: raison },
+    expected_shortfall: {
+      ...base.expected_shortfall,
+      value: null,
+      threshold: null,
+      tail_observations: null,
+      undefined_reason: raison,
     },
   }
 }
@@ -117,6 +136,33 @@ describe('quantiles et queue', () => {
       .filter((data): data is number[] => Array.isArray(data) && typeof data[0] === 'number')
       .flat()
     expect(traits).toEqual(expect.arrayContaining([-0.004, -0.0049, 0]))
+  })
+
+  it('un niveau refusé n’a ni trait ni étiquette', () => {
+    const options = optionsHistogramme(
+      { histogramme: HISTOGRAMME, niveaux: [niveau(0.95, 0.004, -0.004, 2), niveauRefuse(0.99)] },
+      { couleurs: COULEURS, largeur: 700 },
+    )
+    const traits = ((options.marks ?? []) as unknown as MarqueInspectee[])
+      .map((marque) => marque.data)
+      .filter((data): data is unknown[] => Array.isArray(data) && data.length === 1)
+      .flat()
+    // Le trait de 95 % et l'axe zéro ; aucun pour 99 %, ni nul ni ailleurs.
+    expect(traits.filter((x) => typeof x === 'number')).toEqual(
+      expect.arrayContaining([-0.004, 0]),
+    )
+    expect(traits).not.toContain(null)
+  })
+
+  it('une queue à 95 % refusée n’est pas ombrée', () => {
+    const options = optionsHistogramme(
+      { histogramme: HISTOGRAMME, niveaux: [niveauRefuse(0.95), niveauRefuse(0.99)] },
+      { couleurs: COULEURS, largeur: 700 },
+    )
+    const descriptions = ((options.marks ?? []) as unknown as MarqueInspectee[]).map(
+      (marque) => marque.ariaDescription,
+    )
+    expect(descriptions).not.toContain('queue de la CVaR à 95 %')
   })
 
   it('l’axe des rendements contient toujours zéro', () => {

@@ -289,9 +289,9 @@ Aucun chiffre ne doit être ininterprétable isolément.
 |---|---|---|
 | Covariance / corrélation | observations **complètes** | jamais paire à paire : des recouvrements différents selon les couples peuvent rendre la matrice non semi-définie positive |
 | Beta / R² | `β = Cov(r_p, r_m)/Var(r_m)` | régression sur rendements **bruts**, pas excédentaires |
-| VaR historique | quantile empirique, `method="lower"` | aucune hypothèse de loi ; ne peut rien dire d'un choc pire que la fenêtre |
+| VaR historique | quantile empirique, `method="lower"` | aucune hypothèse de loi ; ne peut rien dire d'un choc pire que la fenêtre ; refusée sous 1/(1 − α) séances, 20 à 95 %, 100 à 99 % (seuil dérivé) |
 | VaR paramétrique | `−(μ + z_α·σ_p)`, `σ_p = √(wᵀΣw)` | normalité ; `μ = 0` par défaut |
-| CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue |
+| CVaR / ES | moyenne au-delà du quantile | porte son nombre d'observations de queue ; refusée avec la VaR historique du même niveau |
 | Contribution à la variance | `wᵢ·(Σw)ᵢ / (wᵀΣw)` | somme exactement à 100 % ; poids ET corrélation ; peut être négative |
 | Monte Carlo | Cholesky + tirages normaux, graine fixe | même hypothèse de normalité que la VaR paramétrique |
 | Monte Carlo Student | ν par maximum de vraisemblance, échelle `S = Σ·(ν−2)/ν` | queues épaisses à covariance inchangée ; `ν ≤ 2` refusé ; `ν > 30` refusé, la Student ne se distinguant plus de la normale (seuil choisi) |
@@ -1026,14 +1026,17 @@ conclusion sur ses données.
 
 #### Où s'arrête le refus
 
-**On refuse ce qui ne dépend plus des données ; on signale ce qui en dépend
-mal.** C'est toute la ligne de partage, et elle explique pourquoi la volatilité
-et la VaR restent publiées à `n = 2` alors que la corrélation disparaît.
+**On refuse ce qui ne dépend plus des données, et ce qui n'est plus la mesure
+annoncée ; on signale ce qui en dépend mal.** C'est toute la ligne de partage,
+et elle explique pourquoi la volatilité reste publiée à `n = 2`, signalée,
+alors que la corrélation disparaît — et la VaR historique avec elle, pour une
+autre raison.
 
 | | À `n = 2` | Traitement |
 |---|---|---|
 | corrélation, beta, contributions | **identités arithmétiques** — la valeur ne bouge plus avec les données | `null` + raison |
-| covariance, volatilité, VaR, drawdown | **estimations à un degré de liberté** — très mauvaises, mais elles bougent | publiées |
+| VaR historique et CVaR, sous 1/(1 − α) séances | **plus la mesure annoncée** — aucune séance ne tombe dans la queue : le quantile n'est que le minimum de la fenêtre | `null` + raison |
+| covariance, volatilité, VaR paramétrique, drawdown | **estimations à un degré de liberté** — très mauvaises, mais elles bougent | publiées |
 | volatilités, VaR paramétrique normale, sous 30 séances | estimations minces | publiées **et marquées** : `caveat` |
 
 Une volatilité sur deux observations est un mauvais chiffre, pas un faux
@@ -1056,6 +1059,25 @@ séances, 27 % sur 7. La phrase dit qu'aucune conclusion n'en dépend, et c'est
 vérifié : `tests/test_rules.py` remplace chaque volatilité et chaque VaR du
 rapport par un piège qui lève à la moindre lecture, et les six règles
 s'évaluent quand même. À 30 séances et au-delà, `caveat` vaut `null`.
+
+**Sous 1/(1 − α) séances, la VaR historique et sa CVaR sont refusées.** Une VaR
+historique à α est le quantile empirique à 1 − α : la queue qu'il borne compte
+n·(1 − α) séances. Sous une, aucune n'y tombe, et le quantile « lower » rend le
+pire rendement de la fenêtre, quel que soit α : sur 7 séances, la VaR 95 % et la
+VaR 99 % valaient toutes deux 0,50 %, et la page lisait « une séance sur cent »
+sous un chiffre qui n'était que le pire de sept jours. Le chiffre bougeait
+avec les données, mais ce n'était plus la mesure annoncée. D'où un seuil
+DÉMONTRÉ, pas choisi : n ≥ 1/(1 − α), 20 séances à 95 %, 100 à 99 %
+(`config.historical_var_min_observations`, déclaré dans
+`rules.thresholds.historical_var_sample`). En deçà, `historical_var.value` vaut
+`null` et `undefined_reason` dit, par exemple : « Sur 7 séances, aucune ne
+tombe dans le 1 % des pires : il en faut au moins 100 pour une VaR historique
+à 99 %. » La CVaR du même niveau, qui moyenne cette queue, est refusée avec
+elle — `value`, `threshold` et `tail_observations` à `null` —, et
+l'histogramme ne dessine ni le trait ni l'ombre d'un niveau refusé. Sur la
+copie figée, l'API refusant toute fenêtre sous 60 séances, seules les
+fenêtres de 60 à 99 basculent, à 99 % ; la référence à 504 séances ne bouge
+pas.
 
 `matrices.covariance` reste publiée pour une raison de plus : `wᵀΣw` est la
 variance de la série du portefeuille, estimable dès deux observations, et c'est

@@ -65,12 +65,24 @@ describe('provenance d’une CVaR', () => {
     tail_observations: 6,
     threshold: -0.0173,
     caveat: null,
+    undefined_reason: null,
     window: FENETRE,
   }
 
   it('dit ce que compte le nombre de tête : des séances dans la queue', () => {
     const [premiere] = provenanceDeCVaR(CVAR_99)
     expect(premiere).toEqual({ libelle: 'Séances dans la queue', valeur: '6\u00a0séances' })
+  })
+
+  it('refusée, elle ne garde que sa fenêtre : ni queue à compter, ni seuil', () => {
+    const refusee: ExpectedShortfall = {
+      ...CVAR_99,
+      value: null,
+      tail_observations: null,
+      threshold: null,
+      undefined_reason: 'Sur 7 séances, aucune ne tombe dans le 1 % des pires.',
+    }
+    expect(provenanceDeCVaR(refusee).map((ligne) => ligne.libelle)).toEqual(['Fenêtre', 'Période'])
   })
 })
 

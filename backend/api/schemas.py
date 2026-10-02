@@ -773,6 +773,39 @@ class VarOut(Schema):
         return None if result is None else cls.of(result)
 
 
+class HistoricalVarOut(Schema):
+    """VaR historique, éventuellement refusée — et alors elle le dit.
+
+    Sous 1/(1 − α) séances (20 à 95 %, 100 à 99 %), aucune séance ne tombe
+    dans la queue : le quantile ne serait que le minimum de la fenêtre.
+    `value` vaut alors `null` avec `undefined_reason`, sur le modèle de
+    `SortinoOut`. Un type à part de `VarOut` : les autres VaR — paramétriques,
+    simulées — ne sont jamais refusées ainsi, et leur `value` reste requise.
+    """
+
+    value: float | None
+    confidence: float
+    method: Texte
+    detail: Texte
+    nu: float | None
+    caveat: Texte | None
+    undefined_reason: Texte | None
+    window: WindowOut
+
+    @classmethod
+    def of(cls, result: VarResult) -> HistoricalVarOut:
+        return cls(
+            value=result.value,
+            confidence=result.confidence,
+            method=result.method,
+            detail=result.detail,
+            nu=result.nu,
+            caveat=result.caveat,
+            undefined_reason=result.undefined_reason,
+            window=WindowOut.of(result.window),
+        )
+
+
 class ExpectedShortfallOut(Schema):
     """CVaR, avec la taille de la queue qu'il moyenne et son avertissement.
 
@@ -798,17 +831,20 @@ class ExpectedShortfallOut(Schema):
     Relation exacte, vérifiée par un test : `threshold` vaut l'opposé de
     `historical_var.value` du même niveau de confiance, les deux sortant du même
     quantile empirique.
+
+    Refusée AVEC cette VaR, sous 1/(1 − α) séances : `value`, `threshold` et
+    `tail_observations` valent alors `null`, et `undefined_reason` dit pourquoi.
     """
 
-    value: float = Field(
+    value: float | None = Field(
         description=(
             "Perte moyenne au-delà du quantile, en PERTE POSITIVE et en "
             "fraction : 0.03 se lit « perte moyenne de 3 % »."
         )
     )
     confidence: float
-    tail_observations: int
-    threshold: float = Field(
+    tail_observations: int | None
+    threshold: float | None = Field(
         description=(
             "Quantile qui borne la queue, en convention de RENDEMENT et non de "
             "perte : négatif pour une perte. Signe opposé à `value`, qui est "
@@ -817,6 +853,7 @@ class ExpectedShortfallOut(Schema):
         )
     )
     caveat: Texte | None
+    undefined_reason: Texte | None
     window: WindowOut
 
     @classmethod
@@ -827,6 +864,7 @@ class ExpectedShortfallOut(Schema):
             tail_observations=result.tail_observations,
             threshold=result.threshold,
             caveat=result.caveat,
+            undefined_reason=result.undefined_reason,
             window=WindowOut.of(result.window),
         )
 
@@ -861,7 +899,7 @@ class TailRiskLevelOut(Schema):
     """
 
     confidence: float
-    historical_var: VarOut
+    historical_var: HistoricalVarOut
     parametric_var: VarOut
     monte_carlo_var: VarOut | None
     student_parametric_var: VarOut | None
@@ -896,7 +934,9 @@ class TailRiskOut(Schema):
             levels=[
                 TailRiskLevelOut(
                     confidence=confiance,
-                    historical_var=VarOut.of(report.historical_var[confiance]),
+                    historical_var=HistoricalVarOut.of(
+                        report.historical_var[confiance]
+                    ),
                     parametric_var=VarOut.of(report.parametric_var[confiance]),
                     monte_carlo_var=VarOut.optional(
                         _niveau(confiance, report.monte_carlo_var)
