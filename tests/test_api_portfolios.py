@@ -270,6 +270,21 @@ def test_une_quantite_nulle_ou_negative_est_refusee(
     assert all("nulle ou négative" in p["problem"] for p in problemes)
 
 
+def test_le_refus_cite_la_quantite_a_la_francaise(
+    client_synthetique, portefeuille_synthetique
+):
+    """« (\u22123) », et non « (-3.0) » : la phrase est de la prose, le
+    nombre passe par `typography`."""
+    reponse = client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions",
+        json={"positions": [{"ticker": "MIKE", "quantity": -3}, {"ticker": "ALFA", "quantity": -2.5}]},
+    )
+    assert reponse.status_code == 422
+    problemes = [p["problem"] for p in reponse.json()["problems"]]
+    assert "pour MIKE (\u22123)." in problemes[0]
+    assert "pour ALFA (\u22122,5)." in problemes[1]
+
+
 def test_un_doublon_est_refuse_en_nommant_les_deux_lignes(
     client_synthetique, portefeuille_synthetique
 ):

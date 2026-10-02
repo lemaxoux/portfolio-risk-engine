@@ -152,6 +152,21 @@ def signed_points(ecart: float, decimales: int = 1) -> str:
     return f"{number(ecart * 100.0, decimales, signed=True)}{NBSP}pts"
 
 
+def exact(valeur: float) -> str:
+    """Un nombre SAISI, cité dans un refus : « −3 », « 2,5 », « 0,1 ».
+
+    La plus courte écriture décimale qui relit le même flottant — celle de
+    `repr` —, passée par `number` : virgule, signe moins, milliers groupés.
+    Ni décimale inventée (« −3,0 »), ni décimale perdue (« 0,1 » ne devient pas
+    « 0 »), ni exposant (`repr(1e-07)` s'écrit « 0,0000001 »). C'est l'écriture
+    que l'utilisateur reconnaît comme la sienne.
+    """
+    if not math.isfinite(valeur):
+        raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
+    exposant = Decimal(repr(float(valeur))).as_tuple().exponent
+    return number(valeur, max(-exposant, 0), trim=True)
+
+
 def compact(valeur: float) -> str:
     """L'écriture la plus courte d'un paramètre : `0.94` → « 0,94 », `60.0` → « 60 ».
 

@@ -1380,7 +1380,9 @@ Côté backend, tout nombre écrit dans une phrase passe par `backend/typography
 et non comme le `format` de Python. `tests/test_nombres_publies.py` le vérifie
 sur les RÉPONSES de l'API, chaîne par chaîne : aucun « 4.07 », aucun trait
 d'union en guise de signe moins, quelle que soit la façon dont le nombre a été
-écrit.
+écrit. Un nombre SAISI, cité dans un refus, passe par `exact` : la plus courte
+écriture qui relit le même flottant, à la française — « Quantité nulle ou
+négative pour MSFT (−3) » et non « (-3.0) ».
 
 #### Le tableau du portefeuille sous 900 px
 

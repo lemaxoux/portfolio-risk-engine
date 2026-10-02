@@ -25,6 +25,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from backend import typography
 from backend.db.portfolios import PositionRow
 from backend.risk_engine.portfolio import Security
 
@@ -178,7 +179,8 @@ def validate(
                     value=str(position.quantity),
                     problem=(
                         f"Quantité nulle ou négative pour {ticker} "
-                        f"({position.quantity}). Les poids sont calculés en valeur "
+                        f"({typography.exact(position.quantity)}). Les poids sont "
+                        "calculés en valeur "
                         "de marché : une position vendue à découvert n'est pas "
                         "prise en charge en v1."
                     ),

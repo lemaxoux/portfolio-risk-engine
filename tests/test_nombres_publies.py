@@ -218,6 +218,20 @@ def test_percent_et_points():
     assert typography.signed_points(0.098) == "+9,8 pts"
 
 
+def test_exact_cite_un_nombre_saisi_tel_que_l_utilisateur_l_a_tape():
+    """« Quantité nulle ou négative pour MSFT (−3) » : ni « (-3.0) », qui
+    est l'écriture de Python, ni une décimale perdue ou inventée."""
+    assert typography.exact(-3.0) == "\u22123"
+    assert typography.exact(2.5) == "2,5"
+    assert typography.exact(0.1) == "0,1"
+    assert typography.exact(-0.25) == "\u22120,25"
+    assert typography.exact(1e-07) == "0,0000001"
+    assert typography.exact(123456.789) == "123\u202f456,789"
+    assert typography.exact(0.0) == "0"
+    with pytest.raises(ValueError):
+        typography.exact(float("nan"))
+
+
 def test_compact_cite_un_parametre_sans_decimales_inventees():
     assert typography.compact(0.94) == "0,94"
     assert typography.compact(60.0) == "60"
