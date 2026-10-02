@@ -5,6 +5,15 @@
  * Le composant ne décide rien : il affiche les lignes qu'on lui donne, les
  * refus rangés à leur cellule, et remonte chaque frappe.
  *
+ * ═══ SOUS 900 PX, LA QUANTITÉ D'ABORD ═══
+ *
+ * À 390 px, le cadre de 342 px ne montrait que le numéro, le ticker, le nom et
+ * l'historique : la quantité, le seul autre champ à remplir, était hors de
+ * l'écran. Sous 900 px, l'ordre devient ticker, quantité, puis nom,
+ * historique, prix de revient — le même mécanisme que la section 1
+ * (`useEtroit`), parce que le CSS ne déplace pas une cellule. L'ordre du DOM
+ * suit, donc la tabulation aussi : ticker, quantité, prix.
+ *
  * ═══ CHAQUE CHAMP EST NOMMÉ ═══
  *
  * Un champ de tableau n'a pas de libellé à côté de lui : c'est l'en-tête de
@@ -18,11 +27,12 @@
  * À la sortie du champ, pas pendant la frappe : on ne reproche pas un nombre
  * qu'on est en train d'écrire. Il disparaît dès la frappe suivante.
  */
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 
 import { segmenter } from '../api/client'
 import type { Security } from '../api/types'
 import { dateISO } from '../lib/format'
+import { useEtroit } from '../lib/largeur'
 import type { Champ, LigneSaisie } from '../lib/saisie'
 import { titreDe } from '../lib/univers'
 import controles from '../styles/controles.module.css'
@@ -34,6 +44,18 @@ export function cleDeRefus(ligne: number, champ: Champ): string {
 }
 
 type Saisissable = 'ticker' | 'quantite' | 'prixRevient'
+
+/** Les colonnes de données, entre le numéro de ligne et « Retirer ». */
+export type ColonneSaisie = 'ticker' | 'nom' | 'historique' | 'quantite' | 'prix'
+
+export const ORDRE_LARGE: readonly ColonneSaisie[] = ['ticker', 'nom', 'historique', 'quantite', 'prix']
+
+/** Sous 900 px : les deux champs à remplir d'abord, le contexte ensuite. */
+export const ORDRE_ETROIT: readonly ColonneSaisie[] = ['ticker', 'quantite', 'nom', 'historique', 'prix']
+
+export function ordreDesColonnes(etroit: boolean): readonly ColonneSaisie[] {
+  return etroit ? ORDRE_ETROIT : ORDRE_LARGE
+}
 
 const CHAMP_DE: Record<Saisissable, Champ> = {
   ticker: 'ticker',
@@ -62,6 +84,7 @@ export function TableauSaisie({
   quitter,
   retirer,
 }: Props) {
+  const ordre = ordreDesColonnes(useEtroit())
   const champ = (ligne: LigneSaisie, rang: number, cle: Saisissable, colonne: string) => {
     const numero = rang + 1
     const id = `${cle}-${ligne.cle}`
@@ -124,6 +147,41 @@ export function TableauSaisie({
     )
   }
 
+  const entete = (cle: ColonneSaisie): ReactNode => {
+    switch (cle) {
+      case 'ticker':
+        return (
+          <th key={cle} scope="col" id="saisie-col-ticker" className={styles.entete}>
+            Ticker
+          </th>
+        )
+      case 'nom':
+        return (
+          <th key={cle} scope="col" className={styles.entete}>
+            Nom
+          </th>
+        )
+      case 'historique':
+        return (
+          <th key={cle} scope="col" className={styles.entete}>
+            Historique depuis
+          </th>
+        )
+      case 'quantite':
+        return (
+          <th key={cle} scope="col" id="saisie-col-quantite" className={`${styles.entete} ${styles.nombre}`}>
+            Quantité
+          </th>
+        )
+      case 'prix':
+        return (
+          <th key={cle} scope="col" id="saisie-col-prix" className={`${styles.entete} ${styles.nombre}`}>
+            Prix de revient ({devise}), facultatif
+          </th>
+        )
+    }
+  }
+
   return (
     <>
       <div className={styles.cadre}>
@@ -134,21 +192,7 @@ export function TableauSaisie({
               <th scope="col" className={`${styles.entete} ${styles.numero}`}>
                 N°
               </th>
-              <th scope="col" id="saisie-col-ticker" className={styles.entete}>
-                Ticker
-              </th>
-              <th scope="col" className={styles.entete}>
-                Nom
-              </th>
-              <th scope="col" className={styles.entete}>
-                Historique depuis
-              </th>
-              <th scope="col" id="saisie-col-quantite" className={`${styles.entete} ${styles.nombre}`}>
-                Quantité
-              </th>
-              <th scope="col" id="saisie-col-prix" className={`${styles.entete} ${styles.nombre}`}>
-                Prix de revient ({devise}), facultatif
-              </th>
+              {ordre.map((cle) => entete(cle))}
               <th scope="col" className={styles.entete}>
                 <span className="visuellement-cache">Retirer</span>
               </th>
@@ -165,19 +209,40 @@ export function TableauSaisie({
                     <span className="visuellement-cache">ligne </span>
                     {rang + 1}
                   </th>
-                  <td className={styles.cellule}>{champ(ligne, rang, 'ticker', 'saisie-col-ticker')}</td>
-                  <td className={`${styles.cellule} ${styles.nom} ${styles.surLeChamp}`}>
-                    {titre !== undefined ? titre.name : tape && univers !== null ? 'Titre inconnu' : '—'}
-                  </td>
-                  <td className={`${styles.cellule} ${styles.date} ${styles.surLeChamp}`}>
-                    {titre?.first_price_date != null ? dateISO(titre.first_price_date) : '—'}
-                  </td>
-                  <td className={`${styles.cellule} ${styles.nombre}`}>
-                    {champ(ligne, rang, 'quantite', 'saisie-col-quantite')}
-                  </td>
-                  <td className={`${styles.cellule} ${styles.nombre}`}>
-                    {champ(ligne, rang, 'prixRevient', 'saisie-col-prix')}
-                  </td>
+                  {ordre.map((cle) => {
+                    switch (cle) {
+                      case 'ticker':
+                        return (
+                          <td key={cle} className={styles.cellule}>
+                            {champ(ligne, rang, 'ticker', 'saisie-col-ticker')}
+                          </td>
+                        )
+                      case 'nom':
+                        return (
+                          <td key={cle} className={`${styles.cellule} ${styles.nom} ${styles.surLeChamp}`}>
+                            {titre !== undefined ? titre.name : tape && univers !== null ? 'Titre inconnu' : '—'}
+                          </td>
+                        )
+                      case 'historique':
+                        return (
+                          <td key={cle} className={`${styles.cellule} ${styles.date} ${styles.surLeChamp}`}>
+                            {titre?.first_price_date != null ? dateISO(titre.first_price_date) : '—'}
+                          </td>
+                        )
+                      case 'quantite':
+                        return (
+                          <td key={cle} className={`${styles.cellule} ${styles.nombre}`}>
+                            {champ(ligne, rang, 'quantite', 'saisie-col-quantite')}
+                          </td>
+                        )
+                      case 'prix':
+                        return (
+                          <td key={cle} className={`${styles.cellule} ${styles.nombre}`}>
+                            {champ(ligne, rang, 'prixRevient', 'saisie-col-prix')}
+                          </td>
+                        )
+                    }
+                  })}
                   <td className={`${styles.cellule} ${styles.surLeChamp}`}>
                     <button type="button" className={controles.discret} onClick={() => retirer(rang)}>
                       Retirer<span className="visuellement-cache"> la ligne {rang + 1}</span>

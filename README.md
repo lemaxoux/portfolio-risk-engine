@@ -1525,6 +1525,11 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   avertissement natif à la fermeture ou au rechargement (`beforeunload`), et
   garde sur la navigation interne, dont la question s'affiche sur place, en
   tête de page, focalisée.
+- **Sous 900 px, la quantité suit le ticker.** À 390 px, l'ordre large
+  (ticker, nom, historique, quantité, prix de revient) laissait la quantité
+  hors du cadre de 342 px. Sous le point de rupture, l'ordre devient ticker,
+  quantité, puis nom, historique, prix de revient, par `useEtroit`, comme le
+  tableau de la section 1 ; la tabulation suit l'ordre affiché.
 - **Chaque champ est nommé** par l'en-tête de sa colonne et le numéro de sa
   ligne (« Quantité ligne 3 »), sans libellé recopié. Pendant l'envoi, le
   bouton dit ce qu'il fait et se désactive ; il retrouve ensuite le focus.
