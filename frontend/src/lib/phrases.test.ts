@@ -141,7 +141,7 @@ describe('fenêtre réduite (§8.1)', () => {
   it('nomme la ligne limitante et la date depuis laquelle elle est cotée', () => {
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toBe(
       `Fenêtre réduite à 40${ESPACE_INSECABLE}séances ` +
-        `sur 504${ESPACE_INSECABLE}demandées : ` +
+        `sur 504${ESPACE_INSECABLE}demandées${ESPACE_INSECABLE}: ` +
         "NEWCO n'est coté que depuis le 2026-07-14.",
     )
   })

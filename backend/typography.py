@@ -8,6 +8,7 @@ typographie française, ces liens ne se coupent pas.
     U+202F  ESPACE FINE INSÉCABLE   avant « % », et comme séparateur de milliers
     U+00A0  ESPACE INSÉCABLE        entre un nombre et le mot qu'il compte
     U+2212  SIGNE MOINS             jamais le trait d'union U+002D
+    U+00A0  ESPACE INSÉCABLE        avant « : », après « « » et avant « » »
     ,       VIRGULE DÉCIMALE        jamais le point
 
 INSÉCABLE est le mot important, pas la largeur. Avec une espace ordinaire,
@@ -45,10 +46,38 @@ le point : c'est du code, et une virgule le rendrait faux.
 from __future__ import annotations
 
 import math
+import re
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 NARROW_NBSP = " "
 NBSP = " "
+
+
+# Une espace ORDINAIRE avant un deux-points suivi d'un blanc ou de la fin du
+# texte : « reçu : 7 », « La démarrer : ». Pas « 10:30 », ni « http:// ».
+_DEUX_POINTS = re.compile(r" :(?=\s|$)")
+
+
+def prose(texte: str) -> str:
+    """Les espaces de la ponctuation française, rendues insécables.
+
+    Avant « : », et à l'intérieur des guillemets « » : avec une espace
+    ordinaire, le deux-points ou le guillemet fermant part seul en début de
+    ligne, et « Colonnes obligatoires » finit une ligne que « : ticker »
+    commence. Seule l'espace change : aucun mot, aucun caractère n'est ajouté
+    ni retiré.
+
+    Appliquée UNE fois, à la publication, à chaque champ de texte rédigé
+    (`api.schemas.Texte`) et aux corps d'erreur : les phrases du moteur et des
+    règles s'écrivent avec des espaces lisibles dans le code, et la convention
+    tient pour toutes, y compris celles qui restent à écrire.
+    `tests/test_textes_publies.py` la vérifie sur les réponses.
+    """
+    return (
+        _DEUX_POINTS.sub(f"{NBSP}:", texte)
+        .replace("« ", f"«{NBSP}")
+        .replace(" »", f"{NBSP}»")
+    )
 
 
 def counted(

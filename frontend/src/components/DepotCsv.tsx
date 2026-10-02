@@ -117,7 +117,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
         onDragLeave={() => setSurvol(false)}
         onDrop={deposer}
       >
-        <p className={styles.consigne}>Déposer un fichier CSV ici, ou le choisir :</p>
+        <p className={styles.consigne}>Déposer un fichier CSV ici, ou le choisir&nbsp;:</p>
         <label htmlFor="fichier-csv" className={controles.libelle}>
           Fichier CSV
         </label>
@@ -162,7 +162,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
 
       {resultat !== null && (
         <div ref={blocLu} tabIndex={-1} className={styles.lu}>
-          <p className={styles.consigne}>Lu dans le fichier :</p>
+          <p className={styles.consigne}>Lu dans le fichier&nbsp;:</p>
           <Provenance
             lignes={[
               { libelle: 'Fichier', valeur: resultat.source.filename ?? 'sans nom' },

@@ -51,7 +51,7 @@ export function SectionAuPire({ serie, creux, asOf }: Props) {
   return (
     <Section ancre="au-pire" numero={3} titre="Ce qu'il a perdu au pire">
       <p className={commun.chapeau}>
-        La plus forte baisse depuis un sommet, sur la fenêtre d'estimation : ce
+        La plus forte baisse depuis un sommet, sur la fenêtre d'estimation&nbsp;: ce
         qu'aurait perdu quelqu'un entré au plus haut et sorti au plus bas, avec
         les positions d'aujourd'hui.
       </p>

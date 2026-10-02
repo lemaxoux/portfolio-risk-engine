@@ -58,7 +58,7 @@ export function Observation({ observation }: { observation: ObservationApi }) {
           >
             {choisi && <span className={styles.point} aria-hidden="true" />}
             <span>
-              <span className={styles.etiquette}>{ETIQUETTE[seuil.role]} : </span>
+              <span className={styles.etiquette}>{ETIQUETTE[seuil.role]}&nbsp;: </span>
               {seuil.rendered}
             </span>
           </p>

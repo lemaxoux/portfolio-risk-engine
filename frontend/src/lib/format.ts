@@ -72,7 +72,7 @@ function grouper(entier: string): string {
  */
 export function decimal(valeur: number, decimales: number): string {
   if (!Number.isFinite(valeur)) {
-    throw new Error(`Valeur non finie à formater : ${valeur}`)
+    throw new Error(`Valeur non finie à formater\u00a0: ${valeur}`)
   }
   const negatif = valeur < 0
   const [entier = '0', fraction] = Math.abs(valeur).toFixed(decimales).split('.')
@@ -140,7 +140,7 @@ export function valeurDePortefeuille(valeur: number): string {
  */
 export function montant(valeur: number, devise: string): string {
   if (!/^[A-Z]{3}$/.test(devise)) {
-    throw new Error(`Devise qui n'est pas un code ISO 4217 : « ${devise} »`)
+    throw new Error(`Devise qui n'est pas un code ISO 4217\u00a0: «\u00a0${devise}\u00a0»`)
   }
   return `${valeurDePortefeuille(valeur)}${ESPACE_INSECABLE}${devise}`
 }

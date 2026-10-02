@@ -85,7 +85,7 @@ export function lectureDeVar(
   if (valeur < 0) {
     return frequence === null
       ? `le seuil est un gain et non une perte, ${niveau}`
-      : `le seuil est un gain et non une perte : ${frequence}, le rendement reste sous ce gain`
+      : `le seuil est un gain et non une perte\u00a0: ${frequence}, le rendement reste sous ce gain`
   }
   const seuil = `perte d'au moins ${pourcentage(valeur, decimales)}`
   return frequence === null ? `${seuil}, ${niveau}` : `${seuil}, ${frequence}`
@@ -153,7 +153,7 @@ export function phraseFenetreReduite(
       (ligne) => `${ligne.ticker}, depuis le ${dateISO(ligne.first_available)}`,
     ),
   ]
-  return `${tete} : ${morceaux.join(' ; ')}.`
+  return `${tete}\u00a0: ${morceaux.join(' ; ')}.`
 }
 
 /**
@@ -177,7 +177,7 @@ export function lectureDeCreux(picIso: string, creuxIso: string): string {
  * approximative, comme le moteur de règles l'écrit.
  */
 export const PHRASE_CONTRIBUTION_NEGATIVE =
-  "Au moins une ligne contribue négativement à la variance : elle a évolué à " +
+  "Au moins une ligne contribue négativement à la variance\u00a0: elle a évolué à " +
   "rebours du reste du portefeuille et en réduit le risque. Sa barre part à " +
   "gauche de zéro, et la lecture en lignes effectives en devient approximative."
 
@@ -206,7 +206,7 @@ export function phraseCouverturePartielle(
 export function phraseEchantillonMince(observations: number, minimum: number): string {
   return (
     `Beta de crise estimé sur ${seances(observations)}, moins que les ${minimum} ` +
-    `retenues pour une régression stable (seuil choisi) : quelques séances ` +
+    `retenues pour une régression stable (seuil choisi)\u00a0: quelques séances ` +
     `extrêmes y dictent la pente.`
   )
 }

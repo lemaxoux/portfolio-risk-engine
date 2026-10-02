@@ -141,7 +141,7 @@ export function preparerEnvoi(lignes: readonly LigneSaisie[]): {
       refus.push({
         ligne: numero,
         champ: 'quantity',
-        message: `Quantité illisible : ${cite(ligne.quantite.trim())}. Écrire par exemple 40 ou 12,5.`,
+        message: `Quantité illisible\u00a0: ${cite(ligne.quantite.trim())}. Écrire par exemple 40 ou 12,5.`,
       })
     }
 
@@ -152,7 +152,7 @@ export function preparerEnvoi(lignes: readonly LigneSaisie[]): {
         refus.push({
           ligne: numero,
           champ: 'cost_basis',
-          message: `Prix de revient illisible : ${cite(ligne.prixRevient.trim())}. Écrire par exemple 185,20, ou laisser vide.`,
+          message: `Prix de revient illisible\u00a0: ${cite(ligne.prixRevient.trim())}. Écrire par exemple 185,20, ou laisser vide.`,
         })
       }
     }

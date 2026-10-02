@@ -309,7 +309,7 @@ def test_une_quantite_illisible_dit_quelle_decimale_est_acceptee(
     assert reponse.status_code == 422
     probleme = reponse.json()["problems"][0]
     assert probleme["field"] == "quantity"
-    assert "Décimale acceptée : `,`" in probleme["problem"]
+    assert "Décimale acceptée\u00a0: `,`" in probleme["problem"]
 
 
 def test_un_en_tete_manquant_dit_ce_qui_etait_attendu(

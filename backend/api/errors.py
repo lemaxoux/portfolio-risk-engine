@@ -5,7 +5,9 @@ dit « Aucun prix en base pour ['SPY']. Lancer : python -m backend.ingestion add
 SPY » : c'est exactement ce que l'utilisateur a besoin de lire. Les écraser en
 « 500 Internal Server Error » remplacerait une instruction par un aveu
 d'impuissance. Ce module relaie donc le texte du moteur MOT POUR MOT et se
-contente de choisir le code.
+contente de choisir le code. Seules les espaces avant « : » et dans les
+guillemets deviennent insécables (`typography.prose`), comme dans tout texte
+publié.
 
 LA CORRESPONDANCE, et pourquoi :
 
@@ -36,6 +38,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from backend import typography
+
 
 @dataclass(frozen=True)
 class Problem:
@@ -57,7 +61,7 @@ class Problem:
             "line": self.line,
             "field": self.field,
             "value": self.value,
-            "problem": self.problem,
+            "problem": typography.prose(self.problem),
         }
 
 
@@ -88,7 +92,10 @@ def unprocessable(detail: str, problems: tuple[Problem, ...] = ()) -> ApiError:
 
 
 def _body(detail: str, problems: tuple[Problem, ...]) -> dict[str, object]:
-    return {"detail": detail, "problems": [p.as_dict() for p in problems]}
+    return {
+        "detail": typography.prose(detail),
+        "problems": [p.as_dict() for p in problems],
+    }
 
 
 def register_handlers(app: FastAPI) -> None:

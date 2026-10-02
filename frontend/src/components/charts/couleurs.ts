@@ -44,7 +44,7 @@ export function lireCouleurs(lire: (nom: string) => string): Couleurs {
   const couleurs = {} as Record<keyof typeof JETONS, string>
   for (const [cle, nom] of Object.entries(JETONS) as [keyof typeof JETONS, string][]) {
     const valeur = lire(nom).trim()
-    if (valeur === '') throw new Error(`Token de couleur introuvable : ${nom}`)
+    if (valeur === '') throw new Error(`Token de couleur introuvable\u00a0: ${nom}`)
     couleurs[cle] = valeur
   }
   return couleurs
@@ -76,7 +76,7 @@ function composantes(couleur: string): number[] {
   if (hexa) return hexa.slice(1, 4).map((paire) => parseInt(paire, 16))
   const rgb = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i.exec(couleur.trim())
   if (rgb) return rgb.slice(1, 4).map(Number)
-  throw new Error(`Couleur illisible : « ${couleur} »`)
+  throw new Error(`Couleur illisible\u00a0: «\u00a0${couleur}\u00a0»`)
 }
 
 /** Rapport de contraste WCAG entre deux couleurs. */

@@ -52,7 +52,7 @@ import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
 
 /** La légende exacte de §5.4. */
-export const LEGENDE_CONTRIBUTIONS = 'barre : part de la variance — trait : part du capital'
+export const LEGENDE_CONTRIBUTIONS = 'barre\u00a0: part de la variance — trait\u00a0: part du capital'
 
 /** Une contribution de scénario : le chiffre signé, et sa marque de signe. */
 function ApportEnCrise({ scenario, ticker }: { scenario: Scenario; ticker: string }) {
@@ -122,12 +122,12 @@ function LegendeCorrelation() {
         </span>
       ))}
       <span className={styles.lectureEchelle}>
-        échelle fixe : de −1, lignes qui bougent en sens inverse, à +1, lignes
+        échelle fixe&nbsp;: de −1, lignes qui bougent en sens inverse, à +1, lignes
         qui bougent ensemble
       </span>
       <span className={styles.pas}>
         <span className={`${styles.pastille} ${styles.diagonale}`} aria-hidden="true" />
-        diagonale : chaque ligne avec elle-même, 1 par définition, hors échelle
+        diagonale&nbsp;: chaque ligne avec elle-même, 1 par définition, hors échelle
       </span>
     </p>
   )
@@ -167,7 +167,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
         <Measure
           libelle="Lignes effectives en capital"
           valeur={decimal(concentration.effective_positions, 1)}
-          lecture={`sur ${compteLignes(concentration.n_positions)} détenues : inverse de la somme des carrés des poids`}
+          lecture={`sur ${compteLignes(concentration.n_positions)} détenues\u00a0: inverse de la somme des carrés des poids`}
           provenance={[
             { libelle: 'Lignes', valeur: compteLignes(concentration.n_positions) },
             { libelle: 'Valorisé au', valeur: dateISO(concentration.as_of) },
@@ -196,7 +196,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           <p className={commun.chapeau}>
             Une ligne qui pèse plus dans le risque que dans le capital fait
             bouger le portefeuille plus que son poids ne le laisse croire. Ce
-            n'est pas un sens : le tableau dit ce que chacune a apporté,
+            n'est pas un sens&nbsp;: le tableau dit ce que chacune a apporté,
             réellement, dans les crises rejouées.
           </p>
           <Graphique
@@ -205,7 +205,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             fenetre={variance.window}
             asOf={asOf}
             description={
-              `Parts de variance comparées aux parts de capital, ${compteLignes(contributions.length)} : ` +
+              `Parts de variance comparées aux parts de capital, ${compteLignes(contributions.length)}\u00a0: ` +
               lignesParContribution(contributions)
                 .map((l) => `${l.ticker} ${pointsSignes(l.excess_over_weight, 1)}`)
                 .join(', ')

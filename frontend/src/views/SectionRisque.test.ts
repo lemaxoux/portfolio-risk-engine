@@ -112,7 +112,7 @@ function rendu(surcharges: Partial<Parameters<typeof SectionRisque>[0]> = {}): s
 
 describe('part de la variance contre part du capital (§5.4)', () => {
   it('porte la légende exacte de §5.4', () => {
-    expect(LEGENDE_CONTRIBUTIONS).toBe('barre : part de la variance — trait : part du capital')
+    expect(LEGENDE_CONTRIBUTIONS).toBe('barre\u00a0: part de la variance — trait\u00a0: part du capital')
     const html = rendu().replace(/<span[^>]*><\/span>/g, '')
     expect(html).toContain(LEGENDE_CONTRIBUTIONS)
   })

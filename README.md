@@ -930,6 +930,7 @@ française, avec des espaces **insécables** (`backend/typography.py`) :
 |---|---|---|
 | **U+202F** espace fine | avant `%`, séparateur de milliers | sinon « 25,6 % » se coupe et le `%` part seul à la ligne |
 | **U+00A0** espace insécable | entre un nombre et le mot qu'il compte | sinon « 504 séances » devient « 504 » puis « séances » |
+| **U+00A0** espace insécable | avant « : », après « « » et avant « » » | sinon « : ticker » commence une ligne que « Colonnes obligatoires » finit |
 
 Deux tests balaient la réponse `/analysis` entière et refusent toute espace
 ordinaire dans ces deux positions ; un troisième vérifie en sens inverse que les
@@ -939,9 +940,34 @@ crises : un quatrième test balaie donc une réponse à couverture partielle, se
 endroit où se publie la justification du seuil de couverture de 80 %. Elle
 portait deux espaces ordinaires avant « % ».
 
+**Les deux-points et les guillemets sont composés à la publication.** Les
+phrases du moteur et des règles s'écrivent avec des espaces ordinaires, lisibles
+dans le code ; `typography.prose` les rend insécables avant « : » et dans les
+guillemets, et seulement là. Elle s'applique une fois, aux champs de texte
+rédigé des schémas — typés `Texte` (`Annotated[str, AfterValidator(prose)]`),
+33 champs : raisons, phrases, réserves, provenances, bandeau — et aux corps
+d'erreur (`detail`, `problems[].problem`). Les identifiants et les saisies
+(ticker, nom d'un portefeuille, nom de fichier, exemple de CSV) restent des
+`str` : on ne retouche pas ce que quelqu'un a tapé. `tests/test_textes_publies.py`
+balaie, comme `test_nombres_publies.py` pour les nombres, la référence, une
+réponse synthétique, trois fenêtres réduites, le catalogue, le bandeau et cinq
+corps d'erreur (404, 409, 422 de validation et d'import) ; deux contrôles en
+sens inverse vérifient que les deux-points et les guillemets insécables sont
+bien présents. Seuls « : » et les guillemets sont concernés : « ; », « ? » et
+« ! » gardent une espace ordinaire.
+
+**Aucune lettre grecque hors de la provenance.** Spectral, la police des
+phrases, n'a pas de glyphe grec : le « ν » de repli s'y lit « v ». La même
+garde refuse toute lettre grecque ailleurs que dans `method` et `detail` d'une
+mesure, qui s'affichent en IBM Plex Sans (« ν = 4,07 », « μ = 0 »,
+« λ=0,94 »). La raison du refus des contributions à deux séances a perdu sa
+formule pour cela ; la voici : la covariance y est de rang 1, Σ ∝ δδᵀ, et la
+part de chaque ligne vaut wᵢδᵢ / (wᵀδ).
+
 Le frontend applique la même convention de son côté pour les nombres qu'il
-formate lui-même. Les messages d'erreur de validation de l'API n'y sont pas
-soumis : ce sont des diagnostics, pas du texte de rapport.
+formate lui-même, et pour les deux-points et guillemets de ses propres
+chaînes. Dans les messages d'erreur, seuls les nombres SAISIS passent par
+`typography` (`exact`) : le reste est un diagnostic, pas un texte de rapport.
 
 #### Les choix de sérialisation qui comptent
 

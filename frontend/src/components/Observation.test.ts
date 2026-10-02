@@ -105,24 +105,24 @@ describe('« Seuil » pour une frontière, « Référence » pour une valeur du 
 
   it('la paire la plus corrélée est une référence, le seuil choisi reste un seuil', () => {
     const html = rendu(observation([choisi, paire]))
-    expect(html).toMatch(/Seuil : <\/span>corrélation forte = 0,70/)
-    expect(html).toMatch(/Référence : <\/span>corrélation JNJ–KO = 0,42/)
-    expect(html).not.toMatch(/Seuil : <\/span>corrélation JNJ–KO/)
+    expect(html).toMatch(/Seuil\u00a0: <\/span>corrélation forte = 0,70/)
+    expect(html).toMatch(/Référence\u00a0: <\/span>corrélation JNJ–KO = 0,42/)
+    expect(html).not.toMatch(/Seuil\u00a0: <\/span>corrélation JNJ–KO/)
   })
 
   it("la part de capital d'une ligne, dérivée du portefeuille, est une référence", () => {
     const html = rendu(
       observation([seuil('derived', 'part de JPM dans la valeur = 25,6 %', 'reference')]),
     )
-    expect(html).toContain('Référence : ')
-    expect(html).not.toContain('Seuil : ')
+    expect(html).toContain('Référence\u00a0: ')
+    expect(html).not.toContain('Seuil\u00a0: ')
   })
 
   it("un seuil dérivé qui se démontre reste un seuil : l'étiquette suit role, pas kind", () => {
     const html = rendu(
       observation([seuil('derived', 'nombre minimal de séances estimables = 3', 'threshold')]),
     )
-    expect(html).toContain('Seuil : ')
+    expect(html).toContain('Seuil\u00a0: ')
     expect(html).not.toContain('Référence')
   })
 })

@@ -415,7 +415,7 @@ def test_chaque_seuil_dit_s_il_est_un_seuil_ou_une_reference(analyse_reelle):
         "threshold",
         "reference",
     ]
-    assert "Référence : corrélation JNJ–KO" in diversification["rendered"]
+    assert "Référence\u00a0: corrélation JNJ–KO" in diversification["rendered"]
     for contribution in (o for o in observations if o["rule"] == "variance_contribution"):
         assert contribution["thresholds"][0]["role"] == "reference"
 
@@ -676,7 +676,7 @@ def test_un_volet_student_indisponible_sort_null_avec_la_raison_du_moteur(
 
     reel = module.analyse_portfolio
     message = (
-        "Erreur imprévue dans les simulations : aucun tirage n'a pu être "
+        "Erreur imprévue dans les simulations\u00a0: aucun tirage n'a pu être "
         "produit."
     )
 
@@ -1025,7 +1025,7 @@ def test_sur_un_echantillon_mince_les_deux_observations_portent_le_seuil_choisi(
     }
 
     for observation in concernees:
-        assert "Estimation mince : 39 séances" in observation["statement"]
+        assert "Estimation mince\u00a0: 39 séances" in observation["statement"]
         assert observation["uses_chosen_threshold"] is True
         minimum = [
             s
@@ -1332,7 +1332,7 @@ def test_les_quatre_regles_portent_le_seuil_choisi_sur_quarante_seances(
         "systematic_share",
     }
     for observation in concernees:
-        assert "Estimation mince : 39 séances" in observation["statement"], (
+        assert "Estimation mince\u00a0: 39 séances" in observation["statement"], (
             observation["rule"]
         )
         minimum = [

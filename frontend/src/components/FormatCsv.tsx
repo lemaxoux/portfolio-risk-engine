@@ -40,20 +40,20 @@ function Indisponible({ erreur }: { erreur: ApiErreur }) {
     // Aucune description de repli : elle serait la copie que la publication
     // du format existe pour éviter. Un import tenté dira, ligne par ligne, ce
     // qui ne va pas.
-    <p className={styles.texte}>Le format n'a pas pu être lu : {erreur.detail}</p>
+    <p className={styles.texte}>Le format n'a pas pu être lu&nbsp;: {erreur.detail}</p>
   )
 }
 
 function Regles({ format }: { format: CsvFormat }) {
   return (
     <>
-      <p className={styles.texte}>Par exemple, tel qu'un tableur l'enregistre :</p>
+      <p className={styles.texte}>Par exemple, tel qu'un tableur l'enregistre&nbsp;:</p>
       <pre className={styles.exemple}>
         <code>{format.example.trimEnd()}</code>
       </pre>
       <ul className={styles.regles}>
         <li>
-          Une ligne d'en-tête, puis une ligne par titre. Colonnes obligatoires :{' '}
+          Une ligne d'en-tête, puis une ligne par titre. Colonnes obligatoires&nbsp;:{' '}
           {format.required_columns.map((colonne, rang) => (
             <span key={colonne}>
               {rang > 0 && ', '}
@@ -62,7 +62,7 @@ function Regles({ format }: { format: CsvFormat }) {
           ))}
           {format.optional_columns.length > 0 && (
             <>
-              {' '}; facultative :{' '}
+              {' '}; facultative&nbsp;:{' '}
               {format.optional_columns.map((colonne, rang) => (
                 <span key={colonne}>
                   {rang > 0 && ', '}
@@ -76,15 +76,15 @@ function Regles({ format }: { format: CsvFormat }) {
         </li>
         {format.delimiters.map((regle) => (
           <li key={regle.delimiter}>
-            Séparateur {cite(regle.delimiter)} : décimale{' '}
+            Séparateur {cite(regle.delimiter)}&nbsp;: décimale{' '}
             {regle.decimal_separators.map((decimale) => cite(decimale)).join(' ou ')}.
           </li>
         ))}
         <li>
-          Espaces de milliers admises :{' '}
+          Espaces de milliers admises&nbsp;:{' '}
           {format.thousands_separators.map((espace) => nomEspace(espace)).join(', ')}.
         </li>
-        <li>Encodage : {format.encodings.map((code) => nomEncodage(code)).join(', ')}.</li>
+        <li>Encodage&nbsp;: {format.encodings.map((code) => nomEncodage(code)).join(', ')}.</li>
         <li>
           Au plus {compte(format.max_bytes, 'octet')} et {lignes(format.max_positions)}.
         </li>

@@ -336,6 +336,23 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   dans les phrases qu'il rédige : une interface qui afficherait `1.38%` à
   côté d'une phrase en `1,38 %` créerait deux conventions dans un même
   produit.
+- **U+00A0 avant « : », après « « » et avant « » ».** Avec une espace
+  ordinaire, le deux-points ou le guillemet fermant part seul en début de
+  ligne : « Colonnes obligatoires » finissait une ligne que « : ticker »
+  commençait. Chaque moitié tient la règle de son côté. Le backend la pose à la
+  publication sur tout texte rédigé (`typography.prose`), vérifiée sur les
+  réponses par `tests/test_textes_publies.py`. Le frontend l'écrit dans son
+  code — `&nbsp;` dans le texte et les attributs JSX, `\u00a0` dans une chaîne,
+  `cite()` pour un nom cité —, vérifiée sur le code source par
+  `src/lib/ponctuation.test.ts`, qui lit les chaînes et le JSX avec le
+  compilateur TypeScript (une recherche de texte prendrait chaque ternaire
+  `a ? b : c` pour de la prose). « ; », « ? » et « ! » ne sont pas concernés.
+- **Aucune lettre grecque dans la prose.** Spectral n'a pas de glyphe grec :
+  ses sous-ensembles ne couvrent pas U+0370–03FF, et un « ν » y passe dans une
+  police de repli où il se lit « v ». Le grec reste dans la provenance
+  (« ν = 4,07 », « μ = 0 », « λ=0,94 »), écrite en IBM Plex Sans, qui l'a.
+  `tests/test_textes_publies.py` refuse toute lettre grecque ailleurs que dans
+  `method` et `detail` d'une mesure.
 - **U+202F en Spectral : une face dédiée.** Ni Spectral ni IBM Plex Sans ne
   dessinent U+202F, et le sous-ensemble latin de Spectral le revendique dans
   sa `unicode-range` sans l'avoir : Chrome synthétise alors une demi-espace,

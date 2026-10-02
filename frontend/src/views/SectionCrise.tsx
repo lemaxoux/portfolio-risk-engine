@@ -203,7 +203,7 @@ export function BlocScenario({
               {couverture.excluded.map((ligne) => (
                 <li key={ligne.ticker}>
                   <span className={styles.ticker}>{ligne.ticker}</span>{' '}
-                  {pourcentage(ligne.weight, 1)} de la valeur : {ligne.reason}
+                  {pourcentage(ligne.weight, 1)} de la valeur&nbsp;: {ligne.reason}
                 </li>
               ))}
             </ul>
@@ -236,7 +236,7 @@ export function SectionCrise({ scenarios, regimes, asOf }: Props) {
   return (
     <Section ancre="en-crise" numero={5} titre="Ce qui se passe en crise">
       <p className={commun.chapeau}>
-        Chaque crise est rejouée sur le portefeuille d'aujourd'hui : ses poids au
+        Chaque crise est rejouée sur le portefeuille d'aujourd'hui&nbsp;: ses poids au
         départ, ses quantités figées ensuite. Trois chiffres par crise, à la
         même taille — la sortie, le pire moment traversé, et la part du
         portefeuille que le rejeu couvre réellement.

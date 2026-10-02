@@ -191,7 +191,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     try {
       const ecrit = await putPositions(portefeuille.id, positions)
       annoncer(
-        `Positions enregistrées le ${dateEnToutesLettres(ecrit.updated_at)} : ${compteLignes(ecrit.positions_count)}.`,
+        `Positions enregistrées le ${dateEnToutesLettres(ecrit.updated_at)}\u00a0: ${compteLignes(ecrit.positions_count)}.`,
         page,
       )
       await recharger()
@@ -240,7 +240,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       <p className={styles.texte}>
         {portefeuille.positions.length === 0
           ? `${cite(nom)} n'a encore aucune position. Les saisir ci-dessous, une ligne par titre, ou importer un fichier.`
-          : "Le tableau est le portefeuille : l'enregistrer remplace toutes ses positions par les lignes affichées."}
+          : "Le tableau est le portefeuille\u00a0: l'enregistrer remplace toutes ses positions par les lignes affichées."}
       </p>
 
       <form className={styles.saisie} onSubmit={(e) => void enregistrer(e)} noValidate>
@@ -256,14 +256,14 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
           retirer={retirer}
         />
         <p className={controles.aide}>
-          Le prix de revient est facultatif : il ne sert à aucune mesure de risque.
-          « Historique depuis » est la première séance de prix du titre en base ;
+          Le prix de revient est facultatif&nbsp;: il ne sert à aucune mesure de risque.
+          «&nbsp;Historique depuis&nbsp;» est la première séance de prix du titre en base ;
           une ligne cotée depuis peu raccourcit la fenêtre de toute l'analyse.
         </p>
         {erreurUnivers !== null && (
           <p className={controles.aide}>
             Les noms des titres n'ont pas pu être lus ({erreurUnivers.detail}). La saisie reste
-            possible : chaque ticker est vérifié à l'enregistrement.
+            possible&nbsp;: chaque ticker est vérifié à l'enregistrement.
           </p>
         )}
         <div>
@@ -286,7 +286,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
             ) : (
               <>
                 <p className={styles.question}>
-                  Rien n'a été enregistré :{' '}
+                  Rien n'a été enregistré&nbsp;:{' '}
                   {tousLesRefus.length > 0
                     ? `${compteLignes(new Set(tousLesRefus.map((r) => r.ligne)).size)} à corriger.`
                     : 'la saisie est refusée.'}
@@ -329,7 +329,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
         modifie={modifie}
         importe={async (lu) => {
           annoncer(
-            `Portefeuille importé depuis ${cite(lu.source.filename ?? 'le fichier')} : ${compteLignes(lu.positions_count)}.`,
+            `Portefeuille importé depuis ${cite(lu.source.filename ?? 'le fichier')}\u00a0: ${compteLignes(lu.positions_count)}.`,
             page,
           )
           await recharger()

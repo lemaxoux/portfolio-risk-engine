@@ -684,11 +684,13 @@ CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
         "Elle prend alors n'importe quelle valeur, ce qui ne la rend pas "
         "davantage estimée."
     ),
+    # Sans formule : la phrase s'affiche en Spectral, qui n'a pas de glyphe
+    # grec. La formule, Σ ∝ δδᵀ et wᵢδᵢ / (wᵀδ), est dans le README.
     "contributions": (
         "Une covariance d'échantillon sur n observations est de rang au plus "
         "n − 1, le centrage retirant une dimension : à deux observations elle est "
-        "de rang 1, Σ ∝ δδᵀ, et la part de chaque ligne s'y ramène à "
-        "wᵢδᵢ / (wᵀδ) — sa part dans ce seul écart."
+        "de rang 1, et la part de chaque ligne s'y ramène à sa part dans ce seul "
+        "écart."
     ),
 }
 

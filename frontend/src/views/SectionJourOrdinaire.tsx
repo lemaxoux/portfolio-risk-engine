@@ -123,7 +123,7 @@ export function descriptionHistogramme(
   )
   return (
     `Rendements quotidiens de ${seances(histogramme.window.observations)}, en classes de ` +
-    `${points(histogramme.bin_width, 2)} : ${quantiles.join(' ; ')}.`
+    `${points(histogramme.bin_width, 2)}\u00a0: ${quantiles.join(' ; ')}.`
   )
 }
 
@@ -147,7 +147,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
       <h3 className={commun.sousTitre}>Sans hypothèse de loi</h3>
       <p className={commun.chapeau}>
         Le quantile des rendements réellement observés sur la fenêtre. Aucune
-        loi n'est supposée : ce sont les séances qui ont eu lieu.
+        loi n'est supposée&nbsp;: ce sont les séances qui ont eu lieu.
       </p>
       <div className={commun.rangee}>
         {niveaux.map((niveau) => (
@@ -175,7 +175,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           options={options}
         >
           <p className={styles.legende}>
-            Classes de largeur fixe, les mêmes pour tout portefeuille : un
+            Classes de largeur fixe, les mêmes pour tout portefeuille&nbsp;: un
             portefeuille plus agité s'étale davantage sur la même grille. Les
             traits marquent les quantiles historiques ; l'aire ombrée, les
             séances que moyenne la CVaR à 95 %.
@@ -186,7 +186,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
       <h3 className={commun.sousTitre}>Ce que coûte l'hypothèse de normalité</h3>
       <p className={commun.chapeau}>
         Les deux mêmes niveaux, sous deux lois. L'écart entre la normale et la
-        loi de Student est l'information : il mesure ce que la normalité fait
+        loi de Student est l'information&nbsp;: il mesure ce que la normalité fait
         perdre de vue dans la queue.
       </p>
       {niveaux.map((niveau) => (

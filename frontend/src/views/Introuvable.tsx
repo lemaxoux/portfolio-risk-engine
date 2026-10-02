@@ -34,7 +34,7 @@ export function PortefeuilleIntrouvable({ id, page }: { id: number; page: string
           Portefeuille introuvable
         </h1>
         <p className={styles.texte}>
-          Aucun portefeuille ne porte le numéro {id} : il a peut-être été supprimé.
+          Aucun portefeuille ne porte le numéro {id}&nbsp;: il a peut-être été supprimé.
         </p>
         <Lien vers={cheminDe({ vue: 'portefeuilles' })}>Voir les portefeuilles</Lien>
       </div>

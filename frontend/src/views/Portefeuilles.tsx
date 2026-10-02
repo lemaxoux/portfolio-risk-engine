@@ -102,7 +102,7 @@ function AucunPortefeuille({
   return (
     <div className={styles.vide}>
       <p className={styles.texte}>
-        Aucun portefeuille en base. L'analyse décrit un portefeuille : il faut
+        Aucun portefeuille en base. L'analyse décrit un portefeuille&nbsp;: il faut
         d'abord en créer un, puis saisir ou importer ses positions.
       </p>
       <Creation recharger={recharger} annoncer={annoncer} titre="Créer un portefeuille" />
@@ -189,13 +189,13 @@ function Liste({
       cellule: (p) => (
         <span className={styles.actions}>
           <Lien vers={cheminDe({ vue: 'positions', id: p.id })}>
-            Positions<span className="visuellement-cache"> de « {p.name} »</span>
+            Positions<span className="visuellement-cache"> de «&nbsp;{p.name}&nbsp;»</span>
           </Lien>
           {/* Jamais désactivé pendant une confirmation : « Annuler » doit
               pouvoir lui rendre le focus, et en choisir un autre change
               simplement la question. */}
           <button type="button" className={controles.discret} onClick={() => demander(p)}>
-            Supprimer<span className="visuellement-cache"> « {p.name} »</span>
+            Supprimer<span className="visuellement-cache"> «&nbsp;{p.name}&nbsp;»</span>
           </button>
         </span>
       ),
@@ -244,7 +244,7 @@ function EtatDuPortefeuille({ portefeuille }: { portefeuille: PortfolioDetail })
   if (portefeuille.valuation === null) {
     return (
       <span className={styles.etat}>
-        Non valorisé : {portefeuille.valuation_error ?? 'raison non publiée.'}
+        Non valorisé&nbsp;: {portefeuille.valuation_error ?? 'raison non publiée.'}
       </span>
     )
   }
@@ -329,7 +329,7 @@ function Creation({
     evenement.preventDefault()
     const propre = nom.trim()
     if (propre.length === 0) {
-      setRefus('Le nom est vide : il en faut un pour reconnaître le portefeuille.')
+      setRefus('Le nom est vide\u00a0: il en faut un pour reconnaître le portefeuille.')
       return
     }
     setEnCours(true)

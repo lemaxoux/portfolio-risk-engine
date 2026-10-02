@@ -98,7 +98,7 @@ export function optionsHistogramme(
         frameAnchor: 'left',
         dx: 4,
         text: (q: typeof queue) =>
-          `queue à ${pourcentage(q.confidence, 0)} :\n${seances(q.tail_observations)}`,
+          `queue à ${pourcentage(q.confidence, 0)}\u00a0:\n${seances(q.tail_observations)}`,
         textAnchor: 'start',
         lineAnchor: 'middle',
         ...halo(couleurs, couleurs.texte2),

@@ -114,7 +114,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
             {cite(nom)} n'a encore aucune position
           </h1>
           <p className={styles.texte}>
-            L'analyse décrit des positions : ce portefeuille n'en a aucune.
+            L'analyse décrit des positions&nbsp;: ce portefeuille n'en a aucune.
           </p>
           <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
             Saisir ou importer les positions
@@ -141,7 +141,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
           </h1>
           <p className={styles.texte}>
             Ses positions sont en base, mais le moteur n'en tire pas d'analyse. Il dit
-            pourquoi, et ce qu'il faut faire :
+            pourquoi, et ce qu'il faut faire&nbsp;:
           </p>
           <MessageErreur erreur={etat.raison} alerte={false} />
           <p className={`${styles.texte} ${styles.suite}`}>

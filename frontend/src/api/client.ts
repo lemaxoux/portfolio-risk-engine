@@ -144,11 +144,11 @@ export class ApiErreur extends Error {
 export function versApiErreur(cause: unknown): ApiErreur {
   return cause instanceof ApiErreur
     ? cause
-    : new ApiErreur(0, `Erreur inattendue du client : ${String(cause)}`)
+    : new ApiErreur(0, `Erreur inattendue du client\u00a0: ${String(cause)}`)
 }
 
 const SERVEUR_INJOIGNABLE =
-  "L'API ne répond pas. La démarrer : python -m backend.api"
+  "L'API ne répond pas. La démarrer\u00a0: python -m backend.api"
 
 /**
  * Ce qu'une requête envoie. `json` est sérialisé ; `fichier` part en

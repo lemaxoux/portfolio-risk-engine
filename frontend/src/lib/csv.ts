@@ -31,8 +31,8 @@ export function nomEncodage(code: string): string {
 const DECIMALES: Record<CsvSource['decimal_separator'], string> = {
   ',': cite(','),
   '.': cite('.'),
-  mixte: 'mixte : virgules et points dans le même fichier',
-  aucune: 'aucune : tous les nombres sont entiers',
+  mixte: 'mixte\u00a0: virgules et points dans le même fichier',
+  aucune: 'aucune\u00a0: tous les nombres sont entiers',
 }
 
 /** La décimale OBSERVÉE dans un fichier importé. */

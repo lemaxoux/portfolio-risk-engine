@@ -35,6 +35,14 @@ FRACTIONS — une VaR de 1,38 % se sérialise `0.0138`. Le pourcentage, la virgu
 décimale et l'arrondi sont décidés à un seul endroit, côté frontend (voir
 `frontend/DESIGN.md` §6).
 
+═══ LE TEXTE RÉDIGÉ EST COMPOSÉ À LA PUBLICATION ═══
+
+Un champ de PROSE — raison, phrase, réserve, provenance — est typé `Texte` :
+`typography.prose` y rend insécables les espaces avant « : » et dans les
+guillemets. Seules les espaces changent. Les identifiants et les données de
+l'utilisateur (ticker, nom d'un portefeuille, nom de fichier, exemple de CSV)
+restent des `str` : on ne retouche pas ce que quelqu'un a saisi.
+
 `allow_inf_nan=False` : un NaN ou un infini est refusé à la construction du
 schéma, avec le nom du champ fautif. Sans lui, la panne se produirait plus loin,
 au moment d'écrire les octets, avec un message qui ne dit pas d'où vient la
@@ -46,9 +54,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+from backend import typography
 
 from backend.db.portfolios import PortfolioRow, PositionRow
 from backend.risk_engine.engine import (
@@ -90,6 +100,11 @@ from backend.rules.thresholds import Threshold
 
 class Schema(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
+
+
+# Un texte RÉDIGÉ par le moteur, les règles ou le bandeau, composé à la
+# publication (voir l'en-tête de ce module).
+Texte = Annotated[str, AfterValidator(typography.prose)]
 
 
 # ═══════════════════════════════════════════════════════ Provenance commune ══
@@ -365,7 +380,7 @@ class PortfolioDetailOut(Schema):
         )
     )
     valuation: ValuationOut | None
-    valuation_error: str | None
+    valuation_error: Texte | None
 
 
 class PositionsWrittenOut(Schema):
@@ -465,8 +480,8 @@ class VolatilityOut(Schema):
 
     annualised: float
     daily: float
-    method: str
-    caveat: str | None
+    method: Texte
+    caveat: Texte | None
     window: WindowOut
 
     @classmethod
@@ -553,7 +568,7 @@ class SortinoOut(Schema):
     annualised: float | None
     downside_deviation_daily: float
     target_daily: float
-    undefined_reason: str | None
+    undefined_reason: Texte | None
     window: WindowOut
 
     @classmethod
@@ -608,7 +623,7 @@ class MatricesOut(Schema):
 
     covariance: MatrixOut
     correlation: MatrixOut | None
-    correlation_undefined_reason: str | None
+    correlation_undefined_reason: Texte | None
     ddof: int
     window: WindowOut
 
@@ -657,7 +672,7 @@ class VarianceContributionsOut(Schema):
 
     tickers: list[str]
     contributions: list[ContributionOut] | None
-    undefined_reason: str | None
+    undefined_reason: Texte | None
     effective_positions: float | None
     has_negative_contribution: bool | None
     window: WindowOut
@@ -705,9 +720,9 @@ class BetaOut(Schema):
     beta: float | None
     r_squared: float | None
     idiosyncratic_share: float | None
-    undefined_reason: str | None
+    undefined_reason: Texte | None
     benchmark: str
-    basis: str
+    basis: Texte
     window: WindowOut
 
     @classmethod
@@ -735,10 +750,10 @@ class VarOut(Schema):
 
     value: float
     confidence: float
-    method: str
-    detail: str
+    method: Texte
+    detail: Texte
     nu: float | None
-    caveat: str | None
+    caveat: Texte | None
     window: WindowOut
 
     @classmethod
@@ -801,7 +816,7 @@ class ExpectedShortfallOut(Schema):
             "même niveau de confiance."
         )
     )
-    caveat: str | None
+    caveat: Texte | None
     window: WindowOut
 
     @classmethod
@@ -869,8 +884,8 @@ class TailRiskOut(Schema):
 
     levels: list[TailRiskLevelOut]
     student_fit: StudentFitOut | None
-    student_unavailable_reason: str | None
-    monte_carlo_unavailable_reason: str | None
+    student_unavailable_reason: Texte | None
+    monte_carlo_unavailable_reason: Texte | None
 
     @classmethod
     def of(cls, report: RiskReport) -> TailRiskOut:
@@ -1077,11 +1092,11 @@ class ReturnHistogramOut(Schema):
 
 class ScenarioDefOut(Schema):
     key: str
-    name: str
+    name: Texte
     start: date
     end: date
     benchmark: str
-    description: str
+    description: Texte
     calendar_days: int
 
     @classmethod
@@ -1099,7 +1114,7 @@ class ScenarioDefOut(Schema):
 
 class ExcludedPositionOut(Schema):
     ticker: str
-    reason: str
+    reason: Texte
     value: float
     weight: float
     first_available: date | None
@@ -1191,8 +1206,8 @@ class ScenarioOut(Schema):
     max_drawdown: TrajectoryDrawdownOut | None
     contributions: list[PositionContributionOut]
     observations: int
-    unavailable_reason: str | None
-    summary: str
+    unavailable_reason: Texte | None
+    summary: Texte
 
     @classmethod
     def of(cls, result: ScenarioResult) -> ScenarioOut:
@@ -1273,8 +1288,8 @@ class RegimeOut(Schema):
     prediction_gap: float | None
     ratio_beta_divergence: float | None
     systematic_share_change: float | None
-    unavailable_reason: str | None
-    summary: str
+    unavailable_reason: Texte | None
+    summary: Texte
 
     @classmethod
     def of(cls, result: RegimeComparison) -> RegimeOut:
@@ -1314,14 +1329,14 @@ class ThresholdOut(Schema):
     pas : `derived` couvre les deux.
     """
 
-    name: str
+    name: Texte
     kind: Literal["derived", "portfolio_relative", "chosen"]
     role: Literal["threshold", "reference"]
     value: float
-    rationale: str
+    rationale: Texte
     percent: bool
     chosen: bool
-    rendered: str
+    rendered: Texte
 
     @classmethod
     def of(cls, threshold: Threshold) -> ThresholdOut:
@@ -1347,14 +1362,14 @@ class ObservationOut(Schema):
     """
 
     rule: str
-    rule_label: str
+    rule_label: Texte
     subject: str
-    statement: str
+    statement: Texte
     facts: dict[str, int | float | str | None]
-    provenance: str
+    provenance: Texte
     thresholds: list[ThresholdOut]
     uses_chosen_threshold: bool
-    rendered: str
+    rendered: Texte
 
     @classmethod
     def of(cls, observation: Observation) -> ObservationOut:
@@ -1372,8 +1387,8 @@ class ObservationOut(Schema):
 
 
 class DisclaimerSectionOut(Schema):
-    title: str
-    body: str
+    title: Texte
+    body: Texte
 
     @classmethod
     def of(cls, section: DisclaimerSection) -> DisclaimerSectionOut:
@@ -1389,10 +1404,10 @@ class DisclaimerOut(Schema):
     peut donc pas annoncer une durée que le calcul n'a pas utilisée.
     """
 
-    title: str
+    title: Texte
     sections: list[DisclaimerSectionOut]
-    confirmation: str
-    text: str
+    confirmation: Texte
+    text: Texte
 
     @classmethod
     def of(cls, rules_report: RulesReport, window: int) -> DisclaimerOut:
