@@ -29,7 +29,7 @@ export function descriptionRichesse(serie: PortfolioSeries, creux: Drawdown): st
   if (depart === undefined || arrivee === undefined) return 'Courbe de richesse vide.'
   return (
     `Une unité investie le ${dateISO(depart.date)} vaut ${decimal(arrivee.value, 2)} ` +
-    `le ${dateISO(arrivee.date)} ; perte maximale de ${pourcentage(creux.value, 1)} ` +
+    `le ${dateISO(arrivee.date)}\u00a0; perte maximale de ${pourcentage(creux.value, 1)} ` +
     `entre le pic du ${dateISO(creux.peak_date)} et le creux du ${dateISO(creux.trough_date)}.`
   )
 }

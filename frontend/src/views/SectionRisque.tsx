@@ -201,7 +201,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           </p>
           <Graphique
             titre="Part de chaque ligne dans la variance et dans le capital"
-            unite="% de la variance du portefeuille, % de sa valeur ; écart en points"
+            unite="% de la variance du portefeuille, % de sa valeur&nbsp;; écart en points"
             fenetre={variance.window}
             asOf={asOf}
             description={

@@ -153,7 +153,7 @@ export function phraseFenetreReduite(
       (ligne) => `${ligne.ticker}, depuis le ${dateISO(ligne.first_available)}`,
     ),
   ]
-  return `${tete}\u00a0: ${morceaux.join(' ; ')}.`
+  return `${tete}\u00a0: ${morceaux.join('\u00a0; ')}.`
 }
 
 /**
@@ -194,7 +194,7 @@ export function phraseCouverturePartielle(
   total: number,
 ): string {
   return (
-    `${lignes(exclues)} sur ${total} sans historique sur toute la période ; ` +
+    `${lignes(exclues)} sur ${total} sans historique sur toute la période\u00a0; ` +
     `la perte porte sur ${couvertes === 1 ? "l'autre" : `les ${couvertes} autres`}, renormalisées.`
   )
 }

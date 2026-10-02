@@ -3,12 +3,13 @@
 Deux règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
 `test_nombres_publies.py` le fait pour les nombres :
 
-═══ 1. AUCUNE ESPACE ORDINAIRE AVANT « : » NI DANS LES GUILLEMETS ═══
+═══ 1. AUCUNE ESPACE ORDINAIRE AVANT « : », « ; », « ? », « ! » NI DANS LES
+GUILLEMETS ═══
 
-Avec une espace ordinaire, le deux-points ou le guillemet fermant part seul
-en début de ligne : « Colonnes obligatoires » finissait une ligne que
-« : ticker » commençait (captures 7B.3a). L'espace y est insécable, U+00A0,
-posée à la publication par `typography.prose` sur chaque champ de texte rédigé
+Avec une espace ordinaire, le signe ou le guillemet fermant part seul en début
+de ligne : « Colonnes obligatoires » finissait une ligne que « : ticker »
+commençait (captures 7B.3a). L'espace y est insécable, U+00A0, posée à la
+publication par `typography.prose` sur chaque champ de texte rédigé
 (`api.schemas.Texte`) et sur les corps d'erreur.
 
 ═══ 2. AUCUNE LETTRE GRECQUE HORS DE LA PROVENANCE ═══
@@ -27,9 +28,10 @@ import pytest
 
 from backend.typography import NBSP
 
-# Une espace ORDINAIRE (U+0020) avant un deux-points suivi d'un blanc ou de la
-# fin, après « « », avant « » ». Le motif est celui de `typography.prose`.
-ESPACE_ORDINAIRE = re.compile(r".{0,30}(?: :(?=\s|$)|« | »).{0,10}")
+# Une espace ORDINAIRE (U+0020) avant « : », « ; », « ? » ou « ! » suivi d'un
+# blanc ou de la fin, après « « », avant « » ». Le motif est celui de
+# `typography.prose`.
+ESPACE_ORDINAIRE = re.compile(r".{0,30}(?: [:;?!](?=\s|$)|« | »).{0,10}")
 
 GREC = re.compile(f"[{chr(0x370)}-{chr(0x3FF)}]")
 
@@ -66,6 +68,9 @@ TEMOINS_FAUTIFS = (
     ("entre parenthèses", "Au moins 30 (reçu : 7)."),
     ("guillemet ouvrant", "le séparateur « ;" + NBSP + "»"),
     ("guillemet fermant", "le séparateur «" + NBSP + "; »"),
+    ("point-virgule", "valorisation au 2026-09-09 ; risque"),
+    ("point d'interrogation", "Supprimer ce portefeuille ? Ses lignes"),
+    ("point d'exclamation", "Attention !"),
 )
 
 TEMOINS_LEGITIMES = (
@@ -74,6 +79,9 @@ TEMOINS_LEGITIMES = (
     ("adresse", "http://127.0.0.1:8001"),
     ("guillemets insécables", "«" + NBSP + "Démo" + NBSP + "»"),
     ("formule sans deux-points", "échelle S = Σ·(ν−2)/ν"),
+    ("point-virgule insécable", "valorisation" + NBSP + "; risque"),
+    ("question insécable", "Supprimer ce portefeuille" + NBSP + "?"),
+    ("opérateur", "si x != y"),
 )
 
 
@@ -187,6 +195,7 @@ def test_la_garde_mord_sur_de_vraies_reponses(
     vérifierait une absence vide."""
     textes = [t for _, t in toutes_les_chaines(analyse_reelle.json())]
     assert any(NBSP + ":" in t for t in textes)
+    assert any(NBSP + ";" in t for t in textes)
 
     refus = client_synthetique.post(
         f"/api/portfolios/{portefeuille_synthetique}/positions/csv",

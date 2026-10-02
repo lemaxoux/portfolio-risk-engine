@@ -30,7 +30,7 @@ export function SectionMoteur({ observations, bandeau, asOf }: Props) {
       <p className={commun.chapeau}>
         Des propriétés chiffrées du portefeuille, écrites par le moteur de
         règles. Elles décrivent, elles ne prescrivent pas. Quand une phrase
-        repose sur un seuil, il est donné avec sa provenance ; un seuil choisi
+        repose sur un seuil, il est donné avec sa provenance&nbsp;; un seuil choisi
         à la main le dit.
       </p>
       <div className={commun.conditions}>

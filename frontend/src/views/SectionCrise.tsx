@@ -124,7 +124,7 @@ function BlocRegime({ regime }: { regime: Regime }) {
         regime.prediction_gap !== null && (
           <p className={styles.prediction}>
             Face au mouvement de {regime.benchmark} ({pourcentageSigne(regime.benchmark_return, 1)}),
-            le beta de régime calme annonçait {pourcentageSigne(regime.predicted_return, 1)} ; le
+            le beta de régime calme annonçait {pourcentageSigne(regime.predicted_return, 1)}&nbsp;; le
             portefeuille a fait {pourcentageSigne(regime.portfolio_return, 1)}, soit un écart de{' '}
             {pointsSignes(regime.prediction_gap, 1)}.
           </p>

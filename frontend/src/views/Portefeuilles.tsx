@@ -286,7 +286,7 @@ function ConfirmationSuppression({
   return (
     <div className={styles.confirmation}>
       <p className={styles.question} tabIndex={-1} ref={question}>
-        Supprimer {cite(portefeuille.name)} ?{' '}
+        Supprimer {cite(portefeuille.name)}&nbsp;?{' '}
         {nombre === 0
           ? "Il n'a aucune position."
           : `Ses ${lignes(nombre)} seront effacées avec lui.`}{' '}

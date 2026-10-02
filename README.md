@@ -930,7 +930,7 @@ française, avec des espaces **insécables** (`backend/typography.py`) :
 |---|---|---|
 | **U+202F** espace fine | avant `%`, séparateur de milliers | sinon « 25,6 % » se coupe et le `%` part seul à la ligne |
 | **U+00A0** espace insécable | entre un nombre et le mot qu'il compte | sinon « 504 séances » devient « 504 » puis « séances » |
-| **U+00A0** espace insécable | avant « : », après « « » et avant « » » | sinon « : ticker » commence une ligne que « Colonnes obligatoires » finit |
+| **U+00A0** espace insécable | avant « : », « ; », « ? », « ! », après « « » et avant « » » | sinon « : ticker » commence une ligne que « Colonnes obligatoires » finit |
 
 Deux tests balaient la réponse `/analysis` entière et refusent toute espace
 ordinaire dans ces deux positions ; un troisième vérifie en sens inverse que les
@@ -940,21 +940,21 @@ crises : un quatrième test balaie donc une réponse à couverture partielle, se
 endroit où se publie la justification du seuil de couverture de 80 %. Elle
 portait deux espaces ordinaires avant « % ».
 
-**Les deux-points et les guillemets sont composés à la publication.** Les
+**La ponctuation haute et les guillemets sont composés à la publication.** Les
 phrases du moteur et des règles s'écrivent avec des espaces ordinaires, lisibles
-dans le code ; `typography.prose` les rend insécables avant « : » et dans les
-guillemets, et seulement là. Elle s'applique une fois, aux champs de texte
+dans le code ; `typography.prose` les rend insécables avant « : », « ; », « ? »
+et « ! » suivis d'un blanc, et dans les guillemets, et seulement là. Elle s'applique une fois, aux champs de texte
 rédigé des schémas — typés `Texte` (`Annotated[str, AfterValidator(prose)]`),
 33 champs : raisons, phrases, réserves, provenances, bandeau — et aux corps
 d'erreur (`detail`, `problems[].problem`). Les identifiants et les saisies
 (ticker, nom d'un portefeuille, nom de fichier, exemple de CSV) restent des
 `str` : on ne retouche pas ce que quelqu'un a tapé. `tests/test_textes_publies.py`
 balaie, comme `test_nombres_publies.py` pour les nombres, la référence, une
-réponse synthétique, trois fenêtres réduites, le catalogue, le bandeau et cinq
-corps d'erreur (404, 409, 422 de validation et d'import) ; deux contrôles en
-sens inverse vérifient que les deux-points et les guillemets insécables sont
-bien présents. Seuls « : » et les guillemets sont concernés : « ; », « ? » et
-« ! » gardent une espace ordinaire.
+réponse synthétique, trois fenêtres réduites, le catalogue, le bandeau et six
+corps d'erreur (404, 409, et quatre 422 : positions, import, nombre illisible,
+encodage) ; trois contrôles en sens inverse vérifient que deux-points,
+point-virgule et guillemets insécables sont bien présents. Les quatre signes
+prennent la même espace insécable, pas une espace fine.
 
 **Aucune lettre grecque hors de la provenance.** Spectral, la police des
 phrases, n'a pas de glyphe grec : le « ν » de repli s'y lit « v ». La même

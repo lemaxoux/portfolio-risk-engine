@@ -1,6 +1,6 @@
 /**
- * Les deux-points et les guillemets des textes que le FRONTEND écrit lui-même —
- * DESIGN.md §6.3.
+ * La ponctuation haute — « : », « ; », « ? », « ! » — et les guillemets des
+ * textes que le FRONTEND écrit lui-même — DESIGN.md §6.3.
  *
  * Le backend compose les siens à la publication (`typography.prose`, vérifié
  * par `tests/test_textes_publies.py`). Ceux du frontend sont dans son code : une
@@ -24,8 +24,11 @@ import { describe, expect, it } from 'vitest'
 
 const RACINE = join(import.meta.dirname, '..')
 
-/** Une espace ORDINAIRE avant « : » suivi d'un blanc ou de la fin, après « « », avant « » ». */
-const ESPACE_ORDINAIRE = / :(?=\s|$)|« | »/
+/**
+ * Une espace ORDINAIRE avant « : », « ; », « ? » ou « ! » suivi d'un blanc ou de
+ * la fin, après « « », avant « » ». Le motif est celui de `typography.prose`.
+ */
+const ESPACE_ORDINAIRE = / [:;?!](?=\s|$)|« | »/
 
 function fichiers(dossier: string): string[] {
   return readdirSync(dossier, { withFileTypes: true }).flatMap((entree) => {
@@ -104,6 +107,9 @@ describe('la garde', () => {
     expect(temoin(`const b = <p>Colonnes obligatoires :</p>`)).toBe(true)
     expect(temoin(`const c = 'le séparateur « ; »'`)).toBe(true)
     expect(temoin(`const d = <span>de «&nbsp;{nom} »</span>`)).toBe(true)
+    expect(temoin(`const e = 'capital ; risque'`)).toBe(true)
+    expect(temoin(`const f = <p>Supprimer ce portefeuille ?</p>`)).toBe(true)
+    expect(temoin(`const g = 'Attention !'`)).toBe(true)
   })
 
   it('laisse passer les ternaires, l’espace insécable et les heures', () => {
@@ -111,11 +117,14 @@ describe('la garde', () => {
     expect(temoin(`const b = <p>Colonnes obligatoires&nbsp;:</p>`)).toBe(false)
     expect(temoin(`const c = 'Contrôle\\u00a0: indisponible'`)).toBe(false)
     expect(temoin(`const d = 'à 10:30'`)).toBe(false)
+    expect(temoin(`const e = 'capital\\u00a0; risque'`)).toBe(false)
+    expect(temoin(`const f = <p>Supprimer ce portefeuille&nbsp;?</p>`)).toBe(false)
+    expect(temoin(`const g = 'si x != y'`)).toBe(false)
   })
 })
 
 describe('les textes du frontend', () => {
-  it('n’ont aucune espace ordinaire avant « : » ni dans des guillemets', () => {
+  it('n’ont aucune espace ordinaire avant « : », « ; », « ? », « ! » ni dans des guillemets', () => {
     const fautes = fichiers(RACINE).flatMap(fautesDe)
     expect(fautes).toEqual([])
   })

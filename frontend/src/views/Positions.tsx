@@ -257,7 +257,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
         />
         <p className={controles.aide}>
           Le prix de revient est facultatif&nbsp;: il ne sert à aucune mesure de risque.
-          «&nbsp;Historique depuis&nbsp;» est la première séance de prix du titre en base ;
+          «&nbsp;Historique depuis&nbsp;» est la première séance de prix du titre en base&nbsp;;
           une ligne cotée depuis peu raccourcit la fenêtre de toute l'analyse.
         </p>
         {erreurUnivers !== null && (

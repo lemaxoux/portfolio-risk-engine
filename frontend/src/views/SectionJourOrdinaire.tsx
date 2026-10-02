@@ -131,7 +131,7 @@ export function descriptionHistogramme(
     `Rendements quotidiens de ${seances(histogramme.window.observations)}, en classes de ` +
     `${points(histogramme.bin_width, 2)}`
   // Aucun niveau calculable : la phrase s'arrête aux classes, sans quantile.
-  return quantiles.length === 0 ? `${debut}.` : `${debut}\u00a0: ${quantiles.join(' ; ')}.`
+  return quantiles.length === 0 ? `${debut}.` : `${debut}\u00a0: ${quantiles.join('\u00a0; ')}.`
 }
 
 interface Props {
@@ -187,7 +187,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           <p className={styles.legende}>
             Classes de largeur fixe, les mêmes pour tout portefeuille&nbsp;: un
             portefeuille plus agité s'étale davantage sur la même grille. Les
-            traits marquent les quantiles historiques ; l'aire ombrée, les
+            traits marquent les quantiles historiques&nbsp;; l'aire ombrée, les
             séances que moyenne la CVaR à 95 %.
           </p>
         </Graphique>
