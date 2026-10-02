@@ -62,7 +62,7 @@ function Regles({ format }: { format: CsvFormat }) {
           ))}
           {format.optional_columns.length > 0 && (
             <>
-              {' '}; facultative&nbsp;:{' '}
+              &nbsp;; facultative&nbsp;:{' '}
               {format.optional_columns.map((colonne, rang) => (
                 <span key={colonne}>
                   {rang > 0 && ', '}

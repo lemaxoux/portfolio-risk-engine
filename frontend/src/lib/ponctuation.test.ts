@@ -47,16 +47,42 @@ interface Faute {
   readonly texte: string
 }
 
-function fautesDe(chemin: string): Faute[] {
+/** Une espace d'un seul blanc écrite en expression JSX : `{' '}`. */
+function estBlancEnExpression(noeud: ts.Node | undefined): boolean {
+  return (
+    noeud !== undefined &&
+    ts.isJsxExpression(noeud) &&
+    noeud.expression !== undefined &&
+    ts.isStringLiteral(noeud.expression) &&
+    noeud.expression.text.endsWith(' ')
+  )
+}
+
+function fautesDuCode(code: string, chemin: string): Faute[] {
   const source = ts.createSourceFile(
     chemin,
-    readFileSync(chemin, 'utf-8'),
+    code,
     ts.ScriptTarget.Latest,
     true,
     chemin.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
   const fautes: Faute[] = []
+  const signaler = (noeud: ts.Node, texte: string) => {
+    const { line } = source.getLineAndCharacterOfPosition(noeud.getStart(source))
+    fautes.push({ ou: `${relative(RACINE, chemin)}:${line + 1}`, texte: texte.trim().slice(0, 70) })
+  }
   const visiter = (noeud: ts.Node): void => {
+    // Une espace écrite en expression — « {' '}; facultative » — échappe à la
+    // lecture des textes : elle est seule dans sa chaîne, et le signe ouvre le
+    // texte JSX suivant. On regarde donc les voisins.
+    if (ts.isJsxElement(noeud) || ts.isJsxFragment(noeud)) {
+      noeud.children.forEach((enfant, rang) => {
+        const texteJsx = ts.isJsxText(enfant) ? source.text.slice(enfant.pos, enfant.end) : ''
+        if (/^[:;?!»]/.test(texteJsx) && estBlancEnExpression(noeud.children[rang - 1])) {
+          signaler(enfant, `{' '}${texteJsx}`)
+        }
+      })
+    }
     let texte: string | null = null
     // Le texte JSX et les attributs JSX se lisent bruts : « &nbsp; » y est une
     // entité, et un attribut n'interprète pas les échappements JS. Le texte JSX
@@ -74,33 +100,20 @@ function fautesDe(chemin: string): Faute[] {
     ) {
       texte = noeud.text
     }
-    if (texte !== null && ESPACE_ORDINAIRE.test(texte)) {
-      const { line } = source.getLineAndCharacterOfPosition(noeud.getStart(source))
-      fautes.push({
-        ou: `${relative(RACINE, chemin)}:${line + 1}`,
-        texte: texte.trim().slice(0, 70),
-      })
-    }
+    if (texte !== null && ESPACE_ORDINAIRE.test(texte)) signaler(noeud, texte)
     ts.forEachChild(noeud, visiter)
   }
   visiter(source)
   return fautes
 }
 
+function fautesDe(chemin: string): Faute[] {
+  return fautesDuCode(readFileSync(chemin, 'utf-8'), chemin)
+}
+
 describe('la garde', () => {
-  const temoin = (code: string, nom = 'temoin.tsx') => {
-    const source = ts.createSourceFile(nom, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-    const textes: string[] = []
-    const visiter = (noeud: ts.Node): void => {
-      if (ts.isJsxText(noeud)) textes.push(source.text.slice(noeud.pos, noeud.end))
-      else if (ts.isStringLiteral(noeud) || ts.isNoSubstitutionTemplateLiteral(noeud)) {
-        textes.push(noeud.text)
-      }
-      ts.forEachChild(noeud, visiter)
-    }
-    visiter(source)
-    return textes.some((texte) => ESPACE_ORDINAIRE.test(texte))
-  }
+  // Les témoins passent par la MÊME lecture que les fichiers du projet.
+  const temoin = (code: string) => fautesDuCode(code, join(RACINE, 'temoin.tsx')).length > 0
 
   it('voit une espace ordinaire dans une chaîne et dans le JSX', () => {
     expect(temoin(`const a = 'Contrôle : indisponible'`)).toBe(true)
@@ -110,6 +123,7 @@ describe('la garde', () => {
     expect(temoin(`const e = 'capital ; risque'`)).toBe(true)
     expect(temoin(`const f = <p>Supprimer ce portefeuille ?</p>`)).toBe(true)
     expect(temoin(`const g = 'Attention !'`)).toBe(true)
+    expect(temoin(`const h = <p>quantity{' '}; facultative</p>`)).toBe(true)
   })
 
   it('laisse passer les ternaires, l’espace insécable et les heures', () => {
@@ -120,6 +134,8 @@ describe('la garde', () => {
     expect(temoin(`const e = 'capital\\u00a0; risque'`)).toBe(false)
     expect(temoin(`const f = <p>Supprimer ce portefeuille&nbsp;?</p>`)).toBe(false)
     expect(temoin(`const g = 'si x != y'`)).toBe(false)
+    expect(temoin(`const h = <p>quantity&nbsp;; facultative</p>`)).toBe(false)
+    expect(temoin(`const i = <p>valeur{' '}<b>forte</b></p>`)).toBe(false)
   })
 })
 
