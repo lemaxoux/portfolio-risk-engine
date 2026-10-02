@@ -27,6 +27,7 @@ from enum import Enum
 from backend import typography
 from backend.risk_engine.config import (
     MAX_STUDENT_NU,
+    MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
 )
@@ -173,6 +174,27 @@ STUDENT_NU_CEILING = Threshold(
         f"1/√(2n) sous normalité — {typography.percent(0.09, 0)} sur "
         f"{typography.sessions(60)}, {typography.percent(0.032, 1)} sur "
         f"{typography.sessions(504)} — et davantage avec des queues épaisses"
+    ),
+)
+
+# Le cinquième seuil choisi, appliqué lui aussi par le MOTEUR et par aucune
+# règle : sous ce nombre de séances, la loi de Student n'est pas ajustée, et la
+# volatilité comme la VaR paramétrique normale sont marquées minces
+# (`engine._estimation_mince`). Une estimation marquée mince n'entre dans
+# aucune observation : les règles ne lisent ni l'une ni l'autre.
+MIN_DISTRIBUTION_SAMPLE = Threshold(
+    name="nombre minimal de séances pour estimer une loi",
+    kind=ThresholdKind.CHOSEN,
+    value=float(MIN_DISTRIBUTION_OBSERVATIONS),
+    decimals=0,
+    rationale=(
+        "convention usuelle du « grand échantillon », qu'aucun calcul sur le "
+        "portefeuille ne produit ; sous normalité, l'écart-type d'échantillon "
+        "qui porte la volatilité et la VaR paramétrique varie d'environ "
+        f"1/√(2n) d'une fenêtre à l'autre — {typography.percent(0.13, 0)} sur "
+        f"{typography.sessions(30)}, {typography.percent(0.27, 0)} sur "
+        f"{typography.sessions(7)} —, et l'ajustement d'une loi de Student "
+        "repose sur une ou deux séances de queue"
     ),
 )
 

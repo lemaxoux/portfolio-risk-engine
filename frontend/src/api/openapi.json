@@ -2717,6 +2717,17 @@
             ],
             "title": "Nu"
           },
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat"
+          },
           "window": {
             "$ref": "#/components/schemas/WindowOut"
           }
@@ -2729,10 +2740,11 @@
           "method",
           "detail",
           "nu",
+          "caveat",
           "window"
         ],
         "title": "VarOut",
-        "description": "VaR à horizon une séance, en PERTE POSITIVE et en FRACTION.\n\n`0.0138` se lit « perte d'au moins 1,38 % ». Une valeur négative signifie un\ngain à ce niveau de confiance. `nu` est `null` hors loi de Student : c'est\nune donnée du résultat, pas une mention noyée dans `detail`."
+        "description": "VaR à horizon une séance, en PERTE POSITIVE et en FRACTION.\n\n`0.0138` se lit « perte d'au moins 1,38 % ». Une valeur négative signifie un\ngain à ce niveau de confiance. `nu` est `null` hors loi de Student : c'est\nune donnée du résultat, pas une mention noyée dans `detail`. `caveat` marque\nune VaR paramétrique normale estimée sur moins de 30 séances, comme\n`VolatilityOut.caveat`."
       },
       "VarianceContributionsOut": {
         "properties": {
@@ -2821,6 +2833,17 @@
             "type": "string",
             "title": "Method"
           },
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat"
+          },
           "window": {
             "$ref": "#/components/schemas/WindowOut"
           }
@@ -2831,9 +2854,11 @@
           "annualised",
           "daily",
           "method",
+          "caveat",
           "window"
         ],
-        "title": "VolatilityOut"
+        "title": "VolatilityOut",
+        "description": "Volatilité, publiée même sur une fenêtre courte — et alors marquée.\n\n`caveat` est la phrase du moteur sous 30 séances (seuil choisi) : le\nchiffre bouge avec les données, il n'est donc pas refusé, mais il est\nsignalé comme estimation mince et n'entre dans aucune observation."
       },
       "WeightOut": {
         "properties": {

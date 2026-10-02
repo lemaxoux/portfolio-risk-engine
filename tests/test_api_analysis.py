@@ -796,6 +796,35 @@ def test_student_et_monte_carlo_impossibles_publient_chacun_leur_raison(
         assert niveau["student_parametric_var"] is None
 
 
+def test_sous_trente_seances_la_volatilite_et_la_var_normale_publient_leur_reserve(
+    analyse_historique_court,
+):
+    """Le chiffre reste, la réserve l'accompagne : marquée, pas refusée."""
+    risque = analyse_historique_court(3).json()["risk"]
+
+    for volatilite in ("volatility", "ewma_volatility", "parametric_volatility"):
+        assert risque[volatilite]["annualised"] > 0.0
+        assert risque[volatilite]["caveat"].startswith("Estimation mince")
+    for niveau in risque["tail_risk"]["levels"]:
+        assert niveau["parametric_var"]["value"] is not None
+        assert "seuil choisi à la main" in niveau["parametric_var"]["caveat"]
+
+
+def test_a_fenetre_pleine_aucune_reserve_d_estimation_mince(analyse_reelle):
+    risque = analyse_reelle.json()["risk"]
+    for volatilite in ("volatility", "ewma_volatility", "parametric_volatility"):
+        assert risque[volatilite]["caveat"] is None
+    for niveau in risque["tail_risk"]["levels"]:
+        for var in (
+            "historical_var",
+            "parametric_var",
+            "monte_carlo_var",
+            "student_parametric_var",
+            "student_monte_carlo_var",
+        ):
+            assert niveau[var]["caveat"] is None, var
+
+
 def test_la_reference_n_a_ni_refus_student_ni_refus_monte_carlo(analyse_reelle):
     queue = analyse_reelle.json()["risk"]["tail_risk"]
     assert queue["student_unavailable_reason"] is None

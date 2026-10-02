@@ -359,7 +359,9 @@ multivariée donne à la simulation une raison d'exister. Activé par
   donc d'abord le symptôme probable d'un ajustement raté.
 - **Au-delà de ν = 30, pas de Student : le quatrième seuil choisi à la main du
   projet** (`config.MAX_STUDENT_NU`, déclaré dans
-  `rules.thresholds.STUDENT_NU_CEILING`).
+  `rules.thresholds.STUDENT_NU_CEILING`). Le cinquième, en deçà : sous 30
+  séances, pas d'ajustement du tout (`config.MIN_DISTRIBUTION_OBSERVATIONS`,
+  déclaré dans `rules.thresholds.MIN_DISTRIBUTION_SAMPLE`).
   - *Le défaut.* La normale est la limite de la Student quand ν tend vers
     l'infini : sur des rendements sans queue épaisse, le maximum de
     vraisemblance pousse ν vers l'infini. Sur la base réelle, un titre seul sur
@@ -1006,6 +1008,7 @@ et la VaR restent publiées à `n = 2` alors que la corrélation disparaît.
 |---|---|---|
 | corrélation, beta, contributions | **identités arithmétiques** — la valeur ne bouge plus avec les données | `null` + raison |
 | covariance, volatilité, VaR, drawdown | **estimations à un degré de liberté** — très mauvaises, mais elles bougent | publiées |
+| volatilités, VaR paramétrique normale, sous 30 séances | estimations minces | publiées **et marquées** : `caveat` |
 
 Une volatilité sur deux observations est un mauvais chiffre, pas un faux
 chiffre : changez les données, elle change. Une corrélation sur deux
@@ -1013,6 +1016,20 @@ observations vaut ±1 quoi qu'on fasse — elle ne mesure rien. Les mauvaises
 estimations sont couvertes par les trois dispositifs qui existent déjà pour ça :
 `window.observations` sur chaque mesure, `limiting_positions` qui nomme la ligne
 responsable, et le seuil de 60 séances qui les signale dans les observations.
+
+**Sous 30 séances, la volatilité et la VaR paramétrique normale portent une
+réserve.** Les trois volatilités (écart-type, EWMA, matrice) et la VaR normale
+des deux niveaux sortent avec `caveat`, la phrase du moteur : « Estimation
+mince : 7 séances seulement, moins que les 30 retenues pour estimer une loi
+(seuil choisi à la main). Quelques séances suffisent à déplacer ce chiffre, et
+le moteur de règles n'en tire aucune conclusion. » Le seuil est le même que
+celui de l'ajustement de Student, et c'est le cinquième seuil choisi à la main
+(`rules.thresholds.MIN_DISTRIBUTION_SAMPLE`) : sous normalité, l'écart-type
+d'échantillon varie d'environ 1/√(2n) d'une fenêtre à l'autre, 13 % sur 30
+séances, 27 % sur 7. La phrase dit qu'aucune conclusion n'en dépend, et c'est
+vérifié : `tests/test_rules.py` remplace chaque volatilité et chaque VaR du
+rapport par un piège qui lève à la moindre lecture, et les six règles
+s'évaluent quand même. À 30 séances et au-delà, `caveat` vaut `null`.
 
 `matrices.covariance` reste publiée pour une raison de plus : `wᵀΣw` est la
 variance de la série du portefeuille, estimable dès deux observations, et c'est

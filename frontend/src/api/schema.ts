@@ -1338,7 +1338,9 @@ export interface components {
          *
          *     `0.0138` se lit « perte d'au moins 1,38 % ». Une valeur négative signifie un
          *     gain à ce niveau de confiance. `nu` est `null` hors loi de Student : c'est
-         *     une donnée du résultat, pas une mention noyée dans `detail`.
+         *     une donnée du résultat, pas une mention noyée dans `detail`. `caveat` marque
+         *     une VaR paramétrique normale estimée sur moins de 30 séances, comme
+         *     `VolatilityOut.caveat`.
          */
         VarOut: {
             /** Value */
@@ -1351,6 +1353,8 @@ export interface components {
             detail: string;
             /** Nu */
             nu: number | null;
+            /** Caveat */
+            caveat: string | null;
             window: components["schemas"]["WindowOut"];
         };
         /**
@@ -1380,7 +1384,14 @@ export interface components {
             has_negative_contribution: boolean | null;
             window: components["schemas"]["WindowOut"];
         };
-        /** VolatilityOut */
+        /**
+         * VolatilityOut
+         * @description Volatilité, publiée même sur une fenêtre courte — et alors marquée.
+         *
+         *     `caveat` est la phrase du moteur sous 30 séances (seuil choisi) : le
+         *     chiffre bouge avec les données, il n'est donc pas refusé, mais il est
+         *     signalé comme estimation mince et n'entre dans aucune observation.
+         */
         VolatilityOut: {
             /** Annualised */
             annualised: number;
@@ -1388,6 +1399,8 @@ export interface components {
             daily: number;
             /** Method */
             method: string;
+            /** Caveat */
+            caveat: string | null;
             window: components["schemas"]["WindowOut"];
         };
         /** WeightOut */

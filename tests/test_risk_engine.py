@@ -715,6 +715,63 @@ def test_le_cvar_a_99_porte_son_avertissement_en_permanence(conn):
     assert large.caveat is None
 
 
+# ------------------------------------------------- Estimations minces --
+#
+# Sous 30 séances (seuil choisi), la volatilité et la VaR paramétrique normale
+# restent publiées — elles bougent avec les données — mais portent une réserve.
+
+
+def _rapport_sur(conn, rendements):
+    j = seances(rendements + 1)
+    peupler(conn, {"A": cours(j, 100.0, 0.012, graine=4)}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=504, benchmark=None)
+    assert rapport.window.observations == rendements
+    return rapport
+
+
+def test_sous_trente_seances_volatilite_et_var_normale_sont_marquees_minces(conn):
+    rapport = _rapport_sur(conn, 29)
+
+    marquees = [
+        rapport.volatility,
+        rapport.ewma_volatility,
+        rapport.parametric_volatility,
+        *rapport.parametric_var.values(),
+    ]
+    for mesure in marquees:
+        assert mesure.caveat == (
+            "Estimation mince : 29\u00a0séances seulement, moins que les 30 "
+            "retenues pour estimer une loi (seuil choisi à la main). Quelques "
+            "séances suffisent à déplacer ce chiffre, et le moteur de règles "
+            "n'en tire aucune conclusion."
+        )
+        # Marquée, pas refusée : le chiffre reste là.
+        assert mesure.window.observations == 29
+
+    assert rapport.volatility.annualised > 0.0
+    assert all(v.value > 0.0 for v in rapport.parametric_var.values())
+
+
+def test_a_trente_seances_aucune_reserve_d_estimation_mince(conn):
+    rapport = _rapport_sur(conn, 30)
+    for mesure in (
+        rapport.volatility,
+        rapport.ewma_volatility,
+        rapport.parametric_volatility,
+        *rapport.parametric_var.values(),
+    ):
+        assert mesure.caveat is None
+
+
+def test_le_seuil_des_estimations_minces_est_celui_de_la_student():
+    """Un seul nombre pour les deux décisions : sous lui, ni loi de Student
+    ajustée, ni volatilité sans réserve."""
+    from backend.risk_engine import var
+    from backend.risk_engine.config import MIN_DISTRIBUTION_OBSERVATIONS
+
+    assert var.STUDENT_MIN_OBSERVATIONS == MIN_DISTRIBUTION_OBSERVATIONS == 30
+
+
 def test_les_matrices_du_rapport_sont_coherentes(conn):
     j = seances(120)
     peupler(

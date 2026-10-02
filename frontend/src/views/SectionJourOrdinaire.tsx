@@ -24,6 +24,10 @@
  * 4. LA VOLATILITÉ ANNUALISÉE, puis les CVaR, qui disent ce qui se passe
  *    au-delà du quantile et combien de séances elles moyennent.
  *
+ * Sous 30 séances, la VaR normale et la volatilité portent la réserve du
+ * moteur (`caveat`) : point `--caveat` et phrase sous la provenance, comme la
+ * CVaR à 99 %. Le chiffre reste affiché — marqué, pas refusé.
+ *
  * ═══ CE QUE CE COMPOSANT NE FAIT PAS ═══
  *
  * Aucun calcul. Aucun écart n'est soustrait entre normale et Student : les
@@ -82,6 +86,7 @@ function CoupleParametrique({
           niveau.monte_carlo_var,
           raisonMonteCarlo,
         )}
+        caveat={niveau.parametric_var.caveat}
       />
 
       {student !== null ? (
@@ -200,6 +205,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           valeur={pourcentage(risque.volatility.annualised, 1)}
           lecture="écart-type des rendements quotidiens, ramené à l'année"
           provenance={provenanceDeVolatilite(risque.volatility)}
+          caveat={risque.volatility.caveat}
         />
       </div>
 

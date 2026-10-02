@@ -33,6 +33,7 @@ from .rules import (
     variance_contribution,
 )
 from .thresholds import (
+    MIN_DISTRIBUTION_SAMPLE,
     MIN_ESTIMABLE_SAMPLE,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
@@ -47,6 +48,7 @@ __all__ = [
     "ACCEPTANCE_CONFIRMATION",
     "ACCEPTANCE_TEXT",
     "ACCEPTANCE_TITLE",
+    "MIN_DISTRIBUTION_SAMPLE",
     "MIN_ESTIMABLE_SAMPLE",
     "MIN_REGRESSION_SAMPLE",
     "MIN_SCENARIO_COVERAGE",

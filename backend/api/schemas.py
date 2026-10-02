@@ -456,9 +456,17 @@ class CsvFormatOut(Schema):
 
 
 class VolatilityOut(Schema):
+    """Volatilité, publiée même sur une fenêtre courte — et alors marquée.
+
+    `caveat` est la phrase du moteur sous 30 séances (seuil choisi) : le
+    chiffre bouge avec les données, il n'est donc pas refusé, mais il est
+    signalé comme estimation mince et n'entre dans aucune observation.
+    """
+
     annualised: float
     daily: float
     method: str
+    caveat: str | None
     window: WindowOut
 
     @classmethod
@@ -467,6 +475,7 @@ class VolatilityOut(Schema):
             annualised=result.annualised,
             daily=result.daily,
             method=result.method,
+            caveat=result.caveat,
             window=WindowOut.of(result.window),
         )
 
@@ -719,7 +728,9 @@ class VarOut(Schema):
 
     `0.0138` se lit « perte d'au moins 1,38 % ». Une valeur négative signifie un
     gain à ce niveau de confiance. `nu` est `null` hors loi de Student : c'est
-    une donnée du résultat, pas une mention noyée dans `detail`.
+    une donnée du résultat, pas une mention noyée dans `detail`. `caveat` marque
+    une VaR paramétrique normale estimée sur moins de 30 séances, comme
+    `VolatilityOut.caveat`.
     """
 
     value: float
@@ -727,6 +738,7 @@ class VarOut(Schema):
     method: str
     detail: str
     nu: float | None
+    caveat: str | None
     window: WindowOut
 
     @classmethod
@@ -737,6 +749,7 @@ class VarOut(Schema):
             method=result.method,
             detail=result.detail,
             nu=result.nu,
+            caveat=result.caveat,
             window=WindowOut.of(result.window),
         )
 

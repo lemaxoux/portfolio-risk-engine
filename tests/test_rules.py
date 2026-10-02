@@ -36,6 +36,7 @@ from backend.risk_engine.engine import (
 from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.rules import (
+    MIN_DISTRIBUTION_SAMPLE,
     MIN_ESTIMABLE_SAMPLE,
     MIN_REGRESSION_SAMPLE,
     MIN_SCENARIO_COVERAGE,
@@ -530,6 +531,70 @@ def test_le_plafond_de_nu_est_le_quatrieme_seuil_choisi():
     ]
     assert len(choisis) == 4
     assert "seuil CHOISI à la main" in str(STUDENT_NU_CEILING)
+
+
+def test_le_minimum_de_seances_d_une_loi_est_le_cinquieme_seuil_choisi():
+    """Appliqué par le moteur — refus de la Student, réserve sur la volatilité
+    et la VaR paramétrique —, déclaré ici avec les quatre autres."""
+    from backend.risk_engine.config import MIN_DISTRIBUTION_OBSERVATIONS
+
+    assert MIN_DISTRIBUTION_SAMPLE.chosen
+    assert MIN_DISTRIBUTION_SAMPLE.role is ThresholdRole.THRESHOLD
+    assert MIN_DISTRIBUTION_SAMPLE.value == MIN_DISTRIBUTION_OBSERVATIONS == 30
+    assert MIN_DISTRIBUTION_SAMPLE.displayed == "30"
+    assert "seuil CHOISI à la main" in str(MIN_DISTRIBUTION_SAMPLE)
+    choisis = [
+        seuil
+        for seuil in (
+            STRONG_CORRELATION,
+            MIN_SCENARIO_COVERAGE,
+            MIN_REGRESSION_SAMPLE,
+            MIN_ESTIMABLE_SAMPLE,
+            STUDENT_NU_CEILING,
+            MIN_DISTRIBUTION_SAMPLE,
+        )
+        if seuil.chosen
+    ]
+    assert len(choisis) == 5
+
+
+class _Piege:
+    """Une mesure que le moteur de règles n'a pas le droit de lire."""
+
+    def __init__(self, nom: str) -> None:
+        self._nom = nom
+
+    def __getattr__(self, attribut: str):
+        raise AssertionError(
+            f"le moteur de règles a lu {self._nom}.{attribut} : une volatilité "
+            "ou une VaR peut être une estimation mince, et une estimation mince "
+            "n'entre dans aucune conclusion"
+        )
+
+
+def test_le_moteur_de_regles_ne_lit_ni_volatilite_ni_var(entrees):
+    """Garde de comportement, pas de lecture du code : chaque volatilité et
+    chaque VaR du rapport est remplacée par un piège qui lève à la moindre
+    lecture, et les six règles s'évaluent quand même.
+
+    C'est ce qui permet de publier une volatilité sur 7 séances sans qu'elle
+    devienne un jour la prémisse d'une observation : aucune règle ne la lit.
+    """
+    risque, scenarios, regimes = entrees
+    pieges = replace(
+        risque,
+        volatility=_Piege("volatility"),
+        ewma_volatility=_Piege("ewma_volatility"),
+        parametric_volatility=_Piege("parametric_volatility"),
+        historical_var={c: _Piege("historical_var") for c in risque.historical_var},
+        parametric_var={c: _Piege("parametric_var") for c in risque.parametric_var},
+        expected_shortfall={
+            c: _Piege("expected_shortfall") for c in risque.expected_shortfall
+        },
+        monte_carlo_var={c: _Piege("monte_carlo_var") for c in risque.historical_var},
+    )
+    rapport = evaluate(pieges, scenarios, regimes)
+    assert {o.rule for o in rapport.observations} == set(RuleId)
 
 
 def test_un_role_incoherent_avec_la_provenance_est_refuse():

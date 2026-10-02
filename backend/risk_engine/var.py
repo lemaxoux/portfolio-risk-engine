@@ -30,7 +30,12 @@ from scipy.stats import t as student_t
 
 from backend import typography
 
-from .config import DDOF, MONTE_CARLO_SEED, MONTE_CARLO_SIMULATIONS
+from .config import (
+    DDOF,
+    MIN_DISTRIBUTION_OBSERVATIONS,
+    MONTE_CARLO_SEED,
+    MONTE_CARLO_SIMULATIONS,
+)
 from .covariance import _aligned_weights, is_positive_definite
 
 # Méthode d'interpolation du quantile empirique.
@@ -280,7 +285,9 @@ def annualise_daily_loss(daily_loss: float, horizon_days: int) -> float:
 # et la VaR Student seule la FORME des queues diffère.
 
 STUDENT_FIT_STARTS = (2.5, 4.0, 8.0, 30.0)
-STUDENT_MIN_OBSERVATIONS = 30
+# Le même nombre que la frontière des estimations minces : voir
+# `config.MIN_DISTRIBUTION_OBSERVATIONS`.
+STUDENT_MIN_OBSERVATIONS = MIN_DISTRIBUTION_OBSERVATIONS
 
 
 @dataclass(frozen=True)

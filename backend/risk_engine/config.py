@@ -193,6 +193,26 @@ MIN_ESTIMABLE_OBSERVATIONS = 3
 # moteur (`engine.student_fit`) qui décide de ne pas s'en servir.
 MAX_STUDENT_NU = 30.0
 
+# ----------------------------------- Séances minimales pour estimer une loi --
+#
+# Sous 30 séances, deux décisions du moteur, sur le même nombre :
+#
+#   * la loi de Student n'est pas ajustée (`var.fit_student_t` refuse, et
+#     `engine._raison_student` dit pourquoi en clair) : son maximum de
+#     vraisemblance repose sur la queue, et trente séances n'en comptent
+#     qu'une ou deux au-delà du quantile à 95 % ;
+#   * la volatilité et la VaR paramétrique normale restent PUBLIÉES, mais
+#     marquées comme estimation mince (`caveat`). Elles bougent avec les
+#     données, elles ne sont donc pas refusées (README, « Où s'arrête le
+#     refus ») ; mais sous normalité, l'écart-type d'échantillon qui les porte
+#     varie d'environ 1/√(2n) d'une fenêtre à l'autre — 13 % sur 30 séances,
+#     27 % sur 7. Le moteur de règles n'en tire aucune conclusion.
+#
+# SEUIL CHOISI À LA MAIN, le cinquième du projet, déclaré comme tel dans
+# `rules.thresholds.MIN_DISTRIBUTION_SAMPLE` : trente est la convention
+# usuelle du « grand échantillon », aucun calcul ne la produit.
+MIN_DISTRIBUTION_OBSERVATIONS = 30
+
 # ------------------------------------------------------------ Monte Carlo --
 #
 # Graine fixe : un chiffre de risque qui change à chaque exécution n'est pas

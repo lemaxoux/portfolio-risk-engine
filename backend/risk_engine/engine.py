@@ -26,6 +26,7 @@ from .config import (
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
     MAX_STUDENT_NU,
+    MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
     TRADING_DAYS_PER_YEAR,
@@ -78,10 +79,19 @@ class Window:
 
 @dataclass(frozen=True)
 class VolatilityResult:
+    """Volatilité, et sa réserve quand la fenêtre est trop courte.
+
+    `caveat` est rédigé par `_estimation_mince` sous
+    `MIN_DISTRIBUTION_OBSERVATIONS` séances : le chiffre reste publié — il
+    bouge avec les données, ce n'est pas une identité —, mais il est marqué, et
+    aucune règle n'en tire de conclusion.
+    """
+
     annualised: float
     daily: float
     method: str
     window: Window
+    caveat: str | None = None
 
 
 @dataclass(frozen=True)
@@ -260,6 +270,9 @@ class VarResult:
 
     `nu` porte les degrés de liberté quand la VaR repose sur une loi de Student :
     une donnée du résultat, pas une mention noyée dans `detail`.
+
+    `caveat` marque une VaR paramétrique normale estimée sur moins de
+    `MIN_DISTRIBUTION_OBSERVATIONS` séances, comme `VolatilityResult.caveat`.
     """
 
     value: float
@@ -268,6 +281,7 @@ class VarResult:
     window: Window
     detail: str = ""
     nu: float | None = None
+    caveat: str | None = None
 
 
 @dataclass(frozen=True)
@@ -515,6 +529,26 @@ def _limiting_positions(
 # ---------------------------------------------------------------- Mesures --
 
 
+def _estimation_mince(window: Window) -> str | None:
+    """Réserve d'une volatilité ou d'une VaR paramétrique sur trop peu de
+    séances, ou None.
+
+    Le chiffre n'est pas refusé : il bouge avec les données (README, « Où
+    s'arrête le refus »). Il est MARQUÉ, et la phrase dit les deux choses que
+    le lecteur doit savoir — sur combien de séances, contre quel seuil, CHOISI
+    — et qu'aucune conclusion du moteur de règles n'en dépend.
+    """
+    if window.observations >= MIN_DISTRIBUTION_OBSERVATIONS:
+        return None
+    return (
+        f"Estimation mince : {typography.sessions(window.observations)} "
+        f"seulement, moins que les {MIN_DISTRIBUTION_OBSERVATIONS} retenues "
+        "pour estimer une loi (seuil choisi à la main). Quelques séances "
+        "suffisent à déplacer ce chiffre, et le moteur de règles n'en tire "
+        "aucune conclusion."
+    )
+
+
 def volatility(serie: PortfolioSeries) -> VolatilityResult:
     annualisee = measures.annualised_volatility(serie.returns)
     return VolatilityResult(
@@ -522,6 +556,7 @@ def volatility(serie: PortfolioSeries) -> VolatilityResult:
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
         method="écart-type (√252)",
         window=serie.window,
+        caveat=_estimation_mince(serie.window),
     )
 
 
@@ -534,6 +569,7 @@ def ewma_volatility(
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
         method=f"EWMA (λ={typography.compact(lam)})",
         window=serie.window,
+        caveat=_estimation_mince(serie.window),
     )
 
 
@@ -725,6 +761,7 @@ def parametric_volatility(serie: PortfolioSeries) -> VolatilityResult:
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
         method="matrice de covariance (√(wᵀΣw))",
         window=serie.window,
+        caveat=_estimation_mince(serie.window),
     )
 
 
@@ -795,6 +832,7 @@ def parametric_var(
         detail=(
             "normalité, μ estimée" if include_mean else "normalité, μ = 0"
         ),
+        caveat=_estimation_mince(serie.window),
     )
 
 

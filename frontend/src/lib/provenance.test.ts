@@ -23,6 +23,7 @@ const STUDENT: Var = {
   method: 'Student paramétrique',
   detail: 'ν = 4,07 (MLE sur 504\u00a0séances), variance ajustée sur Σ',
   nu: 4.0731,
+  caveat: null,
   window: FENETRE,
 }
 
@@ -32,6 +33,7 @@ const NORMALE: Var = {
   method: 'paramétrique',
   detail: 'normalité, μ = 0',
   nu: null,
+  caveat: null,
   window: FENETRE,
 }
 

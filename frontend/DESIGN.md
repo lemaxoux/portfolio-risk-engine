@@ -583,10 +583,18 @@ effacer exactement la qualité qu'on veut rendre visible.
 
 `Threshold.__str__` produit déjà les trois formulations côté backend.
 L'interface n'a qu'à les rendre — et à ajouter le point `--caveat` pour le seul
-cas `CHOSEN`. Il n'existe aujourd'hui que **quatre** seuils choisis à la main
+cas `CHOSEN`. Il n'existe aujourd'hui que **cinq** seuils choisis à la main
 dans tout le projet (corrélation forte 0,70 ; couverture minimale d'un scénario
 80 % ; nombre minimal de séances d'une régression ; ν maximal d'une loi de
-Student, 30). Leur rareté est un résultat : elle doit se voir.
+Student, 30 ; nombre minimal de séances pour estimer une loi, 30). Leur rareté
+est un résultat : elle doit se voir.
+
+Le cinquième non plus n'apparaît dans aucune observation. Sous 30 séances, le
+moteur n'ajuste pas de loi de Student, et il marque la volatilité et la VaR
+paramétrique normale comme estimations minces : point `--caveat` devant le
+libellé, phrase du moteur sous la provenance (§9.1, règle 4), qui dit
+« seuil choisi à la main ». Le chiffre reste affiché — il bouge avec les
+données —, et aucune règle ne le lit.
 
 Le quatrième n'apparaît dans aucune observation : c'est le moteur qui
 l'applique, en refusant l'ajustement de la Student au-delà de ν = 30. Il se
