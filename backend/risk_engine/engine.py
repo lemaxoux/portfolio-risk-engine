@@ -850,16 +850,19 @@ def student_fit(serie: PortfolioSeries) -> var.StudentFit:
 
     La phrase décrit un RÉSULTAT, pas une panne : sur cette fenêtre, les
     rendements ne montrent pas de queues plus épaisses que la normale. Elle
-    n'écrit jamais ν — au-delà du seuil, sa valeur ne mesure plus rien, et
-    l'écrire rendrait plausible un nombre qui peut valoir 10¹⁵.
+    n'écrit jamais la valeur de ν — au-delà du seuil, elle ne mesure plus rien,
+    et l'écrire rendrait plausible un nombre qui peut valoir 10¹⁵. Elle n'écrit
+    pas non plus le caractère : Spectral, la police des phrases du moteur, n'a
+    aucun glyphe grec, et le « ν » de repli se lit « v ».
     """
     ajustement = var.fit_student_t(serie.returns)
     if ajustement.nu > MAX_STUDENT_NU:
         raise ValueError(
             f"Sur cette fenêtre de {typography.sessions(ajustement.observations)}, "
-            "la loi de Student ne se distingue pas de la normale (ν estimé "
-            f"supérieur à {typography.number(MAX_STUDENT_NU, 0)}, seuil choisi à "
-            "la main) : les rendements ne montrent pas de queues plus épaisses "
+            "la loi de Student ne se distingue pas de la normale (degrés de "
+            "liberté estimés supérieurs à "
+            f"{typography.number(MAX_STUDENT_NU, 0)}, seuil choisi à la main) : "
+            "les rendements ne montrent pas de queues plus épaisses "
             "que la normale. "
             "Sur une fenêtre courte, cela peut aussi signifier qu'aucun choc "
             "extrême n'y figure."
@@ -1479,6 +1482,43 @@ def _raison_monte_carlo(serie: PortfolioSeries, exc: ValueError) -> str:
     return str(exc)
 
 
+def _raison_student(
+    serie: PortfolioSeries, ajustement: var.StudentFit | None, exc: ValueError
+) -> str:
+    """Pourquoi le volet Student manque, en clair et sans écrire ν.
+
+    Même principe que `_raison_monte_carlo`. Deux causes sont des CERTITUDES,
+    lues sur la fenêtre ou sur l'ajustement et non devinées dans le message :
+
+    * moins de `STUDENT_MIN_OBSERVATIONS` séances — le moteur ne tente pas
+      l'ajustement, la longueur de la fenêtre suffit à l'expliquer ;
+    * un ajustement à ν ≤ 2 — la loi n'a pas de variance finie, et la VaR
+      Student à variance ajustée refuse de s'en servir.
+
+    Le message de `var` nomme ν, en grec. Il reste tel quel pour qui appelle
+    `var` directement ; publié, il passerait dans une police sans glyphe grec
+    (Spectral), où le « ν » de repli se lit « v ». Toute autre cause — série
+    constante, covariance d'échelle non définie positive — garde le message du
+    moteur, qui n'écrit pas ν.
+    """
+    seances = serie.window.observations
+    if seances < var.STUDENT_MIN_OBSERVATIONS:
+        return (
+            f"La fenêtre compte {typography.sessions(seances)} : il en faut au "
+            f"moins {var.STUDENT_MIN_OBSERVATIONS} pour ajuster une loi de "
+            "Student."
+        )
+    if ajustement is not None and ajustement.nu <= 2.0:
+        return (
+            f"Sur cette fenêtre de {typography.sessions(seances)}, la loi de "
+            "Student ajustée n'a pas de variance finie (degrés de liberté "
+            f"estimés à {typography.number(ajustement.nu, 2)} ≤ 2) : aucune "
+            "VaR de même variance que les rendements observés n'existe. Un "
+            "ajustement aussi proche de 2 est lui-même suspect."
+        )
+    return str(exc)
+
+
 def analyse_portfolio(
     conn: sqlite3.Connection,
     portfolio_id: int,
@@ -1564,9 +1604,10 @@ def analyse_portfolio(
                 for c in confidence_levels
             }
         except ValueError as exc:
-            # Tout le volet ou rien : un ν ≤ 2 ajusté n'est pas publié seul.
+            # La raison se lit AVANT d'effacer l'ajustement : c'est lui qui dit
+            # si ν ≤ 2. Tout le volet ou rien : un ν ≤ 2 n'est pas publié seul.
+            raison_student = _raison_student(serie, ajustement, exc)
             ajustement = student_forme_fermee = student_simulee = None
-            raison_student = str(exc)
 
     return RiskReport(
         portfolio_id=portfolio_id,

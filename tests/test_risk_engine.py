@@ -901,7 +901,11 @@ def test_student_et_monte_carlo_impossibles_ont_chacun_leur_raison(conn):
     assert "il en faut davantage que de lignes pour simuler le portefeuille" in raison
     assert "non définie positive" not in raison
     assert rapport.student_fit is None
-    assert "Au moins 30 observations" in rapport.student_unavailable_reason
+    # En clair, comme le Monte Carlo : la cause est la longueur de la fenêtre.
+    assert rapport.student_unavailable_reason == (
+        "La fenêtre compte 3\u00a0séances : il en faut au moins 30 pour "
+        "ajuster une loi de Student."
+    )
     assert rapport.monte_carlo_unavailable_reason != rapport.student_unavailable_reason
 
 
@@ -922,6 +926,55 @@ def test_une_covariance_singuliere_pour_une_autre_cause_garde_le_message_techniq
     assert rapport.monte_carlo_var is None
     assert "non définie positive" in rapport.monte_carlo_unavailable_reason
     assert not rapport.monte_carlo_unavailable_reason.startswith("La fenêtre compte")
+
+
+# Les raisons de refus du volet Student sont des PHRASES : l'interface les
+# affiche en Spectral, qui n'a aucun glyphe grec. Un « ν » y passerait dans une
+# police de repli, où il se lit « v ». La provenance des VaR Student, elle,
+# garde « ν = 4,07 » : elle s'affiche en IBM Plex Sans, qui a le grec.
+LETTRE_GRECQUE = re.compile("[\u0370-\u03ff]")
+
+
+def _refus_student(conn, monkeypatch, cas):
+    from backend.risk_engine import var
+
+    if cas == "fenêtre courte":
+        j = seances(4)
+        peupler(
+            conn,
+            {"A": cours(j, 100.0, 0.011, graine=31), "B": cours(j, 70.0, 0.013, graine=32)},
+            {"A": 10, "B": 12},
+        )
+    elif cas == "loi normale":
+        _serie_a_deux_lignes(conn, cours, (21, 22), 300, 250)
+    else:
+        _serie_a_deux_lignes(conn, cours_student, (21, 22), 300, 250)
+        monkeypatch.setattr(
+            var,
+            "fit_student_t",
+            lambda rendements: var.StudentFit(
+                nu=1.9, loc=0.0, scale=0.01, log_likelihood=0.0, observations=250
+            ),
+        )
+    rapport = analyse_portfolio(conn, 1, window=250, benchmark=None, monte_carlo=True)
+    return rapport.student_unavailable_reason
+
+
+@pytest.mark.parametrize("cas", ["fenêtre courte", "loi normale", "variance infinie"])
+def test_aucune_raison_de_refus_student_n_ecrit_de_lettre_grecque(conn, monkeypatch, cas):
+    raison = _refus_student(conn, monkeypatch, cas)
+    assert raison is not None
+    assert not LETTRE_GRECQUE.search(raison), raison
+
+
+def test_le_refus_de_variance_infinie_dit_la_cause_en_clair(conn, monkeypatch):
+    """ν ≤ 2 : la phrase écrit le nombre de degrés de liberté, à la virgule,
+    et la borne — pas le symbole."""
+    raison = _refus_student(conn, monkeypatch, "variance infinie")
+    assert raison.startswith(
+        "Sur cette fenêtre de 250\u00a0séances, la loi de Student ajustée n'a "
+        "pas de variance finie (degrés de liberté estimés à 1,90 ≤ 2)"
+    ), raison
 
 
 def test_sans_monte_carlo_demande_aucune_raison_n_est_inventee(conn):

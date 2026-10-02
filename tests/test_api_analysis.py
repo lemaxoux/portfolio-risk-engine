@@ -786,7 +786,9 @@ def test_student_et_monte_carlo_impossibles_publient_chacun_leur_raison(
     queue = analyse_historique_court(3).json()["risk"]["tail_risk"]
 
     assert queue["student_fit"] is None
-    assert "Au moins 30 observations" in queue["student_unavailable_reason"]
+    raison = queue["student_unavailable_reason"]
+    assert raison.startswith("La fenêtre compte 2")
+    assert raison.endswith("il en faut au moins 30 pour ajuster une loi de Student.")
     assert queue["monte_carlo_unavailable_reason"].startswith("La fenêtre compte 2")
     assert "davantage que de lignes" in queue["monte_carlo_unavailable_reason"]
     for niveau in queue["levels"]:

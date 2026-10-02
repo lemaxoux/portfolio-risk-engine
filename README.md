@@ -378,12 +378,12 @@ multivariée donne à la simulation une raison d'exister. Activé par
   - *Un refus, pas un plafond.* Borner ν à 30 dans l'optimiseur publierait
     « ν = 30 » comme s'il avait été estimé. `var.fit_student_t` rend toujours
     son maximum ; c'est `engine.student_fit` qui refuse de s'en servir.
-  - *Ce qui est publié* décrit un résultat, pas une panne, et n'écrit jamais
-    ν : « Sur cette fenêtre de 60 séances, la loi de Student ne se distingue
-    pas de la normale (ν estimé supérieur à 30, seuil choisi à la main) : les
-    rendements ne montrent pas de queues plus épaisses que la normale. Sur une
-    fenêtre courte, cela peut aussi signifier qu'aucun choc extrême n'y
-    figure. »
+  - *Ce qui est publié* décrit un résultat, pas une panne, et n'écrit ni la
+    valeur de ν ni le caractère : « Sur cette fenêtre de 60 séances, la loi de
+    Student ne se distingue pas de la normale (degrés de liberté estimés
+    supérieurs à 30, seuil choisi à la main) : les rendements ne montrent pas
+    de queues plus épaisses que la normale. Sur une fenêtre courte, cela peut
+    aussi signifier qu'aucun choc extrême n'y figure. »
   - *Ce que cela change.* Mesuré sur la copie figée : à 504 séances, rien — ni
     sur les quatorze titres seuls, ni sur le portefeuille de démonstration,
     dont la réponse est identique octet pour octet (ν = 4,07). Sur 60, 120 et
@@ -1067,7 +1067,15 @@ chiffre le coût de l'hypothèse de normalité. Quand le moteur refuse d'ajuster
 une Student — ν ≤ 2, série trop courte, ν au-delà de 30 —, les champs sortent
 à `null` et
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
-rapport étant servi normalement. La route passe `monte_carlo=True` là où le
+rapport étant servi normalement. Comme celle du Monte Carlo, la raison est en
+clair quand la cause est certaine : « La fenêtre compte 7 séances : il en faut
+au moins 30 pour ajuster une loi de Student. », et pour ν ≤ 2, « la loi de
+Student ajustée n'a pas de variance finie (degrés de liberté estimés à 1,90
+≤ 2) ». Aucune de ces phrases n'écrit la lettre ν : elles s'affichent en
+Spectral, qui n'a pas de glyphe grec, et le ν de la police de repli s'y lit
+« v ». La provenance des VaR Student garde « ν = 4,07 » : elle s'affiche en
+IBM Plex Sans, qui a le grec. `tests/test_risk_engine.py` vérifie qu'aucune
+raison de refus n'écrit de lettre grecque. La route passe `monte_carlo=True` là où le
 moteur a `False` par défaut : divergence volontaire, commentée à l'appel.
 
 **Le Monte Carlo normal ne dépend pas de ν, et ne tombe plus avec la
@@ -1518,7 +1526,8 @@ nominal (`views/Analyse.tsx`).
   saisie, et la section 1 depuis la valorisation de la liste.
 - **Insuffisant, pour une mesure** — une fenêtre courte donne une analyse,
   où chaque mesure indisponible dit pourquoi, avec ce qui a été reçu et ce
-  qu'il faut : corrélation, contributions, Student (« reçu : 7 » pour 30),
+  qu'il faut : corrélation, contributions, Student (« La fenêtre compte 7
+  séances : il en faut au moins 30 »),
   Monte Carlo normal (« La fenêtre compte 7 séances pour 7 lignes »), crises
   non couvertes. Le bandeau nomme la ligne qui raccourcit la fenêtre.
   Vérifié sur une copie de la base où JMKE, SPCX et ASBH, cotés depuis 2026,
