@@ -1711,8 +1711,7 @@ l'ordre chronologique.
     - Espace fine avant « % » en Spectral : une face qui dessine U+202F
     - Section 1 sous 900 px : ticker, valeur, poids d'abord ; diagonale de la
       carte de corrélation hors échelle ; `CLAUDE.md`
-  - [ ] **7B.3a — Saisie, import, choix du portefeuille, quatre états**
-    (en cours)
+  - [x] **7B.3a — Saisie, import, choix du portefeuille, quatre états**
     - En-tête des tableaux non collant (DESIGN.md §9.3)
     - Correctifs du moteur trouvés en préparant l'état « insuffisant » : 409
       et non 422 à deux séances communes ; Student refusée au-delà de
@@ -1732,6 +1731,16 @@ l'ordre chronologique.
       états vides
     - Les quatre états de l'analyse : vide, insuffisant (page et mesure,
       raison du Monte Carlo comprise), en cours, erreur
+    - Correctifs relevés aux captures : VaR historique et CVaR refusées sous
+      1/(1 − α) séances, seuil dérivé ; volatilité et VaR normale marquées
+      minces sous 30 séances, cinquième seuil choisi à la main ; refus de la
+      Student en clair, sans lettre grecque
+    - Typographie publiée : espace insécable avant « : », « ; », « ? », « ! »
+      et dans les guillemets, posée par `typography.prose` et vérifiée des
+      deux côtés ; quantité refusée écrite par `typography.exact`
+    - À 390 px : légendes et refus bornés à leur cadre ; dans le tableau de
+      saisie, la quantité suit le ticker ; la légende de l'histogramme ne
+      décrit que ce qui est tracé
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie
