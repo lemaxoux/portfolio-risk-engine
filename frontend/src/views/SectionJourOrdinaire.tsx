@@ -48,7 +48,7 @@ import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { points, pourcentage, seances, TIRET_INDEFINI } from '../lib/format'
-import { lectureDeCVaR, lectureDeVar } from '../lib/phrases'
+import { lectureDeCVaR, lectureDeVar, legendeHistogramme } from '../lib/phrases'
 import {
   provenanceDeCVaR,
   provenanceDeVar,
@@ -185,10 +185,14 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           options={options}
         >
           <p className={styles.legende}>
-            Classes de largeur fixe, les mêmes pour tout portefeuille&nbsp;: un
-            portefeuille plus agité s'étale davantage sur la même grille. Les
-            traits marquent les quantiles historiques&nbsp;; l'aire ombrée, les
-            séances que moyenne la CVaR à 95 %.
+            {legendeHistogramme(
+              niveaux
+                .filter((niveau) => niveau.expected_shortfall.threshold !== null)
+                .map((niveau) => niveau.confidence),
+              niveaux
+                .filter((niveau) => niveau.expected_shortfall.threshold === null)
+                .map((niveau) => niveau.confidence),
+            )}
           </p>
         </Graphique>
       </div>

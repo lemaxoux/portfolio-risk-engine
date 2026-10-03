@@ -200,6 +200,50 @@ export function phraseCouverturePartielle(
 }
 
 /**
+ * La légende de l'histogramme des rendements (section 2) : ce qui est TRACÉ,
+ * et seulement cela.
+ *
+ * Sous 1/(1 − α) séances, le moteur refuse la VaR historique et la CVaR d'un
+ * niveau — aucune séance ne tombe dans sa queue — et l'histogramme n'en trace
+ * ni le trait ni l'ombre. Une légende fixe décrirait alors des traits absents ;
+ * celle-ci dit lesquels manquent, et pourquoi. `traces` et `refuses` sont les
+ * niveaux de confiance publiés, triés.
+ */
+export function legendeHistogramme(
+  traces: readonly number[],
+  refuses: readonly number[],
+): string {
+  const niveaux = (confiances: readonly number[]) =>
+    confiances.map((confiance) => pourcentage(confiance, 0)).join(' et à ')
+  const morceaux = [
+    `Classes de largeur fixe, les mêmes pour tout portefeuille${ESPACE_INSECABLE}: un ` +
+      `portefeuille plus agité s'étale davantage sur la même grille.`,
+  ]
+  if (traces.length > 0) {
+    const trait =
+      traces.length === 1
+        ? `Le trait marque le quantile historique à ${niveaux(traces)}`
+        : 'Les traits marquent les quantiles historiques'
+    morceaux.push(
+      traces.includes(0.95)
+        ? `${trait}${ESPACE_INSECABLE}; l'aire ombrée, les séances que moyenne la CVaR ` +
+            `à ${pourcentage(0.95, 0)}.`
+        : `${trait}.`,
+    )
+  }
+  if (refuses.length > 0) {
+    morceaux.push(
+      refuses.length === 1
+        ? `Le quantile à ${niveaux(refuses)} n'est pas tracé${ESPACE_INSECABLE}: aucune séance ` +
+            `de la fenêtre ne tombe dans sa queue.`
+        : `Les quantiles à ${niveaux(refuses)} ne sont pas tracés${ESPACE_INSECABLE}: aucune ` +
+            `séance de la fenêtre ne tombe dans leur queue.`,
+    )
+  }
+  return morceaux.join(' ')
+}
+
+/**
  * Beta de crise sur un échantillon mince (§11.6) : le chiffre est rendu, et
  * la phrase dit sur combien de séances, contre quel seuil — CHOISI.
  */

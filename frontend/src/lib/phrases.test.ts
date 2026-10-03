@@ -14,6 +14,7 @@ import {
   frequenceLue,
   lectureDeCVaR,
   lectureDeVar,
+  legendeHistogramme,
   phraseFenetreReduite,
   phraseFraicheurPositions,
 } from './phrases'
@@ -173,6 +174,38 @@ describe('fenêtre réduite (§8.1)', () => {
     // que le rapport n'a pas.
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('504')
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('40')
+  })
+})
+
+describe('légende de l’histogramme : ce qui est tracé, et seulement cela', () => {
+  const grille =
+    `Classes de largeur fixe, les mêmes pour tout portefeuille${ESPACE_INSECABLE}: un ` +
+    `portefeuille plus agité s'étale davantage sur la même grille.`
+
+  it('les deux niveaux tracés : les traits et l’ombre de la CVaR à 95 %', () => {
+    expect(legendeHistogramme([0.95, 0.99], [])).toBe(
+      `${grille} Les traits marquent les quantiles historiques${ESPACE_INSECABLE}; l'aire ` +
+        `ombrée, les séances que moyenne la CVaR à 95${ESPACE_FINE}%.`,
+    )
+  })
+
+  it('le 99 % refusé : le seul trait est nommé, l’absence est dite', () => {
+    expect(legendeHistogramme([0.95], [0.99])).toBe(
+      `${grille} Le trait marque le quantile historique à 95${ESPACE_FINE}%${ESPACE_INSECABLE}; ` +
+        `l'aire ombrée, les séances que moyenne la CVaR à 95${ESPACE_FINE}%. Le quantile à ` +
+        `99${ESPACE_FINE}% n'est pas tracé${ESPACE_INSECABLE}: aucune séance de la fenêtre ne ` +
+        `tombe dans sa queue.`,
+    )
+  })
+
+  it('aucun niveau tracé : ni trait ni ombre annoncés', () => {
+    const legende = legendeHistogramme([], [0.95, 0.99])
+    expect(legende).toBe(
+      `${grille} Les quantiles à 95${ESPACE_FINE}% et à 99${ESPACE_FINE}% ne sont pas ` +
+        `tracés${ESPACE_INSECABLE}: aucune séance de la fenêtre ne tombe dans leur queue.`,
+    )
+    expect(legende).not.toContain('marque')
+    expect(legende).not.toContain('ombrée')
   })
 })
 
