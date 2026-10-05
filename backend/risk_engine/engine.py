@@ -816,6 +816,15 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
+def _ensemble_non_rejoue(rendement: float) -> str:
+    """Ce qu'un résultat en couverture partielle ne dit pas : la perte du
+    portefeuille entier. Les lignes exclues n'ont pas été rejouées, et le
+    moteur ne mesure pas dans quel sens l'ensemble aurait différé."""
+    if rendement < 0:
+        return "la perte de l'ensemble a pu être différente"
+    return "le résultat de l'ensemble a pu être différent"
+
+
 def _jours_de_bourse(nombre: int) -> str:
     """« 7 jours de bourse », insécable : le mot d'une raison publiée.
 
@@ -1201,8 +1210,9 @@ class ScenarioCoverage:
     Trois comportements étaient possibles face à une ligne sans historique sur
     la fenêtre : faire échouer tout le scénario, l'exclure en silence, ou
     déclarer la couverture. Le premier est trop fragile — un seul titre récent
-    priverait de tout rejeu 2008. Le second est dangereux : la perte est
-    mécaniquement sous-estimée et rien ne le signale. D'où le troisième.
+    priverait de tout rejeu 2008. Le second est dangereux : le chiffre ne
+    décrit plus qu'une partie du portefeuille et rien ne le signale. D'où le
+    troisième.
 
     `value_share` est la fraction de la VALEUR du portefeuille couverte, et non
     la fraction des lignes : écarter une ligne à 1 % et une ligne à 40 % n'ont
@@ -1275,21 +1285,22 @@ class ScenarioResult:
     dont les poids actuels sont renormalisés à 1. La portée du chiffre est
     donnée par `coverage`, et `summary()` la rappelle systématiquement.
 
-    DIRECTION DU BIAIS — les deux options disponibles sous-estiment la perte,
-    par des mécanismes différents, et il faut le savoir en lisant le chiffre :
+    CE QUE LE CHIFFRE NE DIT PAS — la perte du portefeuille ENTIER. Les lignes
+    exclues n'ont pas été rejouées, et rien ici ne mesure ce qu'elles auraient
+    fait : la perte de l'ensemble a pu être plus lourde ou plus légère. Deux
+    traitements étaient possibles, et aucun ne comble ce manque :
 
-    * supposer les lignes exclues stables DILUE la perte dans une valeur qui n'a
-      pas été rejouée ;
-    * les exclure et renormaliser, option retenue, décrit la partie la plus
-      ÉTABLIE du portefeuille. Une ligne absente de l'historique d'une crise est
-      par construction cotée depuis moins longtemps : en moyenne plus jeune,
-      plus spéculative, précisément le profil qui aurait le plus souffert. Le
-      chiffre décrit donc les lignes les plus résistantes, et le biais
-      s'aggrave à mesure que la couverture baisse.
+    * supposer les lignes exclues stables DILUERAIT la perte dans une valeur
+      qui n'a pas été rejouée ;
+    * les exclure et renormaliser, option retenue, ne fabrique aucun rendement,
+      mais ne décrit que la partie couverte.
 
-    La renormalisation reste le bon choix — elle ne fabrique aucun rendement —
-    mais la perte réelle aurait vraisemblablement été plus lourde que le chiffre
-    affiché, d'autant plus que `coverage.value_share` est faible.
+    Le chiffre décrit d'autant moins le portefeuille que
+    `coverage.value_share` est faible. Sous `MIN_SCENARIO_COVERAGE_SHARE`, la
+    partie rejouée ne représente plus assez l'ensemble pour en tirer un chiffre
+    (`ScenarioCoverage.sufficient`). Aucun texte n'affirme dans quel sens
+    l'ensemble aurait différé : ce serait une généralité sur les titres
+    récents, que le moteur ne mesure pas.
 
     Les deux valent None quand aucune ligne n'est couverte : il n'y a alors pas
     de chiffre à donner, et en fabriquer un serait pire que de n'en donner aucun.
@@ -1319,8 +1330,7 @@ class ScenarioResult:
             if self.coverage.is_complete
             else (
                 f"{typography.percent(self.coverage.value_share, 1)} de la valeur "
-                "seulement, "
-                "perte probablement sous-estimée"
+                f"seulement, {_ensemble_non_rejoue(self.end_to_end_return)}"
             )
         )
         return (
@@ -1642,8 +1652,7 @@ class RegimeComparison:
         if not self.coverage.is_complete:
             lignes.append(
                 f"  portée : {typography.percent(self.coverage.value_share, 1)} "
-                "de la valeur "
-                "seulement, perte probablement sous-estimée"
+                f"de la valeur seulement, {_ensemble_non_rejoue(self.portfolio_return)}"
             )
         return "\n".join(lignes)
 

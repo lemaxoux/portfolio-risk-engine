@@ -389,7 +389,7 @@ def test_une_couverture_complete_est_signalee_comme_telle(conn):
     assert resultat.coverage.covered_count == resultat.coverage.total_count == 2
     assert resultat.coverage.value_share == pytest.approx(1.0)
     assert "portefeuille complet" in resultat.summary()
-    assert "sous-estimée" not in resultat.summary()
+    assert "a pu être différent" not in resultat.summary()
 
 
 def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn):
@@ -422,7 +422,10 @@ def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn)
     assert resultat.end_to_end_return is not None
     assert couverture.value_share == pytest.approx(910.0 / (910.0 + 2000.0))
     assert "de la valeur seulement" in resultat.summary()
-    assert "sous-estimée" in resultat.summary(), "la direction du biais doit se lire"
+    # Ce que le chiffre ne couvre pas se lit ; le sens de l'écart, que le
+    # moteur ne mesure pas, n'est plus affirmé.
+    assert "de l'ensemble a pu être différent" in resultat.summary()
+    assert "sous-estimée" not in resultat.summary()
     assert "portefeuille complet" not in resultat.summary()
 
 

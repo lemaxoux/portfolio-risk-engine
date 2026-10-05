@@ -387,9 +387,9 @@ export interface components {
          *
          *     `value_share` est une fraction de la VALEUR, pas une fraction des lignes :
          *     écarter une ligne à 1 % et une ligne à 40 % n'ont pas la même portée, alors
-         *     que « 5 lignes sur 6 » se dirait pareil. Le biais est orienté — la partie
-         *     exclue est plus récente, donc en moyenne plus spéculative —, ce qui rend la
-         *     perte affichée vraisemblablement optimiste à mesure que `value_share` baisse.
+         *     que « 5 lignes sur 6 » se dirait pareil. Les lignes exclues n'ont pas été
+         *     rejouées : la perte de l'ensemble a pu être différente, et le chiffre décrit
+         *     d'autant moins le portefeuille que `value_share` baisse.
          */
         CoverageOut: {
             /** Covered */

@@ -268,7 +268,9 @@ def test_le_beta_calme_porte_sur_les_lignes_couvertes_renormalisees(conn):
     assert c.coverage.covered == ("A",)
     assert c.calm_beta.beta == pytest.approx(1.0, abs=1e-9)
     assert c.crisis_beta.beta == pytest.approx(1.0, abs=1e-9)
-    assert "sous-estimée" in c.summary()
+    # La portée se lit, sans affirmer dans quel sens l'ensemble aurait différé.
+    assert "de la valeur seulement, la perte de l'ensemble a pu être différente" in c.summary()
+    assert "sous-estimée" not in c.summary()
 
 
 def test_la_hausse_du_r2_en_crise_mesure_la_degradation_de_la_diversification(conn):

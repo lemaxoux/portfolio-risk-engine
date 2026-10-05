@@ -300,3 +300,20 @@ def test_aucune_chaine_publiee_n_ecrit_de_tiret_cadratin():
             if CADRATIN in texte:
                 fautes.append(f"{relatif}:{ligne} : {texte[:60]}")
     assert fautes == []
+
+
+def test_aucune_chaine_publiee_n_affirme_le_sens_d_une_couverture_partielle():
+    """« En moyenne plus spéculative », « probablement sous-estimée » : le
+    moteur ne mesure ni l'un ni l'autre. Une couverture partielle dit
+    seulement que la perte de l'ensemble a pu être différente (textes de
+    lecture, 2026-10-05)."""
+    interdits = ("spéculati", "sous-estimée", "plus jeune")
+    fautes = []
+    for chemin in sorted((RACINE / "backend").rglob("*.py")):
+        relatif = chemin.relative_to(RACINE).as_posix()
+        if relatif in HORS_INTERFACE:
+            continue
+        for ligne, texte in chaines_publiables(chemin.read_text(encoding="utf-8")):
+            if any(interdit in texte for interdit in interdits):
+                fautes.append(f"{relatif}:{ligne} : {texte[:60]}")
+    assert fautes == []

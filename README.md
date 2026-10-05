@@ -485,8 +485,9 @@ toucheraient leur plancher le même jour.
 
 **La couverture est déclarée, jamais silencieuse.** Un titre introduit en 2019
 n'a rien à dire sur 2008. Trois comportements étaient possibles : faire échouer
-tout le scénario (trop fragile), exclure la ligne en silence (dangereux — la
-perte est sous-estimée et personne ne le voit), ou déclarer la couverture. Chaque
+tout le scénario (trop fragile), exclure la ligne en silence (dangereux — le
+chiffre ne décrit plus qu'une partie du portefeuille et personne ne le voit), ou
+déclarer la couverture. Chaque
 résultat porte donc le nombre de lignes couvertes et **la fraction de la valeur**
 qu'elles représentent — en valeur et non en nombre de lignes, parce qu'écarter
 une ligne à 1 % et une ligne à 40 % n'ont pas la même portée. En couverture partielle,
@@ -496,15 +497,17 @@ une valeur non rejouée. `summary()` ne peut pas présenter un chiffre comme
 couvrant l'ensemble quand ce n'est pas le cas, et sans aucune ligne couverte
 aucun chiffre n'est produit.
 
-> **Direction du biais.** Les deux options disponibles sous-estiment la perte,
-> par des mécanismes différents. Supposer les lignes exclues stables dilue la
-> perte. Les exclure et renormaliser — l'option retenue — décrit la partie la
-> plus établie du portefeuille : une ligne absente de l'historique d'une crise
-> est par construction cotée plus récemment, donc en moyenne plus jeune et plus
-> spéculative, précisément le profil qui aurait le plus souffert. Le biais
-> s'aggrave quand la couverture baisse. La renormalisation reste le bon choix,
-> puisqu'elle ne fabrique aucun rendement, mais la perte réelle aurait
-> vraisemblablement été plus lourde ; `summary()` le rappelle.
+> **Ce que le chiffre ne dit pas.** La perte du portefeuille entier. Les
+> lignes exclues n'ont pas été rejouées, et rien ne mesure ce qu'elles
+> auraient fait : la perte de l'ensemble a pu être plus lourde ou plus légère.
+> Supposer ces lignes stables diluerait la perte dans une valeur non rejouée.
+> Les exclure et renormaliser — l'option retenue — ne fabrique aucun
+> rendement, mais ne décrit que la partie couverte, et la décrit d'autant
+> moins que la couverture baisse ; `summary()` le rappelle. Une version
+> précédente affirmait que la partie exclue, cotée plus récemment, était « en
+> moyenne plus spéculative », et la perte « probablement sous-estimée ». Le
+> moteur ne mesure ni l'un ni l'autre : ces formules ont été retirées de tous
+> les textes publiés le 2026-10-05, et un test les y refuse.
 
 Chaque scénario décompose la perte **ligne par ligne** : les contributions somment
 exactement au rendement de bout en bout, et distinguent le rendement propre du
@@ -746,18 +749,17 @@ l'observation la plus utile de la règle — le risque ne se répartit pas comme
 capital. La phrase le dit sans formule : les lignes « pèsent comme 5,7 lignes
 de même montant, mais font bouger le portefeuille comme 4,4 seulement ».
 
-**Une couverture de scénario minimale à 80 %, choisie à la main.** Le biais de la
-renormalisation est orienté : une ligne absente de l'historique d'une crise est
-cotée plus récemment, donc en moyenne plus spéculative, et le chiffre calculé sur
-le reste décrit la partie la plus solide du portefeuille. Un seuil plus strict
-qu'un pile ou face s'impose. À 80 %, même si la partie exclue avait perdu deux
-fois plus que la partie couverte, la perte de l'ensemble ne dépasserait le chiffre
-affiché que d'un cinquième — contre moitié plus à 50 %.
+**Une couverture de scénario minimale à 80 %, choisie à la main.** Sous 80 % de
+la valeur, la partie rejouée ne représente plus assez l'ensemble pour en tirer
+un chiffre. Le seuil est plus strict qu'un pile ou face pour une raison
+d'arithmétique : à 80 %, même si la partie exclue avait perdu deux fois plus
+que la partie couverte, la perte de l'ensemble ne dépasserait le chiffre affiché
+que d'un cinquième — contre moitié plus à 50 %.
 
-Cet argument justifie le seuil ; l'observation, elle, ne l'affirme plus. Le
-moteur ne mesure pas dans quel sens l'ensemble aurait différé, et la phrase
-s'en tient à ce qu'il sait : « Les lignes absentes n'ont pas été rejouées :
-la perte de l'ensemble a pu être différente. »
+Ni le seuil ni l'observation ne disent dans quel sens l'ensemble aurait
+différé : le moteur ne le mesure pas. La phrase s'en tient à ce qu'il sait :
+« Les lignes absentes n'ont pas été rejouées : la perte de l'ensemble a pu être
+différente. »
 
 **Le CVaR à 99 % porte un avertissement permanent, pas une règle.** À 99 %, la
 queue ne compte que 1 % de la fenêtre : 6 séances sur 504. Un seuil « moins de 10

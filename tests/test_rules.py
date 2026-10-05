@@ -954,6 +954,18 @@ def test_la_couverture_minimale_est_plus_stricte_qu_un_pile_ou_face():
     assert "d'un cinquième" in MIN_SCENARIO_COVERAGE.rationale
 
 
+def test_la_justification_du_seuil_de_couverture_dit_ce_qui_est_vrai():
+    """Sous 80 % de la valeur, la partie rejouée ne représente plus assez
+    l'ensemble. Le seuil ne dit pas que la partie exclue est « en moyenne plus
+    spéculative » : le moteur ne le mesure pas."""
+    assert MIN_SCENARIO_COVERAGE.rationale.startswith(
+        "sous 80\u202f% de la valeur, la partie rejouée ne représente plus assez "
+        "l'ensemble pour en tirer un chiffre ; "
+    )
+    for generalite in ("spéculati", "plus récente", "biais"):
+        assert generalite not in str(MIN_SCENARIO_COVERAGE), generalite
+
+
 def test_un_seuil_calcule_ne_se_presente_pas_comme_choisi(rapport):
     (seuil,) = rapport.of_rule(RuleId.VARIANCE_CONTRIBUTION)[0].thresholds
     assert "CHOISI" not in str(seuil)
