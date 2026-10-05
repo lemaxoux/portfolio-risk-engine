@@ -2,11 +2,12 @@
 
 ═══ LE MOTEUR DÉCRIT, IL NE PRESCRIT PAS ═══
 
-« Cette ligne pèse 35 % de la variance de ton portefeuille » est un fait
-vérifiable. « Tu devrais l'alléger » est un conseil en investissement, que rien
-dans ce projet ne permet de donner : le moteur ignore l'horizon de placement, les
-objectifs, la fiscalité et le reste du patrimoine. Chaque règle est donc formulée
-comme une observation chiffrée, jamais comme une action à mener.
+« Cette ligne pèse 35 % des variations de votre portefeuille » est un fait
+vérifiable. « Vous devriez l'alléger » est un conseil en investissement, que
+rien dans ce projet ne permet de donner : le moteur ignore l'horizon de
+placement, les objectifs, la fiscalité et le reste du patrimoine. Chaque règle
+est donc formulée comme une observation chiffrée, jamais comme une action à
+mener.
 
 La preuve que ça compte est dans les chiffres du projet. Une règle « réduis la
 ligne énergie » aurait visé précisément la ligne qui, en 2022, a apporté environ
@@ -30,6 +31,18 @@ Chaque règle lit un résultat déjà produit par le moteur de risque — rappor
 Phase 4, scénarios et comparaisons de régimes de la Phase 5 — et le met en mots.
 Aucune mesure n'est estimée ici ; un test vérifie que ce module n'importe aucun
 module de calcul.
+
+═══ POUR UN LECTEUR QUI PART DE ZÉRO ═══
+
+Les observations s'affichent telles quelles, en section 6, devant un lecteur
+qui n'a jamais entendu parler de variance ni de R² (textes de lecture validés
+le 2026-10-05). Elles le vouvoient, disent « variations » pour la variance,
+« la part qui suit le marché » pour la part systématique, « jours de bourse »
+pour les séances, et la période en mots (`Window.period_label`). Le terme exact
+et la formule restent dans les seuils, les provenances et la méthodologie.
+Sous trois séances, une règle dit que le calcul n'a pas de sens, et combien de
+jours il faudrait ; la raison algébrique est celle du seuil qu'elle publie
+(`MIN_ESTIMABLE_SAMPLE`).
 """
 
 from __future__ import annotations
@@ -48,9 +61,11 @@ from backend.risk_engine.engine import (
     RiskReport,
     ScenarioResult,
     analyse_portfolio,
+    benchmark_name,
     compare_all_regimes,
     run_all_scenarios,
 )
+from backend.risk_engine.scenarios import Scenario
 
 from .disclaimer import acceptance_text
 from .thresholds import (
@@ -65,12 +80,16 @@ from .thresholds import (
 
 
 class RuleId(Enum):
-    EFFECTIVE_CONCENTRATION = "concentration effective"
-    VARIANCE_CONTRIBUTION = "contribution à la variance"
-    APPARENT_DIVERSIFICATION = "diversification apparente"
-    SYSTEMATIC_SHARE = "part systématique"
-    CRISIS_DEGRADATION = "dégradation en crise"
-    SCENARIO_COVERAGE = "couverture d'un scénario"
+    """Les six règles. Le nom du membre est l'identifiant machine publié
+    (`rule`) ; la valeur est le libellé que la page affiche au-dessus de
+    l'observation (`rule_label`), en mots courants."""
+
+    EFFECTIVE_CONCENTRATION = "Combien de lignes, en réalité"
+    VARIANCE_CONTRIBUTION = "Poids dans les variations"
+    APPARENT_DIVERSIFICATION = "Lignes qui bougent ensemble"
+    SYSTEMATIC_SHARE = "Part qui suit le marché"
+    CRISIS_DEGRADATION = "Le portefeuille en crise"
+    SCENARIO_COVERAGE = "Crise rejouée en partie"
 
 
 @dataclass(frozen=True)
@@ -144,9 +163,45 @@ def _lignes(nombre: int) -> str:
     return typography.lines(nombre)
 
 
+def _lignes_effectives(valeur: float) -> str:
+    """« 5,7 lignes », l'accord suivant le nombre affiché, comme `_points`."""
+    return typography.counted(
+        round(valeur, 1), "ligne", affiche=typography.number(valeur, 1)
+    )
+
+
 def _seances(nombre: int) -> str:
-    """« 504 séances », insécable. Un seul endroit pour ce lien-là aussi."""
+    """« 504 séances », insécable : le mot des provenances."""
     return typography.sessions(nombre)
+
+
+def _jours(nombre: int) -> str:
+    """« 23 jours de bourse », insécable : le mot des phrases.
+
+    Une observation se lit comme une phrase de lecture, où l'interface dit
+    « jour de bourse ». « Séance » reste le mot des provenances et des seuils.
+    """
+    return typography.counted(nombre, "jour de bourse", "jours de bourse")
+
+
+def _majuscule(texte: str) -> str:
+    """La première lettre en capitale : un libellé placé en tête de phrase."""
+    return texte[:1].upper() + texte[1:]
+
+
+def _crise(scenario: Scenario, *, en_tete: bool = False) -> str:
+    """« la Crise financière 2008 », avec l'article que déclare le catalogue.
+
+    Aucune phrase ne fait accorder un participe avec ce nom : l'article dit le
+    genre de « la Crise », pas celui de « l'épisode » ou d'un nom élidé.
+    """
+    nom = scenario.with_article
+    return _majuscule(nom) if en_tete else nom
+
+
+def _une(nombre: int) -> str:
+    """Un nombre de crises, en lettres jusqu'à dix et au féminin : « une »."""
+    return "une" if nombre == 1 else typography.cardinal(nombre)
 
 
 # --------------------------------------------- Taille de l'échantillon --
@@ -195,14 +250,28 @@ def _echantillon_mince(seances: int) -> bool:
     return seances < MIN_REGRESSION_SAMPLE.value
 
 
-def _mention_mince(quoi: str, seances: int) -> str:
+def _mention_mince(seances: int) -> str:
     """Phrase ajoutée à une estimation fragile, vide sinon."""
     if not _echantillon_mince(seances):
         return ""
     return (
-        f" Estimation mince : {_seances(seances)}, moins que les "
-        f"{MIN_REGRESSION_SAMPLE.displayed} en deçà desquelles quelques "
-        f"journées extrêmes suffisent à porter {quoi}."
+        f" Estimation mince : sur {_jours(seances)}, moins que les "
+        f"{MIN_REGRESSION_SAMPLE.displayed} retenus (seuil choisi à la main), "
+        "quelques jours extrêmes suffisent à faire ce chiffre."
+    )
+
+
+def _refus(seances: int, sujet: str) -> str:
+    """Ce qu'une règle écrit au lieu de chiffrer, sous trois séances.
+
+    La raison algébrique — une seule direction après centrage — est la
+    rationale du seuil `MIN_ESTIMABLE_SAMPLE`, publiée avec lui. La phrase dit
+    au lecteur ce qu'il lui faut : le calcul n'a pas de sens, et combien de
+    jours il faudrait.
+    """
+    return (
+        f"Sur {_jours(seances)}, {sujet} n'a pas de sens : il en faut au moins "
+        f"{MIN_ESTIMABLE_SAMPLE.displayed}."
     )
 
 
@@ -210,8 +279,8 @@ def _mention_mince(quoi: str, seances: int) -> str:
 
 
 def effective_concentration(report: RiskReport) -> Observation:
-    """« Tes N lignes se comportent comme M lignes effectives », en capital ET en
-    risque. Aucun seuil.
+    """« Vos N lignes pèsent comme M lignes de même montant », puis ce qu'elles
+    font bouger : en capital ET en risque. Aucun seuil.
 
     La version en capital (`1/Σwᵢ²`) seule est la plus flatteuse des deux quand
     le risque se concentre davantage que la valeur : un portefeuille équilibré en
@@ -232,18 +301,22 @@ def effective_concentration(report: RiskReport) -> Observation:
         # La moitié EN CAPITAL reste dite : c'est une mesure ponctuelle, sans
         # fenêtre d'estimation, que la brièveté de l'historique ne touche pas.
         # Seule la moitié en risque disparaît, et elle dit pourquoi.
+        if c.n_positions == 1:
+            capital = (
+                "Votre portefeuille compte une seule ligne : elle en porte tout le "
+                "montant. Ce qu'elle fait bouger n'est pas chiffré."
+            )
+        else:
+            capital = (
+                f"Vos {_lignes(c.n_positions)} pèsent comme "
+                f"{_lignes_effectives(en_capital)} de même montant ; avec des "
+                f"montants égaux, elles compteraient pour {c.n_positions}. Ce "
+                "qu'elles font bouger n'est pas chiffré."
+            )
         return Observation(
             rule=RuleId.EFFECTIVE_CONCENTRATION,
             subject="portefeuille",
-            statement=(
-                f"Tes {_lignes(c.n_positions)} se comportent comme "
-                f"{typography.number(en_capital, 1)} lignes effectives en capital "
-                "(inverse de la somme des carrés des poids) ; l'équipondération "
-                f"en donnerait {c.n_positions}. La lecture en risque n'est pas "
-                f"disponible : sur {_seances(seances)}, la covariance est de rang "
-                "1 et les contributions à la variance s'y ramènent à la part de "
-                "chaque ligne dans une seule différence journalière."
-            ),
+            statement=f"{capital} {_refus(seances, 'ce calcul')}",
             facts={
                 "lignes": c.n_positions,
                 "lignes_effectives_capital": en_capital,
@@ -260,39 +333,42 @@ def effective_concentration(report: RiskReport) -> Observation:
 
     if c.n_positions == 1:
         texte = (
-            "Ton portefeuille compte une seule ligne : il se comporte comme une "
-            "seule ligne effective, en capital comme en risque."
+            "Votre portefeuille compte une seule ligne : elle en porte tout le "
+            "montant et toutes les variations."
         )
     else:
-        capital_affiche = typography.number(en_capital, 1)
         risque_affiche = typography.number(en_risque, 1)
         ecart = round(en_risque, 1) - round(en_capital, 1)
-        liaison = "mais" if ecart < 0 else "et"
-        phrases = [
-            f"Tes {_lignes(c.n_positions)} se comportent comme "
-            f"{capital_affiche} lignes effectives en capital, {liaison} "
-            f"comme {risque_affiche} en risque "
-            "(inverse de la somme des carrés des poids, puis des contributions à la "
-            "variance)."
-        ]
-        phrases.append(
-            f"En capital, l'équipondération en donnerait {c.n_positions}."
-        )
         if ecart < 0:
-            phrases.append(
-                "Le risque se concentre davantage que le capital : la lecture en "
-                "capital seule est la plus flatteuse des deux."
+            suite = (
+                f"mais font bouger le portefeuille comme {risque_affiche} seulement "
+                ": le risque est plus concentré que l'argent"
             )
         elif ecart > 0:
-            phrases.append("Le risque se répartit plus également que le capital.")
+            suite = (
+                f"et font bouger le portefeuille comme {risque_affiche} : le risque "
+                "est mieux réparti que l'argent"
+            )
         else:
-            phrases.append("Le risque se répartit comme le capital.")
+            suite = (
+                f"et font bouger le portefeuille comme {risque_affiche} : le risque "
+                "se répartit comme l'argent"
+            )
+        phrases = [
+            f"Vos {_lignes(c.n_positions)} pèsent comme "
+            f"{_lignes_effectives(en_capital)} de même montant, {suite}.",
+            f"Avec des montants égaux, elles compteraient pour {c.n_positions}.",
+        ]
+        if ecart < 0:
+            phrases.append(
+                "À ne regarder que les montants, on surestime donc la diversification."
+            )
         if vc.has_negative_contribution:
             phrases.append(
-                "Une contribution négative à la variance rend la lecture en risque "
-                "approximative."
+                "Au moins une ligne a bougé à rebours des autres : le chiffre de "
+                f"{risque_affiche} n'est qu'une approximation."
             )
-        mince = _mention_mince("la lecture en risque", seances)
+        mince = _mention_mince(seances)
         if mince:
             phrases.append(mince.strip())
         texte = " ".join(phrases)
@@ -339,40 +415,40 @@ def _scenario_record(
 
 
 def _record_sentence(ticker: str, historique: list[tuple[ScenarioResult, float]]) -> str:
+    """Ce que la ligne a coûté ou rapporté au portefeuille dans les crises
+    rejouées. Le verbe porte le signe ; les points sont des magnitudes."""
     pire = min(historique, key=lambda element: element[1])
     meilleur = max(historique, key=lambda element: element[1])
 
     if len(historique) == 1:
-        phrase = (
-            f"Dans la crise rejouée ({pire[0].scenario.name}), la contribution de "
-            f"{ticker} au résultat du portefeuille a été de "
-            f"{typography.signed_points(pire[1])}."
-        )
+        resultat, apport = historique[0]
+        if apport == 0:
+            effet = "n'a rien coûté ni rapporté au portefeuille"
+        else:
+            verbe = "a coûté" if apport < 0 else "a rapporté"
+            effet = f"{verbe} {_points(apport)} au portefeuille"
+        phrase = f"Dans la crise rejouée ({resultat.scenario.name}), {ticker} {effet}."
     elif pire[1] < 0 < meilleur[1]:
         phrase = (
-            f"Dans les crises rejouées, {ticker} a pesé dans les deux sens : "
-            f"{typography.signed_points(pire[1])} ({pire[0].scenario.name}), mais "
-            f"{typography.signed_points(meilleur[1])} ({meilleur[0].scenario.name})."
+            f"Dans les crises rejouées, {ticker} a joué dans les deux sens : il a "
+            f"coûté {_points(pire[1])} ({pire[0].scenario.name}), mais rapporté "
+            f"{_points(meilleur[1])} ({meilleur[0].scenario.name})."
         )
     elif meilleur[1] <= 0:
         phrase = (
-            f"Dans les crises rejouées, la contribution de {ticker} au résultat du "
-            f"portefeuille a été négative à chaque fois, de "
-            f"{typography.signed_points(pire[1])} "
-            f"({pire[0].scenario.name}) à {typography.signed_points(meilleur[1])} "
-            f"({meilleur[0].scenario.name})."
+            f"Dans les crises rejouées, {ticker} a coûté au portefeuille à chaque "
+            f"fois, de {_points(pire[1])} ({pire[0].scenario.name}) à "
+            f"{_points(meilleur[1])} ({meilleur[0].scenario.name})."
         )
     else:
         phrase = (
-            f"Dans les crises rejouées, la contribution de {ticker} au résultat du "
-            f"portefeuille a été positive à chaque fois, de "
-            f"{typography.signed_points(pire[1])} "
-            f"({pire[0].scenario.name}) à {typography.signed_points(meilleur[1])} "
-            f"({meilleur[0].scenario.name})."
+            f"Dans les crises rejouées, {ticker} a rapporté au portefeuille à "
+            f"chaque fois, de {_points(pire[1])} ({pire[0].scenario.name}) à "
+            f"{_points(meilleur[1])} ({meilleur[0].scenario.name})."
         )
 
     if any(not resultat.coverage.is_complete for resultat, _ in historique):
-        phrase += " Contributions calculées sur la partie couverte du portefeuille."
+        phrase += " Ces apports ne portent que sur la partie rejouée du portefeuille."
     return phrase
 
 
@@ -398,11 +474,8 @@ def variance_contribution(
                 rule=RuleId.VARIANCE_CONTRIBUTION,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {_seances(seances)}, la variance du portefeuille ne se "
-                    "décompose pas : la matrice de covariance est de rang 1, et "
-                    "la part de chaque ligne s'y ramène à sa part dans une seule "
-                    "différence journalière. Aucune contribution n'est donc "
-                    "chiffrée ici."
+                    f"{_refus(seances, 'la part de chaque ligne dans les variations')} "
+                    "Aucune n'est donc chiffrée ici."
                 ),
                 facts={"seances": seances, "lignes": len(vc.weights)},
                 provenance=f"fenêtre d'estimation : {vc.window}",
@@ -410,7 +483,7 @@ def variance_contribution(
             )
         ]
 
-    mince = _mention_mince("une part de variance", seances)
+    mince = _mention_mince(seances)
     seuils_mince = (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
 
     ordre = sorted(vc.contributions, key=lambda t: vc.contributions[t], reverse=True)
@@ -420,32 +493,27 @@ def variance_contribution(
         ecart = part - poids
         reference = capital_share(ticker, poids)
 
-        phrases = [
-            f"{ticker} pèse {reference.displayed} de la valeur du portefeuille et "
-            f"{typography.percent(part, 1)} de sa variance."
-        ]
+        tete = (
+            f"{ticker} représente {reference.displayed} de la valeur du portefeuille "
+            f"et {typography.percent(part, 1)} de ses variations"
+        )
         if part < 0:
-            phrases.append(
-                "Sa contribution est négative : sur la fenêtre, ses mouvements ont "
-                "en moyenne compensé ceux des autres lignes."
-            )
+            phrases = [
+                f"{tete} : {vc.window.period_label}, ses mouvements ont en moyenne "
+                "compensé ceux des autres lignes."
+            ]
         elif math.isclose(part, poids, abs_tol=5e-4):
-            phrases.append("Sa part du risque correspond à sa part du capital.")
+            phrases = [f"{tete}, soit la même part."]
         elif ecart > 0:
-            phrases.append(
-                f"Sa part du risque dépasse sa part du capital de {_points(ecart)}."
-            )
+            phrases = [f"{tete}, soit {_points(ecart)} de plus."]
         else:
-            phrases.append(
-                f"Sa part du risque est inférieure à sa part du capital de "
-                f"{_points(ecart)}."
-            )
+            phrases = [f"{tete}, soit {_points(ecart)} de moins."]
 
         if rang == 0 and len(ordre) > 1:
             # Propriété générale, dite une fois, sur la ligne qui pèse le plus.
             phrases.append(
-                "Plus une ligne pèse dans la variance, plus elle pèse sur le résultat "
-                "du portefeuille, dans les deux sens : à la baisse comme à la hausse."
+                "Plus une ligne pèse dans les variations, plus elle pèse sur le "
+                "résultat, à la baisse comme à la hausse."
             )
 
         if mince:
@@ -485,6 +553,7 @@ def apparent_diversification(
     """Paires de lignes qui ont largement évolué ensemble sur la fenêtre."""
     correlation = report.matrices.correlation
     seances = report.matrices.window.observations
+    periode = _majuscule(report.matrices.window.period_label)
     provenance = f"fenêtre d'estimation : {report.matrices.window}"
 
     # Le nombre de lignes se lit sur la matrice quand elle existe, sinon sur la
@@ -505,12 +574,8 @@ def apparent_diversification(
                 rule=RuleId.APPARENT_DIVERSIFICATION,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {_seances(seances)}, aucune corrélation n'est estimable : "
-                    "trois observations sont nécessaires pour qu'un coefficient "
-                    "mesure quelque chose. En deçà, la droite d'ajustement passe "
-                    "exactement par les points et la corrélation vaut ±1 quelles que "
-                    "soient les données — le chiffre serait le même pour deux titres "
-                    "pris au hasard. Aucune paire n'est donc décrite ici."
+                    f"{_refus(seances, 'une corrélation')} Aucune paire n'est donc "
+                    "décrite ici."
                 ),
                 facts={"seances": seances, "correlation_max": None},
                 provenance=provenance,
@@ -519,7 +584,7 @@ def apparent_diversification(
         ]
 
     tickers = list(correlation.columns)
-    mince = _mention_mince("le coefficient", seances)
+    mince = _mention_mince(seances)
     seuils_mince = (MIN_REGRESSION_SAMPLE,) if _echantillon_mince(seances) else ()
     paires = sorted(
         (
@@ -537,10 +602,10 @@ def apparent_diversification(
                 rule=RuleId.APPARENT_DIVERSIFICATION,
                 subject=f"{a}–{b}",
                 statement=(
-                    f"{a} et {b} ont une corrélation de {typography.number(rho, 2)} sur "
-                    f"{_seances(seances)} : elles ont largement évolué ensemble, et "
-                    "apportent moins de diversification que leur nombre ne le "
-                    f"suggère.{mince}"
+                    f"{periode}, {a} et {b} ont largement évolué ensemble "
+                    f"(corrélation de {typography.number(rho, 2)}) : à elles deux, "
+                    "elles diversifient moins que leur nombre ne le laisse "
+                    f"penser.{mince}"
                 ),
                 facts={"correlation": rho, "seances": seances},
                 provenance=provenance,
@@ -556,9 +621,10 @@ def apparent_diversification(
             rule=RuleId.APPARENT_DIVERSIFICATION,
             subject="portefeuille",
             statement=(
-                "Aucune paire de lignes n'atteint une corrélation de "
-                f"{threshold.displayed} sur {_seances(seances)}. La paire la "
-                f"plus corrélée est {a}–{b}, à {reference.displayed}.{mince}"
+                f"{periode}, aucune paire de lignes n'a évolué étroitement "
+                "ensemble : aucune corrélation n'atteint "
+                f"{threshold.displayed}. La paire la plus liée est {a}–{b}, à "
+                f"{reference.displayed}.{mince}"
             ),
             facts={"correlation_max": rho, "paire": f"{a}–{b}", "seances": seances},
             provenance=provenance,
@@ -568,6 +634,13 @@ def apparent_diversification(
 
 
 # ----------------------------------------------- 4. Part systématique --
+
+
+def _celles_du_marche(benchmark: str) -> str:
+    """« celles du marché, le S&P 500 » ; un indice sans nom connu, par son
+    ticker : « celles de QQQ »."""
+    nom = benchmark_name(benchmark)
+    return f"celles de {benchmark}" if nom is None else f"celles du marché, {nom.label}"
 
 
 def systematic_share(report: RiskReport) -> list[Observation]:
@@ -586,11 +659,8 @@ def systematic_share(report: RiskReport) -> list[Observation]:
                 rule=RuleId.SYSTEMATIC_SHARE,
                 subject="portefeuille",
                 statement=(
-                    f"Sur {_seances(seances)}, la part systématique n'est pas "
-                    "estimable : une régression avec constante n'a plus aucun degré "
-                    "de liberté résiduel en deçà de trois observations, et son R² "
-                    "vaut 1 quelles que soient les données. Aucune part expliquée "
-                    f"par {beta.benchmark} n'est donc avancée ici."
+                    f"{_refus(seances, 'la part des variations qui suit le marché')} "
+                    "Aucune part n'est donc avancée ici."
                 ),
                 facts={
                     "r2": None,
@@ -608,16 +678,13 @@ def systematic_share(report: RiskReport) -> list[Observation]:
             rule=RuleId.SYSTEMATIC_SHARE,
             subject="portefeuille",
             statement=(
-                f"Sur {_seances(seances)}, "
-                f"{typography.percent(r2, 0)} de la variance du portefeuille "
-                f"s'explique par les mouvements de {beta.benchmark} "
-                f"(R² "
-                f"{typography.number(r2, 2)}). Cette part est du risque de marché : elle est "
-                "commune aux actions américaines, et en détenir davantage ne la dilue "
-                f"pas. Les "
-                f"{typography.percent(1.0 - r2, 0)} restants sont propres aux lignes "
-                "détenues ; c'est sur eux seuls que la diversification entre lignes a "
-                f"prise.{_mention_mince('le R²', seances)}"
+                f"{_majuscule(beta.window.period_label)}, "
+                f"{typography.percent(r2, 0)} des variations de votre portefeuille "
+                f"ont suivi {_celles_du_marche(beta.benchmark)}. Cette part ne se "
+                "dilue pas en ajoutant d'autres actions américaines. Les "
+                f"{typography.percent(1.0 - r2, 0)} restants sont propres à vos "
+                "lignes : c'est sur eux seuls que la diversification "
+                f"agit.{_mention_mince(seances)}"
             ),
             facts={
                 "r2": r2,
@@ -640,104 +707,126 @@ def _hausse(c: RegimeComparison) -> bool:
     return c.systematic_share_change > 0
 
 
-def _episodes(crises: Sequence[RegimeComparison]) -> str:
-    """« l'épisode Krach COVID (23 séances) », ou son pluriel.
+def _parts(c: RegimeComparison, calme_commun: bool) -> str:
+    """« 98 % », ou « de 45 % à 98 % » quand le temps ordinaire diffère d'une
+    crise à l'autre."""
+    crise = typography.percent(c.crisis_beta.r_squared, 0)
+    if calme_commun:
+        return crise
+    return f"de {typography.percent(c.calm_beta.r_squared, 0)} à {crise}"
 
-    « L'épisode » plutôt qu'un article devant le nom : les noms du catalogue
-    n'ont pas tous le même genre.
+
+def _evolution(
+    valides: Sequence[RegimeComparison],
+    suffisantes: Sequence[RegimeComparison],
+    calme_commun: bool,
+) -> str:
+    """La première phrase : la part qui suit le marché en temps ordinaire, puis
+    dans chaque crise estimée sur assez de jours.
+
+    Les crises trop minces n'y figurent pas : elles sont citées à part, avec
+    leur chiffre et la raison pour laquelle rien n'en est conclu.
     """
-    noms = [
-        f"{c.scenario.name} ({_seances(c.crisis_beta.observations)})" for c in crises
-    ]
-    return ("l'épisode " if len(crises) == 1 else "les épisodes ") + _enumeration(noms)
+    sujet = "la part des variations qui suit le marché"
+    if calme_commun:
+        reference = valides[0]
+        calme = (
+            f"{typography.percent(reference.calm_beta.r_squared, 0)} "
+            f"{reference.calm_period_label}"
+        )
+        if not suffisantes:
+            return f"{_majuscule(sujet)} est de {calme}."
+        etapes = [
+            f"à {typography.percent(c.crisis_beta.r_squared, 0)} pendant "
+            f"{_crise(c.scenario)}"
+            for c in suffisantes
+        ]
+        return f"{_majuscule(sujet)} passe de {calme} {_enumeration(etapes)}."
 
-
-def _trop_mince(crises: Sequence[RegimeComparison]) -> str:
-    if len(crises) == 1:
-        return "l'échantillon est trop mince pour conclure"
-    return "leurs échantillons sont trop minces pour conclure"
+    # Couverture différente d'une crise à l'autre : le temps ordinaire est
+    # mesuré sur les lignes rejouées de chacune, et sa part change avec elles.
+    if not suffisantes:
+        return (
+            f"{_majuscule(sujet)} se mesure ici sur les lignes rejouées de chaque "
+            "crise."
+        )
+    etapes = []
+    periode_precedente = None
+    for c in suffisantes:
+        periode = c.calm_period_label
+        dite = "" if periode == periode_precedente else f" {periode}"
+        etapes.append(
+            f"de {typography.percent(c.calm_beta.r_squared, 0)}{dite} à "
+            f"{typography.percent(c.crisis_beta.r_squared, 0)} pendant "
+            f"{_crise(c.scenario)}"
+        )
+        periode_precedente = periode
+    return (
+        f"Mesurée sur les lignes rejouées de chaque crise, {sujet} passe "
+        f"{_enumeration(etapes)}."
+    )
 
 
 def _conclusion_des_crises(
-    suffisantes: Sequence[RegimeComparison], minces: Sequence[RegimeComparison]
+    suffisantes: Sequence[RegimeComparison],
+    minces: Sequence[RegimeComparison],
+    calme_commun: bool,
 ) -> list[str]:
     """Ce que les crises rejouées permettent de conclure, et ce qu'elles ne
     permettent pas.
 
     Seules les crises estimées sur au moins MIN_REGRESSION_SAMPLE séances
-    entrent dans le décompte. Une crise dont la même phrase vient de qualifier
-    l'échantillon de trop mince ne peut pas être comptée ensuite comme une
-    preuve. Elle est citée à part, avec le sens où elle va. Sans aucune
-    estimation suffisante, aucune conclusion générale n'est tirée.
+    entrent dans la conclusion. Une crise trop mince ne peut pas être comptée
+    comme une preuve : elle est citée à part, avec son chiffre, le sens où elle
+    va et le nombre de jours qui la fonde. Sans aucune estimation suffisante,
+    aucune conclusion générale n'est tirée.
     """
     phrases: list[str] = []
     total = len(suffisantes)
     hausses = sum(1 for c in suffisantes if _hausse(c))
-    # Sans crise mince, la portée va de soi ; avec, elle doit se dire.
-    portee = "estimée sur assez de séances" if minces else "rejouée"
-    portees = "estimées sur assez de séances" if minces else "rejouées"
+    ces = "cette crise" if total == 1 else f"ces {typography.cardinal(total)} crises"
 
     if total == 0:
-        phrases.append(
-            "La crise rejouée n'est pas estimée sur assez de séances : aucune "
-            "conclusion n'en est tirée."
-            if len(minces) == 1
-            else f"Aucune des {len(minces)} crises rejouées n'est estimée sur "
-            "assez de séances : aucune conclusion générale n'en est tirée."
-        )
+        pass
     elif hausses == total:
         phrases.append(
-            (f"Elle augmente dans la crise {portee}" if total == 1
-             else f"Elle augmente dans les {total} crises {portees}")
-            + " : la diversification entre lignes s'est affaiblie précisément "
-            + ("pendant l'épisode où elle aurait servi." if total == 1
-               else "pendant les épisodes où elle aurait servi.")
+            f"Dans {ces}, la diversification entre vos lignes s'est affaiblie au "
+            "moment où elle aurait servi."
         )
     elif hausses == 0:
         phrases.append(
-            f"Elle n'augmente pas dans la crise {portee}." if total == 1
-            else f"Elle n'augmente dans aucune des {total} crises {portees}."
-            if minces
-            else "Elle n'augmente dans aucune des crises rejouées."
+            "Elle n'augmente pas dans cette crise."
+            if total == 1
+            else f"Elle n'augmente dans aucune de {ces}."
         )
     else:
-        crises = "crise" if hausses == 1 else "crises"
-        phrases.append(
-            f"Elle augmente dans {hausses} {crises} sur {total}"
-            + (f" {portees}." if minces else ".")
-        )
-
-    if not minces:
-        return phrases
+        phrases.append(f"Elle augmente dans {_une(hausses)} de {ces}.")
 
     unanime = total > 0 and hausses in (0, total)
-    if unanime:
-        sens_de_la_conclusion = hausses == total
-        memes = [c for c in minces if _hausse(c) == sens_de_la_conclusion]
-        contraires = [c for c in minces if _hausse(c) != sens_de_la_conclusion]
-        for groupe, sens in ((memes, "dans le même sens"), (contraires, "en sens contraire")):
-            if groupe:
-                verbe = "va" if len(groupe) == 1 else "vont"
-                episodes = _episodes(groupe)
-                phrases.append(
-                    f"{episodes[0].upper()}{episodes[1:]} {verbe} {sens}, mais "
-                    f"{_trop_mince(groupe)}."
-                )
-    else:
-        for groupe, verbe in (
-            ([c for c in minces if _hausse(c)], "augmente"),
-            ([c for c in minces if not _hausse(c)], "n'augmente pas"),
-        ):
-            if groupe:
-                phrases.append(
-                    f"Elle {verbe} pendant {_episodes(groupe)}, mais "
-                    f"{_trop_mince(groupe)}."
-                )
+    for c in minces:
+        trop_peu = (
+            f"mais sur {_jours(c.crisis_beta.observations)} seulement : trop peu "
+            "pour conclure."
+        )
+        if unanime:
+            comme_les_autres = _hausse(c) == (hausses == total)
+            sens = "dans le même sens" if comme_les_autres else "en sens contraire"
+            phrases.append(
+                f"{_crise(c.scenario, en_tete=True)} va {sens} "
+                f"({_parts(c, calme_commun)}), {trop_peu}"
+            )
+        else:
+            verbe = "augmente" if _hausse(c) else "n'augmente pas"
+            phrases.append(
+                f"Pendant {_crise(c.scenario)}, elle {verbe} "
+                f"({_parts(c, calme_commun)}), {trop_peu}"
+            )
     return phrases
 
 
 def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]:
-    """Part systématique en régime calme face à chaque crise rejouée."""
+    """La part des variations qui suit le marché, en temps ordinaire face à
+    chaque crise rejouée."""
     valides = [c for c in regimes if c.unavailable_reason is None]
     if not valides:
         return []
@@ -745,42 +834,16 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
     calmes = [c.calm_beta.r_squared for c in valides]
     calme_commun = all(math.isclose(r2, calmes[0], abs_tol=1e-12) for r2 in calmes)
 
-    morceaux = []
-    for c in valides:
-        mince = " — échantillon trop mince" if c.crisis_beta.sample_too_thin else ""
-        if calme_commun:
-            morceaux.append(
-                f""
-                f"{typography.percent(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
-            )
-        else:
-            morceaux.append(
-                f"de {typography.percent(c.calm_beta.r_squared, 0)} à "
-                f""
-                f"{typography.percent(c.crisis_beta.r_squared, 0)} ({c.scenario.name}{mince})"
-            )
-
-    if calme_commun:
-        phrases = [
-            f"La part systématique du risque passe de "
-            f"{typography.percent(calmes[0], 0)} en régime "
-            f"calme à {_enumeration(morceaux)} dans les crises rejouées."
-        ]
-    else:
-        phrases = [
-            "La part systématique du risque, mesurée sur les lignes couvertes de "
-            f"chaque scénario, passe {_enumeration(morceaux)}."
-        ]
-
     suffisantes = [c for c in valides if not c.crisis_beta.sample_too_thin]
     minces = [c for c in valides if c.crisis_beta.sample_too_thin]
-    phrases.extend(_conclusion_des_crises(suffisantes, minces))
+    phrases = [_evolution(valides, suffisantes, calme_commun)]
+    phrases.extend(_conclusion_des_crises(suffisantes, minces, calme_commun))
 
     exclus = [c for c in regimes if c.unavailable_reason is not None]
     if exclus:
         phrases.append(
-            "Sans comparaison possible : "
-            + _enumeration([c.scenario.name for c in exclus])
+            "Pas de comparaison possible pour "
+            + _enumeration([_crise(c.scenario) for c in exclus])
             + "."
         )
 
@@ -822,6 +885,27 @@ def crisis_degradation(regimes: Sequence[RegimeComparison]) -> list[Observation]
 # ------------------------------------------ 6. Couverture d'un scénario --
 
 
+def _absentes(resultat: ScenarioResult) -> str:
+    """« A et B n'étaient pas encore cotés » : ce qui a écarté les lignes.
+
+    « Pas encore » seulement quand toutes sont entrées en cotation après le
+    début de la crise (`first_available`) ; une ligne sans cours, ou plus
+    cotée avant la fin, n'était pas cotée pendant TOUTE la crise.
+    """
+    exclues = resultat.coverage.excluded
+    noms = _enumeration([e.ticker for e in exclues])
+    plusieurs = len(exclues) > 1
+    etat = "n'étaient pas" if plusieurs else "n'était pas"
+    cote = "cotés" if plusieurs else "coté"
+    tardives = all(
+        e.first_available is not None and e.first_available > resultat.scenario.start
+        for e in exclues
+    )
+    if tardives:
+        return f"{noms} {etat} encore {cote}"
+    return f"{noms} {etat} {cote} pendant toute la crise"
+
+
 def scenario_coverage(
     scenarios: Sequence[ScenarioResult], threshold: Threshold = MIN_SCENARIO_COVERAGE
 ) -> list[Observation]:
@@ -829,8 +913,9 @@ def scenario_coverage(
 
     Sous le seuil de couverture, aucun chiffre principal n'est produit : la
     partie rejouée est minoritaire dans la valeur et ne peut pas tenir lieu du
-    portefeuille. Au-dessus, le chiffre est donné avec sa portée et la direction
-    de son biais.
+    portefeuille. Au-dessus, le chiffre est donné avec sa portée. La phrase ne
+    dit pas dans quel sens l'ensemble aurait différé : le moteur ne le mesure
+    pas.
     """
     observations = []
     for resultat in scenarios:
@@ -838,11 +923,11 @@ def scenario_coverage(
         if couverture.is_complete:
             continue
 
-        nom = resultat.scenario.name
-        absentes = _enumeration([e.ticker for e in couverture.excluded])
-        detail = (
-            f"{_lignes(couverture.covered_count)} sur {couverture.total_count} ; "
-            f"sans historique sur la fenêtre : {absentes}"
+        crise = _crise(resultat.scenario, en_tete=True)
+        portee = (
+            f"{crise} ne se rejoue que sur "
+            f"{typography.percent(couverture.value_share, 0)} de votre portefeuille "
+            f"({_lignes(couverture.covered_count)} sur {couverture.total_count})"
         )
         faits: dict[str, float | int | str | None] = {
             "part_couverte": couverture.value_share,
@@ -851,29 +936,31 @@ def scenario_coverage(
         }
 
         if resultat.end_to_end_return is None:
-            texte = (
-                f"{nom} : aucune ligne du portefeuille n'a d'historique couvrant la "
-                "fenêtre du scénario. Aucun chiffre n'est produit."
+            # Deux causes, comme dans le moteur : aucune ligne couverte, ou des
+            # lignes couvertes sans deux jours de bourse en commun.
+            cause = (
+                "aucune de vos lignes n'était cotée pendant toute cette crise"
+                if couverture.covered_count == 0
+                else "les lignes cotées pendant toute cette crise ont moins de deux "
+                "jours de bourse en commun"
             )
+            texte = f"Impossible de rejouer {_crise(resultat.scenario)} : {cause}."
         elif couverture.value_share < threshold.value:
             texte = (
-                f"{nom} ne couvre que "
-                f"{typography.percent(couverture.value_share, 0)} de la valeur "
-                f"du portefeuille ({detail}). En dessous de "
-                f"{threshold.displayed}, "
-                "la partie rejouée est minoritaire dans la valeur : aucun chiffre "
-                "principal n'est donné pour ce scénario."
+                f"{portee} : moins de {threshold.displayed}, trop peu pour donner un "
+                "chiffre pour l'ensemble."
             )
         else:
+            ensemble = (
+                "la perte de l'ensemble a pu être différente"
+                if resultat.end_to_end_return < 0
+                else "le résultat de l'ensemble a pu être différent"
+            )
             texte = (
-                f"{nom} couvre "
-                f"{typography.percent(couverture.value_share, 0)} de la valeur du "
-                f"portefeuille ({detail}). Son résultat de bout en bout "
-                f"("
-                f"{typography.percent(resultat.end_to_end_return, 1)}) porte sur cette partie "
-                "seulement et sous-estime probablement celui de l'ensemble : une "
-                "ligne absente de l'historique d'une crise est cotée plus récemment, "
-                "en moyenne plus jeune et plus spéculative."
+                f"{portee} : {_absentes(resultat)}. Son résultat "
+                f"({typography.percent(resultat.end_to_end_return, 1)}) ne porte que "
+                "sur cette partie. Les lignes absentes n'ont pas été rejouées : "
+                f"{ensemble}."
             )
             faits["resultat_partie_couverte"] = resultat.end_to_end_return
 

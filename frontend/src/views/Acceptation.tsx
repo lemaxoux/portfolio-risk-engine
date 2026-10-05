@@ -8,9 +8,8 @@
  *
  * LE TEXTE VIENT DU BACKEND, en entier. Rien n'est écrit ici : ni le titre, ni
  * les sections, ni la phrase de confirmation. Ce texte a une portée
- * quasi juridique, il vouvoie là où le reste du produit tutoie, et une copie
- * dans le bundle serait le texte réellement lu le jour où le serveur change le
- * sien.
+ * quasi juridique, et une copie dans le bundle serait le texte réellement lu
+ * le jour où le serveur change le sien.
  */
 import { useEffect, useState } from 'react'
 

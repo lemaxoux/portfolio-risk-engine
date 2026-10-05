@@ -33,7 +33,7 @@ from backend.risk_engine.engine import (
     compare_all_regimes,
     run_all_scenarios,
 )
-from backend.risk_engine.scenarios import Scenario
+from backend.risk_engine.scenarios import SCENARIOS, Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.rules import (
     MIN_DISTRIBUTION_SAMPLE,
@@ -320,10 +320,11 @@ def test_la_concentration_se_dit_en_capital_et_en_risque_sans_seuil(risque):
     obs = effective_concentration(base)
 
     assert obs.statement.startswith(
-        "Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque"
+        "Vos 6\u00a0lignes pèsent comme 5,7\u00a0lignes de même montant, mais font bouger "
+        "le portefeuille comme 4,4 seulement : le risque est plus concentré que l'argent."
     )
-    assert "En capital, l'équipondération en donnerait 6." in obs.statement
-    assert "la lecture en capital seule est la plus flatteuse des deux" in obs.statement
+    assert "Avec des montants égaux, elles compteraient pour 6." in obs.statement
+    assert "À ne regarder que les montants, on surestime donc la diversification." in obs.statement
     assert obs.facts["lignes_effectives_risque"] == pytest.approx(1.0 / sum(v * v for v in DEMO_PARTS.values()))
     assert obs.thresholds == ()
     assert "Aucun seuil" in obs.render()
@@ -340,9 +341,10 @@ def test_un_risque_mieux_reparti_que_le_capital_est_dit_tel_quel(risque):
     )
     obs = effective_concentration(base)
 
-    assert "et comme 3,0 en risque" in obs.statement
-    assert "se répartit plus également que le capital" in obs.statement
-    assert "flatteuse" not in obs.statement
+    assert (
+        "et font bouger le portefeuille comme 3,0 : le risque est mieux réparti que l'argent."
+    ) in obs.statement
+    assert "surestime" not in obs.statement
 
 
 def test_une_contribution_negative_rend_la_lecture_en_risque_approximative(risque):
@@ -351,7 +353,7 @@ def test_une_contribution_negative_rend_la_lecture_en_risque_approximative(risqu
         concentration=concentration(2, 1.0 / (0.8**2 + 0.2**2)),
         variance_contributions=_contributions({"A": 1.1, "B": -0.1}, {"A": 0.8, "B": 0.2}),
     )
-    assert "approximative" in effective_concentration(base).statement
+    assert "n'est qu'une approximation" in effective_concentration(base).statement
 
 
 def test_la_concentration_d_une_ligne_unique(risque):
@@ -360,7 +362,9 @@ def test_la_concentration_d_une_ligne_unique(risque):
         concentration=concentration(1, 1.0),
         variance_contributions=_contributions({"A": 1.0}, {"A": 1.0}),
     )
-    assert "une seule ligne effective, en capital comme en risque" in effective_concentration(base).statement
+    assert (
+        "une seule ligne : elle en porte tout le montant et toutes les variations"
+    ) in effective_concentration(base).statement
 
 
 def test_le_nombre_en_risque_du_rapport_est_celui_de_la_mesure(risque):
@@ -381,7 +385,7 @@ def test_une_observation_par_ligne_de_la_plus_forte_a_la_plus_faible(rapport):
     for o in obs:
         (seuil,) = o.thresholds
         assert seuil.kind is ThresholdKind.DERIVED
-        assert "de la valeur du portefeuille" in o.statement and "de sa variance" in o.statement
+        assert "de la valeur du portefeuille" in o.statement and "de ses variations" in o.statement
 
 
 def _contributions(parts, poids):
@@ -397,14 +401,14 @@ def test_la_part_du_risque_est_comparee_a_la_part_du_capital(risque):
     )
     obs = {o.subject: o for o in variance_contribution(base)}
 
-    assert "dépasse sa part du capital de 20,0 points" in obs["A"].statement
-    assert "correspond à sa part du capital" in obs["B"].statement
-    assert "contribution est négative" in obs["C"].statement
+    assert "de ses variations, soit 20,0\u00a0points de plus." in obs["A"].statement
+    assert "de ses variations, soit la même part." in obs["B"].statement
+    assert "ses mouvements ont en moyenne compensé ceux des autres lignes" in obs["C"].statement
 
 
 def test_l_influence_dans_les_deux_sens_est_dite_une_fois_sur_la_plus_forte(rapport):
     obs = rapport.of_rule(RuleId.VARIANCE_CONTRIBUTION)
-    avec = [o for o in obs if "dans les deux sens : à la baisse comme à la hausse" in o.statement]
+    avec = [o for o in obs if "plus elle pèse sur le résultat, à la baisse comme à la hausse" in o.statement]
     assert avec == [obs[0]]
 
 
@@ -434,8 +438,11 @@ def test_le_parcours_en_crise_est_dit_dans_les_deux_sens(entrees):
     gain = _scenario(modele, "resserrement", "Resserrement", {"A": 0.094, "B": -0.02})
     obs = {o.subject: o for o in variance_contribution(risque, (perte, gain))}
 
-    assert "A a pesé dans les deux sens : −7,6 pts (Krach), mais +9,4 pts (Resserrement)" in obs["A"].statement
-    assert "négative à chaque fois" in obs["B"].statement
+    assert (
+        "A a joué dans les deux sens : il a coûté 7,6\u00a0points (Krach), mais rapporté "
+        "9,4\u00a0points (Resserrement)"
+    ) in obs["A"].statement
+    assert "B a coûté au portefeuille à chaque fois" in obs["B"].statement
     assert obs["A"].facts["scenario:resserrement"] == pytest.approx(0.094)
 
 
@@ -457,7 +464,7 @@ def test_une_paire_fortement_correlee_est_signalee_avec_son_seuil_choisi(rapport
 
     assert obs.subject == "A–B"
     assert obs.facts["correlation"] >= STRONG_CORRELATION.value
-    assert "apportent moins de diversification que leur nombre ne le suggère" in obs.statement
+    assert "à elles deux, elles diversifient moins que leur nombre ne le laisse penser" in obs.statement
     assert obs.uses_chosen_threshold
     assert "CHOISI à la main" in obs.render()
 
@@ -470,7 +477,7 @@ def test_sans_paire_forte_la_paire_la_plus_correlee_est_decrite(risque):
     (obs,) = apparent_diversification(base)
 
     assert obs.subject == "portefeuille"
-    assert "La paire la plus corrélée est JNJ–KO, à 0,42" in obs.statement
+    assert "La paire la plus liée est JNJ–KO, à 0,42" in obs.statement
     kinds = [s.kind for s in obs.thresholds]
     assert kinds == [ThresholdKind.CHOSEN, ThresholdKind.PORTFOLIO_RELATIVE]
 
@@ -633,7 +640,7 @@ def _sans_paire_forte(risque, rho):
 def test_le_seuil_choisi_s_ecrit_comme_dans_la_phrase(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.42))
 
-    assert "n'atteint une corrélation de 0,70 sur" in obs.statement
+    assert "aucune corrélation n'atteint 0,70." in obs.statement
     assert "  Seuil : corrélation forte = 0,70 — seuil CHOISI" in obs.render()
     assert "= 0,7 " not in obs.render()
 
@@ -641,7 +648,7 @@ def test_le_seuil_choisi_s_ecrit_comme_dans_la_phrase(risque):
 def test_la_reference_de_la_paire_garde_ses_deux_decimales(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.40))
 
-    assert "La paire la plus corrélée est JNJ–KO, à 0,40." in obs.statement
+    assert "La paire la plus liée est JNJ–KO, à 0,40." in obs.statement
     assert "  Référence : corrélation JNJ–KO = 0,40 — relatif au portefeuille" in obs.render()
 
 
@@ -665,7 +672,7 @@ def test_une_part_de_capital_ronde_garde_sa_decimale_dans_la_reference(risque):
     observations = {o.subject: o for o in variance_contribution(base)}
 
     obs = observations["B"]
-    assert "B pèse 25,0\u202f% de la valeur du portefeuille" in obs.statement
+    assert "B représente 25,0\u202f% de la valeur du portefeuille" in obs.statement
     assert "  Référence : part de B dans la valeur = 25,0\u202f% — référence calculée" in obs.render()
 
 
@@ -688,8 +695,8 @@ def test_la_part_systematique_se_dit_sans_seuil(rapport):
     (obs,) = rapport.of_rule(RuleId.SYSTEMATIC_SHARE)
     r2 = obs.facts["r2"]
 
-    assert f"{round(r2 * 100)} % de la variance du portefeuille s'explique" in obs.statement
-    assert "risque de marché" in obs.statement and "ne la dilue pas" in obs.statement
+    assert f"{round(r2 * 100)}\u202f% des variations de votre portefeuille ont suivi" in obs.statement
+    assert "celles du marché, le S&P" in obs.statement and "ne se dilue pas" in obs.statement
     assert obs.facts["part_propre"] == pytest.approx(1.0 - r2)
     assert obs.thresholds == ()
 
@@ -723,11 +730,12 @@ def test_la_part_systematique_monte_dans_les_crises_suffisantes():
     ])
 
     assert (
-        "passe de 49 % en régime calme à 86 % (Crise 2008), 98 % (COVID — échantillon "
-        "trop mince) et 79 % (Resserrement 2022)"
+        "passe de 49\u202f% ces deux\u00a0dernières années à 86\u202f% pendant l'épisode "
+        "Crise 2008 et à 79\u202f% pendant l'épisode Resserrement 2022."
     ) in obs.statement
-    assert "Elle augmente dans les 2 crises estimées sur assez de séances" in obs.statement
-    assert "3 crises" not in obs.statement
+    assert "Dans ces deux crises, la diversification entre vos lignes s'est affaiblie" in obs.statement
+    assert "trois crises" not in obs.statement
+    assert "pendant l'épisode COVID" not in obs.statement, "la crise mince est citée à part"
     assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
     assert obs.facts["crises_en_hausse"] == 2
     assert obs.facts["crises_en_hausse_echantillon_mince"] == 1
@@ -737,7 +745,7 @@ def test_une_baisse_est_dite_telle_quelle_sans_seuil_superflu():
     (obs,) = crisis_degradation([
         regime("a", "A", 0.80, 200), regime("b", "B", 0.40, 200), regime("c", "C", 0.70, 200),
     ])
-    assert "Elle augmente dans 2 crises sur 3" in obs.statement
+    assert "Elle augmente dans deux de ces trois crises." in obs.statement
     assert obs.thresholds == ()
 
 
@@ -755,10 +763,10 @@ def test_toutes_les_crises_suffisantes_entrent_dans_la_conclusion():
     ])
 
     assert (
-        "Elle augmente dans les 3 crises rejouées : la diversification entre lignes "
-        "s'est affaiblie précisément pendant les épisodes où elle aurait servi."
+        "Dans ces trois crises, la diversification entre vos lignes s'est affaiblie au "
+        "moment où elle aurait servi."
     ) in obs.statement
-    assert "trop mince" not in obs.statement
+    assert "trop peu pour conclure" not in obs.statement
     assert obs.thresholds == ()
     assert obs.facts["crises_comparees"] == 3
     assert obs.facts["crises_en_hausse"] == 3
@@ -773,10 +781,9 @@ def test_une_crise_mince_est_citee_a_part_hors_du_decompte():
     ])
 
     assert (
-        "Elle augmente dans les 2 crises estimées sur assez de séances : la "
-        "diversification entre lignes s'est affaiblie précisément pendant les "
-        "épisodes où elle aurait servi. L'épisode COVID (23\u00a0séances) va dans le "
-        "même sens, mais l'échantillon est trop mince pour conclure."
+        "Dans ces deux crises, la diversification entre vos lignes s'est affaiblie au "
+        "moment où elle aurait servi. L'épisode COVID va dans le même sens (98\u202f%), "
+        "mais sur 23\u00a0jours de bourse seulement : trop peu pour conclure."
     ) in obs.statement
     assert obs.facts["crises_comparees"] == 2
     assert obs.facts["crises_en_hausse"] == 2
@@ -791,10 +798,10 @@ def test_une_crise_mince_en_sens_contraire_le_dit():
         regime("taux", "Resserrement 2022", 0.79, 195),
     ])
 
-    assert "Elle augmente dans les 2 crises estimées sur assez de séances" in obs.statement
+    assert "Dans ces deux crises, la diversification entre vos lignes s'est affaiblie" in obs.statement
     assert (
-        "L'épisode COVID (23\u00a0séances) va en sens contraire, mais l'échantillon "
-        "est trop mince pour conclure."
+        "L'épisode COVID va en sens contraire (30\u202f%), mais sur 23\u00a0jours de "
+        "bourse seulement : trop peu pour conclure."
     ) in obs.statement
 
 
@@ -806,10 +813,10 @@ def test_quand_les_crises_suffisantes_divergent_la_crise_mince_dit_son_sens():
         regime("covid", "COVID", 0.98, 23),
     ])
 
-    assert "Elle augmente dans 1 crise sur 2 estimées sur assez de séances." in obs.statement
+    assert "Elle augmente dans une de ces deux crises." in obs.statement
     assert (
-        "Elle augmente pendant l'épisode COVID (23\u00a0séances), mais l'échantillon "
-        "est trop mince pour conclure."
+        "Pendant l'épisode COVID, elle augmente (98\u202f%), mais sur 23\u00a0jours de "
+        "bourse seulement : trop peu pour conclure."
     ) in obs.statement
     assert "même sens" not in obs.statement
 
@@ -820,14 +827,17 @@ def test_sans_crise_suffisante_aucune_conclusion_generale():
         regime("x", "Flash", 0.70, 40),
     ])
 
-    assert (
-        "Aucune des 2 crises rejouées n'est estimée sur assez de séances : aucune "
-        "conclusion générale n'en est tirée."
-    ) in obs.statement
-    assert (
-        "Elle augmente pendant les épisodes COVID (23\u00a0séances) et Flash "
-        "(40\u00a0séances), mais leurs échantillons sont trop minces pour conclure."
-    ) in obs.statement
+    # Aucune phrase de conclusion : chaque crise dit elle-même qu'elle repose
+    # sur trop peu de jours pour conclure.
+    assert obs.statement.startswith(
+        "La part des variations qui suit le marché est de 49\u202f% ces "
+        "deux\u00a0dernières années."
+    )
+    for nom, part, jours in (("COVID", "98", 23), ("Flash", "70", 40)):
+        assert (
+            f"Pendant l'épisode {nom}, elle augmente ({part}\u202f%), mais sur "
+            f"{jours}\u00a0jours de bourse seulement : trop peu pour conclure."
+        ) in obs.statement
     assert "affaiblie" not in obs.statement
     assert "Elle augmente dans" not in obs.statement
     assert obs.facts["crises_comparees"] == 0
@@ -839,8 +849,8 @@ def test_une_seule_crise_mince_ne_conclut_rien():
     (obs,) = crisis_degradation([regime("covid", "COVID", 0.98, 23)])
 
     assert (
-        "La crise rejouée n'est pas estimée sur assez de séances : aucune conclusion "
-        "n'en est tirée."
+        "Pendant l'épisode COVID, elle augmente (98\u202f%), mais sur 23\u00a0jours de "
+        "bourse seulement : trop peu pour conclure."
     ) in obs.statement
     assert "affaiblie" not in obs.statement
 
@@ -859,14 +869,20 @@ def test_un_scenario_complet_ne_produit_pas_d_observation(entrees):
     assert scenario_coverage([complet]) == []
 
 
-def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee_et_son_biais(conn):
+def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee(conn):
     peupler(conn, part_de_c=0.10)
     (obs,) = evaluer(conn).of_rule(RuleId.SCENARIO_COVERAGE)
 
     assert obs.facts["part_couverte"] == pytest.approx(0.90, abs=0.01)
     assert "resultat_partie_couverte" in obs.facts
-    assert "couvre 90 % de la valeur" in obs.statement
-    assert "sous-estime probablement" in obs.statement
+    assert (
+        "L'épisode Crise de test ne se rejoue que sur 90\u202f% de votre portefeuille "
+        "(2\u00a0lignes sur 3) : C n'était pas encore coté."
+    ) in obs.statement
+    assert "ne porte que sur cette partie" in obs.statement
+    assert "Les lignes absentes n'ont pas été rejouées" in obs.statement
+    # Correction 2 du 2026-10-05 : aucune généralité sur le sens de l'écart.
+    assert "sous-estime" not in obs.statement
     assert obs.thresholds == (MIN_SCENARIO_COVERAGE,)
 
 
@@ -880,8 +896,8 @@ def test_sous_le_seuil_aucun_chiffre_principal(conn):
     assert obs.facts["part_couverte"] == pytest.approx(0.70, abs=0.01)
     assert obs.facts["part_couverte"] < MIN_SCENARIO_COVERAGE.value
     assert "resultat_partie_couverte" not in obs.facts
-    assert "aucun chiffre principal n'est donné" in obs.statement
-    assert "de bout en bout" not in obs.statement
+    assert "moins de 80\u202f%, trop peu pour donner un chiffre pour l'ensemble" in obs.statement
+    assert "Son résultat" not in obs.statement
 
 
 def test_sans_ligne_couverte_aucun_chiffre(entrees):
@@ -892,7 +908,10 @@ def test_sans_ligne_couverte_aucun_chiffre(entrees):
         end_to_end_return=None, max_drawdown=None, contributions=(),
     )
     (obs,) = scenario_coverage([vide])
-    assert "Aucun chiffre n'est produit" in obs.statement
+    assert obs.statement == (
+        "Impossible de rejouer l'épisode Crise de test : aucune de vos lignes n'était "
+        "cotée pendant toute cette crise."
+    )
 
 
 # ============================================ Avertissement attaché au CVaR 99 % ==
@@ -957,15 +976,18 @@ def test_le_bandeau_couvre_les_points_attendus():
         assert attendu in texte, attendu
 
 
-def test_le_bandeau_vouvoie_et_les_observations_tutoient(rapport):
-    """Registre formel pour le seul texte à portée quasi juridique."""
+def test_le_bandeau_et_les_observations_vouvoient(rapport):
+    """Un seul registre dans toute la page, comme les phrases de lecture
+    (décision D1 du 2026-10-05). Les observations tutoyaient."""
     tutoiement = re.compile(r"\b(tu|ton|ta|tes|toi)\b", re.IGNORECASE)
     vouvoiement = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
 
     assert tutoiement.search(rapport.disclaimer) is None
     assert vouvoiement.search(rapport.disclaimer)
+    for observation in rapport.observations:
+        assert tutoiement.search(observation.statement) is None, observation.statement
     concentration_obs = rapport.of_rule(RuleId.EFFECTIVE_CONCENTRATION)[0]
-    assert tutoiement.search(concentration_obs.statement)
+    assert vouvoiement.search(concentration_obs.statement)
 
 
 def test_le_bandeau_suit_la_fenetre_reellement_utilisee(rapport):
@@ -992,8 +1014,13 @@ def test_regles_sur_un_portefeuille_reel(base_figee):
     assert len(contributions) == 6
     assert sum(o.facts["part_de_variance"] for o in contributions.values()) == pytest.approx(1.0, abs=1e-12)
     # La ligne énergie a coûté dans certaines crises et sauvé le portefeuille en 2022.
-    assert "XOM a pesé dans les deux sens" in contributions["XOM"].statement
+    assert "XOM a joué dans les deux sens" in contributions["XOM"].statement
     assert contributions["XOM"].facts["scenario:tightening_2022"] > 0
+    # Les noms du catalogue prennent l'article qu'il déclare.
+    (crise,) = resultat.of_rule(RuleId.CRISIS_DEGRADATION)
+    assert "pendant la Crise financière 2008" in crise.statement
+    assert "pendant le Resserrement monétaire 2022" in crise.statement
+    assert "Le Krach COVID va dans le même sens" in crise.statement
     for observation in resultat.observations:
         assert PRESCRIPTIF.search(observation.render()) is None
     assert "504 dernières séances" in resultat.disclaimer
@@ -1043,7 +1070,7 @@ def test_sous_trois_seances_aucune_correlation_n_est_chiffree(risque):
 
     assert obs.subject == "portefeuille"
     assert "corrélation de 1,00" not in obs.statement
-    assert "aucune corrélation n'est estimable" in obs.statement
+    assert "une corrélation n'a pas de sens : il en faut au moins 3." in obs.statement
     assert obs.facts["correlation_max"] is None
     assert obs.facts["seances"] == 2
 
@@ -1053,8 +1080,10 @@ def test_sous_trois_seances_la_part_systematique_n_est_pas_chiffree(risque):
     (obs,) = systematic_share(base)
 
     assert "R² 1,00" not in obs.statement
-    assert "100 %" not in obs.statement
-    assert "n'est pas estimable" in obs.statement
+    assert "100\u202f%" not in obs.statement
+    assert (
+        "la part des variations qui suit le marché n'a pas de sens : il en faut au moins 3."
+    ) in obs.statement
     assert obs.facts["r2"] is None
     assert obs.facts["part_propre"] is None
 
@@ -1093,7 +1122,7 @@ def test_a_trois_seances_la_correlation_est_chiffree_et_signalee_mince(risque):
     (obs,) = apparent_diversification(base)
 
     assert obs.facts["correlation"] == pytest.approx(0.95)
-    assert "Estimation mince : 3 séances" in obs.statement
+    assert "Estimation mince : sur 3\u00a0jours de bourse" in obs.statement
     assert MIN_REGRESSION_SAMPLE in obs.thresholds
     assert obs.uses_chosen_threshold
 
@@ -1103,7 +1132,7 @@ def test_a_trois_seances_la_part_systematique_est_chiffree_et_signalee_mince(ris
     (obs,) = systematic_share(base)
 
     assert obs.facts["r2"] is not None
-    assert "Estimation mince : 3 séances" in obs.statement
+    assert "Estimation mince : sur 3\u00a0jours de bourse" in obs.statement
     assert obs.thresholds == (MIN_REGRESSION_SAMPLE,)
 
 
@@ -1111,7 +1140,7 @@ def test_la_paire_la_plus_correlee_est_aussi_signalee_mince(risque):
     base = avec_correlation(risque, [[1.0, 0.42], [0.42, 1.0]], ["A", "B"], 40)
     (obs,) = apparent_diversification(base)
 
-    assert "Estimation mince : 40 séances" in obs.statement
+    assert "Estimation mince : sur 40\u00a0jours de bourse" in obs.statement
     kinds = [s.kind for s in obs.thresholds]
     assert kinds == [
         ThresholdKind.CHOSEN,
@@ -1155,7 +1184,11 @@ def test_aucune_valeur_degeneree_n_est_affirmee_sans_signalement(risque, observa
     assert observations_rendues
 
     for obs in observations_rendues:
-        degeneree = "corrélation de 1,00" in obs.statement or "R² 1,00" in obs.statement
+        # Un R² de 1 se lit « 100 % des variations … ont suivi celles du marché ».
+        degeneree = (
+            "corrélation de 1,00" in obs.statement
+            or "100\u202f% des variations" in obs.statement
+        )
         if observations < 3:
             assert not degeneree, obs.statement
             assert obs.thresholds == (MIN_ESTIMABLE_SAMPLE,)
@@ -1192,8 +1225,9 @@ def test_sous_trois_seances_aucune_part_de_variance_n_est_chiffree(risque):
     (obs,) = variance_contribution(avec_fenetre_de_variance(risque, 2))
 
     assert obs.subject == "portefeuille"
-    assert "ne se décompose pas" in obs.statement
-    assert "rang 1" in obs.statement
+    assert (
+        "la part de chaque ligne dans les variations n'a pas de sens : il en faut au moins 3."
+    ) in obs.statement
     assert obs.facts.get("part_de_variance") is None
     assert "%" not in obs.statement.replace("séances", "")
     (seuil,) = obs.thresholds
@@ -1209,9 +1243,9 @@ def test_sous_trois_seances_les_lignes_effectives_en_risque_ne_sont_pas_dites(ri
     """
     obs = effective_concentration(avec_fenetre_de_variance(risque, 2))
 
-    assert "lignes effectives en capital" in obs.statement
-    assert "en risque" in obs.statement
-    assert "n'est pas disponible" in obs.statement
+    assert "lignes de même montant" in obs.statement
+    assert "Ce qu'elles font bouger n'est pas chiffré." in obs.statement
+    assert "ce calcul n'a pas de sens : il en faut au moins 3." in obs.statement
     assert obs.facts["lignes_effectives_capital"] is not None
     assert obs.facts["lignes_effectives_risque"] is None
     (seuil,) = obs.thresholds
@@ -1223,14 +1257,14 @@ def test_a_trois_seances_les_deux_regles_chiffrent_et_signalent(risque):
 
     concentration_obs = effective_concentration(base)
     assert concentration_obs.facts["lignes_effectives_risque"] is not None
-    assert "Estimation mince : 3 séances" in concentration_obs.statement
+    assert "Estimation mince : sur 3\u00a0jours de bourse" in concentration_obs.statement
     assert concentration_obs.thresholds == (MIN_REGRESSION_SAMPLE,)
 
     contributions = variance_contribution(base)
     assert len(contributions) == len(risque.variance_contributions.contributions)
     for obs in contributions:
         assert obs.facts["part_de_variance"] is not None
-        assert "Estimation mince : 3 séances" in obs.statement
+        assert "Estimation mince : sur 3\u00a0jours de bourse" in obs.statement
         assert MIN_REGRESSION_SAMPLE in obs.thresholds
         assert obs.uses_chosen_threshold
 
@@ -1283,3 +1317,118 @@ def test_les_refus_des_regles_1_et_2_ne_prescrivent_rien(risque):
     base = avec_fenetre_de_variance(risque, 2)
     for obs in (effective_concentration(base), *variance_contribution(base)):
         assert PRESCRIPTIF.search(obs.render()) is None, obs.render()
+
+
+# ==================================================== Pour un lecteur qui part de zéro ==
+#
+# Les observations s'affichent telles quelles devant un lecteur qui ne connaît
+# ni la variance ni le R² (textes de lecture validés le 2026-10-05, D7). Les
+# tests ci-dessus suivent les textes du document ; ceux-ci fixent les variantes
+# qu'il n'écrivait pas.
+
+
+def test_les_phrases_disent_jours_de_bourse_et_les_provenances_seances(rapport, risque):
+    """« Séance » reste le mot des provenances et des seuils, jamais celui
+    d'une phrase : celles-ci se lisent à côté des phrases de lecture."""
+    refus = avec_correlation(avec_fenetre_de_variance(risque, 2), [[1.0, 1.0], [1.0, 1.0]], ["A", "B"], 2)
+    refus = replace(refus, beta=replace(refus.beta, window=fenetre_de(2)))
+    minces = avec_fenetre_de_variance(risque, 40)
+    observations = [
+        *rapport.observations,
+        effective_concentration(refus),
+        *variance_contribution(refus),
+        *apparent_diversification(refus),
+        *systematic_share(refus),
+        effective_concentration(minces),
+        *variance_contribution(minces),
+    ]
+    for obs in observations:
+        assert "séance" not in obs.statement, obs.statement
+    assert any("séances" in obs.provenance for obs in observations)
+
+
+def test_le_catalogue_declare_l_article_de_chaque_crise():
+    """« pendant la Crise financière 2008 » : le genre d'un nom ne se devine pas."""
+    assert [s.with_article for s in SCENARIOS] == [
+        "la Crise financière 2008",
+        "le Krach COVID",
+        "le Resserrement monétaire 2022",
+    ]
+    bulle = replace(SCENARIOS[0], name="Éclatement de la bulle", article="l'")
+    assert bulle.with_article == "l'Éclatement de la bulle"
+    # Sans article déclaré : « l'épisode », correct quel que soit le nom.
+    assert CRISE.with_article == "l'épisode Crise de test"
+
+
+def test_une_seule_crise_rejouee_dit_ce_que_chaque_ligne_a_coute_ou_rapporte(entrees):
+    risque, (modele,), _ = entrees
+    seule = _scenario(modele, "krach", "Krach", {"A": -0.076, "B": 0.02})
+    obs = {o.subject: o for o in variance_contribution(risque, (seule,))}
+
+    assert (
+        "Dans la crise rejouée (Krach), A a coûté 7,6\u00a0points au portefeuille."
+    ) in obs["A"].statement
+    assert (
+        "Dans la crise rejouée (Krach), B a rapporté 2,0\u00a0points au portefeuille."
+    ) in obs["B"].statement
+
+
+def test_une_couverture_partielle_en_gain_ne_parle_pas_de_perte(entrees):
+    """Une ligne sans cours n'était pas « pas encore cotée » : elle ne l'était
+    pas pendant TOUTE la crise. Et un gain ne se dit pas « perte »."""
+    _, (modele,), _ = entrees
+    rebond = _scenario(modele, "rebond", "Rebond", {"A": 0.05, "B": 0.03}, part_couverte=0.90)
+    (obs,) = scenario_coverage([rebond])
+
+    assert (
+        "L'épisode Rebond ne se rejoue que sur 90\u202f% de votre portefeuille "
+        "(2\u00a0lignes sur 3) : Z n'était pas coté pendant toute la crise."
+    ) in obs.statement
+    assert "le résultat de l'ensemble a pu être différent." in obs.statement
+    assert "perte" not in obs.statement
+
+
+def test_une_crise_sans_deux_jours_communs_dit_pourquoi(entrees):
+    """Des lignes couvertes, mais moins de deux jours de bourse en commun : la
+    cause n'est pas « aucune ligne cotée »."""
+    (resultat,) = entrees[1]
+    sans_jours = replace(
+        resultat,
+        coverage=ScenarioCoverage(("A",), (ExcludedPosition("B", "absent", 0.5, 0.5),), 0.5, 1.0),
+        end_to_end_return=None, max_drawdown=None, contributions=(),
+    )
+    (obs,) = scenario_coverage([sans_jours])
+    assert obs.statement == (
+        "Impossible de rejouer l'épisode Crise de test : les lignes cotées pendant toute "
+        "cette crise ont moins de deux jours de bourse en commun."
+    )
+
+
+def test_un_temps_ordinaire_propre_a_chaque_crise_est_dit_crise_par_crise():
+    """En couverture partielle, le temps ordinaire est mesuré sur les lignes
+    rejouées de chaque crise : sa part change d'une crise à l'autre."""
+    (obs,) = crisis_degradation([
+        regime("gfc", "Crise 2008", 0.86, 355, r2_calme=0.45),
+        regime("taux", "Resserrement 2022", 0.79, 195),
+        replace(regime("x", "X", 0.8, 200), unavailable_reason="aucune ligne couverte"),
+    ])
+
+    assert obs.statement.startswith(
+        "Mesurée sur les lignes rejouées de chaque crise, la part des variations qui "
+        "suit le marché passe de 45\u202f% ces deux\u00a0dernières années à 86\u202f% "
+        "pendant l'épisode Crise 2008 et de 49\u202f% à 79\u202f% pendant l'épisode "
+        "Resserrement 2022."
+    )
+    assert obs.statement.endswith("Pas de comparaison possible pour l'épisode X.")
+    assert obs.facts["r2_calme"] is None
+
+
+def test_une_ligne_unique_sous_trois_seances_garde_sa_moitie_en_capital(risque):
+    base = replace(avec_fenetre_de_variance(risque, 2), concentration=concentration(1, 1.0))
+    obs = effective_concentration(base)
+
+    assert obs.statement == (
+        "Votre portefeuille compte une seule ligne : elle en porte tout le montant. "
+        "Ce qu'elle fait bouger n'est pas chiffré. Sur 2\u00a0jours de bourse, ce "
+        "calcul n'a pas de sens : il en faut au moins 3."
+    )

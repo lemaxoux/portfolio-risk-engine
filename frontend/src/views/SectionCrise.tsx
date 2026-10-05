@@ -134,7 +134,7 @@ function BlocRegime({ regime }: { regime: Regime }) {
       <p className={commun.neDitPas}>{NE_DIT_PAS_REGIME}</p>
       <DataTable
         legende={`Sensibilité à ${regime.benchmark}, en temps ordinaire et en crise — jamais moyennées`}
-        colonnes={colonnesRegime(majuscule(regime.calm_period_label ?? 'régime calme'))}
+        colonnes={colonnesRegime(majuscule(regime.calm_period_label ?? "période d'estimation"))}
         lignes={lignesRegime}
         cleDeLigne={(l) => l.mesure}
       />

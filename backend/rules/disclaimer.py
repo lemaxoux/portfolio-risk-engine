@@ -8,8 +8,9 @@ La taille de la fenêtre d'estimation n'est pas écrite en dur : elle vient de l
 configuration du moteur, pour que le texte ne puisse pas dire « 504 séances » le
 jour où le calcul en utiliserait un autre nombre.
 
-Ce texte VOUVOIE, là où les observations tutoient : c'est le seul endroit du
-projet à portée quasi juridique, et un registre formel l'y distingue du reste.
+Ce texte VOUVOIE, comme toute la page depuis les textes de lecture du
+2026-10-05 : les observations tutoyaient, et un seul registre vaut désormais
+partout. C'est le seul endroit du projet à portée quasi juridique.
 Ce texte n'a pas été relu par un juriste.
 """
 

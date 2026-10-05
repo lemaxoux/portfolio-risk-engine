@@ -29,9 +29,9 @@ function seuil(
 function observation(thresholds: Threshold[]): ObservationApi {
   return {
     rule: 'apparent_diversification',
-    rule_label: 'diversification apparente',
+    rule_label: 'Lignes qui bougent ensemble',
     subject: 'portefeuille',
-    statement: "Aucune paire n'atteint 0,70 sur 504 séances.",
+    statement: "Ces deux dernières années, aucune corrélation n'atteint 0,70.",
     facts: {},
     provenance: "fenêtre d'estimation : 504 séances, 2024-09-05 → 2026-09-09",
     thresholds,
@@ -97,7 +97,7 @@ describe('le texte est celui du backend', () => {
 })
 
 describe('« Seuil » pour une frontière, « Référence » pour une valeur du portefeuille', () => {
-  // DESIGN.md §9.2. Dans « diversification apparente », la corrélation de la
+  // DESIGN.md §9.2. Dans « Lignes qui bougent ensemble », la corrélation de la
   // paire la plus corrélée était titrée « Seuil : » comme le vrai seuil choisi
   // affiché juste au-dessus d'elle.
   const choisi = seuil('chosen', 'corrélation forte = 0,70 — seuil CHOISI à la main')

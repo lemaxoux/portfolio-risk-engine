@@ -430,7 +430,7 @@ def test_un_meme_nombre_a_la_meme_forme_dans_la_phrase_et_la_ligne_de_seuil(
     ]
     seuil, paire = diversification["thresholds"]
 
-    assert "corrélation de 0,70 sur" in diversification["statement"]
+    assert "aucune corrélation n'atteint 0,70." in diversification["statement"]
     assert seuil["rendered"].startswith("corrélation forte = 0,70 — ")
     rho = paire["rendered"].split(" = ")[1].split(" — ")[0]
     assert f"à {rho}." in diversification["statement"]
@@ -1059,7 +1059,7 @@ def test_sur_un_echantillon_mince_les_deux_observations_portent_le_seuil_choisi(
     }
 
     for observation in concernees:
-        assert "Estimation mince\u00a0: 39 séances" in observation["statement"]
+        assert "Estimation mince\u00a0: sur 39\u00a0jours de bourse" in observation["statement"]
         assert observation["uses_chosen_threshold"] is True
         minimum = [
             s
@@ -1116,7 +1116,7 @@ def test_sous_trois_seances_l_api_refuse_de_chiffrer_et_dit_pourquoi(
     }
 
     for observation in concernees:
-        assert "estimable" in observation["statement"]
+        assert "n'a pas de sens\u00a0: il en faut au moins 3." in observation["statement"]
         assert observation["uses_chosen_threshold"] is False
         (seuil,) = observation["thresholds"]
         assert seuil["kind"] == "derived"
@@ -1146,7 +1146,8 @@ def test_aucune_valeur_degeneree_n_est_affirmee_dans_la_reponse(
         ):
             continue
         phrase = observation["statement"]
-        degeneree = "corrélation de 1,00" in phrase or "R² 1,00" in phrase
+        # Un R² de 1 se lit « 100 % des variations … ont suivi celles du marché ».
+        degeneree = "corrélation de 1,00" in phrase or "100\u202f% des variations" in phrase
         if seances < 3:
             assert not degeneree, phrase
         elif degeneree:
@@ -1319,11 +1320,11 @@ def test_sous_trois_seances_aucune_part_de_variance_ni_ligne_effective_en_risque
 
     (contribution,) = par_regle["variance_contribution"]
     assert contribution["subject"] == "portefeuille"
-    assert "ne se décompose pas" in contribution["statement"]
+    assert "la part de chaque ligne dans les variations n'a pas de sens" in contribution["statement"]
     assert contribution["facts"].get("part_de_variance") is None
 
     (concentration,) = par_regle["effective_concentration"]
-    assert "n'est pas disponible" in concentration["statement"]
+    assert "Ce qu'elles font bouger n'est pas chiffré." in concentration["statement"]
     assert concentration["facts"]["lignes_effectives_risque"] is None
     assert concentration["facts"]["lignes_effectives_capital"] is not None
 
@@ -1366,7 +1367,7 @@ def test_les_quatre_regles_portent_le_seuil_choisi_sur_quarante_seances(
         "systematic_share",
     }
     for observation in concernees:
-        assert "Estimation mince\u00a0: 39 séances" in observation["statement"], (
+        assert "Estimation mince\u00a0: sur 39\u00a0jours de bourse" in observation["statement"], (
             observation["rule"]
         )
         minimum = [
@@ -1440,7 +1441,7 @@ def test_a_fenetre_pleine_la_reponse_est_inchangee_et_sans_ligne_limitante(
     # Aucune règle ne signale d'échantillon mince, et aucune ne refuse.
     for observation in corps["observations"]:
         assert "Estimation mince" not in observation["statement"]
-        assert "n'est pas estimable" not in observation["statement"]
+        assert "n'a pas de sens" not in observation["statement"]
         noms = {s["name"] for s in observation["thresholds"]}
         assert "nombre minimal de séances estimables" not in noms
         if observation["rule"] != "crisis_degradation":

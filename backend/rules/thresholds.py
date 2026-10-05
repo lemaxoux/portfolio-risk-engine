@@ -6,7 +6,8 @@ par ordre de préférence :
 
 1. **Pas de seuil du tout** quand la mesure parle d'elle-même. Une observation
    sans seuil porte un tuple vide ; c'est le cas de la concentration effective
-   (« tes 6 lignes se comportent comme 5,7 ») et de la part systématique.
+   (« vos 6 lignes pèsent comme 5,7 lignes de même montant ») et de la part
+   systématique.
 2. **Un seuil dérivé d'une référence calculée**, comme l'équipondération 1/N ou
    la part de capital d'une ligne. Entre aussi dans cette catégorie le seuil
    qui vient de l'ALGÈBRE de l'estimateur et non d'une convention : le nombre

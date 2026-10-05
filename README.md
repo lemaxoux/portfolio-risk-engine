@@ -601,8 +601,8 @@ rien** : chaque règle lit un résultat déjà produit et le met en mots. Un tes
 vérifie que le module n'importe aucun module de calcul.
 
 **Il décrit des propriétés, il ne prescrit pas d'actions.** « Cette ligne pèse
-35 % de la variance de ton portefeuille » est un fait vérifiable ; « tu devrais
-l'alléger » est un conseil en investissement, que rien dans ce projet ne permet de
+35 % des variations de votre portefeuille » est un fait vérifiable ; « vous
+devriez l'alléger » est un conseil en investissement, que rien dans ce projet ne permet de
 donner — le moteur ignore l'horizon de placement, les objectifs, la fiscalité et le
 reste du patrimoine. C'est la position honnête, et la seule défendable
 juridiquement. La preuve que ça compte est dans les chiffres du projet : une règle
@@ -634,7 +634,37 @@ contribution négative signale une ligne qui a évolué à rebours du reste.
 | 3. Diversification apparente | paires qui ont largement évolué ensemble ; sinon, la paire la plus corrélée | corrélation 0,70 **choisie** ; paire la plus corrélée, relative au portefeuille ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 4. Part systématique | part de la variance expliquée par le marché, qui ne se dilue pas en détenant davantage d'actions américaines | aucun en régime normal ; 60 séances **choisies** et 3 séances **dérivées** pour la taille d'échantillon |
 | 5. Dégradation en crise | part systématique en régime calme face à chaque crise rejouée ; la conclusion ne compte que les crises estimées sur assez de séances, les autres sont citées à part avec leur sens | 60 séances **choisies** pour signaler un échantillon trop mince |
-| 6. Couverture d'un scénario | portée d'un scénario incomplet et direction de son biais ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
+| 6. Couverture d'un scénario | portée d'un scénario incomplet ; sous 80 %, aucun chiffre principal | 80 % **choisi** |
+
+**Les observations sont écrites pour un lecteur qui part de zéro.** Elles
+s'affichent telles quelles en section 6, à côté des phrases de lecture
+(section 10). Depuis le chantier « Textes de lecture » (2026-10-05), elles
+vouvoient et parlent en mots courants. Les noms ci-dessus restent ceux des
+règles dans le code (`RuleId`, champ `rule`) ; le libellé affiché
+(`rule_label`) est une question ou un constat :
+
+| Règle (`rule`) | Libellé affiché (`rule_label`) |
+|---|---|
+| `effective_concentration` | Combien de lignes, en réalité |
+| `variance_contribution` | Poids dans les variations |
+| `apparent_diversification` | Lignes qui bougent ensemble |
+| `systematic_share` | Part qui suit le marché |
+| `crisis_degradation` | Le portefeuille en crise |
+| `scenario_coverage` | Crise rejouée en partie |
+
+- Le vocabulaire : « variations » pour la variance, « la part qui suit le
+  marché » pour la part systématique, « jours de bourse » pour les séances,
+  « ces deux dernières années » pour la fenêtre (`Window.period_label`), « le
+  S&P 500 » pour SPY (`engine.benchmark_name`).
+- Ce qu'une ligne a apporté dans une crise se dit par le verbe : « a coûté
+  7,6 points », « a rapporté 9,4 points ». Le chiffre signé reste dans les
+  faits publiés.
+- Une crise se nomme avec son article : « pendant la Crise financière 2008 »,
+  « le Krach COVID ». Le catalogue le déclare (`Scenario.article`), parce que
+  le genre d'un nom ne se devine pas. Sans article déclaré, la phrase dit
+  « l'épisode … ».
+- Ce qui ne change pas : les faits (`facts`), les seuils et leur texte, les
+  provenances, l'identifiant `rule`, et aucun nombre.
 
 **Une crise estimée sur trop peu de séances n'entre pas dans une conclusion.**
 La règle 5 écrivait que la part systématique « augmente dans les 3 crises
@@ -662,8 +692,11 @@ nombre de séances RÉELLEMENT utilisées, et non la fenêtre demandée.
   estimations bruyantes, ce sont des identités arithmétiques, et le chiffre
   serait le même pour deux titres pris au hasard. Aucune mention d'« échantillon
   mince » ne répare une phrase qui affirme une identité comme si elle décrivait
-  le portefeuille. L'observation dit donc que la mesure n'est pas estimable, et
-  pourquoi.
+  le portefeuille. L'observation dit donc que le calcul n'a pas de sens, et
+  combien de jours il faudrait : « Sur 2 jours de bourse, une corrélation n'a
+  pas de sens : il en faut au moins 3. » La raison algébrique reste publiée
+  avec le seuil (`MIN_ESTIMABLE_SAMPLE.rationale`), sous la phrase ; elle ira
+  aussi dans la page de méthodologie.
 - **De 3 à 59 observations, la règle chiffre et le signale**, avec le seuil
   `MIN_REGRESSION_SAMPLE` attaché — exactement ce que la règle 5 faisait déjà
   pour le R² de crise. Le chiffre dit quelque chose, mal.
@@ -710,7 +743,8 @@ effectives en capital seul est la plus flatteuse des deux lectures : un
 portefeuille équilibré en montants peut porter l'essentiel de sa variance sur
 quelques lignes volatiles et corrélées. L'écart entre les deux nombres est
 l'observation la plus utile de la règle — le risque ne se répartit pas comme le
-capital.
+capital. La phrase le dit sans formule : les lignes « pèsent comme 5,7 lignes
+de même montant, mais font bouger le portefeuille comme 4,4 seulement ».
 
 **Une couverture de scénario minimale à 80 %, choisie à la main.** Le biais de la
 renormalisation est orienté : une ligne absente de l'historique d'une crise est
@@ -719,6 +753,11 @@ le reste décrit la partie la plus solide du portefeuille. Un seuil plus strict
 qu'un pile ou face s'impose. À 80 %, même si la partie exclue avait perdu deux
 fois plus que la partie couverte, la perte de l'ensemble ne dépasserait le chiffre
 affiché que d'un cinquième — contre moitié plus à 50 %.
+
+Cet argument justifie le seuil ; l'observation, elle, ne l'affirme plus. Le
+moteur ne mesure pas dans quel sens l'ensemble aurait différé, et la phrase
+s'en tient à ce qu'il sait : « Les lignes absentes n'ont pas été rejouées :
+la perte de l'ensemble a pu être différente. »
 
 **Le CVaR à 99 % porte un avertissement permanent, pas une règle.** À 99 %, la
 queue ne compte que 1 % de la fenêtre : 6 séances sur 504. Un seuil « moins de 10
@@ -755,26 +794,28 @@ valeur n'est plus arrondie avant d'être écrite : `round()` tranche les
 égalités au pair et `typography` comme `toFixed`. Une corrélation de 0,125
 se serait écrite « 0,12 » sous une phrase qui dit « 0,13 ».
 
-Illustration sur le portefeuille de démonstration (données au 9 septembre 2026) :
+Illustration sur le portefeuille de démonstration (données au 9 septembre 2026,
+la copie figée que lisent les tests) :
 
-> Tes 6 lignes se comportent comme 5,7 lignes effectives en capital, mais comme 4,4 en risque (inverse de la somme des carrés des poids, puis des contributions à la variance). En capital, l'équipondération en donnerait 6. Le risque se concentre davantage que le capital : la lecture en capital seule est la plus flatteuse des deux.
+> Vos 6 lignes pèsent comme 5,7 lignes de même montant, mais font bouger le portefeuille comme 4,4 seulement : le risque est plus concentré que l'argent. Avec des montants égaux, elles compteraient pour 6. À ne regarder que les montants, on surestime donc la diversification.
 >
-> JPM pèse 25,6 % de la valeur du portefeuille et 35,4 % de sa variance. Sa part du risque dépasse sa part du capital de 9,8 points. Plus une ligne pèse dans la variance, plus elle pèse sur le résultat du portefeuille, dans les deux sens : à la baisse comme à la hausse. Dans les crises rejouées, la contribution de JPM au résultat du portefeuille a été négative à chaque fois, de −16,6 pts (Crise financière 2008) à −8,7 pts (Resserrement monétaire 2022).
+> JPM représente 25,6 % de la valeur du portefeuille et 35,4 % de ses variations, soit 9,8 points de plus. Plus une ligne pèse dans les variations, plus elle pèse sur le résultat, à la baisse comme à la hausse. Dans les crises rejouées, JPM a coûté au portefeuille à chaque fois, de 16,6 points (Crise financière 2008) à 8,7 points (Resserrement monétaire 2022).
 >
-> XOM pèse 15,8 % de la valeur du portefeuille et 13,9 % de sa variance. Sa part du risque est inférieure à sa part du capital de 1,9 point. Dans les crises rejouées, XOM a pesé dans les deux sens : −7,6 pts (Krach COVID), mais +9,4 pts (Resserrement monétaire 2022).
+> XOM représente 15,8 % de la valeur du portefeuille et 13,9 % de ses variations, soit 1,9 point de moins. Dans les crises rejouées, XOM a joué dans les deux sens : il a coûté 7,6 points (Krach COVID), mais rapporté 9,4 points (Resserrement monétaire 2022).
 >
-> Sur 504 séances, 49 % de la variance du portefeuille s'explique par les mouvements de SPY (R² 0,49). Cette part est du risque de marché : elle est commune aux actions américaines, et en détenir davantage ne la dilue pas. Les 51 % restants sont propres aux lignes détenues ; c'est sur eux seuls que la diversification entre lignes a prise.
+> Ces deux dernières années, 49 % des variations de votre portefeuille ont suivi celles du marché, le S&P 500. Cette part ne se dilue pas en ajoutant d'autres actions américaines. Les 51 % restants sont propres à vos lignes : c'est sur eux seuls que la diversification agit.
 >
-> La part systématique du risque passe de 49 % en régime calme à 86 % (Crise financière 2008), 98 % (Krach COVID — échantillon trop mince) et 79 % (Resserrement monétaire 2022) dans les crises rejouées. Elle augmente dans les 2 crises estimées sur assez de séances : la diversification entre lignes s'est affaiblie précisément pendant les épisodes où elle aurait servi. L'épisode Krach COVID (23 séances) va dans le même sens, mais l'échantillon est trop mince pour conclure.
+> La part des variations qui suit le marché passe de 49 % ces deux dernières années à 86 % pendant la Crise financière 2008 et à 79 % pendant le Resserrement monétaire 2022. Dans ces deux crises, la diversification entre vos lignes s'est affaiblie au moment où elle aurait servi. Le Krach COVID va dans le même sens (98 %), mais sur 23 jours de bourse seulement : trop peu pour conclure.
 
 ### Texte du bandeau d'acceptation
 
 Seulement le texte ; l'écran qui le portera relève de la Phase 7. Sa source est
 `backend/rules/disclaimer.py`, qui tire la taille de la fenêtre de la configuration
 du moteur : le texte ne peut pas annoncer 504 séances le jour où le calcul en
-utiliserait un autre nombre. Le bandeau **vouvoie** alors que les observations
-tutoient : c'est le seul texte du projet à portée quasi juridique, et un registre
-formel l'y distingue du reste. Ce texte n'a pas été relu par un juriste.
+utiliserait un autre nombre. Le bandeau **vouvoie**, comme les observations et
+toute la page depuis les textes de lecture du 2026-10-05 : les observations
+tutoyaient, et un seul registre vaut désormais partout. C'est le seul texte du
+projet à portée quasi juridique. Ce texte n'a pas été relu par un juriste.
 
 > **Avant d'utiliser Mx Risk MGT**
 >
@@ -1879,6 +1920,10 @@ l'ordre chronologique.
       « Détails du calcul » sous chaque mesure, introduction de chaque
       section, libellés en mots courants ; DESIGN.md à jour, chiffres de
       §16 rafraîchis au 2026-09-25
+    - [x] Section 6 : les observations du moteur de règles en mots
+      courants, vouvoyées, avec leurs libellés ; réserves du moteur en
+      jours de bourse. Réponse de référence : seuls des textes changent,
+      aucun nombre
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

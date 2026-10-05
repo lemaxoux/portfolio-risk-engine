@@ -618,6 +618,17 @@ Rendu depuis `rules.Observation` : `statement`, `facts`, `provenance`,
 `thresholds`. La provenance s'y lit sous le libellé « Détails du calcul »,
 comme sous un bloc mesure (§9.1).
 
+**Les observations parlent au même lecteur que les phrases de lecture**
+(§1, §15). Le moteur de règles les rédige en mots courants : il vouvoie, dit
+« variations » pour la variance, « la part qui suit le marché » pour la part
+systématique, « jours de bourse » pour les séances, et la période en mots
+(« ces deux dernières années »). Le libellé de chaque règle suit : « Combien
+de lignes, en réalité », « Poids dans les variations », « Lignes qui bougent
+ensemble », « Part qui suit le marché », « Le portefeuille en crise »,
+« Crise rejouée en partie ». Le terme exact reste dans les lignes de seuil et
+dans les détails du calcul, qui ne changent pas. L'interface affiche ces
+phrases telles quelles.
+
 Les trois cas à distinguer visuellement — **c'est le point le plus important de
 tout ce document** :
 
@@ -625,15 +636,19 @@ tout ce document** :
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  Contribution à la variance                                      │  text-sm/text-2
-│  JPM pèse 25,6 % du capital et 35,4 % de la variance du          │  SPECTRAL
-│  portefeuille : cette ligne porte 9,8 points de risque de        │  text-body
-│  plus que de capital.                                            │
+│  Poids dans les variations   JPM                                 │  text-sm/text-2
+│  JPM représente 24,5 % de la valeur du portefeuille et 32,7 %    │  SPECTRAL
+│  de ses variations, soit 8,2 points de plus. Plus une ligne      │  text-body
+│  pèse dans les variations, plus elle pèse sur le résultat, à la  │
+│  baisse comme à la hausse. Dans les crises rejouées, JPM a       │
+│  coûté au portefeuille à chaque fois, de 15,9 points (Crise      │
+│  financière 2008) à 8,3 points (Resserrement monétaire 2022).    │
 │                                                                  │
-│  Référence : part de JPM dans la valeur = 25,6 % — référence     │  text-sm/text-2
+│  Référence : part de JPM dans la valeur = 24,5 % — référence     │  text-sm/text-2
 │  calculée : au-dessus, la ligne pèse davantage dans le risque    │
 │  que dans le capital ; en dessous, moins.                        │
-│  Calculé sur 504 séances, au 2026-09-09.                         │
+│  Détails du calcul   fenêtre d'estimation : 504 séances,         │
+│  2024-09-23 → 2026-09-25                                         │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -648,8 +663,9 @@ mention « choisi » reste dans la phrase :
 ```
 
 *Aucun seuil* (`thresholds == ()`) — **aucune ligne de seuil n'est affichée.**
-C'est le cas de la concentration effective et de la part systématique : la
-mesure parle d'elle-même. Ne pas inventer une ligne « seuil : n/a », ce serait
+C'est le cas de la concentration effective (« Combien de lignes, en réalité »)
+et de la part systématique (« Part qui suit le marché ») : la mesure parle
+d'elle-même. Ne pas inventer une ligne « seuil : n/a », ce serait
 effacer exactement la qualité qu'on veut rendre visible.
 
 `Threshold.__str__` produit déjà les trois formulations côté backend.
@@ -808,7 +824,8 @@ erreur de lecture que l'interface a le devoir d'empêcher : toute vue de
 concentration montre la contribution **et** le comportement réalisé en
 scénario, dans le même bloc. Le backend le fait déjà — le moteur de règles
 construit un « parcours » par ticker à travers les scénarios et écrit, pour
-XOM, qu'il « a pesé dans les deux sens ».
+XOM, qu'il « a joué dans les deux sens : il a coûté 7,3 points (Krach COVID),
+mais rapporté 9,1 points (Resserrement monétaire 2022) ».
 
 **11.5 — La VaR normale et la VaR Student s'affichent en couple.**
 Jamais l'une sans l'autre. L'écart entre les deux *est* l'information : il

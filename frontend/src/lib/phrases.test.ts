@@ -616,6 +616,15 @@ describe('temps ordinaire et crise, appariés (§11.6)', () => {
     expect(lectureRegime(inverse)).toContain(`de 0,20${NF}% en sens inverse.`)
   })
 
+  it('sans libellé de période, la phrase nomme la période d’estimation, jamais le calme', () => {
+    const phrase = lectureRegime(regime2008({ calm_period_label: null }))
+    expect(phrase).toContain(
+      `Sur la période d'estimation, quand le S&P 500 bougeait de 1${NF}%, votre portefeuille`,
+    )
+    expect(phrase).not.toContain('ordinaire')
+    expect(phrase).not.toContain('calme')
+  })
+
   it('ce que son comportement laissait attendre, sans citer la variation de l’indice', () => {
     const phrase = lecturePrediction(regime2008())
     expect(phrase).toBe(

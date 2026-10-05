@@ -153,4 +153,15 @@ describe('régimes appariés, jamais moyennés (§11.6)', () => {
     expect(html).toContain('23\u00a0séances')
     expect(html).toContain('seuil choisi')
   })
+
+  it('sans libellé de période, la colonne et la phrase nomment la période d’estimation', () => {
+    const html = rendreBloc(scenario('covid', 'Krach COVID', -0.358, -0.358), {
+      ...regime,
+      calm_period_label: null,
+    })
+    expect(html).toContain("Période d'estimation")
+    expect(html).toContain("Sur la période d'estimation, quand le")
+    expect(html).not.toContain('Régime calme')
+    expect(html).not.toContain('En temps ordinaire')
+  })
 })

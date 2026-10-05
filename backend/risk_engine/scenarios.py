@@ -26,6 +26,11 @@ class Scenario:
     le creux ont été relevés, et c'est donc lui qui permet de contrôler que la
     fenêtre décrit bien l'épisode annoncé. `description` dit, en une phrase, ce
     qui borne la fenêtre.
+
+    `article` est l'article défini du nom, élision comprise (« la », « le »,
+    « l' ») : les phrases de lecture disent « pendant la Crise financière
+    2008 », et le genre d'un nom ne se devine pas. Sans article déclaré, elles
+    disent « l'épisode Choc bref », correct quel que soit le nom.
     """
 
     key: str
@@ -34,10 +39,18 @@ class Scenario:
     end: date
     benchmark: str
     description: str
+    article: str = "l'épisode"
 
     @property
     def calendar_days(self) -> int:
         return (self.end - self.start).days
+
+    @property
+    def with_article(self) -> str:
+        """« la Crise financière 2008 », « l'épisode Choc bref »."""
+        if self.article.endswith("'"):
+            return f"{self.article}{self.name}"
+        return f"{self.article} {self.name}"
 
     def __str__(self) -> str:
         return f"{self.name} ({self.start} → {self.end})"
@@ -47,6 +60,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         key="gfc_2008",
         name="Crise financière 2008",
+        article="la",
         start=date(2007, 10, 9),
         end=date(2009, 3, 9),
         benchmark="SPY",
@@ -57,6 +71,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         key="covid_2020",
         name="Krach COVID",
+        article="le",
         start=date(2020, 2, 19),
         end=date(2020, 3, 23),
         benchmark="SPY",
@@ -67,6 +82,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         key="tightening_2022",
         name="Resserrement monétaire 2022",
+        article="le",
         start=date(2022, 1, 3),
         end=date(2022, 10, 12),
         benchmark="SPY",

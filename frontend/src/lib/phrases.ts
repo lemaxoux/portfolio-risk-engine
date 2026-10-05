@@ -613,7 +613,9 @@ export function lectureRegime(regime: Regime): string | null {
   const crise = regime.crisis_beta
   if (regime.unavailable_reason !== null || calme === null || crise === null) return null
   const indice = regime.benchmark_label ?? regime.benchmark
-  const periode = majuscule(regime.calm_period_label ?? 'en temps ordinaire')
+  // Sans libellé publié, la phrase nomme la période d'estimation, jamais le
+  // « calme » : cette période contient aussi des chutes.
+  const periode = majuscule(regime.calm_period_label ?? "sur la période d'estimation")
   const sensDeCrise = (crise.beta < 0) !== (calme.beta < 0) ? ` ${sensDu(crise.beta)}` : ''
   const morceaux = [
     `${periode}, quand ${indice} bougeait de 1${ESPACE_FINE}%, votre portefeuille aurait ` +
