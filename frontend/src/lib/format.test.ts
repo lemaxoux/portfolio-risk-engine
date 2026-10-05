@@ -30,8 +30,11 @@ import {
   seances,
   moisISO,
   montant,
+  montantArrondi,
   points,
+  pointsAbsolus,
   pointsSignes,
+  pourcentageAbsolu,
   valeurDePortefeuille,
 } from './format'
 
@@ -298,5 +301,21 @@ describe('rendement signé', () => {
     expect(pourcentageSigne(0.597, 1)).toBe(`+59,7${ESPACE_FINE}%`)
     expect(pourcentageSigne(-0.44, 1)).toBe(`${SIGNE_MOINS}44,0${ESPACE_FINE}%`)
     expect(pourcentageSigne(0.0001, 1)).toBe(`0,0${ESPACE_FINE}%`)
+  })
+})
+
+describe('les formats des phrases de lecture : l’ampleur, le sens porté par le verbe', () => {
+  it('un montant arrondi à la dizaine, sans signe, avec sa devise', () => {
+    expect(montantArrondi(892.4152, 'USD')).toBe(`890${ESPACE_INSECABLE}USD`)
+    expect(montantArrondi(-12483.03, 'USD')).toBe(`12${ESPACE_FINE}480${ESPACE_INSECABLE}USD`)
+    expect(montantArrondi(895, 'USD')).toBe(`900${ESPACE_INSECABLE}USD`)
+    expect(() => montantArrondi(890, '$')).toThrow()
+  })
+
+  it('l’ampleur d’un pourcentage et d’un écart en points, sans signe', () => {
+    expect(pourcentageAbsolu(-0.4397, 1)).toBe(`44,0${ESPACE_FINE}%`)
+    expect(pourcentageAbsolu(0.597, 1)).toBe(`59,7${ESPACE_FINE}%`)
+    expect(pointsAbsolus(-0.0727, 1)).toBe(`7,3${ESPACE_INSECABLE}points`)
+    expect(pointsAbsolus(0.013, 1)).toBe(`1,3${ESPACE_INSECABLE}point`)
   })
 })

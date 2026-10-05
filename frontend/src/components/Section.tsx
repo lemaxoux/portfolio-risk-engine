@@ -18,15 +18,18 @@ interface Props {
   readonly ancre: string
   readonly numero: number
   readonly titre: string
+  /** La question à laquelle la section répond, en deux lignes. */
+  readonly introduction: ReactNode
   readonly children: ReactNode
 }
 
-export function Section({ ancre, numero, titre, children }: Props) {
+export function Section({ ancre, numero, titre, introduction, children }: Props) {
   return (
     <section className={styles.section} id={ancre} aria-labelledby={`${ancre}-titre`}>
       <h2 id={`${ancre}-titre`} className={styles.titre}>
         <span className={styles.numero}>{numero}.</span> {titre}
       </h2>
+      <p className={styles.introduction}>{introduction}</p>
       {children}
     </section>
   )

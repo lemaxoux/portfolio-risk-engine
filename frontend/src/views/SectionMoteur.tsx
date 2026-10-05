@@ -25,14 +25,15 @@ interface Props {
 }
 
 export function SectionMoteur({ observations, bandeau, asOf }: Props) {
+  const introduction = (
+    <>
+      Ce que l'outil retient des sections précédentes. Des constats, pas des conseils&nbsp;:
+      il décrit votre portefeuille, il ne recommande rien. Quand une phrase repose sur un
+      seuil, il est indiqué&nbsp;; un seuil choisi à la main le dit.
+    </>
+  )
   return (
-    <Section ancre="moteur" numero={6} titre="Ce que le moteur en dit">
-      <p className={commun.chapeau}>
-        Des propriétés chiffrées du portefeuille, écrites par le moteur de
-        règles. Elles décrivent, elles ne prescrivent pas. Quand une phrase
-        repose sur un seuil, il est donné avec sa provenance&nbsp;; un seuil choisi
-        à la main le dit.
-      </p>
+    <Section ancre="moteur" numero={6} titre="Ce que le moteur en dit" introduction={introduction}>
       <div className={commun.conditions}>
         <Provenance disposition="ligne" lignes={[{ libelle: 'Valorisé au', valeur: dateISO(asOf) }]} />
       </div>

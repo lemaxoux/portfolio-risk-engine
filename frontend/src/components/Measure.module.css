@@ -59,21 +59,43 @@
   font-size: var(--text-xl);
 }
 
-/* La phrase de lecture — « perte d'au moins 1,38 %, une séance sur vingt ».
- * Elle suit le chiffre, donc elle s'aligne avec lui. */
+/* La phrase de lecture : la mesure dite en calendrier, en dollars et en
+ * période. Deux ou trois phrases, donc de la prose, alignée à gauche (§7) ;
+ * composée par l'interface, donc en Plex Sans (§6.1). */
 .lecture {
-  margin-block: var(--space-1) var(--space-3);
-  color: var(--text-2);
-  font-size: var(--text-micro);
+  /* Un bloc seul sur sa ligne s'étire : la phrase, elle, reste à la largeur
+   * de prose (§6.3). */
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-3) 0;
+  color: var(--text-1);
+  font-size: var(--text-sm);
   line-height: var(--leading-ui);
-  text-align: end;
   text-wrap: pretty;
 }
 
-/* Filet de séparation avant la provenance, comme dans la maquette de §9.1. */
-.bloc :global(dl) {
+/* Ce que le chiffre ne dit pas : une ligne courte, en retrait de couleur. */
+.neDitPas {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-2) 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}
+
+/* Filet de séparation avant la provenance, comme dans la maquette de §9.1,
+ * puis son intertitre. Jamais replié : il nomme le bloc. */
+.details {
+  margin-block-start: var(--space-3);
   padding-block-start: var(--space-3);
   border-block-start: 1px solid var(--border);
+}
+
+.detailsTitre {
+  margin-block-end: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
 }
 
 /* La phrase de réserve, sous le bloc de provenance. Elle est RÉDIGÉE par le

@@ -32,6 +32,18 @@
   font-weight: var(--weight-medium);
 }
 
+/* L'introduction d'une section : la question à laquelle elle répond, en deux
+ * lignes. De la prose, comme le chapeau, mais au premier plan. */
+.introduction {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-5);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  text-wrap: pretty;
+}
+
 /* Le chapeau est de la prose : il explique un choix de méthode. Serif, à 66
  * caractères, interlignage de prose (§6.3). */
 .chapeau {
@@ -53,6 +65,37 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
   gap: var(--space-4);
   align-items: start;
+}
+
+/*
+ * Une phrase de lecture posée hors d'un bloc mesure — la ligne qui fait le plus
+ * bouger le portefeuille, une crise rejouée — et sa ligne « ne dit pas ». Même
+ * traitement que dans `<Measure>` : composées par l'interface, en Plex Sans.
+ */
+.lecture {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-3) 0;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}
+
+.neDitPas {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-2) var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}
+
+/* L'intertitre d'une provenance hors bloc mesure, comme dans `<Measure>`. */
+.detailsTitre {
+  margin-block: var(--space-3) var(--space-1);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
 }
 
 /* Provenance d'une section entière, sous son titre (valorisation, scénarios). */

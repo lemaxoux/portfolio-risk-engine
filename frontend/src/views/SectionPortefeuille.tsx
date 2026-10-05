@@ -38,6 +38,7 @@ import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { dateISO, decimal, decimalesDeColonne, pourcentage } from '../lib/format'
 import { useEtroit } from '../lib/largeur'
+import { introPortefeuille } from '../lib/phrases'
 import styles from './SectionPortefeuille.module.css'
 
 /** Plafond des décimales d'une quantité : des fractions d'action, au plus. */
@@ -127,8 +128,9 @@ function piedDu(colonnes: Colonne<ValuedPosition>[], valorisation: Valuation) {
 
 export function SectionPortefeuille({ valorisation }: { valorisation: Valuation }) {
   const colonnes = colonnesDuPortefeuille(valorisation, useEtroit())
+  const introduction = introPortefeuille(valorisation.as_of)
   return (
-    <Section ancre="portefeuille" numero={1} titre="Le portefeuille">
+    <Section ancre="portefeuille" numero={1} titre="Le portefeuille" introduction={introduction}>
       <div className={commun.conditions}>
         <Provenance
           disposition="ligne"
@@ -140,7 +142,7 @@ export function SectionPortefeuille({ valorisation }: { valorisation: Valuation 
         />
       </div>
       <DataTable
-        legende="Positions détenues, valorisées à la dernière clôture"
+        legende="Positions détenues, désignées par leur ticker (le code du titre en bourse), valorisées à la dernière clôture"
         colonnes={colonnes}
         lignes={valorisation.positions}
         cleDeLigne={(ligne) => ligne.ticker}

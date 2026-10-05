@@ -476,7 +476,8 @@ rien à voir avec celui détenu.
 > résultat plus flatteur que la réalité.
 
 **Deux mesures distinctes**, à ne pas confondre : le rendement de **bout en
-bout** (ce que vaut le portefeuille à la sortie) et le **pire moment traversé**
+bout** (ce que vaut le portefeuille au dernier jour de l'épisode, le point bas
+du marché, qui n'est pas la sortie de crise) et le **pire moment traversé**
 (drawdown maximum intra-fenêtre), qui peut être plus profond. Le drawdown est
 celui de la trajectoire du portefeuille, jamais la somme des pires points de
 chaque ligne : cette dernière composerait un épisode fictif où toutes les lignes
@@ -1500,6 +1501,58 @@ d'union en guise de signe moins, quelle que soit la façon dont le nombre a ét�
 écriture qui relit le même flottant, à la française — « Quantité nulle ou
 négative pour MSFT (−3) » et non « (-3.0) ».
 
+#### Les textes de lecture
+
+Le lecteur visé part de zéro (DESIGN.md §1). Chaque mesure garde son libellé
+technique et son chiffre, et reçoit en dessous trois éléments :
+
+- une phrase concrète, qui dit la mesure en calendrier, en dollars et en
+  période ;
+- une ligne sur ce que le chiffre ne dit pas ;
+- sa provenance, sous l'intertitre « Détails du calcul », jamais repliée.
+
+Chaque section s'ouvre en outre sur la question à laquelle elle répond. Les
+textes validés, avec leurs variantes et leurs garde-fous, sont dans
+`textes-lecture.md`, hors dépôt.
+
+**Composer n'est pas calculer.** Les phrases vivent dans `src/lib/phrases.ts`
+et ne citent que des champs publiés (section 9, « Ce que citent les phrases
+de lecture ») :
+
+- La fréquence d'un niveau de confiance vient d'une table
+  (`LECTURE_CONFIANCE`). « Un jour de bourse sur vingt, soit à peu près une
+  fois par mois » est associé à 0,95, il n'en est pas dérivé. Un niveau absent
+  de la table garde son nom technique.
+- Le montant vient du moteur. L'arrondir à la dizaine de dollars est du
+  formatage (`format.montantArrondi`), comme choisir des décimales.
+- Une tournure ne dépend que du signe d'un champ publié : perte ou gain,
+  « mais » ou « et », même sens ou sens inverse. Jamais d'une comparaison
+  entre deux mesures.
+
+**Ce que les phrases s'interdisent, et pourquoi.**
+
+- « A perdu » : la composition d'aujourd'hui est rejouée sur le passé. D'où
+  « aurait perdu », et un montant qui « représente » une part de la valeur
+  d'aujourd'hui.
+- « Perte attendue » sous une VaR : c'est un seuil, « 1,06 % ou plus ». La
+  ligne de la VaR à 95 % cite la pire séance de la fenêtre, contre l'idée de
+  plafond. Celle de la VaR à 99 % dit sur combien de jours elle repose.
+- « La normale sous-estime vos mauvais jours » : sur le portefeuille de
+  démonstration, la normale est la plus sévère des deux courbes à 95 %.
+- Un montant pour le pire moment traversé d'une crise : il se mesure depuis
+  un plus haut atteint pendant l'épisode. Sous le seuil de couverture de 80 %,
+  aucune perte n'est citée.
+- Une conclusion tirée d'un beta de crise estimé sur trop peu de jours.
+- La variation de l'indice dans la phrase sur ce que le beta laissait
+  attendre : 0,57 × 55,2 % ne redonne pas 36,7 %, puisque le moteur compose
+  les rendements.
+- Une lecture par la couleur des cases de corrélation : les nombres écrits
+  portent l'information.
+
+`phrases.test.ts` fige ces textes sur les chiffres du portefeuille de
+démonstration, variantes comprises. `Measure.test.ts` vérifie l'ordre du bloc,
+et qu'aucun `<details>` ne replie la provenance.
+
 #### Le tableau du portefeuille sous 900 px
 
 À 390 px, le tableau de la section 1 défilait dans son cadre de 342 px, et
@@ -1819,6 +1872,10 @@ l'ordre chronologique.
     - [x] Raisons de refus du moteur en clair, en jours de bourse : VaR et
       CVaR historiques, Student, mesures non estimables, crises et
       comparaisons de régimes indisponibles, lignes exclues d'une crise
+    - [x] Sections 1 à 5 : phrase concrète, ligne « ne dit pas » et
+      « Détails du calcul » sous chaque mesure, introduction de chaque
+      section, libellés en mots courants ; DESIGN.md à jour, chiffres de
+      §16 rafraîchis au 2026-09-25
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

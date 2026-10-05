@@ -109,12 +109,14 @@ function rendu(surcharges: Partial<Parameters<typeof SectionRisque>[0]> = {}): s
       asOf: '2026-09-09',
       ...surcharges,
     }),
-  )
+  ).replaceAll('&#x27;', "'")
 }
 
 describe('part de la variance contre part du capital (§5.4)', () => {
   it('porte la légende exacte de §5.4', () => {
-    expect(LEGENDE_CONTRIBUTIONS).toBe('barre\u00a0: part de la variance — trait\u00a0: part du capital')
+    expect(LEGENDE_CONTRIBUTIONS).toBe(
+      'barre\u00a0: part dans les variations — trait\u00a0: part dans la valeur',
+    )
     const html = rendu().replace(/<span[^>]*><\/span>/g, '')
     expect(html).toContain(LEGENDE_CONTRIBUTIONS)
   })
@@ -147,7 +149,7 @@ describe('part de la variance contre part du capital (§5.4)', () => {
       },
     })
     expect(html).toContain('Deux séances seulement : décomposition non estimable.')
-    expect(html).not.toContain('Part de chaque ligne dans la variance')
+    expect(html).not.toContain('Part de chaque ligne dans les variations')
   })
 })
 
@@ -161,7 +163,7 @@ describe('carte de corrélation', () => {
       },
     })
     expect(html).toContain('Deux points centrés sont colinéaires.')
-    expect(html).not.toContain('Corrélation des rendements quotidiens')
+    expect(html).not.toContain('Corrélation des variations quotidiennes')
   })
 
   it('annonce son échelle fixe sous la carte', () => {

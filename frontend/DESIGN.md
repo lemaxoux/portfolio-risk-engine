@@ -32,15 +32,22 @@ d'estimation, sa date de valorisation, sa méthode, le nombre d'observations qui
 le composent, et — pour les seuils — s'il a été *dérivé* ou *choisi à la main*.
 
 **Le public.** Un particulier qui investit lui-même, pas un gérant de risque
-professionnel. Il comprend « une perte d'au moins 2,1 % une séance sur vingt ».
-Il ne comprend pas « VaR₉₅ = 2,1 % » sans contexte, et il ne doit pas avoir à
-faire semblant.
+professionnel. Il part de zéro : il n'a jamais entendu parler de VaR, de
+volatilité, de corrélation ni de bêta. « VaR 95 % : 1,06 % » ne lui dit rien,
+et « une perte d'au moins 1,06 %, une séance sur vingt », pourtant exact, guère
+plus. Il comprend une fréquence dite en calendrier, un montant en dollars et
+une période : « Ces deux dernières années, environ un jour de bourse sur
+vingt, soit à peu près une fois par mois, votre portefeuille aurait perdu
+1,06 % ou plus. Sur sa valeur d'aujourd'hui, 1,06 % représente environ
+890 USD. » Il ne doit pas avoir à faire semblant.
 
 **Le travail de l'interface.** Rendre visible, sans clic, que chaque chiffre est
 une *estimation sous conditions*. C'est le seul point sur lequel ce projet a
 quelque chose que les concurrents n'ont pas. Une interface qui afficherait
 « 2,1 % » en gros et cacherait la fenêtre d'estimation dans une infobulle
-détruirait six phases de travail.
+détruirait six phases de travail. Une condition écrite dans des mots que le
+lecteur ne comprend pas reste cachée, elle aussi : chaque chiffre est donc dit
+en mots courants, sous son libellé technique (§9.1, §15).
 
 > **Le principe directeur, en une phrase :**
 > *un chiffre et ses conditions sont un seul objet visuel — on ne peut pas voir
@@ -282,8 +289,9 @@ pas de heatmap vide** : on affiche `correlation_undefined_reason`, en texte.
 `--series-1` pour la part de variance, et un trait vertical fin en `--text-1`
 à la position de la part de capital, sur le même axe. L'écart entre le bout de
 la barre et le trait **est** le message ; il est aussi écrit en points à droite
-(« +9,8 pts »). Légende explicite : « barre : part de la variance — trait :
-part du capital ». Pas de barres appariées de deux couleurs.
+(« +8,2 pts »). Légende explicite, en mots courants (§15) : « barre : part dans
+les variations — trait : part dans la valeur ». Pas de barres appariées de
+deux couleurs.
 
 ---
 
@@ -402,9 +410,9 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  Mx Risk MGT      Portefeuille principal      83 185,85 USD     [◐]      │
-│           Valorisé au 2026-09-09   Fenêtre d'estimation : 504 séances     │
-│                   Positions modifiées le 2026-09-21                       │
+│  Mx Risk MGT      Portefeuille principal      84 076,05 USD     [◐]      │
+│           Valorisé au 2026-09-25   Fenêtre d'estimation : 504 séances     │
+│                   Positions modifiées le 2026-09-23                       │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -477,6 +485,14 @@ qualificatif se lit dollar canadien.
 └────────────┴─────────────────────────────────────────────────────────────┘
 ```
 
+**Chaque section s'ouvre sur une introduction**, sous son titre : la question
+à laquelle elle répond, en deux lignes et en mots courants. « Combien votre
+portefeuille peut-il perdre en une journée ? On rejoue ces deux dernières
+années sur sa composition d'aujourd'hui : c'est le passé, pas une
+prévision. » De la prose, comme les chapeaux : Spectral, `--text-body`, mais
+en `--text-1`, à la largeur de prose. Elle ne remplace pas les chapeaux des
+sous-parties, qui expliquent un choix de méthode.
+
 **Section 1 sous 900 px.** L'ordre des colonnes devient ticker, valeur,
 poids, puis nom, quantité, prix : à 390 px, l'ordre large rejetait hors de
 l'écran les deux colonnes les plus utiles. Les trois premières tiennent sans
@@ -520,17 +536,49 @@ C'est le composant sur lequel repose la thèse du produit. Il rend un chiffre
 
 ```
 ┌─────────────────────────────────────────┐
-│ VaR 95 %, horizon 1 séance              │  text-sm / text-2 / 500
+│ VaR 95 % historique, horizon 1 séance   │  text-sm / text-2 / 500
 │                                         │
-│                              1,38 %     │  text-2xl / text-1 / 600 / tabular
-│     perte d'au moins 1,38 %, une séance │  text-micro / text-2
-│                               sur vingt │
+│                              1,06 %     │  text-2xl / text-1 / 600 / tabular
+│ Ces deux dernières années, environ un   │  phrase concrète : text-sm / text-1
+│ jour de bourse sur vingt, soit à peu    │  Plex Sans, alignée à gauche
+│ près une fois par mois, votre           │
+│ portefeuille aurait perdu 1,06 % ou     │
+│ plus. Sur sa valeur d'aujourd'hui,      │
+│ 1,06 % représente environ 890 USD. Les  │
+│ autres jours, il aurait perdu moins, ou │
+│ gagné.                                  │
+│ Ce n'est pas un plafond : le pire jour, │  ce qu'il ne dit pas : text-sm / text-2
+│ le 4 avril 2025, il aurait perdu        │
+│ 5,87 %.                                 │
 │ ─────────────────────────────────────── │  border, 1px
-│ Méthode      paramétrique (normale)     │  text-micro, grille 2 colonnes
-│ Fenêtre      504 séances                │  libellé text-2, valeur text-1
-│ Période      2024-09-05 → 2026-09-09    │
+│ Détails du calcul                       │  intertitre : text-micro / text-2 / 500
+│ Méthode      historique                 │  text-micro, grille 2 colonnes
+│ Calcul       quantile empirique, …      │  libellé text-2, valeur text-1
+│ Fenêtre      504 séances                │
+│ Période      2024-09-23 → 2026-09-25    │
 └─────────────────────────────────────────┘
 ```
+
+**Sous le chiffre, trois éléments, dans cet ordre.**
+
+1. **La phrase concrète** dit la mesure en calendrier (« environ un jour de
+   bourse sur vingt, soit à peu près une fois par mois »), en dollars
+   (« environ 890 USD » sur la valeur d'aujourd'hui) et en période (« ces deux
+   dernières années »). Deux ou trois phrases : elle ne tient plus en
+   `--text-micro`. Elle passe en `--text-sm` et `--text-1`, alignée à gauche
+   et bornée à la largeur de prose. Elle est en IBM Plex Sans, puisque c'est
+   l'interface qui la compose, pas le moteur (§6.1).
+2. **Ce que le chiffre ne dit pas** : une phrase courte, sans étiquette, en
+   `--text-2`. Elle manque quand la réserve du moteur le dit déjà, comme pour
+   la CVaR à 99 %.
+3. **« Détails du calcul »** : l'intertitre du bloc de provenance. Il nomme ce
+   bloc, il ne le replie pas (règle 1).
+
+Ces phrases sont composées dans `src/lib/phrases.ts`, à partir de champs
+publiés et sans calcul. La fréquence vient d'une table, le montant et la
+période viennent du moteur, et l'arrondi à la dizaine de dollars est du
+formatage (`format.ts`). Une phrase ne choisit sa tournure que sur le signe
+d'un champ publié : perte ou gain, même sens ou sens inverse.
 
 **Contrat.** Le bloc de provenance est **généré depuis les champs réels du
 backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
@@ -544,19 +592,22 @@ backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
    `--text-sm`/`--text-micro` mais en `--text-2` — jamais en `--text-muted`.
    *Il n'existe volontairement pas de troisième niveau de gris pour le texte de
    contenu*, précisément pour qu'on ne puisse pas effacer la provenance en la
-   grisant.
+   grisant. L'intertitre « Détails du calcul » la nomme ; rien ne la replie.
 2. **Convention de signe.** VaR et CVaR sont des **pertes positives** côté
-   backend (`1,38 %` = « perte d'au moins 1,38 % »). L'interface les affiche
-   telles quelles, avec la phrase de lecture en dessous. Elle n'ajoute **jamais**
-   de signe `−`. Cas particulier à traiter explicitement : une valeur
-   **négative** signifie un *gain* à ce niveau de confiance — le composant doit
-   alors changer la phrase de lecture, pas juste afficher un nombre négatif.
+   backend (`1,06 %` : « aurait perdu 1,06 % ou plus »). L'interface les
+   affiche telles quelles, avec la phrase de lecture en dessous. Elle n'ajoute
+   **jamais** de signe `−`. Cas particulier à traiter explicitement : une
+   valeur **négative** signifie un *gain* à ce niveau de confiance — le
+   composant doit alors changer la phrase de lecture, pas juste afficher un
+   nombre négatif. Cette phrase ne cite aucun chiffre : elle devrait sinon
+   retourner le signe de celui qui est affiché juste au-dessus.
 3. **Une mesure indéfinie s'affiche indéfinie.** Quand `SortinoResult.annualised`
    est `None`, on affiche `—` et `undefined_reason` en toutes lettres. Jamais
    `0`, jamais `∞`, jamais un nombre astronomique. Le backend a déjà été corrigé
    deux fois sur des annulations catastrophiques produisant des ratios absurdes :
    l'interface ne doit pas réintroduire le problème en rendant l'absurde
-   plausible.
+   plausible. La raison prend la place de la phrase concrète, et la ligne
+   suivante dit que l'absence de chiffre n'est pas l'absence de risque.
 4. **Réserve méthodologique.** Si le résultat porte un `caveat` (CVaR 99 %) ou
    un seuil `CHOSEN`, un point `--caveat` de 6 px précède le libellé et la
    phrase de réserve s'affiche sous le bloc de provenance.
@@ -564,7 +615,8 @@ backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
 ### 9.2 `<Observation>` — ce que le moteur de règles affirme
 
 Rendu depuis `rules.Observation` : `statement`, `facts`, `provenance`,
-`thresholds`.
+`thresholds`. La provenance s'y lit sous le libellé « Détails du calcul »,
+comme sous un bloc mesure (§9.1).
 
 Les trois cas à distinguer visuellement — **c'est le point le plus important de
 tout ce document** :
@@ -703,21 +755,21 @@ plus grosse que sa couverture.
 ┌──────────────────────────────────────────────────────────────────┐
 │ Crise financière 2008 — 2007-10-09 → 2009-03-09                  │
 │                                                                  │
-│   À la sortie      Pire moment traversé    Couverture            │
-│      −44,0 %            −47,5 %              100 %               │  ← même taille
-│                                              6 lignes sur 6      │
+│   Au point bas du marché   Pire moment traversé  Couverture      │
+│          −44,0 %                 −47,7 %           100 %         │  ← même taille
+│                                                  6 lignes sur 6  │
 └──────────────────────────────────────────────────────────────────┘
 
   et, quand la couverture est partielle :
 
-┌────────────────────────────────────────────────────────┐
-│   Perte projetée        Couverture du portefeuille     │
-│         −44,0 %                    73 %                │
-│                         ● 2 lignes sur 6 sans          │
-│                           historique en 2007 ; la      │
-│                           perte porte sur les 4 autres,│
-│                           renormalisées.               │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│   Au point bas du marché   Pire moment traversé  Couverture      │
+│          −44,0 %                 −47,7 %            73 %         │
+│                                                ● 4 lignes sur 6  │
+│                                                                  │
+│ ● 2 lignes sur 6 sans historique sur toute la période ;          │
+│   la perte porte sur les 4 autres, renormalisées.                │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 La couverture porte le point `--caveat` **dès qu'elle est inférieure à 100 %**,
@@ -725,20 +777,32 @@ et pas seulement sous le seuil de 80 % : le seuil déclenche l'observation du
 moteur de règles, l'affichage signale le fait.
 
 **Trois chiffres, pas un.** `ScenarioResult` porte `end_to_end_return` (ce que
-vaudrait le portefeuille à la sortie de l'épisode) **et** `max_drawdown` (le
-pire moment traversé en chemin, qui peut être nettement plus profond). La
-docstring du backend dit explicitement qu'il ne faut pas les confondre :
-l'interface affiche donc les deux, côte à côte, à la même taille — plus la
-couverture. Un scénario réduit à un seul chiffre laisse croire que le creux
-s'est arrêté là où l'épisode s'est terminé.
+vaudrait le portefeuille au point bas du marché, où s'arrête chaque épisode
+du catalogue) **et** `max_drawdown` (le pire moment traversé en chemin, qui
+peut être nettement plus profond). La docstring du backend dit explicitement
+qu'il ne faut pas les confondre : l'interface affiche donc les deux, côte à
+côte, à la même taille — plus la couverture. Un scénario réduit à un seul
+chiffre laisse croire que le creux s'est arrêté là où l'épisode s'est terminé.
+Le premier libellé dit « Au point bas du marché », pas « À la sortie » : pour
+un débutant, « à la sortie » veut dire « une fois la crise finie ».
+
+**La phrase de lecture ne donne de montant qu'au premier chiffre.** Le pire
+moment traversé se mesure depuis le plus haut atteint pendant l'épisode,
+souvent au-dessus du point de départ. En 2008, 47,7 % de la valeur
+d'aujourd'hui ne correspondrait à aucune perte réelle. La phrase le dit donc
+« 47,7 % sous son plus haut, atteint le 26 décembre 2007 », sans montant. Sous
+le seuil de couverture de 80 %, elle ne cite aucune perte : « Seules 4 lignes
+sur 6 existaient alors (73 % de la valeur) : trop peu pour dire ce qu'aurait
+perdu l'ensemble. » Le moteur de règles ne donne pas non plus de chiffre
+principal sous ce seuil.
 
 **11.3 — La provenance est visible sans clic.** Détaillé en §9.1.
 
 **11.4 — Une contribution à la variance est une amplitude, pas un verdict.**
 Elle dit de combien une ligne fait bouger le portefeuille, **jamais dans quel
-sens**. Sur le portefeuille de référence, XOM porte 13,9 % de la variance pour
-15,8 % du capital — et c'est cette même variance qui a produit **+59,7 %**
-pendant le resserrement de 2022, pendant que le portefeuille perdait 8,7 %.
+sens**. Sur le portefeuille de référence, XOM porte 12,9 % de la variance pour
+15,3 % du capital — et c'est cette même variance qui a produit **+59,7 %**
+pendant le resserrement de 2022, pendant que le portefeuille perdait 9,1 %.
 Afficher une contribution à la variance seule, comme un danger, est donc une
 erreur de lecture que l'interface a le devoir d'empêcher : toute vue de
 concentration montre la contribution **et** le comportement réalisé en
@@ -754,7 +818,9 @@ chiffre le coût de l'hypothèse de normalité. Afficher les deux côte à côte
 **11.6 — Un régime calme et un régime de crise ne se moyennent pas.**
 Beta et R² s'affichent par régime, appariés, jamais fusionnés en une valeur
 unique. Un beta de 0,57 en calme et de 1,07 en crise n'a pas de moyenne qui
-veuille dire quelque chose.
+veuille dire quelque chose. La phrase de lecture donne les deux. D'un beta de
+crise estimé sur trop peu de jours, comme les 23 du krach COVID, elle ne tire
+aucune conclusion.
 
 ---
 
@@ -880,16 +946,32 @@ bug en attente.
 - Tout en français, casse phrase, verbes actifs. Un bouton dit ce qu'il fait :
   « Importer le portefeuille », pas « Valider ».
 - Un même geste garde son nom du bouton au message de confirmation.
-- Nommer les choses comme l'utilisateur les comprend. « Perte d'au moins
-  1,38 %, une séance sur vingt » accompagne « VaR 95 % » — on ne remplace pas
-  le terme technique, on le traduit à côté. Le particulier apprend le
-  vocabulaire, ce qui est une valeur du produit.
+- Nommer les choses comme l'utilisateur les comprend. Sous « VaR 95 % » :
+  « Ces deux dernières années, environ un jour de bourse sur vingt, soit à peu
+  près une fois par mois, votre portefeuille aurait perdu 1,06 % ou plus. » On
+  ne remplace pas le terme technique, on le traduit à côté. Le particulier
+  apprend le vocabulaire, ce qui est une valeur du produit. Chaque terme est
+  expliqué une fois, là où il apparaît pour la première fois dans la page :
+  « La VaR, ou valeur à risque, répond à une question… ».
+- **« Jour de bourse » dans les phrases**, « séance » dans les détails du
+  calcul, les libellés techniques et les unités des graphiques.
+- **Vouvoiement, et conditionnel pour le passé rejoué.** Les mesures rejouent
+  le passé sur la composition d'aujourd'hui, que le portefeuille n'avait pas
+  forcément : « aurait perdu », jamais « a perdu ». Un montant « représente »
+  une part de la valeur d'aujourd'hui ; il ne dit jamais ce qui a été perdu
+  en dollars, puisque le portefeuille ne valait pas cette somme le jour de la
+  perte.
 - **Traduire sans trahir.** Une VaR est un **seuil dépassé**, pas une perte
-  attendue : une séance sur vingt, la perte *atteint ou dépasse* ce niveau. Ce
-  qu'elle vaut en moyenne ces jours-là est la CVaR (« perte moyenne des 5 % de
-  séances les pires »). Écrire « perte attendue » sous une VaR ferait lire le
-  seuil comme cette moyenne, et sous-estimer la queue. La formulation de
-  référence est celle du backend, `risk_engine/var.py`.
+  attendue : un jour de bourse sur vingt, la perte *atteint ou dépasse* ce
+  niveau, d'où « 1,06 % ou plus ». Ce qu'elle vaut en moyenne ces jours-là est
+  la CVaR (« la perte moyenne des pires jours »). Écrire « perte attendue »
+  sous une VaR ferait lire le seuil comme cette moyenne, et sous-estimer la
+  queue. La formulation de référence est dans `src/lib/phrases.ts` ; la
+  convention de signe est fixée dans `risk_engine/var.py`.
+- **Une fréquence vient d'une table, jamais d'une division.** « Un jour de
+  bourse sur vingt » est associé à 0,95, il n'en est pas dérivé : un niveau
+  absent de la table garde son nom technique (« au niveau de confiance
+  85 % »).
 - Les réserves méthodologiques sont écrites platement, sans dramatiser ni
   minimiser : « Moyenne de 6 séances seulement, sur une fenêtre de 504 :
   chacune pèse pour 17 % du chiffre. » Le backend produit déjà ces phrases —
@@ -908,11 +990,17 @@ bug en attente.
 
 ## 16. Chiffres de référence — à utiliser dans les maquettes
 
-Ces valeurs ont été **recalculées indépendamment** depuis la base locale
-(`data/mx_risk.sqlite`, dernière clôture 2026-09-09) sur le portefeuille de
-démonstration — AAPL 40, MSFT 25, JPM 60, JNJ 50, XOM 80, KO 120 — fenêtre de
-504 séances, du 2024-09-05 au 2026-09-09. Elles reproduisent exactement les
-constantes `DEMO_POIDS` et `DEMO_PARTS` de `tests/test_rules.py`.
+**Chiffres rafraîchis le 2026-10-05, valorisés au 2026-09-25.** Ils ont été
+**recalculés indépendamment**, sans le moteur, sur une copie de la base locale
+(`data/mx_risk.sqlite`, dernière clôture 2026-09-25), et concordent avec la
+réponse de l'API. Portefeuille de démonstration : AAPL 40, MSFT 25, JPM 60,
+JNJ 50, XOM 80, KO 120 ; fenêtre de 504 séances, du 2024-09-23 au 2026-09-25.
+Les exemples chiffrés de ce document les reprennent.
+
+Les tests ne les lisent pas. Ils tournent sur une copie de la base figée au
+2026-09-09 (`tests/conftest.py`), dont les chiffres diffèrent : les constantes
+`DEMO_POIDS` et `DEMO_PARTS` de `tests/test_rules.py` gardent ceux de cette
+date (JPM y pèse 25,6 % du capital et 35,4 % de la variance).
 
 **Ne pas inventer de chiffres dans les maquettes.** Une capture d'écran qui
 circule avec des nombres faux est une erreur difficile à rattraper, et le
@@ -920,38 +1008,67 @@ projet a déjà corrigé plusieurs fois des chiffres plausibles mais faux.
 
 | Ligne | Poids en capital | Part de variance | Écart |
 |---|---:|---:|---:|
-| JPM | 25,6 % | 35,4 % | +9,8 pts |
-| JNJ | 16,1 % | 7,9 % | −8,1 pts |
-| XOM | 15,8 % | 13,9 % | −1,9 pts |
-| AAPL | 15,2 % | 22,1 % | +6,9 pts |
-| MSFT | 14,8 % | 15,4 % | +0,6 pts |
-| KO | 12,6 % | 5,3 % | −7,3 pts |
+| JPM | 24,5 % | 32,7 % | +8,2 pts |
+| AAPL | 16,2 % | 24,5 % | +8,3 pts |
+| JNJ | 16,1 % | 7,9 % | −8,2 pts |
+| MSFT | 15,3 % | 16,7 % | +1,3 pts |
+| XOM | 15,3 % | 12,9 % | −2,3 pts |
+| KO | 12,5 % | 5,3 % | −7,3 pts |
 
-- Valeur du portefeuille : 83 185,85 USD · 6 lignes · concentration effective 5,65
-- Volatilité annualisée : 13,3 % (quotidienne 0,84 %)
-- VaR 95 % paramétrique, 1 séance : 1,38 % — VaR 99 % : 1,95 %
-- Scénarios, à parts figées depuis les poids actuels, couverture 100 % :
+L'écart est arrondi depuis les valeurs exactes, comme sur la page : il peut
+différer d'un dixième de la différence des deux colonnes arrondies (MSFT,
+XOM, KO).
 
-| Scénario | Période | À la sortie | Pire moment traversé | Ligne remarquable |
+- Valeur du portefeuille : 84 076,05 USD · 6 lignes · lignes effectives 5,72
+  en capital, 4,53 en risque
+- Volatilité annualisée : 13,3 % (quotidienne 0,84 %) ; SPY sur les mêmes
+  séances : 16,5 %
+- VaR historique, 1 séance : 1,06 % à 95 %, 1,69 % à 99 %
+- VaR paramétrique normale, 1 séance : 1,38 % à 95 %, 1,95 % à 99 %
+- CVaR : 1,69 % à 95 % (moyenne de 26 séances), 3,00 % à 99 % (6 séances)
+- Pire séance : −5,87 %, le 2025-04-04
+- Perte maximale pic-creux : −14,8 %, du pic du 2025-02-19 au creux du
+  2025-04-08 ; pic retrouvé le 2025-06-23, 51 séances après le creux
+- Montants, sur 84 076,05 USD et arrondis à la dizaine comme dans les
+  phrases : VaR historique 890 et 1 420 USD ; VaR normale 1 160 et
+  1 640 USD ; CVaR 1 420 et 2 520 USD ; pire séance 4 940 USD ; creux
+  12 480 USD
+
+La VaR de Student (1,27 % à 95 %, 2,21 % à 99 %) est lue dans la réponse de
+l'API : son ajustement n'a pas été refait hors du moteur.
+
+Scénarios, à parts figées depuis les poids actuels, couverture 100 % :
+
+| Scénario | Période | Au point bas du marché | Pire moment traversé | Ligne remarquable |
 |---|---|---:|---:|---|
-| Crise financière 2008 | 2007-10-09 → 2009-03-09 | **−44,0 %** | −47,5 % | JPM −64,9 % |
-| Krach COVID | 2020-02-19 → 2020-03-23 | **−35,8 %** | −35,8 % | XOM −47,9 % |
-| Resserrement 2022 | 2022-01-03 → 2022-10-12 | **−8,7 %** | −13,1 % | XOM **+59,7 %** |
+| Crise financière 2008 | 2007-10-09 → 2009-03-09 | **−44,0 %** (36 960 USD) | −47,7 % | JPM −64,9 % |
+| Krach COVID | 2020-02-19 → 2020-03-23 | **−35,5 %** (29 860 USD) | −35,5 % | XOM −47,9 % |
+| Resserrement 2022 | 2022-01-03 → 2022-10-12 | **−9,1 %** (7 640 USD) | −13,3 % | XOM **+59,7 %** |
+
+Le pire moment traversé se mesure depuis le plus haut atteint pendant
+l'épisode : le 2007-12-26 en 2008, le 2022-03-30 en 2022. C'est pourquoi il
+n'a pas de montant (§11.2).
 
 Le resserrement 2022 est aussi le meilleur exemple de §11.2 : le portefeuille
-sort de l'épisode à −8,7 % mais a traversé −13,1 % en chemin. N'afficher que le
-chiffre de sortie ferait disparaître un tiers de la pire perte réellement vécue.
+finit l'épisode à −9,1 %, mais il a été 13,3 % sous son plus haut en chemin.
+N'afficher que le premier chiffre ferait disparaître la pire baisse
+réellement traversée.
 
-Régimes (beta calme 0,57 et R² 0,49 sur 504 séances) :
+Régimes (beta calme 0,57 et R² 0,50 sur 504 séances, du 2024-09-23 au
+2026-09-25) :
 
-| Scénario | Beta de crise | R² de crise |
-|---|---:|---:|
-| Crise financière 2008 | 0,96 | 0,86 |
-| Krach COVID | 1,07 | 0,98 |
-| Resserrement 2022 | 0,73 | 0,79 |
+| Scénario | Beta de crise | R² de crise | Séances | Attendu d'après le beta calme | Rejoué |
+|---|---:|---:|---:|---:|---:|
+| Crise financière 2008 | 0,95 | 0,86 | 355 | −36,7 % | −44,0 % |
+| Krach COVID | 1,07 | 0,98 | 23 | −20,9 % | −35,5 % |
+| Resserrement 2022 | 0,74 | 0,80 | 195 | −14,8 % | −9,1 % |
+
+Le beta du krach COVID repose sur 23 séances, moins que les 60 du seuil
+choisi : la page le donne, mais n'en conclut rien. L'attendu vaut
+(1 + R_SPY)^beta − 1 ; il ne se lit pas comme 0,57 × la perte de SPY.
 
 La dernière ligne est l'exemple à utiliser partout où il faut illustrer §11.4 :
-le portefeuille perd 8,7 % pendant que sa ligne énergie gagne 59,7 %.
+le portefeuille perd 9,1 % pendant que sa ligne énergie gagne 59,7 %.
 
 ---
 

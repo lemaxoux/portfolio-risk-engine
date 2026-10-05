@@ -139,10 +139,31 @@ export function valeurDePortefeuille(valeur: number): string {
  * « USD » ne doit pas partir seul à la ligne.
  */
 export function montant(valeur: number, devise: string): string {
+  verifierDevise(devise)
+  return `${valeurDePortefeuille(valeur)}${ESPACE_INSECABLE}${devise}`
+}
+
+function verifierDevise(devise: string): void {
   if (!/^[A-Z]{3}$/.test(devise)) {
     throw new Error(`Devise qui n'est pas un code ISO 4217\u00a0: «\u00a0${devise}\u00a0»`)
   }
-  return `${valeurDePortefeuille(valeur)}${ESPACE_INSECABLE}${devise}`
+}
+
+/**
+ * Un montant de phrase de lecture, arrondi à la dizaine et SANS SIGNE :
+ * `-12483.03` → « 12 480 USD ».
+ *
+ * Toujours précédé d'« environ » dans la phrase : le chiffre de la mesure,
+ * au-dessus, garde sa précision, et le montant n'en invente pas une autre. Le
+ * sens est porté par le verbe — « représente », « aurait fait perdre » —,
+ * choisi sur le signe publié, comme pour `pourcentageAbsolu`. Le montant
+ * lui-même vient du moteur ; l'arrondir est du formatage, comme choisir un
+ * nombre de décimales.
+ */
+export function montantArrondi(valeur: number, devise: string): string {
+  verifierDevise(devise)
+  const dizaines = Math.round(Math.abs(valeur) / 10) * 10
+  return `${decimal(dizaines, 0)}${ESPACE_INSECABLE}${devise}`
 }
 
 const MOIS = [
@@ -305,4 +326,24 @@ export function pourcentageSigne(fraction: number, decimales: number): string {
   const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
   const signe = fraction > 0 && !nul ? '+' : ''
   return `${signe}${pourcentage(fraction, decimales)}`
+}
+
+/**
+ * L'AMPLEUR d'une fraction en pourcentage, sans signe : `-0.4397` → « 44,0 % ».
+ *
+ * Pour une phrase dont le VERBE porte le sens : « lui aurait fait perdre
+ * 44,0 % », « 47,7 % sous son plus haut ». Le verbe se choisit sur le signe
+ * publié ; écrire « perdre −44,0 % » doublerait le signe, « perdre +44,0 % »
+ * le contredirait. Le chiffre affiché au-dessus de la phrase garde le sien.
+ */
+export function pourcentageAbsolu(fraction: number, decimales: number): string {
+  return pourcentage(Math.abs(fraction), decimales)
+}
+
+/**
+ * L'ampleur d'un écart en points, sans signe : `-0.0727` → « 7,3 points ».
+ * Même usage que `pourcentageAbsolu` : « soit 7,3 points de plus ».
+ */
+export function pointsAbsolus(fraction: number, decimales: number): string {
+  return points(Math.abs(fraction), decimales)
 }

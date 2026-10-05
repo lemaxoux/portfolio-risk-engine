@@ -209,8 +209,16 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         risque={analyse.risk}
         histogramme={analyse.histogram}
         asOf={analyse.as_of}
+        parametres={analyse.parameters}
+        devise={analyse.valuation.currency}
+        periode={analyse.estimation_period_label}
       />
-      <SectionAuPire serie={analyse.series} creux={analyse.risk.drawdown} asOf={analyse.as_of} />
+      <SectionAuPire
+        serie={analyse.series}
+        creux={analyse.risk.drawdown}
+        asOf={analyse.as_of}
+        devise={analyse.valuation.currency}
+      />
       <SectionRisque
         variance={analyse.risk.variance_contributions}
         concentration={analyse.risk.concentration}
@@ -218,7 +226,12 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         scenarios={analyse.scenarios}
         asOf={analyse.as_of}
       />
-      <SectionCrise scenarios={analyse.scenarios} regimes={analyse.regimes} asOf={analyse.as_of} />
+      <SectionCrise
+        scenarios={analyse.scenarios}
+        regimes={analyse.regimes}
+        asOf={analyse.as_of}
+        devise={analyse.valuation.currency}
+      />
       <SectionMoteur
         observations={analyse.observations}
         bandeau={analyse.disclaimer}

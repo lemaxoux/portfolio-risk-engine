@@ -65,7 +65,7 @@ export function Observation({ observation }: { observation: ObservationApi }) {
         )
       })}
 
-      <Provenance lignes={[{ libelle: 'Provenance', valeur: observation.provenance }]} />
+      <Provenance lignes={[{ libelle: 'Détails du calcul', valeur: observation.provenance }]} />
     </article>
   )
 }

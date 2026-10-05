@@ -52,7 +52,7 @@ function scenario(cle: string, nom: string, sortie: number | null, creux: number
 /** Le HTML rendu, apostrophes décodées : React écrit « ' » en « &#x27; ». */
 function rendreBloc(s: Scenario, regime?: Regime): string {
   return renderToStaticMarkup(
-    createElement(BlocScenario, { scenario: s, regime, asOf: '2026-09-09' }),
+    createElement(BlocScenario, { scenario: s, regime, asOf: '2026-09-09', devise: 'USD' }),
   ).replaceAll('&#x27;', "'")
 }
 
@@ -85,6 +85,7 @@ describe('trois chiffres, à la même taille (§11.2)', () => {
         ],
         regimes: [],
         asOf: '2026-09-09',
+        devise: 'USD',
       }),
     )
     expect(chiffres(html)).toHaveLength(9)

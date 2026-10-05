@@ -39,6 +39,8 @@ import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import {
+  ESPACE_FINE,
+  ESPACE_INSECABLE,
   TIRET_INDEFINI,
   dateISO,
   decimal,
@@ -47,12 +49,24 @@ import {
   pointsSignes,
   pourcentage,
 } from '../lib/format'
-import { PHRASE_CONTRIBUTION_NEGATIVE } from '../lib/phrases'
+import {
+  NE_DIT_PAS_CAPITAL,
+  NE_DIT_PAS_CONTRIBUTIONS,
+  NE_DIT_PAS_CORRELATION,
+  NE_DIT_PAS_REFUS,
+  NE_DIT_PAS_RISQUE,
+  PHRASE_CONTRIBUTION_NEGATIVE,
+  chapeauLignesEffectives,
+  lectureContribution,
+  lectureLignesEnCapital,
+  lectureLignesEnRisque,
+} from '../lib/phrases'
 import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
 
 /** La légende exacte de §5.4. */
-export const LEGENDE_CONTRIBUTIONS = 'barre\u00a0: part de la variance — trait\u00a0: part du capital'
+export const LEGENDE_CONTRIBUTIONS =
+  'barre\u00a0: part dans les variations — trait\u00a0: part dans la valeur'
 
 /** Une contribution de scénario : le chiffre signé, et sa marque de signe. */
 function ApportEnCrise({ scenario, ticker }: { scenario: Scenario; ticker: string }) {
@@ -77,13 +91,13 @@ export function colonnesDuRisque(scenarios: readonly Scenario[]): Colonne<Contri
     { cle: 'ticker', titre: 'Ticker', nature: 'texte', cellule: (l) => l.ticker },
     {
       cle: 'variance',
-      titre: 'Part de la variance',
+      titre: 'Part des variations',
       nature: 'nombre',
       cellule: (l) => pourcentage(l.contribution, 1),
     },
     {
       cle: 'capital',
-      titre: 'Part du capital',
+      titre: 'Part de la valeur',
       nature: 'nombre',
       cellule: (l) => pourcentage(l.weight, 1),
     },
@@ -122,8 +136,10 @@ function LegendeCorrelation() {
         </span>
       ))}
       <span className={styles.lectureEchelle}>
-        échelle fixe&nbsp;: de −1, lignes qui bougent en sens inverse, à +1, lignes
-        qui bougent ensemble
+        +1&nbsp;: les deux lignes bougent toujours dans le même sens. 0&nbsp;: aucun lien
+        visible. −1&nbsp;: toujours en sens inverse. Plus les nombres approchent +1, moins
+        détenir les deux amortit les variations. Les couleurs suivent une échelle fixe, la
+        même pour tout portefeuille.
       </span>
       <span className={styles.pas}>
         <span className={`${styles.pastille} ${styles.diagonale}`} aria-hidden="true" />
@@ -144,6 +160,15 @@ interface Props {
 export function SectionRisque({ variance, concentration, matrices, scenarios, asOf }: Props) {
   const contributions = variance.contributions
   const correlation = matrices.correlation
+  // La ligne qui fait le plus bouger le portefeuille : la première du tri par
+  // part de variance, celui du graphique. Un tri, pas un calcul.
+  const premiere = contributions === null ? undefined : lignesParContribution(contributions)[0]
+  const introduction = (
+    <>
+      Quelles lignes font le plus bouger votre portefeuille&nbsp;? Leur poids en argent ne
+      suffit pas à le dire&nbsp;: certaines bougent plus que d'autres, ou en même temps.
+    </>
+  )
 
   const optionsBarres = useCallback(
     (contexte: ContexteGraphique) => optionsContributions(contributions ?? [], contexte),
@@ -156,18 +181,18 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
   )
 
   return (
-    <Section ancre="qui-porte" numero={4} titre="Qui porte le risque">
+    <Section ancre="qui-porte" numero={4} titre="Qui porte le risque" introduction={introduction}>
       <h3 className={commun.sousTitre}>Combien de lignes, en réalité</h3>
-      <p className={commun.chapeau}>
-        Des poids inégaux font compter un portefeuille pour moins de lignes
-        qu'il n'en détient. La lecture en risque pondère chaque ligne par ce
-        qu'elle fait bouger, pas par ce qu'elle vaut.
-      </p>
+      <p className={commun.chapeau}>{chapeauLignesEffectives(concentration.n_positions)}</p>
       <div className={commun.rangee}>
         <Measure
           libelle="Lignes effectives en capital"
           valeur={decimal(concentration.effective_positions, 1)}
-          lecture={`sur ${compteLignes(concentration.n_positions)} détenues\u00a0: inverse de la somme des carrés des poids`}
+          lecture={lectureLignesEnCapital(
+            concentration.n_positions,
+            concentration.effective_positions,
+          )}
+          neDitPas={NE_DIT_PAS_CAPITAL}
           provenance={[
             { libelle: 'Lignes', valeur: compteLignes(concentration.n_positions) },
             { libelle: 'Valorisé au', valeur: dateISO(concentration.as_of) },
@@ -179,13 +204,14 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           lecture={
             variance.effective_positions === null
               ? (variance.undefined_reason ?? 'non estimable, sans raison publiée')
-              : 'inverse de la somme des carrés des parts de variance'
+              : lectureLignesEnRisque(concentration.n_positions, variance.effective_positions)
           }
+          neDitPas={variance.effective_positions === null ? NE_DIT_PAS_REFUS : NE_DIT_PAS_RISQUE}
           provenance={lignesDeFenetre(variance.window)}
         />
       </div>
 
-      <h3 className={commun.sousTitre}>Part de la variance, part du capital</h3>
+      <h3 className={commun.sousTitre}>Le poids de chaque ligne dans les variations</h3>
       {contributions === null ? (
         <p className={styles.refus}>
           <span className={styles.point} aria-hidden="true" />
@@ -194,18 +220,21 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
       ) : (
         <>
           <p className={commun.chapeau}>
-            Une ligne qui pèse plus dans le risque que dans le capital fait
-            bouger le portefeuille plus que son poids ne le laisse croire. Ce
-            n'est pas un sens&nbsp;: le tableau dit ce que chacune a apporté,
-            réellement, dans les crises rejouées.
+            La barre montre la part d'une ligne dans les variations du portefeuille, le
+            trait sa part dans sa valeur. Quand la barre dépasse le trait, la ligne le
+            fait bouger plus que son poids ne le laisse croire.
           </p>
+          {premiere !== undefined && (
+            <p className={commun.lecture}>{lectureContribution(premiere)}</p>
+          )}
+          <p className={commun.neDitPas}>{NE_DIT_PAS_CONTRIBUTIONS}</p>
           <Graphique
-            titre="Part de chaque ligne dans la variance et dans le capital"
+            titre="Part de chaque ligne dans les variations et dans la valeur"
             unite="% de la variance du portefeuille, % de sa valeur&nbsp;; écart en points"
             fenetre={variance.window}
             asOf={asOf}
             description={
-              `Parts de variance comparées aux parts de capital, ${compteLignes(contributions.length)}\u00a0: ` +
+              `Parts des variations comparées aux parts de la valeur, ${compteLignes(contributions.length)}\u00a0: ` +
               lignesParContribution(contributions)
                 .map((l) => `${l.ticker} ${pointsSignes(l.excess_over_weight, 1)}`)
                 .join(', ')
@@ -225,7 +254,11 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           )}
           <div className={styles.tableau}>
             <DataTable
-              legende="Part du risque, et ce que chaque ligne a apporté au résultat du portefeuille dans chaque crise rejouée (en points)"
+              legende={
+                "Part de chaque ligne dans les variations et dans la valeur, puis ce qu'elle " +
+                `a apporté au portefeuille dans chaque crise rejouée, en points${ESPACE_INSECABLE}: ` +
+                `un point vaut 1${ESPACE_FINE}% de sa valeur au début de la crise`
+              }
               colonnes={colonnesDuRisque(scenarios)}
               lignes={lignesParContribution(contributions)}
               cleDeLigne={(l) => l.ticker}
@@ -235,6 +268,10 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
       )}
 
       <h3 className={commun.sousTitre}>Ce qui bouge ensemble</h3>
+      <p className={commun.chapeau}>
+        Deux lignes qui montent et baissent les mêmes jours s'amortissent mal l'une
+        l'autre. La corrélation mesure ce lien, de −1 à +1.
+      </p>
       {correlation === null ? (
         <p className={styles.refus}>
           <span className={styles.point} aria-hidden="true" />
@@ -243,7 +280,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
         </p>
       ) : (
         <Graphique
-          titre="Corrélation des rendements quotidiens"
+          titre="Corrélation des variations quotidiennes"
           unite="coefficient de corrélation, sans unité"
           fenetre={matrices.window}
           asOf={asOf}
@@ -253,6 +290,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           <LegendeCorrelation />
         </Graphique>
       )}
+      {correlation !== null && <p className={commun.neDitPas}>{NE_DIT_PAS_CORRELATION}</p>}
     </Section>
   )
 }

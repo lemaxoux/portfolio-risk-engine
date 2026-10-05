@@ -53,6 +53,7 @@ export type Point = S['PointOut']
 export type ReturnHistogram = S['ReturnHistogramOut']
 export type HistogramBin = S['HistogramBinOut']
 export type Drawdown = S['DrawdownOut']
+export type WorstDay = S['WorstDayOut']
 
 export type Matrices = S['MatricesOut']
 export type Matrix = S['MatrixOut']

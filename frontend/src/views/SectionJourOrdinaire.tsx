@@ -24,6 +24,13 @@
  * 4. LA VOLATILITÉ ANNUALISÉE, puis les CVaR, qui disent ce qui se passe
  *    au-delà du quantile et combien de séances elles moyennent.
  *
+ * ═══ LES TEXTES DE LECTURE ═══
+ *
+ * Chaque bloc dit sa mesure en calendrier, en dollars et en période, puis ce
+ * qu'elle ne dit pas (`lib/phrases`). Les sous-titres posent la question en
+ * mots simples ; le terme technique reste dans le libellé du bloc (§15). Un
+ * texte du moteur — raison de refus, réserve — s'affiche tel quel.
+ *
  * Sous 30 séances, la VaR normale et la volatilité portent la réserve du
  * moteur (`caveat`) : point `--caveat` et phrase sous la provenance, comme la
  * CVaR à 99 %. Le chiffre reste affiché — marqué, pas refusé.
@@ -41,14 +48,26 @@
  */
 import { useCallback } from 'react'
 
-import type { ReturnHistogram, Risk, TailRiskLevel } from '../api/types'
+import type { Parameters, ReturnHistogram, Risk, TailRiskLevel } from '../api/types'
 import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
 import { optionsHistogramme } from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import { points, pourcentage, seances, TIRET_INDEFINI } from '../lib/format'
-import { lectureDeCVaR, lectureDeVar, legendeHistogramme } from '../lib/phrases'
+import { ESPACE_INSECABLE, compte, points, pourcentage, TIRET_INDEFINI } from '../lib/format'
+import {
+  NE_DIT_PAS_COURBES,
+  NE_DIT_PAS_VOLATILITE,
+  introJourOrdinaire,
+  lectureCVaR,
+  lectureDuNiveau,
+  lectureVarHistorique,
+  lectureVarParametrique,
+  lectureVolatilite,
+  legendeHistogramme,
+  neDitPasCVaR,
+  neDitPasVarHistorique,
+} from '../lib/phrases'
 import {
   provenanceDeCVaR,
   provenanceDeVar,
@@ -71,10 +90,12 @@ function CoupleParametrique({
   niveau,
   raisonStudent,
   raisonMonteCarlo,
+  devise,
 }: {
   niveau: TailRiskLevel
   raisonStudent: string | null
   raisonMonteCarlo: string | null
+  devise: string
 }) {
   const confiance = niveauLu(niveau.confidence)
   const student = niveau.student_parametric_var
@@ -85,7 +106,7 @@ function CoupleParametrique({
         niveau="secondaire"
         libelle={`VaR ${confiance} paramétrique, loi normale`}
         valeur={pourcentage(niveau.parametric_var.value, 2)}
-        lecture={lectureDeVar(niveau.parametric_var.value, niveau.confidence, 2)}
+        lecture={lectureVarParametrique(niveau.parametric_var, 'normale', devise)}
         provenance={provenanceDeVar(
           niveau.parametric_var,
           niveau.monte_carlo_var,
@@ -99,7 +120,7 @@ function CoupleParametrique({
           niveau="secondaire"
           libelle={`VaR ${confiance} paramétrique, loi de Student`}
           valeur={pourcentage(student.value, 2)}
-          lecture={lectureDeVar(student.value, niveau.confidence, 2)}
+          lecture={lectureVarParametrique(student, 'de Student', devise)}
           provenance={provenanceDeVar(student, niveau.student_monte_carlo_var)}
         />
       ) : (
@@ -115,32 +136,48 @@ function CoupleParametrique({
 
 /**
  * La phrase que lit un lecteur d'écran à la place de l'histogramme (§13) : la
- * conclusion, pas la forme. Chaque nombre est un champ publié.
+ * conclusion, pas la forme. Chaque nombre est un champ publié ; la fréquence
+ * vient de la table de `lib/phrases`.
  */
 export function descriptionHistogramme(
   histogramme: ReturnHistogram,
   niveaux: readonly TailRiskLevel[],
 ): string {
-  const quantiles = niveaux.flatMap((niveau) => {
+  const seuils = niveaux.flatMap((niveau) => {
     const seuil = niveau.expected_shortfall.threshold
-    return seuil === null
-      ? []
-      : [`rendement sous ${pourcentage(seuil, 2)} au niveau ${pourcentage(niveau.confidence, 0)}`]
+    const jour =
+      lectureDuNiveau(niveau.confidence)?.jour ?? `au niveau ${pourcentage(niveau.confidence, 0)}`
+    return seuil === null ? [] : [`${jour} à ${pourcentage(seuil, 2)} ou moins`]
   })
   const debut =
-    `Rendements quotidiens de ${seances(histogramme.window.observations)}, en classes de ` +
-    `${points(histogramme.bin_width, 2)}`
-  // Aucun niveau calculable : la phrase s'arrête aux classes, sans quantile.
-  return quantiles.length === 0 ? `${debut}.` : `${debut}\u00a0: ${quantiles.join('\u00a0; ')}.`
+    `Variations de ${compte(histogramme.window.observations, 'jour de bourse', 'jours de bourse')}, ` +
+    `par tranches de ${points(histogramme.bin_width, 2)}`
+  // Aucun niveau calculable : la phrase s'arrête aux tranches, sans seuil.
+  return seuils.length === 0 ? `${debut}.` : `${debut}${ESPACE_INSECABLE}: ${seuils.join(', ')}.`
 }
+
+const TITRE = "Ce qu'il perd un jour ordinaire"
 
 interface Props {
   readonly risque: Risk
   readonly histogramme: ReturnHistogram
   readonly asOf: string
+  /** L'indice de référence demandé, et son nom lisible publié par le moteur. */
+  readonly parametres: Parameters
+  /** Le code ISO de la devise publiée (`valuation.currency`). */
+  readonly devise: string
+  /** La période de la fenêtre d'estimation, dite pour un lecteur. */
+  readonly periode: string
 }
 
-export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
+export function SectionJourOrdinaire({
+  risque,
+  histogramme,
+  asOf,
+  parametres,
+  devise,
+  periode,
+}: Props) {
   const niveaux = risque.tail_risk.levels
   const raisonStudent = risque.tail_risk.student_unavailable_reason
   const raisonMonteCarlo = risque.tail_risk.monte_carlo_unavailable_reason
@@ -148,13 +185,15 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
     (contexte: ContexteGraphique) => optionsHistogramme({ histogramme, niveaux }, contexte),
     [histogramme, niveaux],
   )
+  const introduction = introJourOrdinaire(periode)
 
   return (
-    <Section ancre="jour-ordinaire" numero={2} titre="Ce qu'il perd un jour ordinaire">
-      <h3 className={commun.sousTitre}>Sans hypothèse de loi</h3>
+    <Section ancre="jour-ordinaire" numero={2} titre={TITRE} introduction={introduction}>
+      <h3 className={commun.sousTitre}>Les jours réellement observés</h3>
       <p className={commun.chapeau}>
-        Le quantile des rendements réellement observés sur la fenêtre. Aucune
-        loi n'est supposée&nbsp;: ce sont les séances qui ont eu lieu.
+        La VaR, ou valeur à risque, répond à une question&nbsp;: à partir de quelle perte
+        une journée devient-elle rare&nbsp;? Ici, la réponse vient des jours réellement
+        observés, sans formule.
       </p>
       <div className={commun.rangee}>
         {niveaux.map((niveau) => {
@@ -164,11 +203,12 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
               key={niveau.confidence}
               libelle={`VaR ${niveauLu(niveau.confidence)} historique, horizon 1 séance`}
               valeur={valeur === null ? TIRET_INDEFINI : pourcentage(valeur, 2)}
-              lecture={
-                valeur === null
-                  ? (niveau.historical_var.undefined_reason ?? 'Non calculée, sans raison publiée.')
-                  : lectureDeVar(valeur, niveau.confidence, 2)
-              }
+              lecture={lectureVarHistorique(niveau.historical_var, 2, devise)}
+              neDitPas={neDitPasVarHistorique(
+                niveau.historical_var,
+                risque.worst_day,
+                niveau.expected_shortfall.tail_observations,
+              )}
               provenance={provenanceDeVar(niveau.historical_var)}
             />
           )
@@ -177,7 +217,7 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
 
       <div className={styles.histogramme}>
         <Graphique
-          titre="Rendements quotidiens du portefeuille"
+          titre="Variations de valeur, jour par jour"
           unite={`séances par classe de ${points(histogramme.bin_width, 2)}`}
           fenetre={histogramme.window}
           asOf={asOf}
@@ -192,16 +232,17 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
               niveaux
                 .filter((niveau) => niveau.expected_shortfall.threshold === null)
                 .map((niveau) => niveau.confidence),
+              histogramme.bin_width,
             )}
           </p>
         </Graphique>
       </div>
 
-      <h3 className={commun.sousTitre}>Ce que coûte l'hypothèse de normalité</h3>
+      <h3 className={commun.sousTitre}>Avec une courbe mathématique</h3>
       <p className={commun.chapeau}>
-        Les deux mêmes niveaux, sous deux lois. L'écart entre la normale et la
-        loi de Student est l'information&nbsp;: il mesure ce que la normalité fait
-        perdre de vue dans la queue.
+        La même question, posée à une courbe ajustée sur vos variations plutôt qu'aux
+        jours observés. La loi normale rend les très mauvais jours très rares&nbsp;; la
+        loi de Student leur laisse plus de place.
       </p>
       {niveaux.map((niveau) => (
         <CoupleParametrique
@@ -209,24 +250,27 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
           niveau={niveau}
           raisonStudent={raisonStudent}
           raisonMonteCarlo={raisonMonteCarlo}
+          devise={devise}
         />
       ))}
+      <p className={commun.neDitPas}>{NE_DIT_PAS_COURBES}</p>
 
-      <h3 className={commun.sousTitre}>Amplitude ordinaire</h3>
+      <h3 className={commun.sousTitre}>L'ampleur habituelle des variations</h3>
       <div className={commun.rangee}>
         <Measure
           libelle="Volatilité annualisée"
           valeur={pourcentage(risque.volatility.annualised, 1)}
-          lecture="écart-type des rendements quotidiens, ramené à l'année"
+          lecture={lectureVolatilite(risque.benchmark_volatility, parametres)}
+          neDitPas={NE_DIT_PAS_VOLATILITE}
           provenance={provenanceDeVolatilite(risque.volatility)}
           caveat={risque.volatility.caveat}
         />
       </div>
 
-      <h3 className={commun.sousTitre}>Au-delà du quantile</h3>
+      <h3 className={commun.sousTitre}>Les pires jours</h3>
       <p className={commun.chapeau}>
-        La VaR dit à partir de quel niveau la perte est rare. La CVaR dit
-        combien on perd, en moyenne, les jours où ce niveau est dépassé.
+        Les jours où le seuil est franchi, combien perd-on en moyenne&nbsp;? C'est la
+        CVaR&nbsp;: la perte moyenne des pires jours.
       </p>
       <div className={commun.rangee}>
         {niveaux.map((niveau) => {
@@ -236,11 +280,8 @@ export function SectionJourOrdinaire({ risque, histogramme, asOf }: Props) {
               key={niveau.confidence}
               libelle={`CVaR ${niveauLu(niveau.confidence)}, horizon 1 séance`}
               valeur={cvar.value === null ? TIRET_INDEFINI : pourcentage(cvar.value, 2)}
-              lecture={
-                cvar.value === null
-                  ? (cvar.undefined_reason ?? 'Non calculée, sans raison publiée.')
-                  : lectureDeCVaR(niveau.confidence)
-              }
+              lecture={lectureCVaR(cvar, devise)}
+              neDitPas={neDitPasCVaR(cvar)}
               provenance={provenanceDeCVaR(cvar)}
               caveat={cvar.caveat}
             />

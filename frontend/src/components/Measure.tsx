@@ -25,6 +25,13 @@
  *    cadratin et `lecture` porte la raison, en toutes lettres. Jamais 0.
  * 4. Une réserve méthodologique met un point devant le libellé et sa phrase
  *    sous la provenance.
+ *
+ * ═══ LES TEXTES DE LECTURE ═══
+ *
+ * Sous le chiffre, la phrase concrète (`lecture`) et, s'il y en a une, la ligne
+ * qui dit ce que le chiffre ne dit pas (`neDitPas`) ; puis la provenance, sous
+ * l'intertitre « Détails du calcul ». L'intertitre NOMME le bloc, il ne le
+ * replie pas : la provenance reste dans le flux (règle 1).
  */
 import type { LigneProvenance } from './Provenance'
 import { Provenance } from './Provenance'
@@ -37,6 +44,8 @@ interface Props {
   readonly valeur: string
   /** La phrase de lecture, en langage courant (§15). */
   readonly lecture: string
+  /** Ce que le chiffre ne dit pas, en une ligne courte. */
+  readonly neDitPas?: string | null
   readonly provenance: readonly LigneProvenance[]
   /** Réserve méthodologique, telle que le backend l'écrit. */
   readonly caveat?: string | null
@@ -52,6 +61,7 @@ export function Measure({
   libelle,
   valeur,
   lecture,
+  neDitPas = null,
   provenance,
   caveat = null,
   niveau = 'principal',
@@ -69,8 +79,12 @@ export function Measure({
 
       <p className={styles.valeur}>{valeur}</p>
       <p className={styles.lecture}>{lecture}</p>
+      {neDitPas !== null && <p className={styles.neDitPas}>{neDitPas}</p>}
 
-      <Provenance lignes={provenance} />
+      <div className={styles.details}>
+        <p className={styles.detailsTitre}>Détails du calcul</p>
+        <Provenance lignes={provenance} />
+      </div>
 
       {caveat !== null && <p className={styles.reserve}>{caveat}</p>}
     </figure>

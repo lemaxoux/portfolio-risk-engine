@@ -133,6 +133,9 @@
   background-color: var(--div-pos-strong);
 }
 
+/* La lecture de l'échelle est une phrase : à la ligne, et à la largeur de
+ * prose, comme la légende de l'histogramme (§6.3). */
 .lectureEchelle {
   flex-basis: 100%;
+  max-inline-size: var(--prose-width);
 }
