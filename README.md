@@ -961,9 +961,9 @@ prennent la même espace insécable, pas une espace fine.
 phrases, n'a pas de glyphe grec : le « ν » de repli s'y lit « v ». La même
 garde refuse toute lettre grecque ailleurs que dans `method` et `detail` d'une
 mesure, qui s'affichent en IBM Plex Sans (« ν = 4,07 », « μ = 0 »,
-« λ=0,94 »). La raison du refus des contributions à deux séances a perdu sa
-formule pour cela ; la voici : la covariance y est de rang 1, Σ ∝ δδᵀ, et la
-part de chaque ligne vaut wᵢδᵢ / (wᵀδ).
+« λ=0,94 »). Les raisons de refus ne citent plus aucune formule ; celle des
+contributions à deux séances est ici : la covariance y est de rang 1,
+Σ ∝ δδᵀ, et la part de chaque ligne vaut wᵢδᵢ / (wᵀδ).
 
 Le frontend applique la même convention de son côté pour les nombres qu'il
 formate lui-même, et pour les deux-points et guillemets de ses propres
@@ -1025,6 +1025,15 @@ variance, où il n'y a aucune régression. Une explication fausse attachée à u
 refus juste est pire qu'un refus sans explication : le lecteur en tire une
 conclusion sur ses données.
 
+Depuis les textes de lecture, les raisons publiées le disent sans formule et
+en jours de bourse, puisqu'elles s'affichent à la place du chiffre. Chacune
+nomme SA mesure et le seuil — « Sur 2 jours de bourse, une corrélation n'a
+pas de sens : il en faut au moins 3. » —, et seule la corrélation garde une
+conséquence, vraie d'elle seule : « Avec deux jours, elle vaudrait +1 ou −1
+quels que soient les titres. » Le beta et les contributions n'en citent
+aucune plutôt qu'une empruntée. La démonstration reste ci-dessus ; elle ira
+dans la page méthodologie.
+
 #### Où s'arrête le refus
 
 **On refuse ce qui ne dépend plus des données, et ce qui n'est plus la mesure
@@ -1071,10 +1080,11 @@ avec les données, mais ce n'était plus la mesure annoncée. D'où un seuil
 DÉMONTRÉ, pas choisi : n ≥ 1/(1 − α), 20 séances à 95 %, 100 à 99 %
 (`config.historical_var_min_observations`, déclaré dans
 `rules.thresholds.historical_var_sample`). En deçà, `historical_var.value` vaut
-`null` et `undefined_reason` dit, par exemple : « Sur 7 séances, aucune ne
-tombe dans le 1 % des pires : il en faut au moins 100 pour une VaR historique
-à 99 %. » La CVaR du même niveau, qui moyenne cette queue, est refusée avec
-elle — `value`, `threshold` et `tail_observations` à `null` —, et
+`null` et `undefined_reason` dit, par exemple : « Sur 7 jours de bourse,
+aucun ne tombe dans le 1 % le plus mauvais : il en faut au moins 100 pour ce
+calcul. » La CVaR du même niveau, qui moyenne cette queue, est refusée avec
+elle, pour la même raison et avec le même texte — `value`, `threshold` et
+`tail_observations` à `null` —, et
 l'histogramme ne dessine ni le trait ni l'ombre d'un niveau refusé. Sur la
 copie figée, l'API refusant toute fenêtre sous 60 séances, seules les
 fenêtres de 60 à 99 basculent, à 99 % ; la référence à 504 séances ne bouge
@@ -1134,10 +1144,13 @@ une Student — ν ≤ 2, série trop courte, ν au-delà de 30 —, les champs 
 à `null` et
 `student_unavailable_reason` porte le refus du moteur mot pour mot, le reste du
 rapport étant servi normalement. Comme celle du Monte Carlo, la raison est en
-clair quand la cause est certaine : « La fenêtre compte 7 séances : il en faut
-au moins 30 pour ajuster une loi de Student. », et pour ν ≤ 2, « la loi de
-Student ajustée n'a pas de variance finie (degrés de liberté estimés à 1,90
-≤ 2) ». Aucune de ces phrases n'écrit la lettre ν : elles s'affichent en
+clair quand la cause est certaine : « Pas assez de jours pour ajuster la loi
+de Student : il en faut au moins 30, la période en compte 7. », et pour
+ν ≤ 2, « la loi de Student ne s'ajuste pas à vos variations (degrés de
+liberté estimés à 1,90, il en faut plus de 2) : aucun chiffre n'en sort ».
+Au-delà de ν = 30 : « vos variations ne s'écartent pas de la loi normale : la
+loi de Student donnerait le même chiffre (seuil choisi à la main) ». Aucune
+de ces phrases n'écrit la lettre ν : elles s'affichent en
 Spectral, qui n'a pas de glyphe grec, et le ν de la police de repli s'y lit
 « v ». La provenance des VaR Student garde « ν = 4,07 » : elle s'affiche en
 IBM Plex Sans, qui a le grec. `tests/test_risk_engine.py` vérifie qu'aucune
@@ -1653,8 +1666,9 @@ nominal (`views/Analyse.tsx`).
   saisie, et la section 1 depuis la valorisation de la liste.
 - **Insuffisant, pour une mesure** — une fenêtre courte donne une analyse,
   où chaque mesure indisponible dit pourquoi, avec ce qui a été reçu et ce
-  qu'il faut : corrélation, contributions, Student (« La fenêtre compte 7
-  séances : il en faut au moins 30 »),
+  qu'il faut : corrélation, contributions, Student (« Pas assez de jours
+  pour ajuster la loi de Student : il en faut au moins 30, la période en
+  compte 7. »),
   Monte Carlo normal (« La fenêtre compte 7 séances pour 7 lignes »), crises
   non couvertes. Le bandeau nomme la ligne qui raccourcit la fenêtre.
   Vérifié sur une copie de la base où JMKE, SPCX et ASBH, cotés depuis 2026,
@@ -1802,6 +1816,9 @@ l'ordre chronologique.
     - [x] Données publiées par le moteur : montants, retour au pic, pire
       séance, volatilité et nom de l'indice de référence, libellés de
       période, verdict de couverture d'un scénario
+    - [x] Raisons de refus du moteur en clair, en jours de bourse : VaR et
+      CVaR historiques, Student, mesures non estimables, crises et
+      comparaisons de régimes indisponibles, lignes exclues d'une crise
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

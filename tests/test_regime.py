@@ -328,7 +328,7 @@ def test_sans_benchmark_en_base_la_comparaison_est_impossible(conn):
     peupler(conn, {"A": cours_depuis(marche_synthetique(), JOURS)}, {"A": 1})
 
     c = compare_regimes(conn, 1, CRISE, window=100)
-    assert "SPY" in c.unavailable_reason
+    assert "du S&P 500" in c.unavailable_reason
 
 
 # ------------------------------------------------ Données réelles --

@@ -15,7 +15,7 @@ import re
 import numpy as np
 import pytest
 
-from backend.typography import NARROW_NBSP, NBSP
+from backend.typography import MINUS, NARROW_NBSP, NBSP
 
 from backend.db.init_db import connect
 from backend.risk_engine.engine import analyse_portfolio
@@ -586,7 +586,7 @@ def test_un_scenario_non_calculable_dit_pourquoi_sans_fabriquer_de_chiffre(
     for scenario in scenarios:
         assert scenario["end_to_end_return"] is None
         assert scenario["max_drawdown"] is None
-        assert "aucune ligne" in scenario["unavailable_reason"]
+        assert "Aucune de vos lignes" in scenario["unavailable_reason"]
         assert scenario["coverage"]["value_share"] == 0.0
         assert scenario["summary"]
 
@@ -738,8 +738,9 @@ def test_une_student_indiscernable_de_la_normale_sort_null_avec_sa_raison(
     choisi. Sans ce refus, la provenance publiait un ν de l'ordre de 10²⁰, et
     au-delà de 10²⁷ l'analyse tombait en 500.
 
-    La raison est relayée telle quelle, et n'écrit jamais ν : ses seuls
-    nombres sont la taille de la fenêtre et le seuil.
+    La raison est relayée telle quelle, et n'écrit jamais ν : son seul
+    nombre est la taille de la fenêtre, et elle dit que le seuil est choisi à
+    la main.
     """
     corps = analyse_historique_court(40).json()
     queue = corps["risk"]["tail_risk"]
@@ -747,9 +748,9 @@ def test_une_student_indiscernable_de_la_normale_sort_null_avec_sa_raison(
 
     assert queue["student_fit"] is None
     raison = queue["student_unavailable_reason"]
-    assert "la loi de Student ne se distingue pas de la normale" in raison
+    assert "ne s'écartent pas de la loi normale" in raison
     assert "seuil choisi à la main" in raison
-    assert set(re.findall(r"\d+", raison)) == {str(seances), "30"}
+    assert set(re.findall(r"\d+", raison)) == {str(seances)}
     for niveau in queue["levels"]:
         assert niveau["student_parametric_var"] is None
         assert niveau["parametric_var"]["value"] is not None
@@ -787,8 +788,8 @@ def test_student_et_monte_carlo_impossibles_publient_chacun_leur_raison(
 
     assert queue["student_fit"] is None
     raison = queue["student_unavailable_reason"]
-    assert raison.startswith("La fenêtre compte 2")
-    assert raison.endswith("il en faut au moins 30 pour ajuster une loi de Student.")
+    assert raison.startswith("Pas assez de jours pour ajuster la loi de Student")
+    assert raison.endswith("il en faut au moins 30, la période en compte 2.")
     assert queue["monte_carlo_unavailable_reason"].startswith("La fenêtre compte 2")
     assert "davantage que de lignes" in queue["monte_carlo_unavailable_reason"]
     for niveau in queue["levels"]:
@@ -831,10 +832,11 @@ def test_sur_sept_seances_var_historique_et_cvar_sont_refusees_aux_deux_niveaux(
     for niveau in analyse_historique_court(8).json()["risk"]["tail_risk"]["levels"]:
         var_historique, cvar = niveau["historical_var"], niveau["expected_shortfall"]
         assert var_historique["value"] is None
-        assert var_historique["undefined_reason"].startswith("Sur 7\u00a0séances")
+        assert var_historique["undefined_reason"].startswith(f"Sur 7{NBSP}jours de bourse")
         assert cvar["value"] is None and cvar["threshold"] is None
         assert cvar["tail_observations"] is None and cvar["caveat"] is None
-        assert "pour une CVaR à" in cvar["undefined_reason"]
+        # Refusées ensemble, pour la même raison : le même texte.
+        assert cvar["undefined_reason"] == var_historique["undefined_reason"]
         # Les autres VaR restent : paramétrique marquée mince, Monte Carlo.
         assert niveau["parametric_var"]["value"] is not None
 
@@ -1292,8 +1294,8 @@ def test_sous_trois_seances_la_correlation_et_le_beta_sortent_null(
     matrices = corps["risk"]["matrices"]
     assert matrices["correlation"] is None
     raison = matrices["correlation_undefined_reason"]
-    assert f"2 séances seulement" in raison
-    assert "le centrage ne laisse qu'une seule direction" in raison
+    assert f"Sur 2{NBSP}jours de bourse" in raison
+    assert "une corrélation n'a pas de sens" in raison
     # La covariance reste publiée : wᵀΣw porte la volatilité et la VaR.
     assert matrices["covariance"]["values"]
 
@@ -1301,7 +1303,7 @@ def test_sous_trois_seances_la_correlation_et_le_beta_sortent_null(
     assert beta["beta"] is None, "la pente aussi, pas seulement le R²"
     assert beta["r_squared"] is None
     assert beta["idiosyncratic_share"] is None
-    assert "un beta n'est pas estimable" in beta["undefined_reason"]
+    assert "la sensibilité au marché n'a pas de sens" in beta["undefined_reason"]
     # Ce qui manque est le chiffre, pas la provenance.
     assert beta["benchmark"] == "SPY"
     assert beta["window"]["observations"] == 2
@@ -1466,8 +1468,9 @@ def test_chaque_raison_de_refus_n_affirme_que_ce_qui_la_concerne(
     """Une explication fausse attachée à un refus juste est pire qu'un refus nu.
 
     « Le coefficient vaut ±1 » est vrai d'une corrélation et faux d'une pente :
-    à deux séances le beta prend n'importe quelle valeur, et c'est l'absence de
-    résidu qui le disqualifie, pas sa valeur.
+    à deux séances le beta prend n'importe quelle valeur. Chaque raison, en
+    clair, nomme SA mesure ; seule celle de la corrélation garde une
+    conséquence, vraie d'elle seule. La démonstration est dans le README.
     """
     corps = analyse_historique_court(3).json()
 
@@ -1475,23 +1478,23 @@ def test_chaque_raison_de_refus_n_affirme_que_ce_qui_la_concerne(
     beta = corps["risk"]["beta"]["undefined_reason"]
     contributions = corps["risk"]["variance_contributions"]["undefined_reason"]
 
-    assert "±1" in correlation
-    assert "±1" not in beta
-    assert "±1" not in contributions
+    assert "une corrélation" in correlation
+    assert "la sensibilité au marché" in beta
+    assert "la part de chaque ligne dans les variations" in contributions
 
-    assert "pas d'erreur type" in beta
-    assert "n'importe quelle valeur" in beta
-    assert "rang au plus n − 1" in contributions
+    assert f"+1 ou {MINUS}1" in correlation
+    assert "+1" not in beta
+    assert "+1" not in contributions
 
-    # « régression » n'est vrai que du beta : une décomposition de variance n'en
-    # comporte aucune, et l'invoquer serait emprunter la raison d'une autre
-    # mesure.
-    assert "régression" in beta
-    assert "régression" not in contributions
+    # Aucune n'emprunte la justification d'une autre mesure.
+    for raison in (correlation, beta, contributions):
+        assert "régression" not in raison
+        assert "rang" not in raison
 
     # La partie commune ne dit que ce qui vaut des trois.
     for raison in (correlation, beta, contributions):
-        assert "le centrage ne laisse qu'une seule direction" in raison
+        assert f"Sur 2{NBSP}jours de bourse" in raison
+        assert f"n'a pas de sens{NBSP}: il en faut au moins 3." in raison
 
 
 def test_les_contributions_a_la_variance_sortent_null_sous_trois_seances(
@@ -1509,7 +1512,10 @@ def test_les_contributions_a_la_variance_sortent_null_sous_trois_seances(
     assert contributions["contributions"] is None
     assert contributions["effective_positions"] is None
     assert contributions["has_negative_contribution"] is None
-    assert "rang 1" in contributions["undefined_reason"]
+    assert (
+        "la part de chaque ligne dans les variations n'a pas de sens"
+        in contributions["undefined_reason"]
+    )
     # L'ordre canonique reste publié : il ne dépend pas de la fenêtre.
     assert contributions["tickers"]
 
@@ -1543,7 +1549,9 @@ def test_sous_trois_seances_la_volatilite_reste_publiee_la_var_historique_est_re
     assert risque["matrices"]["covariance"]["values"]
     var_historique = risque["tail_risk"]["levels"][0]["historical_var"]
     assert var_historique["value"] is None
-    assert var_historique["undefined_reason"].startswith("Sur 2\u00a0séances, aucune ne tombe")
+    assert var_historique["undefined_reason"].startswith(
+        f"Sur 2{NBSP}jours de bourse, aucun ne tombe"
+    )
     assert risque["volatility"]["window"]["observations"] == 2
 
 

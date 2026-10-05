@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import math
 import re
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 NARROW_NBSP = " "
@@ -125,6 +126,22 @@ def grouped(nombre: int, singulier: str, pluriel: str | None = None) -> str:
 _EN_LETTRES = (
     "zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
 )
+
+
+_MOIS = (
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+)
+
+
+def long_date(jour: date) -> str:
+    """Une date en toutes lettres, pour la prose : « 4 janvier 2010 ».
+
+    Insécable entre le jour, le mois et l'année, comme `dateEnToutesLettres`
+    côté client : les deux moitiés du produit écrivent une date de la même
+    façon. Les dates de provenance, elles, restent en ISO (DESIGN.md §6.3).
+    """
+    return f"{jour.day}{NBSP}{_MOIS[jour.month - 1]}{NBSP}{jour.year}"
 
 
 def cardinal(nombre: int) -> str:

@@ -40,7 +40,7 @@ from backend.risk_engine.engine import (
     student_fit,
 )
 from backend.risk_engine.scenarios import SCENARIOS, Scenario
-from backend.typography import NARROW_NBSP, NBSP, cardinal
+from backend.typography import MINUS, NARROW_NBSP, NBSP, cardinal
 from backend.risk_engine.var import fit_student_t
 from backend.risk_engine.measures import max_drawdown
 from backend.risk_engine.portfolio import (
@@ -806,12 +806,10 @@ def test_la_var_historique_et_sa_cvar_sont_refusees_juste_sous_le_minimum(
     assert cvar.value is None and cvar.threshold is None
     assert cvar.tail_observations is None and cvar.caveat is None
     assert var_historique.undefined_reason.endswith(
-        f"il en faut au moins {minimum} pour une VaR historique à "
-        f"{int(confiance * 100)}\u202f%."
+        f"il en faut au moins {minimum} pour ce calcul."
     )
-    assert cvar.undefined_reason.endswith(
-        f"il en faut au moins {minimum} pour une CVaR à {int(confiance * 100)}\u202f%."
-    )
+    # Refusées ensemble, pour la même raison : le même texte.
+    assert cvar.undefined_reason == var_historique.undefined_reason
 
 
 @pytest.mark.parametrize("confiance, minimum", [(0.95, 20), (0.99, 100)])
@@ -827,15 +825,16 @@ def test_au_minimum_la_queue_contient_une_seance_et_les_mesures_sont_publiees(
 
 
 def test_la_raison_dit_ce_qui_a_ete_recu_et_ce_qu_il_faut(conn):
-    """La phrase de Maxence, à sept séances, aux deux niveaux."""
+    """La phrase validée avec les textes de lecture, à sept séances, aux deux
+    niveaux : en jours de bourse, sans formule."""
     rapport = _rapport_sur(conn, 7)
     assert rapport.historical_var[0.99].undefined_reason == (
-        "Sur 7\u00a0séances, aucune ne tombe dans le 1\u202f% des pires : il en "
-        "faut au moins 100 pour une VaR historique à 99\u202f%."
+        f"Sur 7{NBSP}jours de bourse, aucun ne tombe dans le 1{NARROW_NBSP}% le "
+        "plus mauvais : il en faut au moins 100 pour ce calcul."
     )
     assert rapport.historical_var[0.95].undefined_reason == (
-        "Sur 7\u00a0séances, aucune ne tombe dans les 5\u202f% des pires : il en "
-        "faut au moins 20 pour une VaR historique à 95\u202f%."
+        f"Sur 7{NBSP}jours de bourse, aucun ne tombe parmi les 5{NARROW_NBSP}% les "
+        "plus mauvais : il en faut au moins 20 pour ce calcul."
     )
 
 
@@ -941,9 +940,9 @@ def test_une_student_indiscernable_de_la_normale_est_refusee_sans_ecrire_nu(conn
     l'infini : ici 1,5 × 10¹⁴. Au-delà de `MAX_STUDENT_NU`, seuil choisi, le
     moteur refuse l'ajustement.
 
-    La raison décrit un résultat — pas de queues plus épaisses sur la fenêtre —
-    et n'écrit jamais ν : les seuls nombres de la phrase sont la taille de la
-    fenêtre et le seuil.
+    La raison décrit un résultat — les variations ne s'écartent pas de la loi
+    normale — et n'écrit jamais ν : le seul nombre de la phrase est la taille
+    de la fenêtre, et elle dit que le seuil est choisi à la main.
     """
     serie = _serie_a_deux_lignes(conn, cours, (21, 22), 300, 250)
     assert fit_student_t(serie.returns).nu > 1e12, "l'estimateur, lui, rend son maximum"
@@ -951,10 +950,10 @@ def test_une_student_indiscernable_de_la_normale_est_refusee_sans_ecrire_nu(conn
     with pytest.raises(ValueError) as refus:
         student_fit(serie)
     raison = str(refus.value)
-    assert "la loi de Student ne se distingue pas de la normale" in raison
+    assert "ne s'écartent pas de la loi normale" in raison
     assert "seuil choisi à la main" in raison
-    assert "aucun choc extrême" in raison
-    assert set(re.findall(r"\d+", raison)) == {"250", "30"}
+    assert "aucun jour extrême" in raison
+    assert set(re.findall(r"\d+", raison)) == {"250"}
 
 
 def test_une_student_a_queues_epaisses_reste_ajustee(conn):
@@ -987,7 +986,7 @@ def test_une_student_indiscernable_de_la_normale_laisse_le_monte_carlo_normal(co
     assert rapport.student_fit is None
     assert rapport.student_parametric_var is None
     assert rapport.student_monte_carlo_var is None
-    assert "ne se distingue pas de la normale" in rapport.student_unavailable_reason
+    assert "ne s'écartent pas de la loi normale" in rapport.student_unavailable_reason
     _monte_carlo_normal_present(rapport, 250)
 
 
@@ -1008,7 +1007,7 @@ def test_nu_inferieur_ou_egal_a_deux_laisse_le_monte_carlo_normal(conn, monkeypa
 
     assert rapport.student_fit is None
     assert rapport.student_parametric_var is None
-    assert "≤ 2" in rapport.student_unavailable_reason
+    assert "il en faut plus de 2" in rapport.student_unavailable_reason
     _monte_carlo_normal_present(rapport, 250)
 
 
@@ -1039,8 +1038,8 @@ def test_student_et_monte_carlo_impossibles_ont_chacun_leur_raison(conn):
     assert rapport.student_fit is None
     # En clair, comme le Monte Carlo : la cause est la longueur de la fenêtre.
     assert rapport.student_unavailable_reason == (
-        "La fenêtre compte 3\u00a0séances : il en faut au moins 30 pour "
-        "ajuster une loi de Student."
+        "Pas assez de jours pour ajuster la loi de Student : il en faut au "
+        "moins 30, la période en compte 3."
     )
     assert rapport.monte_carlo_unavailable_reason != rapport.student_unavailable_reason
 
@@ -1108,8 +1107,8 @@ def test_le_refus_de_variance_infinie_dit_la_cause_en_clair(conn, monkeypatch):
     et la borne — pas le symbole."""
     raison = _refus_student(conn, monkeypatch, "variance infinie")
     assert raison.startswith(
-        "Sur cette fenêtre de 250\u00a0séances, la loi de Student ajustée n'a "
-        "pas de variance finie (degrés de liberté estimés à 1,90 ≤ 2)"
+        f"Sur ces 250{NBSP}jours de bourse, la loi de Student ne s'ajuste pas à "
+        "vos variations (degrés de liberté estimés à 1,90, il en faut plus de 2)"
     ), raison
 
 
@@ -1225,8 +1224,8 @@ def test_la_correlation_n_est_pas_estimee_sous_trois_seances(conn):
     assert rapport.matrices.window.observations == 2
     assert rapport.matrices.correlation is None
     raison = rapport.matrices.correlation_undefined_reason
-    assert f"2 séances seulement" in raison
-    assert "le centrage ne laisse qu'une seule direction" in raison
+    assert f"Sur 2{NBSP}jours de bourse" in raison
+    assert "une corrélation n'a pas de sens" in raison
     # La covariance reste publiée : wᵀΣw est la variance de la série du
     # portefeuille, estimable dès deux observations, et elle porte la VaR.
     assert rapport.matrices.covariance is not None
@@ -1258,7 +1257,7 @@ def test_la_pente_du_beta_est_indefinie_aussi_pas_seulement_le_r2(conn):
     assert beta.beta is None
     assert beta.r_squared is None
     assert beta.idiosyncratic_share is None
-    assert "un beta n'est pas estimable" in beta.undefined_reason
+    assert "la sensibilité au marché n'a pas de sens" in beta.undefined_reason
     # Ce qui manque est le chiffre, pas la provenance.
     assert beta.benchmark == "SPY"
     assert beta.window.observations == 2
@@ -1398,42 +1397,38 @@ def test_la_raison_du_beta_ne_parle_pas_de_coefficient_a_plus_ou_moins_un(conn):
     """« ±1 » est vrai d'une corrélation, faux d'une pente.
 
     À deux séances le beta vaut n'importe quoi — 11,84 puis 8,65 sur deux
-    fenêtres de la base réelle. Ce qui le disqualifie n'est pas sa valeur, c'est
-    l'absence de résidu.
+    fenêtres de la base réelle. Sa raison nomme la mesure, en clair, et
+    n'emprunte pas la conséquence de la corrélation.
     """
     raison = base_a_deux_seances(conn).beta.undefined_reason
 
     # Pas même pour le nier : « ±1 » n'a rien à faire dans la raison d'un beta.
-    assert "±1" not in raison
-    assert "pas d'erreur type" in raison
-    assert "n'importe quelle valeur" in raison
-    # Le beta est la seule des trois à naître d'une régression.
-    assert "régression" in raison
+    assert "+1" not in raison
+    assert "la sensibilité au marché n'a pas de sens" in raison
 
 
 def test_la_raison_de_la_correlation_parle_bien_du_coefficient_a_plus_ou_moins_un(conn):
     raison = base_a_deux_seances(conn).matrices.correlation_undefined_reason
 
-    assert "±1" in raison
-    assert "Deux points centrés sont colinéaires" in raison
-    # La colinéarité est propre à la corrélation : le beta, lui, n'a pas de
-    # résidu, ce qui est une autre façon de dégénérer.
+    assert f"+1 ou {MINUS}1" in raison
+    assert "quels que soient les titres" in raison
+    # La conséquence est propre à la corrélation : la raison du beta, elle,
+    # n'en dit rien.
     assert "erreur type" not in raison
 
 
-def test_la_raison_des_contributions_parle_du_rang_de_la_covariance(conn):
+def test_la_raison_des_contributions_parle_de_la_part_de_chaque_ligne(conn):
     raison = base_a_deux_seances(conn).variance_contributions.undefined_reason
 
-    assert "rang 1" in raison
-    assert "rang au plus n − 1" in raison
-    assert "±1" not in raison
+    assert "la part de chaque ligne dans les variations n'a pas de sens" in raison
+    assert "+1" not in raison
     assert "erreur type" not in raison
     # Il n'y a AUCUNE régression dans une décomposition de variance : l'invoquer
     # serait une justification empruntée à une autre mesure.
     assert "régression" not in raison
 
 
-def test_les_trois_raisons_partagent_la_demonstration_et_rien_de_plus(conn):
+def test_les_trois_raisons_partagent_le_seuil_et_rien_de_plus(conn):
     """Le partage s'arrête où les mesures cessent de dégénérer pareil."""
     rapport = base_a_deux_seances(conn)
     raisons = [
@@ -1442,19 +1437,17 @@ def test_les_trois_raisons_partagent_la_demonstration_et_rien_de_plus(conn):
         rapport.variance_contributions.undefined_reason,
     ]
 
-    # La partie commune ne dit que ce qui vaut des trois : à deux observations,
-    # le centrage ne laisse qu'une direction. Elle ne parle NI de régression —
-    # il n'y en a pas dans une décomposition de variance — NI de coefficient à
-    # ±1, qui n'est vrai que de la corrélation.
-    commun = "le centrage ne laisse qu'une seule direction"
+    # La partie commune ne dit que ce qui vaut des trois : ce qui a été reçu,
+    # et ce qu'il faut. Elle ne parle NI de régression — il n'y en a pas dans
+    # une décomposition de variance — NI de coefficient à ±1, qui n'est vrai
+    # que de la corrélation.
     for raison in raisons:
-        assert f"2 séances seulement" in raison
-        assert commun in raison
-        assert "un unique écart journalier" in raison
+        assert raison.startswith(f"Sur 2{NBSP}jours de bourse, ")
+        assert "n'a pas de sens : il en faut au moins 3." in raison
 
-    # Et les conséquences, elles, sont toutes différentes.
-    consequences = [raison.split("unique écart journalier.")[1] for raison in raisons]
-    assert len(set(consequences)) == 3
+    # Chacune nomme sa mesure : trois sujets différents.
+    sujets = [raison.split(", ", 1)[1].split(" n'a pas de sens")[0] for raison in raisons]
+    assert len(set(sujets)) == 3
 
 
 # ------------------------ Les contributions refusent dans la MESURE aussi --
@@ -1510,7 +1503,8 @@ def test_a_deux_seances_la_volatilite_reste_publiee_la_var_historique_est_refuse
     var_historique = rapport.historical_var[0.95]
     assert var_historique.value is None
     assert var_historique.undefined_reason.startswith(
-        "Sur 2\u00a0séances, aucune ne tombe dans les 5\u202f% des pires"
+        f"Sur 2{NBSP}jours de bourse, aucun ne tombe parmi les 5{NARROW_NBSP}% les "
+        "plus mauvais"
     )
     assert rapport.drawdown.value <= 0.0
 

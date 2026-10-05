@@ -18,7 +18,7 @@ import pandas as pd
 
 from backend import typography
 from backend.ingestion.universe import BENCHMARK_NAMES
-from backend.typography import NARROW_NBSP, NBSP
+from backend.typography import MINUS, NARROW_NBSP, NBSP
 
 from . import covariance, measures, regime, stress, var
 from .config import (
@@ -812,72 +812,68 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
-# Conséquence PROPRE À CHAQUE MESURE de la dégénérescence de l'échantillon.
+def _jours_de_bourse(nombre: int) -> str:
+    """« 7 jours de bourse », insécable : le mot d'une raison publiée.
+
+    Les raisons de refus s'affichent à la place d'une phrase de lecture, où
+    l'interface dit « jour de bourse ». « Séance » reste le mot des détails
+    techniques (fenêtre, provenance).
+    """
+    return typography.counted(nombre, "jour de bourse", "jours de bourse")
+
+
+# Ce que chaque mesure devient sous `MIN_ESTIMABLE_OBSERVATIONS`, dit pour un
+# lecteur : la raison s'affiche à la place du chiffre.
 #
-# Les trois mesures refusent sous le même SEUIL, pas pour la même RAISON, et un
-# texte commun affirmerait de chacune ce qui n'est vrai que d'une seule :
+# Les trois mesures refusent sous le même SEUIL, pas pour la même RAISON, et une
+# explication commune affirmerait de chacune ce qui n'est vrai que d'une seule :
+# « le coefficient vaut ±1 » est vrai d'une corrélation et FAUX d'une pente — à
+# deux séances un beta vaut n'importe quoi, 11,84 puis 8,65 sur deux fenêtres
+# de la base réelle. Une explication fausse attachée à un refus juste est pire
+# qu'un refus sans explication : le lecteur en tire une conclusion sur ses
+# données.
 #
-#   * « le coefficient vaut ±1 » est vrai d'une corrélation et FAUX d'une pente —
-#     à deux séances un beta vaut n'importe quoi, 11,84 puis 8,65 sur deux
-#     fenêtres de la base réelle ;
-#   * « une régression avec constante a n − 2 degrés de liberté » est hors sujet
-#     pour une décomposition de variance, où il n'y a aucune régression.
-#
-# Une explication fausse attachée à un refus juste est pire qu'un refus sans
-# explication : le lecteur en tire une conclusion sur ses données.
-#
-# La partie commune est donc réduite à ce qui vaut des trois — à deux
-# observations, le centrage ne laisse qu'une seule direction —, et chaque
-# conséquence porte sa propre justification.
+# La raison publiée nomme donc SA mesure et le seuil, et seule la corrélation
+# garde une conséquence, parce qu'elle se dit sans formule et qu'elle est
+# vraie d'elle seule. La démonstration — à deux observations, le centrage ne
+# laisse qu'une seule direction — et ses conséquences propres à chaque mesure
+# (colinéarité, absence de résidu, covariance de rang 1) sont dans le README.
+SUJETS_NON_ESTIMABLES: dict[str, str] = {
+    "correlation": "une corrélation",
+    "beta": "la sensibilité au marché",
+    "contributions": "la part de chaque ligne dans les variations",
+}
+
 CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
     "correlation": (
-        "Deux points centrés sont colinéaires : le coefficient vaut alors ±1 par "
-        "construction, quelles que soient les données."
+        f" Avec deux jours, elle vaudrait +1 ou {MINUS}1 quels que soient les "
+        "titres."
     ),
-    # Ce texte ne mentionne PAS « ±1 », pas même pour le nier : ce serait
-    # répondre à une objection que le lecteur d'un beta ne se pose pas, et
-    # remettre en circulation le mot qui n'a rien à faire ici.
-    "beta": (
-        "Une régression avec constante a n − 2 degrés de liberté résiduels ; à "
-        "deux points il n'en reste aucun, et la pente n'a pas d'erreur type. "
-        "Elle prend alors n'importe quelle valeur, ce qui ne la rend pas "
-        "davantage estimée."
-    ),
-    # Sans formule : la phrase s'affiche en Spectral, qui n'a pas de glyphe
-    # grec. La formule, Σ ∝ δδᵀ et wᵢδᵢ / (wᵀδ), est dans le README.
-    "contributions": (
-        "Une covariance d'échantillon sur n observations est de rang au plus "
-        "n − 1, le centrage retirant une dimension : à deux observations elle est "
-        "de rang 1, et la part de chaque ligne s'y ramène à sa part dans ce seul "
-        "écart."
-    ),
+    # Rien sur ±1, pas même pour le nier : ce serait répondre à une objection
+    # que le lecteur d'un beta ne se pose pas.
+    "beta": "",
+    "contributions": "",
 }
 
 
-def _non_estimable(window: Window, quoi: str, mesure: str) -> str | None:
+def _non_estimable(window: Window, mesure: str) -> str | None:
     """Raison du refus d'estimer, ou None si la fenêtre le permet.
 
-    Une partie commune — le seuil, et le fait dont les trois mesures découlent —
-    puis la justification propre à `mesure`. Le partage s'arrête exactement là où
-    les mesures cessent de dégénérer de la même façon : la corrélation par
-    colinéarité, le beta par absence de résidu, les contributions par perte de
-    rang.
+    Ce qui a été reçu, ce que la mesure n'est pas, et ce qu'il faut — puis la
+    conséquence propre à `mesure`, quand elle se dit sans formule.
     """
     if window.observations >= MIN_ESTIMABLE_OBSERVATIONS:
         return None
     return (
-        f"{typography.sessions(window.observations)} seulement : {quoi} n'est "
-        "pas estimable "
-        f"en deçà de {MIN_ESTIMABLE_OBSERVATIONS} observations. À deux "
-        "observations, le centrage ne laisse qu'une seule direction : tout se "
-        "calcule à partir d'un unique écart journalier. "
-        f"{CONSEQUENCES_NON_ESTIMABLE[mesure]}"
+        f"Sur {_jours_de_bourse(window.observations)}, "
+        f"{SUJETS_NON_ESTIMABLES[mesure]} n'a pas de sens : il en faut au moins "
+        f"{MIN_ESTIMABLE_OBSERVATIONS}.{CONSEQUENCES_NON_ESTIMABLE[mesure]}"
     )
 
 
 def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
     """Covariance et corrélation des titres détenus, sur la fenêtre."""
-    refus = _non_estimable(serie.window, "une corrélation", "correlation")
+    refus = _non_estimable(serie.window, "correlation")
     return CovarianceResult(
         covariance=covariance.covariance_matrix(serie.asset_returns),
         correlation=(
@@ -890,9 +886,7 @@ def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
 
 def variance_contributions(serie: PortfolioSeries) -> VarianceContributionResult:
     """Contribution de chaque ligne à la variance, sur la fenêtre d'estimation."""
-    refus = _non_estimable(
-        serie.window, "une décomposition de la variance", "contributions"
-    )
+    refus = _non_estimable(serie.window, "contributions")
     if refus:
         return VarianceContributionResult(
             contributions=None,
@@ -934,7 +928,7 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
             "`build_portfolio_series(..., benchmark=\"SPY\")`."
         )
     base = "rendements bruts (non excédentaires)"
-    refus = _non_estimable(serie.window, "un beta", "beta")
+    refus = _non_estimable(serie.window, "beta")
     if refus:
         return BetaResult(
             beta=None,
@@ -958,25 +952,30 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
 # ------------------------------------------------------------------- VaR --
 
 
-def _queue_vide(window: Window, confidence: float, quoi: str) -> str | None:
+def _queue_vide(window: Window, confidence: float) -> str | None:
     """Raison du refus d'une mesure de queue historique, ou None.
 
     Sous 1/(1 − α) séances, aucune ne tombe dans la queue : le quantile n'est
     que le minimum de la fenêtre (voir `config.historical_var_min_observations`).
     La phrase dit ce qui a été reçu, ce que la queue aurait dû contenir, et ce
-    qu'il faut — sans formule, pour un particulier.
+    qu'il faut — sans formule, en jours de bourse : elle s'affiche à la place de
+    la phrase de lecture. Le même texte sert à la VaR historique et à la CVaR
+    du même niveau, refusées ensemble.
     """
     minimum = historical_var_min_observations(confidence)
     if window.observations >= minimum:
         return None
     part = 1.0 - confidence
-    # « le 1 % », « les 5 % » : le singulier en deçà de deux, comme
-    # `typography.counted`.
-    article = "le" if part * 100.0 < 2.0 else "les"
+    # « dans le 1 % le plus mauvais », « parmi les 5 % les plus mauvais » : le
+    # singulier en deçà de deux, comme `typography.counted`.
+    queue = (
+        f"dans le {typography.percent(part, 0)} le plus mauvais"
+        if part * 100.0 < 2.0
+        else f"parmi les {typography.percent(part, 0)} les plus mauvais"
+    )
     return (
-        f"Sur {typography.sessions(window.observations)}, aucune ne tombe dans "
-        f"{article} {typography.percent(part, 0)} des pires : il en faut au moins "
-        f"{minimum} pour {quoi} à {typography.percent(confidence, 0)}."
+        f"Sur {_jours_de_bourse(window.observations)}, aucun ne tombe {queue} : "
+        f"il en faut au moins {minimum} pour ce calcul."
     )
 
 
@@ -985,7 +984,7 @@ def historical_var(
 ) -> VarResult:
     """Quantile empirique, ou refus sous 1/(1 − α) séances."""
     detail = f"quantile empirique, interpolation {var.QUANTILE_METHOD!r}"
-    refus = _queue_vide(serie.window, confidence, "une VaR historique")
+    refus = _queue_vide(serie.window, confidence)
     if refus:
         return VarResult(
             value=None,
@@ -1040,7 +1039,7 @@ def expected_shortfall(
 ) -> ExpectedShortfallResult:
     """Perte moyenne de la queue, refusée avec la VaR historique du même
     niveau : elle moyenne la queue que ce quantile borne."""
-    refus = _queue_vide(serie.window, confidence, "une CVaR")
+    refus = _queue_vide(serie.window, confidence)
     if refus:
         return ExpectedShortfallResult(
             value=None,
@@ -1109,14 +1108,10 @@ def student_fit(serie: PortfolioSeries) -> var.StudentFit:
     ajustement = var.fit_student_t(serie.returns)
     if ajustement.nu > MAX_STUDENT_NU:
         raise ValueError(
-            f"Sur cette fenêtre de {typography.sessions(ajustement.observations)}, "
-            "la loi de Student ne se distingue pas de la normale (degrés de "
-            "liberté estimés supérieurs à "
-            f"{typography.number(MAX_STUDENT_NU, 0)}, seuil choisi à la main) : "
-            "les rendements ne montrent pas de queues plus épaisses "
-            "que la normale. "
-            "Sur une fenêtre courte, cela peut aussi signifier qu'aucun choc "
-            "extrême n'y figure."
+            f"Sur ces {_jours_de_bourse(ajustement.observations)}, vos variations "
+            "ne s'écartent pas de la loi normale : la loi de Student donnerait le "
+            "même chiffre (seuil choisi à la main). Sur une période courte, cela "
+            "peut aussi vouloir dire qu'aucun jour extrême n'y figure."
         )
     return ajustement
 
@@ -1361,7 +1356,7 @@ def _coverage_for(
             exclus.append(
                 ExcludedPosition(
                     ticker=ticker,
-                    reason="aucun historique en base",
+                    reason="aucun cours en base",
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
                 )
@@ -1374,8 +1369,8 @@ def _coverage_for(
                 ExcludedPosition(
                     ticker=ticker,
                     reason=(
-                        f"historique débutant le {debut}, après l'ouverture du "
-                        f"scénario ({scenario.start})"
+                        f"cotée depuis le {typography.long_date(debut)} "
+                        "seulement, après le début de la crise"
                     ),
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
@@ -1387,8 +1382,8 @@ def _coverage_for(
                 ExcludedPosition(
                     ticker=ticker,
                     reason=(
-                        f"historique s'arrêtant le {fin}, avant la clôture du "
-                        f"scénario ({scenario.end})"
+                        f"plus cotée après le {typography.long_date(fin)}, "
+                        "avant la fin de la crise"
                     ),
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
@@ -1404,6 +1399,14 @@ def _coverage_for(
         covered_value=sum(poids.values[t] for t in couverts),
         total_value=poids.total_value,
     )
+
+
+# Aucune ligne n'a traversé l'épisode : la même raison pour le scénario et
+# pour la comparaison de régimes, qui s'affichent dans le même bloc.
+_AUCUNE_LIGNE_COTEE = (
+    "Aucune de vos lignes n'était cotée pendant toute cette crise : elle ne "
+    "peut pas être rejouée."
+)
 
 
 def run_scenario(
@@ -1428,13 +1431,7 @@ def run_scenario(
     )
 
     if not couverture.has_any:
-        return replace(
-            vide,
-            unavailable_reason=(
-                "aucune ligne du portefeuille n'a d'historique couvrant "
-                f"{scenario.start} → {scenario.end}"
-            ),
-        )
+        return replace(vide, unavailable_reason=_AUCUNE_LIGNE_COTEE)
 
     # Poids actuels des seules lignes couvertes ; `stress` les renormalise à 1.
     poids_couverts = {t: poids.weights[t] for t in couverture.covered}
@@ -1446,8 +1443,8 @@ def run_scenario(
         return replace(
             vide,
             unavailable_reason=(
-                f"moins de deux séances communes sur {scenario.start} → "
-                f"{scenario.end} pour les lignes couvertes"
+                "Moins de deux jours de bourse communs à vos lignes pendant "
+                "cette crise : elle ne peut pas être rejouée."
             ),
         )
 
@@ -1660,6 +1657,18 @@ def _regressed(
     )
 
 
+def _de_l_indice(ticker: str) -> str:
+    """« du S&P 500 » pour SPY, « de QQQ » pour un indice sans nom connu."""
+    nom = benchmark_name(ticker)
+    if nom is None:
+        return f"de {ticker}"
+    if nom.label.startswith("le "):
+        return f"du {nom.label[3:]}"
+    if nom.label.startswith("les "):
+        return f"des {nom.label[4:]}"
+    return f"de {nom.label}"
+
+
 def compare_regimes(
     conn: sqlite3.Connection,
     portfolio_id: int,
@@ -1674,13 +1683,7 @@ def compare_regimes(
     base = RegimeComparison(scenario=scenario, coverage=couverture, benchmark=benchmark)
 
     if not couverture.has_any:
-        return replace(
-            base,
-            unavailable_reason=(
-                "aucune ligne du portefeuille n'a d'historique couvrant "
-                f"{scenario.start} → {scenario.end}"
-            ),
-        )
+        return replace(base, unavailable_reason=_AUCUNE_LIGNE_COTEE)
 
     # Poids renormalisés sur les lignes couvertes. Indispensable pour le beta :
     # une série construite avec des poids sommant à 0,5 aurait une pente deux
@@ -1695,16 +1698,18 @@ def compare_regimes(
     if benchmark not in brut_crise.columns:
         return replace(
             base,
-            unavailable_reason=f"aucun cours du benchmark {benchmark} sur la fenêtre",
+            unavailable_reason=(
+                f"Pas de cours {_de_l_indice(benchmark)} sur cette période : "
+                "comparaison impossible."
+            ),
         )
     crise = align_panel(brut_crise)
     if len(crise) < 4:
         return replace(
             base,
             unavailable_reason=(
-                f"{typography.sessions(len(crise))} communes seulement sur la "
-                "fenêtre : "
-                "trop peu pour une régression"
+                f"{typography.counted(len(crise), 'jour de bourse commun', 'jours de bourse communs')}"
+                " seulement : trop peu pour mesurer la sensibilité au marché."
             ),
         )
 
@@ -1799,17 +1804,16 @@ def _raison_student(
     seances = serie.window.observations
     if seances < var.STUDENT_MIN_OBSERVATIONS:
         return (
-            f"La fenêtre compte {typography.sessions(seances)} : il en faut au "
-            f"moins {var.STUDENT_MIN_OBSERVATIONS} pour ajuster une loi de "
-            "Student."
+            "Pas assez de jours pour ajuster la loi de Student : il en faut au "
+            f"moins {var.STUDENT_MIN_OBSERVATIONS}, la période en compte "
+            f"{seances}."
         )
     if ajustement is not None and ajustement.nu <= 2.0:
         return (
-            f"Sur cette fenêtre de {typography.sessions(seances)}, la loi de "
-            "Student ajustée n'a pas de variance finie (degrés de liberté "
-            f"estimés à {typography.number(ajustement.nu, 2)} ≤ 2) : aucune "
-            "VaR de même variance que les rendements observés n'existe. Un "
-            "ajustement aussi proche de 2 est lui-même suspect."
+            f"Sur ces {_jours_de_bourse(seances)}, la loi de Student ne "
+            "s'ajuste pas à vos variations (degrés de liberté estimés à "
+            f"{typography.number(ajustement.nu, 2)}, il en faut plus de 2) : "
+            "aucun chiffre n'en sort."
         )
     return str(exc)
 

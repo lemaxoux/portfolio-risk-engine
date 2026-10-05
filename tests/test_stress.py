@@ -415,7 +415,7 @@ def test_une_ligne_sans_historique_sur_la_fenetre_est_declaree_pas_ignoree(conn)
     assert couverture.covered == ("A",)
     assert (couverture.covered_count, couverture.total_count) == (1, 2)
     assert [e.ticker for e in couverture.excluded] == ["B"]
-    assert "après l'ouverture" in couverture.excluded[0].reason
+    assert "après le début de la crise" in couverture.excluded[0].reason
     assert couverture.excluded[0].first_available == j[5]
 
     # Un chiffre reste produit, mais sur une part déclarée de la valeur.
@@ -475,7 +475,7 @@ def test_sans_aucune_ligne_couverte_aucun_chiffre_n_est_produit(conn):
     assert resultat.max_drawdown is None
     assert resultat.contributions == ()
     assert resultat.coverage.value_share == 0.0
-    assert "aucune ligne" in resultat.unavailable_reason
+    assert "Aucune de vos lignes" in resultat.unavailable_reason
     assert "non calculable" in resultat.summary()
 
 
