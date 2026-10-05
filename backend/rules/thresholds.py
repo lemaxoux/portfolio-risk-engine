@@ -111,10 +111,10 @@ class Threshold:
     def __str__(self) -> str:
         if self.chosen:
             return (
-                f"{self.name} = {self.displayed} — seuil CHOISI à la main, non "
-                f"dérivé des données : {self.rationale}"
+                f"{self.name} = {self.displayed} (seuil CHOISI à la main, non "
+                f"dérivé des données) : {self.rationale}"
             )
-        return f"{self.name} = {self.displayed} — {self.kind.value} : {self.rationale}"
+        return f"{self.name} = {self.displayed} ({self.kind.value}) : {self.rationale}"
 
 
 # ------------------------------------------------ Seuils choisis à la main --
@@ -139,8 +139,8 @@ MIN_SCENARIO_COVERAGE = Threshold(
     value=MIN_SCENARIO_COVERAGE_SHARE,
     decimals=0,
     rationale=(
-        "le biais de la renormalisation est orienté — la partie exclue est plus "
-        "récente, donc en moyenne plus spéculative —, un seuil plus strict qu'un "
+        "le biais de la renormalisation est orienté (la partie exclue est plus "
+        "récente, donc en moyenne plus spéculative), un seuil plus strict qu'un "
         "pile ou face s'impose ; à "
         f"{typography.percent(MIN_SCENARIO_COVERAGE_SHARE, 0)}, même si la "
         "partie exclue avait perdu deux fois plus que la partie couverte, la perte "
@@ -178,9 +178,9 @@ STUDENT_NU_CEILING = Threshold(
         f"au plus à {typography.percent(0.99, 0)} et de "
         f"{typography.percent(0.0031, 2)} au plus à {typography.percent(0.95, 0)}, "
         "bien moins que l'erreur type d'un écart-type d'échantillon, environ "
-        f"1/√(2n) sous normalité — {typography.percent(0.09, 0)} sur "
+        f"1/√(2n) sous normalité ({typography.percent(0.09, 0)} sur "
         f"{typography.sessions(60)}, {typography.percent(0.032, 1)} sur "
-        f"{typography.sessions(504)} — et davantage avec des queues épaisses"
+        f"{typography.sessions(504)}) et davantage avec des queues épaisses"
     ),
 )
 
@@ -198,9 +198,9 @@ MIN_DISTRIBUTION_SAMPLE = Threshold(
         "convention usuelle du « grand échantillon », qu'aucun calcul sur le "
         "portefeuille ne produit ; sous normalité, l'écart-type d'échantillon "
         "qui porte la volatilité et la VaR paramétrique varie d'environ "
-        f"1/√(2n) d'une fenêtre à l'autre — {typography.percent(0.13, 0)} sur "
+        f"1/√(2n) d'une fenêtre à l'autre ({typography.percent(0.13, 0)} sur "
         f"{typography.sessions(30)}, {typography.percent(0.27, 0)} sur "
-        f"{typography.sessions(7)} —, et l'ajustement d'une loi de Student "
+        f"{typography.sessions(7)}), et l'ajustement d'une loi de Student "
         "repose sur une ou deux séances de queue"
     ),
 )
@@ -240,7 +240,7 @@ MIN_ESTIMABLE_SAMPLE = Threshold(
         "à deux observations, le centrage ne laisse qu'une seule direction : "
         "corrélation, beta et contributions à la variance s'y calculent tous à "
         "partir d'un unique écart journalier et ne portent aucune information "
-        "qu'il ne porte déjà — ce ne sont plus des statistiques bruyantes mais "
+        "qu'il ne porte déjà. Ce ne sont plus des statistiques bruyantes mais "
         "des identités arithmétiques"
     ),
 )
@@ -265,7 +265,7 @@ def historical_var_sample(confidence: float) -> Threshold:
         rationale=(
             "la queue au-delà du quantile compte n·(1 − α) séances ; en deçà "
             "d'une, aucune n'y tombe, et le chiffre ne serait que le pire "
-            "rendement de la fenêtre, pas un quantile — la CVaR, qui moyenne "
+            "rendement de la fenêtre, pas un quantile. La CVaR, qui moyenne "
             "cette queue, se réduirait au même minimum"
         ),
     )

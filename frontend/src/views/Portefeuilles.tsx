@@ -30,6 +30,7 @@ import {
   versApiErreur,
 } from '../api/client'
 import type { PortfolioDetail } from '../api/types'
+import { Absent } from '../components/Absent'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { DataTable, type Colonne } from '../components/DataTable'
@@ -107,8 +108,8 @@ function AucunPortefeuille({
       </p>
       <Creation recharger={recharger} annoncer={annoncer} titre="Créer un portefeuille" />
       <p className={`${styles.texte} ${styles.suite}`}>
-        Ses positions se saisissent ligne à ligne, ou s'importent d'un fichier CSV — par
-        exemple l'export d'un tableur — sur la page qui s'ouvre à la création.
+        Ses positions se saisissent ligne à ligne, ou s'importent d'un fichier CSV (par
+        exemple l'export d'un tableur) sur la page qui s'ouvre à la création.
       </p>
       <FormatCsv niveau={2} />
     </div>
@@ -168,7 +169,7 @@ function Liste({
       nature: 'texte',
       cellule: (p) => (
         <span className={styles.date}>
-          {p.valuation === null ? TIRET_INDEFINI : dateISO(p.valuation.as_of)}
+          {p.valuation === null ? <Absent /> : dateISO(p.valuation.as_of)}
         </span>
       ),
     },

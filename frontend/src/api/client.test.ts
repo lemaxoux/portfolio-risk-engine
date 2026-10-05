@@ -84,7 +84,7 @@ describe('segmenter — la commande sort du texte courant', () => {
     // commande, « , » perdait sa ponctuation finale — lui-même — et
     // disparaissait.
     const message =
-      "3 colonnes lues, l'en-tête en a 2 : avec le séparateur `,`, une virgule " +
+      "3 colonnes lues, l'en-tête en a 2. Avec le séparateur `,`, une virgule " +
       'décimale coupe le nombre en deux.'
     const segments = segmenter(message)
     expect(segments.find((s) => s.genre === 'litteral')?.contenu).toBe(',')
@@ -141,7 +141,7 @@ describe('lecture', () => {
 
   it('conserve les problèmes ligne à ligne d’un 422', async () => {
     const problems = [
-      { line: 4, field: 'ticker', value: 'XYZ', problem: 'Ticker inconnu' },
+      { line: 4, field: 'ticker', value: 'XYZ', problem: "XYZ n'est pas un titre connu." },
     ]
     repondre(422, { detail: 'Requête refusée.', problems })
     await expect(getMeta()).rejects.toMatchObject({ statut: 422, problems })

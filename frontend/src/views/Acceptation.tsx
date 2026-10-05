@@ -27,7 +27,7 @@ export function Acceptation({ bandeau, onAccepte }: Props) {
 
   // L'onglet dit où l'on est, comme sur toute autre page.
   useEffect(() => {
-    document.title = `${bandeau.title} — Mx Risk MGT`
+    document.title = `${bandeau.title} (Mx Risk MGT)`
   }, [bandeau.title])
 
   return (

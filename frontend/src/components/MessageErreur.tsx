@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react'
 
 import { segmenter, type ApiErreur } from '../api/client'
+import { messageDeLigne } from '../lib/phrases'
 import styles from './MessageErreur.module.css'
 
 /**
@@ -71,16 +72,14 @@ export function MessageErreur({
   return (
     <div className={styles.bloc} role={alerte ? 'alert' : undefined}>
       <p className={styles.phrase}>
-        {unique && premier.line !== null && `Ligne ${premier.line} — `}
-        <Segments message={erreur.detail} />
+        <Segments message={unique ? messageDeLigne(premier.line, erreur.detail) : erreur.detail} />
       </p>
 
       {erreur.problems.length > 0 && !unique && (
         <ul className={styles.problemes}>
           {erreur.problems.map((probleme, index) => (
             <li key={index}>
-              {probleme.line !== null && `Ligne ${probleme.line} — `}
-              <Segments message={probleme.problem} />
+              <Segments message={messageDeLigne(probleme.line, probleme.problem)} />
             </li>
           ))}
         </ul>

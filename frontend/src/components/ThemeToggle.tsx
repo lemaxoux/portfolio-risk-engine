@@ -51,7 +51,7 @@ export function ThemeToggle() {
       // utilisateur de commande vocale doit pouvoir dire ce qu'il lit. L'état
       // courant le complète, parce qu'un bouton qui ne dit que l'action laisse
       // ignorer d'où l'on part.
-      aria-label={`${libelle} — actuellement ${etat}`}
+      aria-label={`${libelle} (actuellement ${etat})`}
       onClick={() => {
         appliquerTheme(cible)
         setFige(cible)

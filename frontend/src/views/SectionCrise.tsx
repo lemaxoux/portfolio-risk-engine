@@ -28,6 +28,7 @@
 import type { ReactNode } from 'react'
 
 import type { Regime, Scenario } from '../api/types'
+import { avecAbsence } from '../components/Absent'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
@@ -69,7 +70,7 @@ function Chiffre({
   return (
     <div className={styles.cellule}>
       <dt className={styles.libelle}>{libelle}</dt>
-      <dd className={styles.chiffre}>{valeur}</dd>
+      <dd className={styles.chiffre}>{avecAbsence(valeur)}</dd>
       {children}
     </div>
   )
@@ -133,7 +134,7 @@ function BlocRegime({ regime }: { regime: Regime }) {
       {prediction !== null && <p className={commun.lecture}>{prediction}</p>}
       <p className={commun.neDitPas}>{NE_DIT_PAS_REGIME}</p>
       <DataTable
-        legende={`Sensibilité à ${regime.benchmark}, en temps ordinaire et en crise — jamais moyennées`}
+        legende={`Sensibilité à ${regime.benchmark}, en temps ordinaire et en crise (jamais moyennées)`}
         colonnes={colonnesRegime(majuscule(regime.calm_period_label ?? "période d'estimation"))}
         lignes={lignesRegime}
         cleDeLigne={(l) => l.mesure}

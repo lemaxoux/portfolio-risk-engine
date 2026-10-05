@@ -110,7 +110,7 @@ describe('le contrôle Monte Carlo absent', () => {
     const raison =
       'La fenêtre compte 7 séances pour 7 lignes : il en faut davantage que de lignes pour simuler le portefeuille.'
     const controle = provenanceDeVar(NORMALE, null, raison).find((l) => l.libelle === 'Contrôle')
-    expect(controle?.valeur).toBe(`indisponible — ${raison}`)
+    expect(controle?.valeur).toBe(`indisponible. ${raison}`)
   })
 
   it('n’ajoute aucune ligne quand rien n’a été demandé', () => {

@@ -101,6 +101,15 @@ describe('preparerEnvoi', () => {
       [3, 'cost_basis'],
     ])
     expect(refus[0]?.message).toBe('Quantité manquante.')
+    // Le sujet d'abord : précédé de « Ligne 2 : », le refus ne porte pas de
+    // second deux-points dans sa première phrase.
+    expect(refus[1]?.message).toBe(
+      "«\u00a012,5,3\u00a0» n'est pas une quantité lisible. Écrire par exemple 40 ou 12,5.",
+    )
+    expect(refus[2]?.message).toBe(
+      "«\u00a0abc\u00a0» n'est pas un prix de revient lisible. Écrire par exemple 185,20, ou laisser vide.",
+    )
+    for (const r of refus) expect(r.message.split('.')[0]).not.toContain(':')
   })
 
   it('un prix de revient vide part à null', () => {
@@ -112,7 +121,7 @@ describe('preparerEnvoi', () => {
 describe('rangerRefus', () => {
   it('range chaque refus du serveur à sa ligne et à son champ', () => {
     const { parCellule, generaux } = rangerRefus([
-      { line: 2, field: 'ticker', value: 'XYZ', problem: 'Ticker inconnu : XYZ.' },
+      { line: 2, field: 'ticker', value: 'XYZ', problem: "XYZ n'est pas un titre connu." },
       { line: 3, field: 'quantity', value: '-5.0', problem: 'Quantité nulle ou négative.' },
       { line: 4, field: null, value: null, problem: 'Ligne refusée.' },
       { line: null, field: null, value: null, problem: 'Aucune position soumise.' },

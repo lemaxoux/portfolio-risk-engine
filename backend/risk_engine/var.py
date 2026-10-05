@@ -227,7 +227,7 @@ def monte_carlo_var(
 
     _SINGULIERE = (
         "Matrice de covariance non définie positive : la décomposition de "
-        "Cholesky ne donnerait pas un facteur exploitable. Causes habituelles — "
+        "Cholesky ne donnerait pas un facteur exploitable. Causes habituelles : "
         "deux titres parfaitement corrélés (une ligne en double dans le "
         "portefeuille), un titre à variance nulle, ou moins de séances que de "
         "titres dans la fenêtre. Vérifier le panel avant de simuler."
@@ -378,7 +378,7 @@ def _require_finite_variance(nu: float) -> None:
             "Student n'a pas de variance finie. "
             "Aucune matrice d'échelle ne peut reproduire la covariance observée, "
             "et une VaR « à variance ajustée » n'a pas de sens. Vérifier d'abord "
-            "l'ajustement — un ν à peine supérieur à 2 est lui-même suspect."
+            "l'ajustement : un ν à peine supérieur à 2 est lui-même suspect."
         )
 
 

@@ -28,6 +28,7 @@
  */
 import { useState, type ReactNode } from 'react'
 
+import { avecAbsence } from './Absent'
 import styles from './DataTable.module.css'
 
 export interface Colonne<T> {
@@ -143,11 +144,11 @@ export function DataTable<T>({
                 const classes = [styles.cellule, colonne.nature === 'nombre' ? styles.nombre : '']
                 return rang === 0 ? (
                   <th key={colonne.cle} scope="row" className={classes.join(' ')}>
-                    {colonne.cellule(ligne)}
+                    {avecAbsence(colonne.cellule(ligne))}
                   </th>
                 ) : (
                   <td key={colonne.cle} className={classes.join(' ')}>
-                    {colonne.cellule(ligne)}
+                    {avecAbsence(colonne.cellule(ligne))}
                   </td>
                 )
               })}
@@ -161,7 +162,7 @@ export function DataTable<T>({
                 const classes = [styles.cellule, colonne.nature === 'nombre' ? styles.nombre : '']
                 return (
                   <td key={colonne.cle} className={classes.join(' ')}>
-                    {pied[rang] ?? null}
+                    {avecAbsence(pied[rang] ?? null)}
                   </td>
                 )
               })}

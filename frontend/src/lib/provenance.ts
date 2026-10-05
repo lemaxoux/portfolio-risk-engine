@@ -79,13 +79,13 @@ export function provenanceDeVar(
   if (controle !== null) {
     lignes.push({
       libelle: 'Contrôle',
-      valeur: `${resultat.method === controle.method ? '' : `${controle.method}\u00a0: `}${pourcentage(controle.value, 2)} — ${controle.detail}`,
+      valeur: `${resultat.method === controle.method ? '' : `${controle.method}\u00a0: `}${pourcentage(controle.value, 2)}, ${controle.detail}`,
     })
   } else if (raisonSansControle !== null) {
     // Le contrôle manque, et le moteur dit pourquoi
     // (`monte_carlo_unavailable_reason`) : une ligne absente sans raison
     // serait un blanc inexpliqué.
-    lignes.push({ libelle: 'Contrôle', valeur: `indisponible — ${raisonSansControle}` })
+    lignes.push({ libelle: 'Contrôle', valeur: `indisponible. ${raisonSansControle}` })
   }
 
   return lignes

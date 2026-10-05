@@ -100,14 +100,13 @@
   border-color: var(--text-1);
 }
 
-/* Le refus d'un champ : un texte, en --text-1, précédé d'un trait — la
- * couleur ne porte rien. */
+/* Le refus d'un champ : un texte, en --text-1, bordé d'un trait vertical de
+ * 2 px, celui du contour d'un champ refusé. La couleur ne porte rien. Pas de
+ * tiret devant le texte : l'interface n'emploie aucun tiret cadratin (§6.3),
+ * et son seul tiret isolé est celui d'une valeur absente. */
 .refus {
+  padding-inline-start: var(--space-2);
+  border-inline-start: 2px solid var(--text-1);
   color: var(--text-1);
   font-size: var(--text-sm);
-}
-
-/* Le tiret est un repère visuel : texte alternatif vide, il n'est pas lu. */
-.refus::before {
-  content: '— ' / '';
 }

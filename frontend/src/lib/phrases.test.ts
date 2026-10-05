@@ -30,6 +30,7 @@ import { ESPACE_FINE, ESPACE_INSECABLE } from './format'
 import {
   NE_DIT_PAS_GAIN,
   NE_DIT_PAS_REFUS,
+  apresDeuxPoints,
   chapeauLignesEffectives,
   cite,
   frequenceLue,
@@ -49,6 +50,7 @@ import {
   lectureVolatilite,
   legendeHistogramme,
   majuscule,
+  messageDeLigne,
   neDitPasCreux,
   neDitPasCVaR,
   neDitPasVarHistorique,
@@ -740,6 +742,37 @@ describe('fenêtre réduite (§8.1)', () => {
     // que le rapport n'a pas.
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('504')
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toContain('40')
+  })
+})
+
+describe('un refus précédé de son numéro de ligne', () => {
+  it('deux-points, puis le message en minuscule : pas de tiret', () => {
+    expect(messageDeLigne(2, 'Quantité manquante.')).toBe(
+      `Ligne 2${ESPACE_INSECABLE}: quantité manquante.`,
+    )
+    expect(messageDeLigne(9, 'Ticker vide.')).toBe(`Ligne 9${ESPACE_INSECABLE}: ticker vide.`)
+  })
+
+  it('un refus qui commence par son sujet passe tel quel', () => {
+    expect(messageDeLigne(4, "XYZ n'est pas un titre connu.")).toBe(
+      `Ligne 4${ESPACE_INSECABLE}: XYZ n'est pas un titre connu.`,
+    )
+    const cite = `«${ESPACE_INSECABLE}dix${ESPACE_INSECABLE}» n'est pas une quantité lisible.`
+    expect(messageDeLigne(1, cite)).toBe(`Ligne 1${ESPACE_INSECABLE}: ${cite}`)
+  })
+
+  it('un ticker en tête garde ses capitales, même d’une seule lettre', () => {
+    expect(messageDeLigne(7, 'MSFT apparaît deux fois.')).toBe(
+      `Ligne 7${ESPACE_INSECABLE}: MSFT apparaît deux fois.`,
+    )
+    expect(messageDeLigne(3, 'F est connu mais n’a aucun historique.')).toBe(
+      `Ligne 3${ESPACE_INSECABLE}: F est connu mais n’a aucun historique.`,
+    )
+    expect(apresDeuxPoints('12 positions soumises.')).toBe('12 positions soumises.')
+  })
+
+  it('sans numéro de ligne, le message passe tel quel', () => {
+    expect(messageDeLigne(null, 'Aucune position soumise.')).toBe('Aucune position soumise.')
   })
 })
 

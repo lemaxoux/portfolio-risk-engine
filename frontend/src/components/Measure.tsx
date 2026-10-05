@@ -22,7 +22,8 @@
  *    n'ajoute jamais de « − ». Une valeur négative est un gain, et c'est la
  *    PHRASE DE LECTURE qui change — d'où `lecture`, que l'appelant choisit.
  * 3. Une mesure indéfinie s'affiche indéfinie : `valeur` vaut alors le tiret
- *    cadratin et `lecture` porte la raison, en toutes lettres. Jamais 0.
+ *    d'indéfini, rendu par `<Absent>` avec son texte de lecteur d'écran, et
+ *    `lecture` porte la raison, en toutes lettres. Jamais 0.
  * 4. Une réserve méthodologique met un point devant le libellé et sa phrase
  *    sous la provenance.
  *
@@ -33,6 +34,7 @@
  * l'intertitre « Détails du calcul ». L'intertitre NOMME le bloc, il ne le
  * replie pas : la provenance reste dans le flux (règle 1).
  */
+import { avecAbsence } from './Absent'
 import type { LigneProvenance } from './Provenance'
 import { Provenance } from './Provenance'
 import styles from './Measure.module.css'
@@ -77,7 +79,7 @@ export function Measure({
         {libelle}
       </figcaption>
 
-      <p className={styles.valeur}>{valeur}</p>
+      <p className={styles.valeur}>{avecAbsence(valeur)}</p>
       <p className={styles.lecture}>{lecture}</p>
       {neDitPas !== null && <p className={styles.neDitPas}>{neDitPas}</p>}
 

@@ -35,7 +35,7 @@ import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
 import { DepotCsv } from '../components/DepotCsv'
 import { FormatCsv } from '../components/FormatCsv'
 import { dateEnToutesLettres, lignes as compteLignes } from '../lib/format'
-import { cite } from '../lib/phrases'
+import { cite, messageDeLigne } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
 import {
   empreinteDesLignes,
@@ -299,7 +299,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
                   ))}
                   {tousLesRefus.map((r) => (
                     <li key={cleDeRefus(r.ligne, r.champ)}>
-                      Ligne {r.ligne} — <Segments message={r.message} />
+                      <Segments message={messageDeLigne(r.ligne, r.message)} />
                     </li>
                   ))}
                 </ul>

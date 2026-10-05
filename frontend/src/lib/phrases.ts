@@ -75,6 +75,26 @@ export function majuscule(texte: string): string {
   return texte.charAt(0).toUpperCase() + texte.slice(1)
 }
 
+/**
+ * Un message placé après un deux-points : sa première lettre passe en
+ * minuscule. Seul un mot écrit Capitale puis minuscule est touché : un ticker
+ * en tête (MSFT apparaît deux fois) garde ses capitales.
+ */
+export function apresDeuxPoints(message: string): string {
+  return /^\p{Lu}\p{Ll}/u.test(message)
+    ? message.charAt(0).toLowerCase() + message.slice(1)
+    : message
+}
+
+/**
+ * Le refus d'une ligne de saisie ou d'un fichier, précédé de son numéro. Sans
+ * numéro, le message passe tel quel.
+ */
+export function messageDeLigne(ligne: number | null, message: string): string {
+  if (ligne === null) return message
+  return `Ligne ${ligne}${ESPACE_INSECABLE}: ${apresDeuxPoints(message)}`
+}
+
 /** Ce qu'une mesure non calculée affiche quand le moteur n'a pas dit pourquoi. */
 const NON_CALCULEE = 'Non calculée, sans raison publiée.'
 

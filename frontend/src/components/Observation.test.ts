@@ -56,7 +56,7 @@ describe('les trois cas de §9.2', () => {
   })
 
   it('seuil dérivé : la ligne, sans point de réserve', () => {
-    const html = rendu(observation([seuil('derived', 'part de JPM = 25,6 % — référence calculée')]))
+    const html = rendu(observation([seuil('derived', 'part de JPM = 25,6 % (référence calculée)')]))
     expect(html).toContain('data-seuil="derived"')
     expect(html).not.toContain(styles.point)
     expect(html).not.toContain(styles.choisi)
@@ -70,7 +70,7 @@ describe('les trois cas de §9.2', () => {
   it('seuil CHOISI : le point --caveat, et lui seul', () => {
     const html = rendu(
       observation([
-        seuil('chosen', 'corrélation forte = 0,7 — seuil CHOISI à la main'),
+        seuil('chosen', 'corrélation forte = 0,7 (seuil CHOISI à la main)'),
         seuil('portfolio_relative', 'corrélation JPM–KO = 0,53'),
       ]),
     )
@@ -88,10 +88,10 @@ describe('les trois cas de §9.2', () => {
 
 describe('le texte est celui du backend', () => {
   it('rend statement, rendered et provenance mot pour mot', () => {
-    const o = observation([seuil('chosen', 'corrélation forte = 0,7 — seuil CHOISI à la main')])
+    const o = observation([seuil('chosen', 'corrélation forte = 0,7 (seuil CHOISI à la main)')])
     const html = rendu(o)
     expect(html).toContain(o.statement)
-    expect(html).toContain('corrélation forte = 0,7 — seuil CHOISI à la main')
+    expect(html).toContain('corrélation forte = 0,7 (seuil CHOISI à la main)')
     expect(html).toContain(o.provenance)
   })
 })
@@ -100,8 +100,8 @@ describe('« Seuil » pour une frontière, « Référence » pour une valeur du 
   // DESIGN.md §9.2. Dans « Lignes qui bougent ensemble », la corrélation de la
   // paire la plus corrélée était titrée « Seuil : » comme le vrai seuil choisi
   // affiché juste au-dessus d'elle.
-  const choisi = seuil('chosen', 'corrélation forte = 0,70 — seuil CHOISI à la main')
-  const paire = seuil('portfolio_relative', 'corrélation JNJ–KO = 0,42 — relatif au portefeuille')
+  const choisi = seuil('chosen', 'corrélation forte = 0,70 (seuil CHOISI à la main)')
+  const paire = seuil('portfolio_relative', 'corrélation JNJ–KO = 0,42 (relatif au portefeuille)')
 
   it('la paire la plus corrélée est une référence, le seuil choisi reste un seuil', () => {
     const html = rendu(observation([choisi, paire]))

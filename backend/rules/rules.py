@@ -114,7 +114,7 @@ class Observation:
         return any(seuil.chosen for seuil in self.thresholds)
 
     def render(self) -> str:
-        lignes = [f"[{self.rule.value} — {self.subject}] {self.statement}"]
+        lignes = [f"[{self.rule.value} : {self.subject}] {self.statement}"]
         if self.thresholds:
             lignes += [f"  {seuil.role.value} : {seuil}" for seuil in self.thresholds]
         else:

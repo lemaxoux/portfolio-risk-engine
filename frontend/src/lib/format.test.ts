@@ -46,7 +46,8 @@ describe('les caractères sont ceux de backend/typography.py', () => {
     expect(ESPACE_INSECABLE.codePointAt(0)).toBe(0x00a0)
     expect(SIGNE_MOINS).toBe('\u2212')
     expect(SIGNE_MOINS.codePointAt(0)).toBe(0x2212)
-    expect(TIRET_INDEFINI.codePointAt(0)).toBe(0x2014)
+    // Un tiret COURT : l'interface n'emploie aucun tiret cadratin (§6.3).
+    expect(TIRET_INDEFINI.codePointAt(0)).toBe(0x2013)
   })
 
   it('aucune espace ordinaire ne sort de ce module', () => {
@@ -198,7 +199,7 @@ describe('dates', () => {
 })
 
 describe('une mesure indéfinie ne devient jamais un zéro', () => {
-  it('rend le tiret cadratin sur null et undefined', () => {
+  it('rend le tiret d’indéfini sur null et undefined', () => {
     expect(pourcentageOuTiret(null, 2)).toBe(TIRET_INDEFINI)
     expect(pourcentageOuTiret(undefined, 2)).toBe(TIRET_INDEFINI)
     expect(decimalOuTiret(null, 2)).toBe(TIRET_INDEFINI)

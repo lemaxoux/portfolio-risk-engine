@@ -431,8 +431,8 @@ def test_un_meme_nombre_a_la_meme_forme_dans_la_phrase_et_la_ligne_de_seuil(
     seuil, paire = diversification["thresholds"]
 
     assert "aucune corrélation n'atteint 0,70." in diversification["statement"]
-    assert seuil["rendered"].startswith("corrélation forte = 0,70 — ")
-    rho = paire["rendered"].split(" = ")[1].split(" — ")[0]
+    assert seuil["rendered"].startswith("corrélation forte = 0,70 (seuil CHOISI")
+    rho = paire["rendered"].split(" = ")[1].split(" (")[0]
     assert f"à {rho}." in diversification["statement"]
 
 

@@ -159,7 +159,8 @@ def test_un_ticker_inconnu_renvoie_4xx_avec_le_numero_de_ligne(
     probleme = reponse.json()["problems"][0]
     assert probleme["line"] == 3
     assert probleme["value"] == "XYZ"
-    assert "Ticker inconnu" in probleme["problem"]
+    # Le sujet d'abord, sans deux-points : la page écrit « Ligne 3 : » devant.
+    assert probleme["problem"].startswith("XYZ n'est pas un titre connu. ")
     assert "python -m backend.ingestion add XYZ" in probleme["problem"]
 
 
@@ -519,3 +520,68 @@ def test_l_en_tete_attendu_publie_est_celui_des_messages_de_refus(format_publie)
     with pytest.raises(CsvError) as refus:
         read(b"ticker;quantite\nALFA;10\n")
     assert format_publie["expected_header"] in str(refus.value)
+
+
+# Un refus de ligne s'affiche après « Ligne 4 : ». Un second deux-points dans
+# la même phrase la rendait bancale : « Ligne 4 : ticker inconnu : XYZ ». Le
+# sujet vient donc d'abord, et la première phrase ne porte aucun deux-points.
+
+
+def test_un_refus_de_ligne_du_fichier_ne_porte_pas_de_deux_points_en_tete():
+    lecture = read(
+        b"ticker,quantity,cost_basis\n"
+        b"ALFA\n"
+        b"MIKE,dix\n"
+        b"ALFA,10,cher\n"
+        b"MIKE,1,5,7,9\n"
+    )
+    absente, illisible, prix, en_trop = (p.problem for p in lecture.problems)
+
+    assert absente.startswith(
+        "Quantité absente, 1 colonne(s) lue(s) avec le séparateur `,`. En-tête attendu"
+    )
+    assert illisible == "'dix' n'est pas une quantité lisible. Décimale acceptée : `.`."
+    assert prix == "'cher' n'est pas un prix de revient lisible. Décimale acceptée : `.`."
+    assert en_trop == (
+        "5 colonnes lues, l'en-tête en a 3. Avec le séparateur `,`, une virgule "
+        "décimale coupe le nombre en deux."
+    )
+    for probleme in lecture.problems:
+        assert probleme.line is not None
+        assert ":" not in probleme.problem.split(". ")[0], probleme.problem
+
+
+def test_un_refus_de_position_ne_porte_pas_de_deux_points_en_tete():
+    from datetime import date
+
+    from backend.api.validation import SubmittedPosition, validate
+    from backend.risk_engine.portfolio import Security
+
+    catalogue = [
+        Security("ALFA", "Alfa", None, date(2020, 1, 2), date(2026, 9, 9)),
+        Security("NEUF", "Sans prix", None, None, None),
+    ]
+    _, problemes = validate(
+        [
+            SubmittedPosition("XYZ", 5, line=4),
+            SubmittedPosition("NEUF", 5, line=5),
+            SubmittedPosition("ALFA", 1, line=6),
+            SubmittedPosition("ALFA", 2, line=7),
+            SubmittedPosition("", 1, line=8),
+        ],
+        catalogue,
+    )
+    inconnu, sans_prix, double, vide = (p.problem for p in problemes)
+
+    assert inconnu == (
+        "XYZ n'est pas un titre connu. Titres disponibles : ALFA, NEUF. "
+        "Pour en ajouter un : python -m backend.ingestion add XYZ"
+    )
+    assert sans_prix.startswith(
+        "NEUF est connu mais n'a aucun historique de prix en base. "
+        "Il ne peut être ni valorisé ni analysé."
+    )
+    assert double.startswith("ALFA apparaît deux fois (déjà ligne 6). ")
+    assert vide == "Ticker vide."
+    for probleme in problemes:
+        assert ":" not in probleme.problem.split(". ")[0], probleme.problem

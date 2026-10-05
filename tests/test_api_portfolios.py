@@ -218,7 +218,7 @@ def test_un_ticker_inconnu_est_refuse_en_4xx_avec_un_message_exploitable(
     corps = reponse.json()
     probleme = corps["problems"][0]
     assert probleme["value"] == "XYZ"
-    assert "Ticker inconnu" in probleme["problem"]
+    assert probleme["problem"].startswith("XYZ n'est pas un titre connu. ")
     # Les titres disponibles et la commande d'ajout sont dans le message.
     assert "ALFA" in probleme["problem"]
     assert "python -m backend.ingestion add XYZ" in probleme["problem"]

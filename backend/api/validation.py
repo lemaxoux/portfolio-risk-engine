@@ -137,7 +137,7 @@ def validate(
                     field="ticker",
                     value=ticker,
                     problem=(
-                        f"Ticker inconnu : {ticker}. Titres disponibles : "
+                        f"{ticker} n'est pas un titre connu. Titres disponibles : "
                         f"{_connus(catalogue)}. Pour en ajouter un : "
                         f"python -m backend.ingestion add {ticker}"
                     ),
@@ -153,7 +153,7 @@ def validate(
                     value=ticker,
                     problem=(
                         f"{ticker} est connu mais n'a aucun historique de prix en "
-                        "base : il ne peut être ni valorisé ni analysé. "
+                        "base. Il ne peut être ni valorisé ni analysé. "
                         f"Le charger avec : python -m backend.ingestion add {ticker}"
                     ),
                 )

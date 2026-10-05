@@ -28,6 +28,7 @@ import type {
   Scenario,
   VarianceContributions,
 } from '../api/types'
+import { Absent } from '../components/Absent'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
 import {
@@ -41,7 +42,6 @@ import commun from '../components/Section.module.css'
 import {
   ESPACE_FINE,
   ESPACE_INSECABLE,
-  TIRET_INDEFINI,
   dateISO,
   decimal,
   decimalOuTiret,
@@ -65,17 +65,26 @@ import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
 
 /** La légende exacte de §5.4. */
-export const LEGENDE_CONTRIBUTIONS =
-  'barre\u00a0: part dans les variations — trait\u00a0: part dans la valeur'
+const CLE_BARRE = 'barre\u00a0: part dans les variations'
+const CLE_TRAIT = 'trait\u00a0: part dans la valeur'
+export const LEGENDE_CONTRIBUTIONS = `${CLE_BARRE}, ${CLE_TRAIT}`
 
 /** Une contribution de scénario : le chiffre signé, et sa marque de signe. */
 function ApportEnCrise({ scenario, ticker }: { scenario: Scenario; ticker: string }) {
   if (scenario.end_to_end_return === null) {
-    return <span className={styles.absent}>{TIRET_INDEFINI}</span>
+    return (
+      <span className={styles.absent}>
+        <Absent />
+      </span>
+    )
   }
   const apport = scenario.contributions.find((ligne) => ligne.ticker === ticker)
   if (apport === undefined) {
-    return <span className={styles.absent}>{TIRET_INDEFINI} non couverte</span>
+    return (
+      <span className={styles.absent}>
+        <Absent /> non couverte
+      </span>
+    )
   }
   const sens = apport.contribution < 0 ? styles.perte : apport.contribution > 0 ? styles.gain : ''
   return (
@@ -243,10 +252,10 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           >
             <p className={styles.legende}>
               <span className={styles.cleBarre} aria-hidden="true" />
-              {LEGENDE_CONTRIBUTIONS.split(' — ')[0]}
-              {' — '}
+              {CLE_BARRE}
+              {', '}
               <span className={styles.cleTrait} aria-hidden="true" />
-              {LEGENDE_CONTRIBUTIONS.split(' — ')[1]}
+              {CLE_TRAIT}
             </p>
           </Graphique>
           {variance.has_negative_contribution === true && (

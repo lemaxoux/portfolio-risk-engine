@@ -290,7 +290,7 @@ pas de heatmap vide** : on affiche `correlation_undefined_reason`, en texte.
 à la position de la part de capital, sur le même axe. L'écart entre le bout de
 la barre et le trait **est** le message ; il est aussi écrit en points à droite
 (« +8,2 pts »). Légende explicite, en mots courants (§15) : « barre : part dans
-les variations — trait : part dans la valeur ». Pas de barres appariées de
+les variations, trait : part dans la valeur ». Pas de barres appariées de
 deux couleurs.
 
 ---
@@ -356,6 +356,27 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   compilateur TypeScript (une recherche de texte prendrait chaque ternaire
   `a ? b : c` pour de la prose). L'espace est la même, insécable, devant les
   quatre signes : pas d'espace fine.
+- **Aucun tiret cadratin (U+2014) dans l'interface, sans exception** (décision
+  du 2026-10-05) : ni dans ce que le frontend compose, ni dans ce que le
+  backend publie. Dans une phrase, la ponctuation dit le lien : deux-points,
+  virgule, parenthèses ou point : « en temps ordinaire et en crise (jamais
+  moyennées) ». Le titre de l'onglet s'écrit « Analyse de « Démo » (Mx Risk
+  MGT) ».
+  **Un refus de ligne s'écrit « Ligne 4 : XYZ n'est pas un titre connu. »**
+  Le sujet vient d'abord, pour que la première phrase ne porte pas un second
+  deux-points (« Ligne 4 : ticker inconnu : XYZ »). Après le deux-points, la
+  minuscule : « Ligne 2 : quantité manquante. », sauf devant un ticker.
+  **Une valeur absente est le seul tiret isolé** : un tiret court (U+2013),
+  écrit par `<Absent>` avec le texte « non disponible » qu'un lecteur d'écran
+  lit à sa place. La raison de l'absence s'affiche à côté, comme avant (§9.1,
+  règle 3). Le refus d'un champ de saisie, que précédait un tiret, porte à la
+  place un trait vertical de 2 px, celui du contour d'un champ refusé.
+  Ne sont pas concernés : le tiret court d'une paire (« JNJ–KO »), le signe
+  moins (U+2212) et la flèche d'une période (→). Ce document, le README et
+  les commentaires du code ne sont pas l'interface : ils gardent leurs tirets.
+  Vérifié des deux côtés : `tests/test_textes_publies.py` sur les réponses de
+  l'API et sur chaque chaîne du code qui les écrit ; `src/lib/ponctuation.test.ts`
+  sur les chaînes et le JSX du client, ses feuilles de style et `index.html`.
 - **Aucune lettre grecque dans la prose.** Spectral n'a pas de glyphe grec :
   ses sous-ensembles ne couvrent pas U+0370–03FF, et un « ν » y passe dans une
   police de repli où il se lit « v ». Le grec reste dans la provenance
@@ -602,7 +623,9 @@ backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
    nombre négatif. Cette phrase ne cite aucun chiffre : elle devrait sinon
    retourner le signe de celui qui est affiché juste au-dessus.
 3. **Une mesure indéfinie s'affiche indéfinie.** Quand `SortinoResult.annualised`
-   est `None`, on affiche `—` et `undefined_reason` en toutes lettres. Jamais
+   est `None`, on affiche le tiret d'absence (un tiret court `–`, doublé de
+   « non disponible » pour un lecteur d'écran, §6.3) et `undefined_reason` en
+   toutes lettres. Jamais
    `0`, jamais `∞`, jamais un nombre astronomique. Le backend a déjà été corrigé
    deux fois sur des annulations catastrophiques produisant des ratios absurdes :
    l'interface ne doit pas réintroduire le problème en rendant l'absurde
@@ -644,8 +667,8 @@ tout ce document** :
 │  coûté au portefeuille à chaque fois, de 15,9 points (Crise      │
 │  financière 2008) à 8,3 points (Resserrement monétaire 2022).    │
 │                                                                  │
-│  Référence : part de JPM dans la valeur = 24,5 % — référence     │  text-sm/text-2
-│  calculée : au-dessus, la ligne pèse davantage dans le risque    │
+│  Référence : part de JPM dans la valeur = 24,5 % (référence      │  text-sm/text-2
+│  calculée) : au-dessus, la ligne pèse davantage dans le risque   │
 │  que dans le capital ; en dessous, moins.                        │
 │  Détails du calcul   fenêtre d'estimation : 504 séances,         │
 │  2024-09-23 → 2026-09-25                                         │
@@ -656,10 +679,10 @@ tout ce document** :
 mention « choisi » reste dans la phrase :
 
 ```
-│  ● Seuil : corrélation forte = 70,0 % — seuil CHOISI à la main,  │  --caveat
-│    non dérivé des données : convention usuelle pour qualifier    │
+│  ● Seuil : corrélation forte = 0,70 (seuil CHOISI à la main,     │  --caveat
+│    non dérivé des données) : convention usuelle pour qualifier   │
 │    une corrélation de forte ; aucun calcul sur le portefeuille   │
-│    ne la produit.                                                │
+│    ne la produit                                                 │
 ```
 
 *Aucun seuil* (`thresholds == ()`) — **aucune ligne de seuil n'est affichée.**
@@ -769,7 +792,7 @@ plus grosse que sa couverture.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ Crise financière 2008 — 2007-10-09 → 2009-03-09                  │
+│ Crise financière 2008   2007-10-09 → 2009-03-09                  │
 │                                                                  │
 │   Au point bas du marché   Pire moment traversé  Couverture      │
 │          −44,0 %                 −47,7 %           100 %         │  ← même taille

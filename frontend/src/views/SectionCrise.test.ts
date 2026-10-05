@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import type { Regime, Scenario } from '../api/types'
-import { ESPACE_FINE, SIGNE_MOINS } from '../lib/format'
+import { ESPACE_FINE, SIGNE_MOINS, TIRET_INDEFINI } from '../lib/format'
 import { BlocScenario, SectionCrise } from './SectionCrise'
 import styles from './SectionCrise.module.css'
 
@@ -116,7 +116,13 @@ describe('scénario indisponible', () => {
   it('écrit la raison du moteur, sans fabriquer de chiffre', () => {
     const html = rendreBloc(scenario('gfc', 'Crise financière 2008', null, null, 0))
     expect(html).toContain("aucune ligne du portefeuille n'a d'historique couvrant la période")
-    expect(chiffres(html).slice(0, 2)).toEqual(['\u2014', '\u2014'])
+    // Les deux pertes sont absentes : un tiret court, et le texte qu'un lecteur
+    // d'écran lit à sa place. La couverture reste un chiffre.
+    const absent =
+      `<dd class="${styles.chiffre}"><span aria-hidden="true">${TIRET_INDEFINI}</span>` +
+      '<span class="visuellement-cache">non disponible</span></dd>'
+    expect(html.split(absent)).toHaveLength(3)
+    expect(chiffres(html)).toEqual([`0${ESPACE_FINE}%`])
   })
 })
 

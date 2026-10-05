@@ -25,7 +25,7 @@
  *     U+202F  ESPACE FINE INSÉCABLE   séparateur de milliers, et avant « % »
  *     U+00A0  ESPACE INSÉCABLE        entre un nombre et le mot qu'il compte
  *     U+2212  SIGNE MOINS             jamais le trait d'union U+002D
- *     U+2014  TIRET CADRATIN          une mesure indéfinie
+ *     U+2013  TIRET DEMI-CADRATIN     une valeur absente, par `<Absent>`
  *
  * ═══ CE MODULE NE CALCULE AUCUNE MESURE ═══
  *
@@ -42,8 +42,13 @@ export const ESPACE_FINE = '\u202F'
 export const ESPACE_INSECABLE = '\u00A0'
 /** Signe moins typographique, à la même chasse que les chiffres. */
 export const SIGNE_MOINS = '\u2212'
-/** Une mesure indéfinie. Jamais « 0 », jamais « ∞ » (§9.1, règle 3). */
-export const TIRET_INDEFINI = '\u2014'
+/**
+ * Une mesure indéfinie, une cellule sans donnée. Jamais « 0 », jamais « ∞ »
+ * (§9.1, règle 3). Un tiret COURT : l'interface n'emploie aucun tiret cadratin
+ * (§6.3). Il ne s'affiche jamais seul : `<Absent>` lui donne le texte qu'un
+ * lecteur d'écran lit à sa place.
+ */
+export const TIRET_INDEFINI = '\u2013'
 
 /**
  * Groupe la partie entière par milliers.

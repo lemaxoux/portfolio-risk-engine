@@ -33,6 +33,7 @@ import { segmenter } from '../api/client'
 import type { Security } from '../api/types'
 import { dateISO } from '../lib/format'
 import { useEtroit } from '../lib/largeur'
+import { Absent } from './Absent'
 import type { Champ, LigneSaisie } from '../lib/saisie'
 import { titreDe } from '../lib/univers'
 import controles from '../styles/controles.module.css'
@@ -114,8 +115,9 @@ export function TableauSaisie({
 
   /**
    * Les refus d'une ligne, dans une rangée PLEINE LARGEUR sous elle : un
-   * refus du serveur peut être long (« Ticker inconnu : … Titres disponibles :
-   * … »), et coincé dans sa colonne il étirerait la ligne sur dix. Chaque
+   * refus du serveur peut être long (« XYZ n'est pas un titre connu. Titres
+   * disponibles : … »), et coincé dans sa colonne il étirerait la ligne sur
+   * dix. Chaque
    * message garde l'identifiant que son champ cite dans `aria-describedby`.
    * Une commande à lancer sort du texte, en code (§6.1).
    */
@@ -220,13 +222,23 @@ export function TableauSaisie({
                       case 'nom':
                         return (
                           <td key={cle} className={`${styles.cellule} ${styles.nom} ${styles.surLeChamp}`}>
-                            {titre !== undefined ? titre.name : tape && univers !== null ? 'Titre inconnu' : '—'}
+                            {titre !== undefined ? (
+                              titre.name
+                            ) : tape && univers !== null ? (
+                              'Titre inconnu'
+                            ) : (
+                              <Absent />
+                            )}
                           </td>
                         )
                       case 'historique':
                         return (
                           <td key={cle} className={`${styles.cellule} ${styles.date} ${styles.surLeChamp}`}>
-                            {titre?.first_price_date != null ? dateISO(titre.first_price_date) : '—'}
+                            {titre?.first_price_date != null ? (
+                              dateISO(titre.first_price_date)
+                            ) : (
+                              <Absent />
+                            )}
                           </td>
                         )
                       case 'quantite':

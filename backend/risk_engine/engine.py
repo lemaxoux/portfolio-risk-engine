@@ -1313,7 +1313,7 @@ class ScenarioResult:
     def summary(self) -> str:
         """Une ligne qui ne peut pas laisser croire à une couverture totale."""
         if self.end_to_end_return is None:
-            return f"{self.scenario.name} : non calculable — {self.unavailable_reason}"
+            return f"{self.scenario.name} : non calculable. {self.unavailable_reason}"
         portee = (
             "portefeuille complet"
             if self.coverage.is_complete
@@ -1513,7 +1513,7 @@ class RegressedBeta:
         )
         if self.sample_too_thin:
             texte += (
-                f" — ÉCHANTILLON TROP MINCE (< "
+                f". ÉCHANTILLON TROP MINCE (< "
                 f"{typography.sessions(self.min_observations)}), "
                 "non fiable"
             )
@@ -1611,7 +1611,7 @@ class RegimeComparison:
     def summary(self) -> str:
         if self.unavailable_reason is not None:
             return (
-                f"{self.scenario.name} : comparaison impossible — "
+                f"{self.scenario.name} : comparaison impossible. "
                 f"{self.unavailable_reason}"
             )
         ratio = (
@@ -1632,7 +1632,7 @@ class RegimeComparison:
             f"{typography.number(self.calm_beta.r_squared, 2)} en régime calme → "
             f"{typography.number(self.crisis_beta.r_squared, 2)} en crise "
             f"({typography.number(self.systematic_share_change, 2, signed=True)})"
-            + (" — échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
+            + (", échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
             f"  le beta calme prédisait "
             f"{typography.percent(self.predicted_return, 1, signed=True)}, "
             f"perte réelle "

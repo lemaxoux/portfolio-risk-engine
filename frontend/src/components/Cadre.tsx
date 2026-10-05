@@ -46,7 +46,7 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
   const contenu = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    document.title = `${titre} — ${APPLICATION}`
+    document.title = `${titre} (${APPLICATION})`
   }, [titre])
 
   useEffect(() => {

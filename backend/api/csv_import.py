@@ -267,11 +267,11 @@ def _colonnes_en_trop(ligne: list[str], largeur_entete: int, separateur: str) ->
         champ.isdigit() for champ in en_trop if champ
     )
     indice = (
-        " : avec le séparateur `,`, une virgule décimale coupe le nombre en deux"
+        " Avec le séparateur `,`, une virgule décimale coupe le nombre en deux."
         if decimale_coupee
         else ""
     )
-    return f"{largeur} colonnes lues, l'en-tête en a {largeur_entete}{indice}."
+    return f"{largeur} colonnes lues, l'en-tête en a {largeur_entete}.{indice}"
 
 
 def _colonnes(entete: list[str]) -> dict[str, int]:
@@ -339,7 +339,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                 Problem(
                     line=numero,
                     problem=(
-                        f"Ligne incomplète : {len(ligne)} colonne(s) lue(s) avec "
+                        f"Quantité absente, {len(ligne)} colonne(s) lue(s) avec "
                         f"le séparateur `{separateur}`. En-tête attendu : "
                         f"{EN_TETE_ATTENDU}"
                     ),
@@ -360,8 +360,8 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                     field=COLONNE_QUANTITE,
                     value=brut_quantite.strip(),
                     problem=(
-                        f"Quantité illisible : {brut_quantite.strip()!r}. "
-                        f"Décimale acceptée : `{_admise(virgule_admise)}`."
+                        f"{brut_quantite.strip()!r} n'est pas une quantité "
+                        f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
                     ),
                 )
             )
@@ -383,8 +383,8 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                             field=COLONNE_PRIX_REVIENT,
                             value=brut_prix,
                             problem=(
-                                f"Prix de revient illisible : {brut_prix!r}. "
-                                f"Décimale acceptée : `{_admise(virgule_admise)}`."
+                                f"{brut_prix!r} n'est pas un prix de revient "
+                                f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
                             ),
                         )
                     )

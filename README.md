@@ -823,7 +823,7 @@ projet à portée quasi juridique. Ce texte n'a pas été relu par un juriste.
 >
 > **Aucune garantie d'exactitude.** Les données de marché proviennent d'un fournisseur tiers et peuvent comporter des erreurs, des retards ou des omissions. Les calculs reposent sur des hypothèses statistiques et peuvent eux-mêmes être erronés. Aucune garantie n'est donnée sur l'exactitude, l'exhaustivité ou l'actualité des données ni des calculs.
 >
-> **Les mesures décrivent un régime, pas un avenir.** Les mesures de risque courantes — volatilité, VaR, CVaR, beta, corrélations — sont estimées sur les 504 dernières séances de bourse, soit environ 2 ans. Elles décrivent le comportement du portefeuille pendant cette période. Elles ne prédisent pas son comportement futur, qui peut s'en écarter fortement, en particulier lors d'une crise.
+> **Les mesures décrivent un régime, pas un avenir.** Les mesures de risque courantes (volatilité, VaR, CVaR, beta, corrélations) sont estimées sur les 504 dernières séances de bourse, soit environ 2 ans. Elles décrivent le comportement du portefeuille pendant cette période. Elles ne prédisent pas son comportement futur, qui peut s'en écarter fortement, en particulier lors d'une crise.
 >
 > **Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines.** Les scénarios de stress appliquent à votre portefeuille actuel les mouvements réellement observés pendant des crises passées. Ils ne prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine crise, qui ne ressemblera pas nécessairement à celles-ci.
 >
@@ -1597,6 +1597,40 @@ de lecture ») :
 démonstration, variantes comprises. `Measure.test.ts` vérifie l'ordre du bloc,
 et qu'aucun `<details>` ne replie la provenance.
 
+#### Aucun tiret cadratin dans l'interface
+
+Décision du 2026-10-05 (DESIGN.md §6.3), sans exception : ni le client ni
+l'API n'écrivent de tiret cadratin (U+2014). Dans une phrase, la ponctuation
+dit le lien : deux-points, virgule, parenthèses ou point.
+
+- **Lignes de seuil** : la provenance passe entre parenthèses. « corrélation
+  forte = 0,70 (seuil CHOISI à la main, non dérivé des données) :
+  convention usuelle… »
+- **Refus d'une ligne** : « Ligne 4 : XYZ n'est pas un titre connu. », suivi
+  des titres disponibles. Le sujet vient d'abord, dans l'API comme dans le
+  client, pour que la première phrase ne porte pas un second deux-points :
+  « 'dix' n'est pas une quantité lisible. », « Quantité absente, 1 colonne(s)
+  lue(s)… ». Après « Ligne N : », la minuscule, sauf devant un ticker
+  (`phrases.messageDeLigne`).
+- **Valeur absente** : c'est le seul tiret isolé de l'interface. Un tiret
+  court (U+2013), écrit par `<Absent>` avec le texte « non disponible » pour
+  un lecteur d'écran. Le bloc mesure, les tableaux et les chiffres d'une
+  crise le rendent tous par `avecAbsence`.
+- **Refus d'un champ de saisie** : le tiret qui le précédait devient un
+  trait vertical de 2 px, celui du contour d'un champ refusé.
+- **Bandeau d'acceptation** : une incise passe entre parenthèses. Le texte
+  change, donc son empreinte aussi : l'écran d'acceptation revient une fois.
+
+Deux gardes tiennent la règle. `tests/test_textes_publies.py` la vérifie sur
+les réponses de l'API, puis sur chaque chaîne du code qui publie, parce que
+les réponses de test ne déclenchent pas toutes les phrases. Il écarte la
+documentation OpenAPI et le journal de la commande d'ingestion, que la page
+n'affiche pas. `src/lib/ponctuation.test.ts` la vérifie sur les chaînes et le
+JSX du client, ses feuilles de style et `index.html`, et refuse un tiret
+d'absence posé sans `<Absent>`. Le tiret court d'une paire (« JNJ–KO »), le
+signe moins et la flèche d'une période ne sont pas concernés ; ce README non
+plus.
+
 #### Le tableau du portefeuille sous 900 px
 
 À 390 px, le tableau de la section 1 défilait dans son cadre de 342 px, et
@@ -1924,6 +1958,9 @@ l'ordre chronologique.
       courants, vouvoyées, avec leurs libellés ; réserves du moteur en
       jours de bourse. Réponse de référence : seuls des textes changent,
       aucun nombre
+    - [x] Aucun tiret cadratin dans l'interface : ponctuation des textes
+      publiés et affichés, tiret court et « non disponible » pour une
+      valeur absente, gardes des deux côtés
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

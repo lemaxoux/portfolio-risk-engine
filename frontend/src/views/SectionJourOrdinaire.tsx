@@ -36,7 +36,7 @@
  * CVaR à 99 %. Le chiffre reste affiché — marqué, pas refusé.
  *
  * Sous 1/(1 − α) séances, la VaR historique et la CVaR du niveau sont, elles,
- * REFUSÉES par le moteur : le tiret cadratin à la place du chiffre, la raison
+ * REFUSÉES par le moteur : le tiret d'absence à la place du chiffre, la raison
  * du moteur à la place de la phrase de lecture (§9.1, règle 3). Jamais le
  * minimum de la fenêtre présenté comme un quantile.
  *

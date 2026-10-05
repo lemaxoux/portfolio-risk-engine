@@ -641,7 +641,7 @@ def test_le_seuil_choisi_s_ecrit_comme_dans_la_phrase(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.42))
 
     assert "aucune corrélation n'atteint 0,70." in obs.statement
-    assert "  Seuil : corrélation forte = 0,70 — seuil CHOISI" in obs.render()
+    assert "  Seuil : corrélation forte = 0,70 (seuil CHOISI" in obs.render()
     assert "= 0,7 " not in obs.render()
 
 
@@ -649,7 +649,7 @@ def test_la_reference_de_la_paire_garde_ses_deux_decimales(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.40))
 
     assert "La paire la plus liée est JNJ–KO, à 0,40." in obs.statement
-    assert "  Référence : corrélation JNJ–KO = 0,40 — relatif au portefeuille" in obs.render()
+    assert "  Référence : corrélation JNJ–KO = 0,40 (relatif au portefeuille)" in obs.render()
 
 
 def test_une_egalite_exacte_s_ecrit_pareil_dans_la_phrase_et_la_reference(risque):
@@ -673,7 +673,7 @@ def test_une_part_de_capital_ronde_garde_sa_decimale_dans_la_reference(risque):
 
     obs = observations["B"]
     assert "B représente 25,0\u202f% de la valeur du portefeuille" in obs.statement
-    assert "  Référence : part de B dans la valeur = 25,0\u202f% — référence calculée" in obs.render()
+    assert "  Référence : part de B dans la valeur = 25,0\u202f% (référence calculée)" in obs.render()
 
 
 def test_les_seuils_fixes_s_ecrivent_sous_la_forme_de_leur_phrase():
