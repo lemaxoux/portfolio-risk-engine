@@ -973,9 +973,10 @@ bug en attente.
   absent de la table garde son nom technique (« au niveau de confiance
   85 % »).
 - Les réserves méthodologiques sont écrites platement, sans dramatiser ni
-  minimiser : « Moyenne de 6 séances seulement, sur une fenêtre de 504 :
-  chacune pèse pour 17 % du chiffre. » Le backend produit déjà ces phrases —
-  les afficher telles quelles.
+  minimiser : « Moyenne de 6 jours de bourse seulement, sur 504 : chacun pèse
+  pour 17 % du chiffre. » Le backend produit déjà ces phrases — les afficher
+  telles quelles. Elles disent « jours de bourse » et « l'outil », comme les
+  phrases à côté desquelles elles s'affichent.
 - **Acceptation à la première utilisation — décision de la phase 6.** Le
   backend fournit un écran complet (`disclaimer.title`, `sections`,
   `confirmation`) : c'est une **page entière** avant le premier accès, avec la

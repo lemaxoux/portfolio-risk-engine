@@ -391,10 +391,12 @@ class ExpectedShortfallResult:
     def caveat(self) -> str | None:
         if self.confidence < 0.99 or self.tail_observations is None:
             return None
+        # « Jours de bourse » : la réserve s'affiche sous une phrase de lecture
+        # qui dit ce mot (textes de lecture, D6 b).
         return (
-            f"Moyenne de {typography.sessions(self.tail_observations)} seulement, "
-            f"sur une fenêtre de {self.window.observations} : chacune pèse pour "
-            f"{typography.percent(1 / self.tail_observations, 0)} du chiffre."
+            f"Moyenne de {_jours_de_bourse(self.tail_observations)} seulement, "
+            f"sur {typography.thousands(self.window.observations)} : chacun pèse "
+            f"pour {typography.percent(1 / self.tail_observations, 0)} du chiffre."
         )
 
 @dataclass(frozen=True)
@@ -666,12 +668,14 @@ def _estimation_mince(window: Window) -> str | None:
     """
     if window.observations >= MIN_DISTRIBUTION_OBSERVATIONS:
         return None
+    # « Jours de bourse », « courbe », « l'outil » : la réserve s'affiche à côté
+    # d'une phrase de lecture, devant un lecteur qui ne connaît ni la loi
+    # normale ni le moteur de règles (textes de lecture, D6 b).
     return (
-        f"Estimation mince : {typography.sessions(window.observations)} "
-        f"seulement, moins que les {MIN_DISTRIBUTION_OBSERVATIONS} retenues "
-        "pour estimer une loi (seuil choisi à la main). Quelques séances "
-        "suffisent à déplacer ce chiffre, et le moteur de règles n'en tire "
-        "aucune conclusion."
+        f"Estimation mince : {_jours_de_bourse(window.observations)} seulement, "
+        f"moins que les {MIN_DISTRIBUTION_OBSERVATIONS} retenus pour estimer une "
+        "courbe (seuil choisi à la main). Quelques jours suffisent à déplacer ce "
+        "chiffre, et l'outil n'en tire aucune conclusion."
     )
 
 

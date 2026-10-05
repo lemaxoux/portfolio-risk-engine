@@ -722,7 +722,9 @@ def test_le_cvar_a_99_porte_son_avertissement_en_permanence(conn):
     large = rapport.expected_shortfall[0.95]
 
     assert fin.tail_observations < large.tail_observations
-    assert fin.caveat.startswith(f"Moyenne de {fin.tail_observations} séances seulement")
+    assert fin.caveat.startswith(
+        f"Moyenne de {fin.tail_observations}\u00a0jours de bourse seulement"
+    )
     assert large.caveat is None
 
 
@@ -751,10 +753,10 @@ def test_sous_trente_seances_volatilite_et_var_normale_sont_marquees_minces(conn
     ]
     for mesure in marquees:
         assert mesure.caveat == (
-            "Estimation mince : 29\u00a0séances seulement, moins que les 30 "
-            "retenues pour estimer une loi (seuil choisi à la main). Quelques "
-            "séances suffisent à déplacer ce chiffre, et le moteur de règles "
-            "n'en tire aucune conclusion."
+            "Estimation mince : 29\u00a0jours de bourse seulement, moins que les "
+            "30 retenus pour estimer une courbe (seuil choisi à la main). Quelques "
+            "jours suffisent à déplacer ce chiffre, et l'outil n'en tire aucune "
+            "conclusion."
         )
         # Marquée, pas refusée : le chiffre reste là.
         assert mesure.window.observations == 29

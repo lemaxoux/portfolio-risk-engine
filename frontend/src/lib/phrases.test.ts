@@ -318,7 +318,7 @@ describe('CVaR : ce qu’elle MOYENNE, pas un quantile', () => {
   })
 
   it('la réserve du moteur tient lieu de « ne dit pas » à 99 %', () => {
-    expect(neDitPasCVaR(cvar(0.03, 0.99, 2520, 'Moyenne de 6 séances seulement…'))).toBeNull()
+    expect(neDitPasCVaR(cvar(0.03, 0.99, 2520, 'Moyenne de 6 jours de bourse seulement…'))).toBeNull()
   })
 
   it('gain, refus : leurs propres phrases', () => {

@@ -726,7 +726,7 @@ observations » serait allumé à chaque calcul, et une alerte permanente n'info
 plus. L'avertissement est donc attaché au chiffre lui-même
 (`ExpectedShortfallResult.caveat`), plutôt que présenté comme une anomalie
 détectée. Sur le portefeuille de démonstration, le CVaR à 99 % de 3,00 %
-est accompagné de : « Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre. »
+est accompagné de : « Moyenne de 6 jours de bourse seulement, sur 504 : chacun pèse pour 17 % du chiffre. »
 
 **Les seuils sont traités explicitement**, car ils sont le point faible de tout
 moteur de règles. Par ordre de préférence : pas de seuil du tout quand la mesure
@@ -1060,9 +1060,12 @@ responsable, et le seuil de 60 séances qui les signale dans les observations.
 **Sous 30 séances, la volatilité et la VaR paramétrique normale portent une
 réserve.** Les trois volatilités (écart-type, EWMA, matrice) et la VaR normale
 des deux niveaux sortent avec `caveat`, la phrase du moteur : « Estimation
-mince : 7 séances seulement, moins que les 30 retenues pour estimer une loi
-(seuil choisi à la main). Quelques séances suffisent à déplacer ce chiffre, et
-le moteur de règles n'en tire aucune conclusion. » Le seuil est le même que
+mince : 7 jours de bourse seulement, moins que les 30 retenus pour estimer une
+courbe (seuil choisi à la main). Quelques jours suffisent à déplacer ce
+chiffre, et l'outil n'en tire aucune conclusion. » Elle dit « jours de
+bourse », « courbe » et « l'outil » parce qu'elle s'affiche à côté d'une
+phrase de lecture, devant un lecteur qui ne connaît ni la loi normale ni le
+moteur de règles. Le seuil est le même que
 celui de l'ajustement de Student, et c'est le cinquième seuil choisi à la main
 (`rules.thresholds.MIN_DISTRIBUTION_SAMPLE`) : sous normalité, l'écart-type
 d'échantillon varie d'environ 1/√(2n) d'une fenêtre à l'autre, 13 % sur 30

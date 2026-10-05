@@ -512,7 +512,7 @@ def test_l_avertissement_permanent_du_cvar_a_99_est_publie(analyse_reelle):
     assert niveaux[0.95]["expected_shortfall"]["caveat"] is None
     caveat = niveaux[0.99]["expected_shortfall"]["caveat"]
     assert caveat is not None
-    assert "séances seulement" in caveat
+    assert "jours de bourse seulement" in caveat
     assert niveaux[0.99]["expected_shortfall"]["tail_observations"] > 0
 
 

@@ -908,9 +908,10 @@ def test_le_cvar_a_99_porte_en_permanence_son_avertissement():
     """Attaché au chiffre, pas déclenché par lui : présent quelle que soit la
     taille de la queue, y compris quand elle serait « suffisante »."""
     assert queue(0.99, 6).caveat == (
-        "Moyenne de 6 séances seulement, sur une fenêtre de 504 : chacune pèse pour 17 % du chiffre."
+        "Moyenne de 6\u00a0jours de bourse seulement, sur 504 : chacun pèse pour "
+        "17\u202f% du chiffre."
     )
-    assert "50 séances" in queue(0.99, 50).caveat
+    assert "50\u00a0jours de bourse" in queue(0.99, 50).caveat
     assert queue(0.95, 26).caveat is None
 
 
