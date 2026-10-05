@@ -23,6 +23,10 @@ load_dotenv()
 # fériés), utilisée pour toutes les annualisations.
 TRADING_DAYS_PER_YEAR = 252
 
+# Nombre de séances par mois, 252 / 12. Il ne sert qu'à DIRE une durée en mois
+# (`engine.period_label`) : aucun chiffre de risque n'en dépend.
+TRADING_DAYS_PER_MONTH = 21
+
 # Fenêtre d'estimation par défaut, en séances : 504 ≈ 2 ans.
 #
 # La base remonte à 2005, mais cet historique sert au REJEU DE SCÉNARIOS
@@ -241,6 +245,17 @@ MAX_STUDENT_NU = 30.0
 # `rules.thresholds.MIN_DISTRIBUTION_SAMPLE` : trente est la convention
 # usuelle du « grand échantillon », aucun calcul ne la produit.
 MIN_DISTRIBUTION_OBSERVATIONS = 30
+
+# ------------------------------------------- Couverture minimale d'un scénario --
+#
+# Sous 80 % de la valeur couverte, un scénario ne donne pas de chiffre
+# principal : la partie rejouée est minoritaire dans la valeur. SEUIL CHOISI À
+# LA MAIN, le deuxième du projet, déclaré avec sa justification dans
+# `rules.thresholds.MIN_SCENARIO_COVERAGE`. La constante vit ici pour que le
+# moteur publie le verdict avec chaque scénario
+# (`ScenarioCoverage.sufficient`) : une phrase de lecture ne doit pas citer
+# comme la perte du portefeuille ce que le moteur de règles refuse d'en dire.
+MIN_SCENARIO_COVERAGE_SHARE = 0.80
 
 # ------------------------------------------------------------ Monte Carlo --
 #

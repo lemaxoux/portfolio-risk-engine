@@ -66,6 +66,19 @@ BACKFILL_START = date.fromisoformat("2005-01-01")
 # Benchmark utilisé pour le beta du portefeuille (Phase 4).
 BENCHMARK_TICKER = "SPY"
 
+# Ce que suit un indice de référence, pour les phrases de lecture : le ticker
+# ne dit rien à un particulier. Le nom se place après une préposition sans
+# contraction (« pour le S&P 500 ») ; la description le présente à sa première
+# apparition. Un indice absent de cette table est cité par son ticker, jamais
+# sous un nom deviné.
+#
+# SPY est le fonds coté qui réplique le S&P 500, pas l'indice lui-même. Les
+# phrases disent « le S&P 500 », comme les bornes des scénarios, relevées sur
+# ses clôtures ; l'écart (frais, dividendes) ne change pas la lecture.
+BENCHMARK_NAMES: dict[str, tuple[str, str]] = {
+    "SPY": ("le S&P 500", "l'indice de 500 grandes entreprises américaines"),
+}
+
 
 def dev_tickers() -> list[str]:
     """Tickers de l'univers de développement, dans l'ordre de déclaration."""

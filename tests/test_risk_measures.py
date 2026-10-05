@@ -14,14 +14,19 @@ import pandas as pd
 import pytest
 
 from backend.risk_engine.measures import (
+    Recovery,
+    WorstSession,
+    amount,
     annualised_volatility,
     downside_deviation,
     equal_weight_reference,
     ewma_volatility,
     herfindahl_index,
     max_drawdown,
+    recovery_after,
     sharpe_ratio,
     sortino_ratio,
+    worst_session,
 )
 from backend.risk_engine.returns import (
     align_panel,
@@ -287,3 +292,69 @@ def test_un_poids_negatif_est_refuse_plutot_que_calcule():
 def test_des_poids_qui_ne_somment_pas_a_un_sont_refuses():
     with pytest.raises(ValueError, match="sommer à 1"):
         herfindahl_index({"A": 0.5, "B": 0.2})
+
+
+# ══════════════════════════════════ Retour au pic, pire séance, montant ══
+#
+# Ajoutés pour les textes de lecture : « il aurait retrouvé ce plus haut le
+# 23 juin 2025 », « le pire jour, le 4 avril 2025, il aurait perdu 5,87 % »,
+# « 1,06 % représente environ 890 USD ».
+
+
+def _niveaux(valeurs):
+    return pd.Series(valeurs, index=jours(len(valeurs)))
+
+
+def test_le_retour_au_pic_est_la_premiere_seance_qui_le_retrouve():
+    # Pic 1,10 à la séance 1, creux 0,90 à la séance 2, retour EXACT à 1,10 à
+    # la séance 4 : atteindre le pic suffit, le dépasser n'est pas exigé.
+    niveaux = _niveaux([1.0, 1.10, 0.90, 1.05, 1.10, 1.20])
+    retour = recovery_after(niveaux, max_drawdown(niveaux))
+    assert retour == Recovery(date=niveaux.index[4], sessions=2)
+
+
+def test_le_retour_se_compte_depuis_le_creux_et_non_depuis_le_pic():
+    niveaux = _niveaux([1.0, 0.98, 0.95, 0.90, 0.97, 1.0])
+    retour = recovery_after(niveaux, max_drawdown(niveaux))
+    assert retour == Recovery(date=niveaux.index[5], sessions=2)
+
+
+def test_sans_retour_avant_la_fin_de_la_serie_rien_n_est_invente():
+    niveaux = _niveaux([1.0, 1.10, 0.90, 1.05, 1.09])
+    assert recovery_after(niveaux, max_drawdown(niveaux)) is None
+
+
+def test_sans_baisse_il_n_y_a_rien_a_retrouver():
+    niveaux = _niveaux([1.0, 1.01, 1.02, 1.05])
+    creux = max_drawdown(niveaux)
+    assert creux.value == 0.0
+    assert recovery_after(niveaux, creux) is None
+
+
+def test_la_pire_seance_est_une_perte_positive_avec_sa_date():
+    rendements = pd.Series([0.01, -0.02, 0.005, -0.035, 0.0], index=jours(5))
+    assert worst_session(rendements) == WorstSession(date=rendements.index[3], loss=0.035)
+
+
+def test_deux_pires_seances_ex_aequo_donnent_la_premiere():
+    rendements = pd.Series([-0.03, 0.01, -0.03], index=jours(3))
+    assert worst_session(rendements).date == rendements.index[0]
+
+
+def test_une_serie_sans_baisse_donne_une_pire_seance_negative():
+    # Même convention que la VaR : une perte négative dit un gain.
+    rendements = pd.Series([0.01, 0.02, 0.005], index=jours(3))
+    assert worst_session(rendements).loss == -0.005
+
+
+def test_la_pire_seance_refuse_une_serie_vide_ou_trouee():
+    with pytest.raises(ValueError, match="vide"):
+        worst_session(pd.Series([], dtype=float))
+    with pytest.raises(ValueError, match="NaN"):
+        worst_session(pd.Series([0.01, np.nan], index=jours(2)))
+
+
+def test_un_montant_est_la_fraction_de_la_valeur_et_garde_son_signe():
+    assert amount(0.0106, 84_000.0) == pytest.approx(890.4)
+    assert amount(-0.148, 84_000.0) == pytest.approx(-12_432.0)
+    assert amount(0.0, 84_000.0) == 0.0

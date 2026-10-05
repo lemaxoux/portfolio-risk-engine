@@ -80,6 +80,7 @@ from backend.risk_engine.engine import (
     VarResult,
     VolatilityResult,
     Window,
+    WorstDayResult,
 )
 from backend.risk_engine.measures import Drawdown
 from backend.risk_engine.portfolio import PortfolioWeights, Security
@@ -105,6 +106,20 @@ class Schema(BaseModel):
 # Un texte RÉDIGÉ par le moteur, les règles ou le bandeau, composé à la
 # publication (voir l'en-tête de ce module).
 Texte = Annotated[str, AfterValidator(typography.prose)]
+
+# Le libellé de période voyage À CÔTÉ de la fenêtre qu'il décrit, dans l'objet
+# de la mesure, et non dans `WindowOut` : la forme d'une fenêtre est figée par
+# les tests (cinq champs, partout dans la réponse).
+DESCRIPTION_PERIODE = (
+    "La période de `window`, dite pour un lecteur : « ces deux dernières "
+    "années ». Rédigée par le moteur (`engine.period_label`), d'après les "
+    "séances obtenues."
+)
+DESCRIPTION_MONTANT = (
+    "`value` appliqué à la valeur du portefeuille au jour de la valorisation, "
+    "dans la devise de `valuation.currency`, même signe que `value`. Une "
+    "conversion d'échelle, pas une perte reconstituée."
+)
 
 
 # ═══════════════════════════════════════════════════════ Provenance commune ══
@@ -483,6 +498,7 @@ class VolatilityOut(Schema):
     method: Texte
     caveat: Texte | None
     window: WindowOut
+    period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
     def of(cls, result: VolatilityResult) -> VolatilityOut:
@@ -492,14 +508,37 @@ class VolatilityOut(Schema):
             method=result.method,
             caveat=result.caveat,
             window=WindowOut.of(result.window),
+            period_label=result.window.period_label,
         )
+
+    @classmethod
+    def optional(cls, result: VolatilityResult | None) -> VolatilityOut | None:
+        return None if result is None else cls.of(result)
 
 
 class DrawdownOut(Schema):
+    """Creux maximal de la fenêtre, et le retour au pic qui l'a effacé.
+
+    `recovery_date` et `recovery_sessions` valent `null` ensemble quand la
+    baisse n'est pas effacée à la fin de la fenêtre, ou quand il n'y a pas eu
+    de baisse (`value` nul) : rien n'est alors à retrouver.
+    """
+
     value: float
     peak_date: date
     trough_date: date
     window: WindowOut
+    amount: float = Field(description=DESCRIPTION_MONTANT)
+    recovery_date: date | None = Field(
+        description=(
+            "Première séance, après le creux, où la valeur retrouve son pic. "
+            "`null` sans retour avant la fin de la fenêtre."
+        )
+    )
+    recovery_sessions: int | None = Field(
+        description="Séances écoulées du creux au retour au pic."
+    )
+    period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
     def of(cls, result: DrawdownResult) -> DrawdownOut:
@@ -508,6 +547,10 @@ class DrawdownOut(Schema):
             peak_date=result.peak_date,
             trough_date=result.trough_date,
             window=WindowOut.of(result.window),
+            amount=result.amount,
+            recovery_date=result.recovery_date,
+            recovery_sessions=result.recovery_sessions,
+            period_label=result.window.period_label,
         )
 
 
@@ -755,6 +798,8 @@ class VarOut(Schema):
     nu: float | None
     caveat: Texte | None
     window: WindowOut
+    amount: float = Field(description=DESCRIPTION_MONTANT)
+    period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
     def of(cls, result: VarResult) -> VarOut:
@@ -766,6 +811,8 @@ class VarOut(Schema):
             nu=result.nu,
             caveat=result.caveat,
             window=WindowOut.of(result.window),
+            amount=result.amount,
+            period_label=result.window.period_label,
         )
 
     @classmethod
@@ -791,6 +838,10 @@ class HistoricalVarOut(Schema):
     caveat: Texte | None
     undefined_reason: Texte | None
     window: WindowOut
+    amount: float | None = Field(
+        description=f"{DESCRIPTION_MONTANT} `null` avec `value`."
+    )
+    period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
     def of(cls, result: VarResult) -> HistoricalVarOut:
@@ -803,6 +854,8 @@ class HistoricalVarOut(Schema):
             caveat=result.caveat,
             undefined_reason=result.undefined_reason,
             window=WindowOut.of(result.window),
+            amount=result.amount,
+            period_label=result.window.period_label,
         )
 
 
@@ -855,6 +908,10 @@ class ExpectedShortfallOut(Schema):
     caveat: Texte | None
     undefined_reason: Texte | None
     window: WindowOut
+    amount: float | None = Field(
+        description=f"{DESCRIPTION_MONTANT} `null` avec `value`."
+    )
+    period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
     def of(cls, result: ExpectedShortfallResult) -> ExpectedShortfallOut:
@@ -866,6 +923,8 @@ class ExpectedShortfallOut(Schema):
             caveat=result.caveat,
             undefined_reason=result.undefined_reason,
             window=WindowOut.of(result.window),
+            amount=result.amount,
+            period_label=result.window.period_label,
         )
 
 
@@ -963,6 +1022,30 @@ class TailRiskOut(Schema):
         )
 
 
+class WorstDayOut(Schema):
+    """La pire séance de la fenêtre, en PERTE POSITIVE comme la VaR.
+
+    Une séance qui a eu lieu, pas un quantile : à côté de la VaR, elle dit que
+    le seuil n'est pas un plafond.
+    """
+
+    date: date
+    loss: float = Field(
+        description="Perte de la séance, en fraction et en perte positive : 0.0587 se lit « 5,87 % »."
+    )
+    amount: float = Field(description=DESCRIPTION_MONTANT.replace("`value`", "`loss`"))
+    window: WindowOut
+
+    @classmethod
+    def of(cls, result: WorstDayResult) -> WorstDayOut:
+        return cls(
+            date=result.date,
+            loss=result.loss,
+            amount=result.amount,
+            window=WindowOut.of(result.window),
+        )
+
+
 class WeightOut(Schema):
     ticker: str
     weight: float
@@ -1006,6 +1089,14 @@ class RiskOut(Schema):
     variance_contributions: VarianceContributionsOut
     beta: BetaOut | None
     tail_risk: TailRiskOut
+    benchmark_volatility: VolatilityOut | None = Field(
+        description=(
+            "Volatilité de l'indice de référence, sur les mêmes séances que le "
+            "portefeuille et par la même méthode : un repère pour lire "
+            "`volatility`. `null` sans indice de référence."
+        )
+    )
+    worst_day: WorstDayOut
 
     @classmethod
     def of(cls, report: RiskReport, tickers: list[str]) -> RiskOut:
@@ -1023,6 +1114,8 @@ class RiskOut(Schema):
             ),
             beta=None if report.beta is None else BetaOut.of(report.beta),
             tail_risk=TailRiskOut.of(report),
+            benchmark_volatility=VolatilityOut.optional(report.benchmark_volatility),
+            worst_day=WorstDayOut.of(report.worst_day),
         )
 
 
@@ -1248,6 +1341,21 @@ class ScenarioOut(Schema):
     observations: int
     unavailable_reason: Texte | None
     summary: Texte
+    end_to_end_amount: float | None = Field(
+        description=(
+            "`end_to_end_return` appliqué à la valeur d'aujourd'hui des lignes "
+            "couvertes, dans la devise de `valuation.currency`. `null` avec le "
+            "rendement. Le pire moment traversé n'a pas de montant : il se "
+            "mesure depuis un plus haut atteint pendant l'épisode."
+        )
+    )
+    coverage_sufficient: bool = Field(
+        description=(
+            "La partie rejouée atteint-elle le seuil choisi de couverture "
+            "(80 % de la valeur) ? En deçà, le moteur de règles ne donne pas de "
+            "chiffre principal pour le portefeuille."
+        )
+    )
 
     @classmethod
     def of(cls, result: ScenarioResult) -> ScenarioOut:
@@ -1266,6 +1374,8 @@ class ScenarioOut(Schema):
             observations=result.observations,
             unavailable_reason=result.unavailable_reason,
             summary=result.summary(),
+            end_to_end_amount=result.end_to_end_amount,
+            coverage_sufficient=result.coverage.sufficient,
         )
 
 
@@ -1330,6 +1440,19 @@ class RegimeOut(Schema):
     systematic_share_change: float | None
     unavailable_reason: Texte | None
     summary: Texte
+    benchmark_label: Texte | None = Field(
+        description=(
+            "Ce que suit l'indice de référence, pour une phrase : « le S&P 500 ». "
+            "`null` pour un indice sans nom connu, cité alors par son ticker."
+        )
+    )
+    calm_period_label: Texte | None = Field(
+        description=(
+            "La période du régime calme, dite pour un lecteur : « ces deux "
+            "dernières années ». Celle du régime de crise n'en a pas : elle se "
+            "termine dans le passé."
+        )
+    )
 
     @classmethod
     def of(cls, result: RegimeComparison) -> RegimeOut:
@@ -1348,6 +1471,8 @@ class RegimeOut(Schema):
             systematic_share_change=result.systematic_share_change,
             unavailable_reason=result.unavailable_reason,
             summary=result.summary(),
+            benchmark_label=result.benchmark_label,
+            calm_period_label=result.calm_period_label,
         )
 
 
@@ -1500,6 +1625,18 @@ class ParametersOut(Schema):
     window: int
     benchmark: str | None
     confidence_levels: list[float]
+    benchmark_label: Texte | None = Field(
+        description=(
+            "Ce que suit l'indice demandé, pour une phrase : « le S&P 500 ». "
+            "`null` sans indice, ou pour un indice sans nom connu."
+        )
+    )
+    benchmark_description: Texte | None = Field(
+        description=(
+            "L'indice présenté à sa première apparition : « l'indice de 500 "
+            "grandes entreprises américaines ». `null` avec `benchmark_label`."
+        )
+    )
 
 
 class AnalysisOut(Schema):
@@ -1559,6 +1696,12 @@ class AnalysisOut(Schema):
             "Fenêtre du panel de régime courant. Les mesures calculées sur ce "
             "panel la partagent ; chacune porte néanmoins la sienne, et une "
             "mesure peut en avoir une autre."
+        )
+    )
+    estimation_period_label: Texte = Field(
+        description=(
+            "La période de `estimation_window`, dite pour un lecteur : « ces "
+            "deux dernières années »."
         )
     )
     limiting_positions: list[LimitingPositionOut]

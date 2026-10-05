@@ -945,7 +945,8 @@ phrases du moteur et des règles s'écrivent avec des espaces ordinaires, lisibl
 dans le code ; `typography.prose` les rend insécables avant « : », « ; », « ? »
 et « ! » suivis d'un blanc, et dans les guillemets, et seulement là. Elle s'applique une fois, aux champs de texte
 rédigé des schémas — typés `Texte` (`Annotated[str, AfterValidator(prose)]`),
-33 champs : raisons, phrases, réserves, provenances, bandeau — et aux corps
+48 champs : raisons, phrases, réserves, provenances, libellés de période et
+d'indice, bandeau — et aux corps
 d'erreur (`detail`, `problems[].problem`). Les identifiants et les saisies
 (ticker, nom d'un portefeuille, nom de fichier, exemple de CSV) restent des
 `str` : on ne retouche pas ce que quelqu'un a tapé. `tests/test_textes_publies.py`
@@ -1181,6 +1182,60 @@ cotation tardive, la liste est vide — mieux vaut ne désigner personne que
 désigner à tort. Elle est vide aussi quand la fenêtre est pleine : elle a alors
 été bornée par la demande, et nommer une ligne ferait porter à quelqu'un la
 responsabilité d'un choix de paramètre.
+
+#### Ce que citent les phrases de lecture
+
+Les textes de lecture de la page disent chaque mesure en calendrier, en
+dollars et en période, pour un lecteur qui n'a jamais entendu parler de VaR.
+Le client ne calcule rien : chaque donnée qu'ils citent est publiée par le
+moteur, avec ses tests (`test_risk_measures.py`, `test_risk_engine.py`,
+`test_api_analysis.py`).
+
+| Donnée | Où | Ce que c'est |
+|---|---|---|
+| `amount` | chaque VaR, chaque CVaR, `drawdown`, `worst_day` | la mesure appliquée à la valeur du portefeuille au jour de la valorisation (`measures.amount`), même signe qu'elle, `null` avec elle |
+| `end_to_end_amount` | chaque scénario | le résultat de bout en bout appliqué à la valeur d'aujourd'hui des lignes couvertes |
+| `recovery_date`, `recovery_sessions` | `drawdown` | la première séance, après le creux, où la valeur retrouve son pic, et les séances écoulées depuis le creux ; `null` sans retour avant la fin de la fenêtre, ou sans baisse |
+| `worst_day` | `risk` | la pire séance de la fenêtre, en perte positive comme la VaR, avec sa date et son montant |
+| `benchmark_volatility` | `risk` | la volatilité de l'indice de référence, sur les mêmes séances que le portefeuille, par la même méthode et avec la même réserve sous 30 séances ; `null` sans indice |
+| `benchmark_label`, `benchmark_description` | `parameters` ; `benchmark_label` aussi sur chaque régime | « le S&P 500 », « l'indice de 500 grandes entreprises américaines » (`universe.BENCHMARK_NAMES`) ; `null` pour un indice sans nom connu, que la phrase cite par son ticker |
+| `period_label` | chaque VaR, CVaR et volatilité, `drawdown` ; `estimation_period_label` ; `calm_period_label` sur chaque régime | la période obtenue, dite pour un lecteur : « ces deux dernières années » |
+| `coverage_sufficient` | chaque scénario | la partie rejouée atteint-elle le seuil choisi de 80 % de la valeur |
+
+**Un montant est une conversion d'échelle, pas une perte reconstituée.**
+« 1,06 % représente environ 890 USD sur la valeur d'aujourd'hui » est exact ;
+« le portefeuille a perdu 890 USD » ne l'est pas, puisqu'il ne valait pas
+cette somme le jour de la perte. Le pire moment traversé d'une crise n'a pas
+de montant : il se mesure depuis un plus haut atteint pendant l'épisode,
+souvent au-dessus du point de départ, et le multiplier par la valeur de
+départ ne donnerait aucune perte réelle.
+
+**La période est celle des séances obtenues**, jamais celle de la fenêtre
+demandée (`engine.period_label`) :
+
+- à partir de 252 séances, et à moins d'un vingtième d'année d'un nombre
+  entier : en années, « ces deux dernières années » ;
+- sinon, à partir de 21 séances : en mois arrondis, « ces 14 derniers mois » ;
+- en deçà : en jours de bourse, « ces sept derniers jours de bourse ».
+
+Les nombres s'écrivent en lettres jusqu'à dix (`typography.cardinal`). C'est
+la règle du bandeau d'acceptation (`disclaimer._duree`), sauf sous un mois,
+où celle-ci écrirait « environ 0 mois ». Seul le régime **calme** reçoit un
+libellé : une fenêtre de crise se termine dans le passé, et « ces 17 derniers
+mois » y serait faux. Le libellé voyage à côté de la fenêtre, dans l'objet de
+la mesure : `WindowOut` garde ses cinq champs partout dans la réponse.
+
+**La couverture minimale vit désormais dans le moteur.**
+`config.MIN_SCENARIO_COVERAGE_SHARE` (0,80) est la constante que lit le seuil
+`rules.thresholds.MIN_SCENARIO_COVERAGE` : même nombre, même texte. Le moteur
+publie le verdict avec chaque scénario, pour qu'une phrase de lecture ne cite
+jamais comme la perte du portefeuille ce que le moteur de règles refuse d'en
+dire.
+
+**La réponse de référence n'a pas bougé.** Sur la copie figée, à 504 et à 60
+séances, toutes les valeurs existantes sont identiques, nombres relus tels
+qu'ils sont écrits dans les octets. Seuls s'ajoutent les champs ci-dessus :
+48 à 504 séances, 40 à 60.
 
 #### Historique insuffisant : troncature ou exclusion — décision v1
 
@@ -1741,6 +1796,12 @@ l'ordre chronologique.
     - À 390 px : légendes et refus bornés à leur cadre ; dans le tableau de
       saisie, la quantité suit le ticker ; la légende de l'histogramme ne
       décrit que ce qui est tracé
+  - [ ] **Textes de lecture** — chantier ouvert le 2026-10-05, avant le test
+    utilisateur et la 7B.3b : chaque mesure dite en calendrier, en dollars et
+    en période, pour un lecteur qui part de zéro
+    - [x] Données publiées par le moteur : montants, retour au pic, pire
+      séance, volatilité et nom de l'indice de référence, libellés de
+      période, verdict de couverture d'un scénario
   - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
     graphiques
 - [ ] **Phase 8 — Documentation** : README méthodologie

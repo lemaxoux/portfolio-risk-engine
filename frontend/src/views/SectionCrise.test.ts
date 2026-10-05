@@ -44,6 +44,8 @@ function scenario(cle: string, nom: string, sortie: number | null, creux: number
     observations: 356,
     unavailable_reason: sortie === null ? "aucune ligne du portefeuille n'a d'historique couvrant la période" : null,
     summary: '',
+    end_to_end_amount: sortie === null ? null : sortie * part,
+    coverage_sufficient: part >= 0.8,
   }
 }
 
@@ -133,6 +135,8 @@ describe('régimes appariés, jamais moyennés (§11.6)', () => {
     systematic_share_change: 0.49,
     unavailable_reason: null,
     summary: '',
+    benchmark_label: 'le S&P 500',
+    calm_period_label: 'ces deux dernières années',
   }
 
   it('pose le beta calme et le beta de crise côte à côte, sans moyenne', () => {

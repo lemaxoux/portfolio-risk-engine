@@ -17,7 +17,8 @@ from datetime import date
 import pandas as pd
 
 from backend import typography
-from backend.typography import NARROW_NBSP
+from backend.ingestion.universe import BENCHMARK_NAMES
+from backend.typography import NARROW_NBSP, NBSP
 
 from . import covariance, measures, regime, stress, var
 from .config import (
@@ -29,6 +30,8 @@ from .config import (
     MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
+    MIN_SCENARIO_COVERAGE_SHARE,
+    TRADING_DAYS_PER_MONTH,
     TRADING_DAYS_PER_YEAR,
     MONTE_CARLO_SEED,
     MONTE_CARLO_SIMULATIONS,
@@ -46,6 +49,40 @@ from .portfolio import (
 )
 from .scenarios import SCENARIOS, Scenario
 from .returns import align_panel, portfolio_returns, simple_returns, wealth_curve
+
+
+def period_label(observations: int) -> str:
+    """La période couverte par `observations` séances, dite pour un lecteur :
+    « ces deux dernières années », « ces trois derniers mois ».
+
+    Convertir des séances en années est un calcul : il vit ici, et le client ne
+    fait que citer le libellé. La règle, validée avec les textes de lecture :
+
+    * à partir de 252 séances, et à moins d'un vingtième d'année d'un nombre
+      entier d'années : en années ;
+    * sinon, à partir de 21 séances : en mois arrondis ;
+    * en deçà : en jours de bourse, le compte exact.
+
+    C'est la règle de `rules.disclaimer._duree`, sauf en deçà d'un mois, où
+    celle-ci écrirait « environ 0 mois ». Les nombres s'écrivent en lettres
+    jusqu'à dix (`typography.cardinal`), suivis d'une espace insécable.
+    """
+    if observations < 1:
+        raise ValueError(f"Au moins une séance (reçu : {observations}).")
+    annees = observations / TRADING_DAYS_PER_YEAR
+    entieres = round(annees)
+    if observations >= TRADING_DAYS_PER_YEAR and abs(annees - entieres) < 0.05:
+        if entieres == 1:
+            return "cette dernière année"
+        return f"ces {typography.cardinal(entieres)}{NBSP}dernières années"
+    if observations >= TRADING_DAYS_PER_MONTH:
+        mois = round(observations / TRADING_DAYS_PER_MONTH)
+        if mois == 1:
+            return "ce dernier mois"
+        return f"ces {typography.cardinal(mois)}{NBSP}derniers mois"
+    if observations == 1:
+        return "ce dernier jour de bourse"
+    return f"ces {typography.cardinal(observations)}{NBSP}derniers jours de bourse"
 
 
 @dataclass(frozen=True)
@@ -69,6 +106,16 @@ class Window:
     def complete(self) -> bool:
         """Vrai si la fenêtre demandée a pu être remplie entièrement."""
         return self.observations >= self.requested
+
+    @property
+    def period_label(self) -> str:
+        """La période OBTENUE, dite pour un lecteur (voir `period_label`).
+
+        Celle des séances réellement utilisées, jamais celle de la fenêtre
+        demandée : une ligne cotée depuis peu ramène « ces deux dernières
+        années » à « ces sept derniers jours de bourse ».
+        """
+        return period_label(self.observations)
 
     def __str__(self) -> str:
         etat = "" if self.complete else f" (demandé : {self.requested})"
@@ -97,10 +144,25 @@ class VolatilityResult:
 
 @dataclass(frozen=True)
 class DrawdownResult:
+    """Creux maximal de la fenêtre, et ce qu'il a fallu pour s'en remettre.
+
+    `amount` est `value` appliqué à la valeur du portefeuille au jour de la
+    valorisation (`measures.amount`) : une conversion d'échelle, négative
+    comme le creux, pas la perte en devise subie à l'époque.
+
+    `recovery_date` est la première séance, après le creux, où la valeur
+    retrouve son pic ; `recovery_sessions` le nombre de séances écoulées depuis
+    le creux. Les deux valent None si la baisse n'est pas effacée à la fin de la
+    fenêtre, ou s'il n'y a pas eu de baisse (voir `measures.recovery_after`).
+    """
+
     value: float
     peak_date: date
     trough_date: date
     window: Window
+    amount: float
+    recovery_date: date | None = None
+    recovery_sessions: int | None = None
 
 
 @dataclass(frozen=True)
@@ -279,6 +341,10 @@ class VarResult:
     avec `undefined_reason` : aucune séance ne tombe dans la queue, et le
     chiffre ne serait que le minimum de la fenêtre (voir
     `config.historical_var_min_observations`).
+
+    `amount` est `value` appliqué à la valeur du portefeuille au jour de la
+    valorisation (`measures.amount`), perte positive comme `value`, et None
+    avec lui.
     """
 
     value: float | None
@@ -289,6 +355,7 @@ class VarResult:
     nu: float | None = None
     caveat: str | None = None
     undefined_reason: str | None = None
+    amount: float | None = None
 
 
 @dataclass(frozen=True)
@@ -316,6 +383,9 @@ class ExpectedShortfallResult:
     # Refusée avec la VaR historique du même niveau, sous 1/(1 − α) séances :
     # elle moyenne une queue qui ne contient alors aucune séance.
     undefined_reason: str | None = None
+    # `value` appliqué à la valeur du portefeuille (`measures.amount`), perte
+    # positive comme lui, et None avec lui.
+    amount: float | None = None
 
     @property
     def caveat(self) -> str | None:
@@ -326,6 +396,46 @@ class ExpectedShortfallResult:
             f"sur une fenêtre de {self.window.observations} : chacune pèse pour "
             f"{typography.percent(1 / self.tail_observations, 0)} du chiffre."
         )
+
+@dataclass(frozen=True)
+class WorstDayResult:
+    """La pire séance de la fenêtre, en PERTE POSITIVE comme la VaR.
+
+    Ce n'est pas un quantile, c'est un jour qui a eu lieu. À côté de la VaR,
+    il dit que le seuil n'est pas un plafond. `amount` est la perte appliquée à
+    la valeur du portefeuille au jour de la valorisation (`measures.amount`).
+    """
+
+    date: date
+    loss: float
+    amount: float
+    window: Window
+
+
+@dataclass(frozen=True)
+class BenchmarkName:
+    """Ce que suit un indice de référence, pour une phrase de lecture.
+
+    `label` se place après une préposition sans contraction : « pour le
+    S&P 500 », « quand le S&P 500 bougeait ». `description` le présente à sa
+    première apparition.
+    """
+
+    label: str
+    description: str
+
+
+def benchmark_name(ticker: str | None) -> BenchmarkName | None:
+    """Le nom lisible d'un indice de référence connu, ou None.
+
+    Un ticker absent de `universe.BENCHMARK_NAMES` n'a pas de nom inventé : la
+    phrase le cite par son ticker.
+    """
+    if ticker is None or ticker not in BENCHMARK_NAMES:
+        return None
+    label, description = BENCHMARK_NAMES[ticker]
+    return BenchmarkName(label=label, description=description)
+
 
 @dataclass(frozen=True)
 class LimitingPosition:
@@ -421,6 +531,12 @@ class RiskReport:
     # n'a été demandé, il n'y a rien à expliquer.
     monte_carlo_unavailable_reason: str | None = None
     student_unavailable_reason: str | None = None
+    # Volatilité de l'indice de référence, sur les MÊMES séances que le
+    # portefeuille (le benchmark entre dans le même panel aligné) et par la
+    # même méthode. None sans indice de référence. C'est un repère pour lire
+    # la volatilité du portefeuille, pas une mesure de son risque.
+    benchmark_volatility: VolatilityResult | None = None
+    worst_day: WorstDayResult | None = None
 
 
 # ------------------------------------------------------------------ Séries --
@@ -583,12 +699,45 @@ def ewma_volatility(
     )
 
 
+def benchmark_volatility(serie: PortfolioSeries) -> VolatilityResult | None:
+    """Volatilité de l'indice de référence, sur les séances du portefeuille.
+
+    Même méthode, même fenêtre, même réserve sous 30 séances que
+    `volatility(serie)` : les deux chiffres se comparent, et rien d'autre ne
+    les distingue que la série mesurée.
+    """
+    if serie.benchmark_returns is None:
+        return None
+    annualisee = measures.annualised_volatility(serie.benchmark_returns)
+    return VolatilityResult(
+        annualised=annualisee,
+        daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
+        method="écart-type (√252)",
+        window=serie.window,
+        caveat=_estimation_mince(serie.window),
+    )
+
+
 def drawdown(serie: PortfolioSeries) -> DrawdownResult:
     brut = measures.max_drawdown(serie.wealth)
+    retour = measures.recovery_after(serie.wealth, brut)
     return DrawdownResult(
         value=brut.value,
         peak_date=brut.peak_date,
         trough_date=brut.trough_date,
+        window=serie.window,
+        amount=measures.amount(brut.value, serie.weights.total_value),
+        recovery_date=None if retour is None else retour.date,
+        recovery_sessions=None if retour is None else retour.sessions,
+    )
+
+
+def worst_day(serie: PortfolioSeries) -> WorstDayResult:
+    pire = measures.worst_session(serie.returns)
+    return WorstDayResult(
+        date=pire.date,
+        loss=pire.loss,
+        amount=measures.amount(pire.loss, serie.weights.total_value),
         window=serie.window,
     )
 
@@ -846,12 +995,14 @@ def historical_var(
             detail=detail,
             undefined_reason=refus,
         )
+    valeur = var.historical_var(serie.returns, confidence)
     return VarResult(
-        value=var.historical_var(serie.returns, confidence),
+        value=valeur,
         confidence=confidence,
         method="historique",
         window=serie.window,
         detail=detail,
+        amount=measures.amount(valeur, serie.weights.total_value),
     )
 
 
@@ -870,8 +1021,9 @@ def parametric_var(
         serie.weights.weights, matrice, periods_per_year=1
     )
     moyenne = float(serie.returns.mean()) if include_mean else 0.0
+    valeur = var.parametric_var(sigma_quotidien, confidence, moyenne)
     return VarResult(
-        value=var.parametric_var(sigma_quotidien, confidence, moyenne),
+        value=valeur,
         confidence=confidence,
         method="paramétrique",
         window=serie.window,
@@ -879,6 +1031,7 @@ def parametric_var(
             "normalité, μ estimée" if include_mean else "normalité, μ = 0"
         ),
         caveat=_estimation_mince(serie.window),
+        amount=measures.amount(valeur, serie.weights.total_value),
     )
 
 
@@ -904,6 +1057,7 @@ def expected_shortfall(
         tail_observations=brut.tail_observations,
         threshold=brut.threshold,
         window=serie.window,
+        amount=measures.amount(brut.value, serie.weights.total_value),
     )
 
 
@@ -930,6 +1084,7 @@ def monte_carlo_var(
             f"{typography.grouped(brut.simulations, 'tirage')} "
             f"normaux corrélés, graine {brut.seed}"
         ),
+        amount=measures.amount(brut.value, serie.weights.total_value),
     )
 
 
@@ -977,8 +1132,9 @@ def student_parametric_var(
     sigma_quotidien = covariance.parametric_volatility(
         serie.weights.weights, matrice, periods_per_year=1
     )
+    valeur = var.student_t_var(sigma_quotidien, ajustement.nu, confidence)
     return VarResult(
-        value=var.student_t_var(sigma_quotidien, ajustement.nu, confidence),
+        value=valeur,
         confidence=confidence,
         method="Student paramétrique",
         window=serie.window,
@@ -987,6 +1143,7 @@ def student_parametric_var(
             f"{typography.sessions(ajustement.observations)}), variance ajustée sur Σ"
         ),
         nu=ajustement.nu,
+        amount=measures.amount(valeur, serie.weights.total_value),
     )
 
 
@@ -1020,6 +1177,7 @@ def student_monte_carlo_var(
             f"graine {brut.seed}"
         ),
         nu=ajustement.nu,
+        amount=measures.amount(brut.value, serie.weights.total_value),
     )
 
 
@@ -1068,6 +1226,17 @@ class ScenarioCoverage:
     @property
     def has_any(self) -> bool:
         return bool(self.covered)
+
+    @property
+    def sufficient(self) -> bool:
+        """La partie rejouée pèse-t-elle assez pour donner un chiffre principal ?
+
+        Au moins `MIN_SCENARIO_COVERAGE_SHARE` (80 %, seuil choisi à la main,
+        déclaré dans `rules.thresholds.MIN_SCENARIO_COVERAGE`) de la valeur.
+        En deçà, le moteur de règles ne donne pas de chiffre pour le
+        portefeuille, et une phrase de lecture ne doit pas en citer un.
+        """
+        return self.value_share >= MIN_SCENARIO_COVERAGE_SHARE
 
     @property
     def covered_count(self) -> int:
@@ -1134,6 +1303,13 @@ class ScenarioResult:
     contributions: tuple[stress.PositionContribution, ...]
     observations: int
     unavailable_reason: str | None = None
+    # `end_to_end_return` appliqué à la valeur d'aujourd'hui des lignes
+    # COUVERTES (`measures.amount`) : celle du portefeuille entier quand la
+    # couverture est complète. Négatif pour une perte, None avec le rendement.
+    # Le pire moment traversé n'a pas de montant : il se mesure depuis un plus
+    # haut atteint pendant l'épisode, et le multiplier par la valeur de départ
+    # ne donnerait aucune perte réelle.
+    end_to_end_amount: float | None = None
 
     def summary(self) -> str:
         """Une ligne qui ne peut pas laisser croire à une couverture totale."""
@@ -1276,13 +1452,15 @@ def run_scenario(
         )
 
     trajectoire = stress.buy_and_hold_value(panel, poids_couverts)
+    rendement = stress.end_to_end_return(trajectoire)
     return ScenarioResult(
         scenario=scenario,
         coverage=couverture,
-        end_to_end_return=stress.end_to_end_return(trajectoire),
+        end_to_end_return=rendement,
         max_drawdown=measures.max_drawdown(trajectoire),
         contributions=tuple(stress.position_contributions(panel, poids_couverts)),
         observations=len(panel),
+        end_to_end_amount=measures.amount(rendement, couverture.covered_value),
     )
 
 
@@ -1381,6 +1559,27 @@ class RegimeComparison:
     calm_beta: RegressedBeta | None = None
     predicted_return: float | None = None
     unavailable_reason: str | None = None
+
+    @property
+    def benchmark_label(self) -> str | None:
+        """« le S&P 500 » pour SPY ; None pour un indice sans nom connu."""
+        nom = benchmark_name(self.benchmark)
+        return None if nom is None else nom.label
+
+    @property
+    def calm_period_label(self) -> str | None:
+        """La période du régime calme, dite pour un lecteur (`period_label`).
+
+        Seulement celle du régime CALME : elle se termine à la dernière séance
+        en base, et « ces deux dernières années » la décrit. Une fenêtre de
+        crise se termine dans le passé ; « ces 17 derniers mois » y serait
+        faux.
+
+        Ce n'est pas toujours la fenêtre d'estimation du rapport : en
+        couverture partielle, le régime calme porte sur les seules lignes
+        couvertes, sur leur propre historique.
+        """
+        return None if self.calm_beta is None else period_label(self.calm_beta.observations)
 
     @property
     def prediction_gap(self) -> float | None:
@@ -1737,4 +1936,6 @@ def analyse_portfolio(
         student_monte_carlo_var=student_simulee,
         monte_carlo_unavailable_reason=raison_normale,
         student_unavailable_reason=raison_student,
+        benchmark_volatility=benchmark_volatility(serie),
+        worst_day=worst_day(serie),
     )

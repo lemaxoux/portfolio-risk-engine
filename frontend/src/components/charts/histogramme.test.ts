@@ -37,7 +37,17 @@ const HISTOGRAMME: ReturnHistogram = {
 }
 
 function niveau(confiance: number, var_: number, seuil: number, queue: number): TailRiskLevel {
-  const vr = { value: var_, confidence: confiance, method: 'historique', detail: '', nu: null, caveat: null, window: FENETRE }
+  const vr = {
+    value: var_,
+    confidence: confiance,
+    method: 'historique',
+    detail: '',
+    nu: null,
+    caveat: null,
+    window: FENETRE,
+    amount: 1000,
+    period_label: 'ces deux dernières années',
+  }
   const historique = { ...vr, undefined_reason: null }
   return {
     confidence: confiance,
@@ -54,6 +64,8 @@ function niveau(confiance: number, var_: number, seuil: number, queue: number): 
       caveat: null,
       undefined_reason: null,
       window: FENETRE,
+      amount: 1000,
+      period_label: 'ces deux dernières années',
     },
   }
 }

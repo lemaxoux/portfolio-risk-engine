@@ -1732,3 +1732,106 @@ def test_les_grands_nombres_sont_groupes_a_l_espace_fine(analyse_reelle):
     assert details
     for detail in details:
         assert f"100{NARROW_NBSP}000{NBSP}tirages" in detail, detail
+
+
+# ═════════════════════════ 9. Ce que citent les phrases de lecture ══
+#
+# Les données ajoutées pour les textes de lecture, publiées telles que le
+# moteur les calcule. Sur la copie figée, la baisse d'avril 2025 est effacée
+# avant la fin de la fenêtre.
+
+
+def test_chaque_montant_est_la_mesure_appliquee_a_la_valeur(analyse_reelle):
+    corps = analyse_reelle.json()
+    total = corps["total_value"]
+    champs = (
+        "historical_var",
+        "parametric_var",
+        "monte_carlo_var",
+        "student_parametric_var",
+        "student_monte_carlo_var",
+        "expected_shortfall",
+    )
+    for niveau in corps["risk"]["tail_risk"]["levels"]:
+        for champ in champs:
+            mesure = niveau[champ]
+            assert mesure is not None, champ
+            assert mesure["amount"] == mesure["value"] * total, champ
+    creux = corps["risk"]["drawdown"]
+    assert creux["amount"] == creux["value"] * total
+    pire = corps["risk"]["worst_day"]
+    assert pire["amount"] == pire["loss"] * total
+
+
+def test_le_retour_au_pic_se_lit_sur_la_courbe_publiee(analyse_reelle):
+    corps = analyse_reelle.json()
+    creux = corps["risk"]["drawdown"]
+    niveaux = {point["date"]: point["value"] for point in corps["series"]["wealth"]}
+    dates = list(niveaux)
+    pic, bas, retour = creux["peak_date"], creux["trough_date"], creux["recovery_date"]
+
+    assert retour is not None
+    assert niveaux[retour] >= niveaux[pic]
+    entre = dates[dates.index(bas) : dates.index(retour)]
+    assert all(niveaux[jour] < niveaux[pic] for jour in entre)
+    assert creux["recovery_sessions"] == dates.index(retour) - dates.index(bas)
+
+
+def test_la_pire_seance_est_le_plus_mauvais_rendement_publie(analyse_reelle):
+    corps = analyse_reelle.json()
+    rendements = corps["series"]["returns"]
+    pire = min(rendements, key=lambda point: point["value"])
+    publiee = corps["risk"]["worst_day"]
+    assert publiee["date"] == pire["date"]
+    assert publiee["loss"] == -pire["value"]
+    assert publiee["window"] == corps["estimation_window"]
+
+
+def test_les_libelles_de_periode_suivent_la_fenetre_obtenue(analyse_reelle):
+    corps = analyse_reelle.json()
+    attendu = f"ces deux{NBSP}dernières années"
+    risque = corps["risk"]
+    assert corps["estimation_period_label"] == attendu
+    assert risque["volatility"]["period_label"] == attendu
+    assert risque["drawdown"]["period_label"] == attendu
+    for niveau in risque["tail_risk"]["levels"]:
+        for champ in ("historical_var", "parametric_var", "expected_shortfall"):
+            assert niveau[champ]["period_label"] == attendu, champ
+    for regime in corps["regimes"]:
+        assert regime["calm_period_label"] == attendu
+
+
+def test_l_indice_de_reference_est_nomme_et_mesure_sur_la_meme_fenetre(analyse_reelle):
+    corps = analyse_reelle.json()
+    parametres = corps["parameters"]
+    assert parametres["benchmark_label"] == "le S&P 500"
+    assert parametres["benchmark_description"] == (
+        "l'indice de 500 grandes entreprises américaines"
+    )
+    indice = corps["risk"]["benchmark_volatility"]
+    assert indice["window"] == corps["estimation_window"]
+    assert indice["method"] == corps["risk"]["volatility"]["method"]
+    assert indice["annualised"] > 0
+    assert indice["annualised"] != corps["risk"]["volatility"]["annualised"]
+    for regime in corps["regimes"]:
+        assert regime["benchmark_label"] == "le S&P 500"
+
+
+def test_chaque_crise_publie_son_montant_et_son_verdict_de_couverture(analyse_reelle):
+    for scenario in analyse_reelle.json()["scenarios"]:
+        couverture = scenario["coverage"]
+        assert scenario["end_to_end_amount"] == (
+            scenario["end_to_end_return"] * couverture["covered_value"]
+        )
+        assert scenario["coverage_sufficient"] is True
+
+
+def test_sans_indice_de_reference_ni_nom_ni_volatilite_d_indice(
+    client_synthetique, portefeuille_synthetique
+):
+    corps = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis?window=250&benchmark="
+    ).json()
+    assert corps["parameters"]["benchmark_label"] is None
+    assert corps["parameters"]["benchmark_description"] is None
+    assert corps["risk"]["benchmark_volatility"] is None

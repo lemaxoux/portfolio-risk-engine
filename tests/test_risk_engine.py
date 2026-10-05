@@ -11,6 +11,7 @@ si la base locale existe, et se saute proprement sur un clone frais.
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from datetime import date, timedelta
 
 import numpy as np
@@ -20,16 +21,26 @@ from backend.db.init_db import connect, init_db
 from backend.risk_engine.config import (
     DEFAULT_RISK_FREE_RATE,
     MAX_STUDENT_NU,
+    MIN_SCENARIO_COVERAGE_SHARE,
     RISK_FREE_RATE_OBSERVED_ON,
 )
 from backend.risk_engine.engine import (
+    ExcludedPosition,
     LimitingPosition,
+    RegimeComparison,
+    RegressedBeta,
+    ScenarioCoverage,
     Window,
     analyse_portfolio,
+    benchmark_name,
     build_portfolio_series,
     concentration,
+    period_label,
+    run_scenario,
     student_fit,
 )
+from backend.risk_engine.scenarios import SCENARIOS, Scenario
+from backend.typography import NARROW_NBSP, NBSP, cardinal
 from backend.risk_engine.var import fit_student_t
 from backend.risk_engine.measures import max_drawdown
 from backend.risk_engine.portfolio import (
@@ -1502,3 +1513,242 @@ def test_a_deux_seances_la_volatilite_reste_publiee_la_var_historique_est_refuse
         "Sur 2\u00a0séances, aucune ne tombe dans les 5\u202f% des pires"
     )
     assert rapport.drawdown.value <= 0.0
+
+
+# ══════════════════════════════ Ce que citent les phrases de lecture ══
+#
+# Données ajoutées au rapport pour les textes de lecture : libellés de
+# période, montants, retour au pic, volatilité de l'indice de référence, pire
+# séance, verdict de couverture d'un scénario, nom lisible d'un indice. Le
+# moteur les calcule ; le client ne fait que les citer.
+
+
+@pytest.mark.parametrize(
+    "observations, attendu",
+    [
+        (504, f"ces deux{NBSP}dernières années"),
+        (500, f"ces deux{NBSP}dernières années"),
+        (1008, f"ces quatre{NBSP}dernières années"),
+        (260, "cette dernière année"),
+        (252, "cette dernière année"),
+        (300, f"ces 14{NBSP}derniers mois"),
+        (241, f"ces 11{NBSP}derniers mois"),
+        (60, f"ces trois{NBSP}derniers mois"),
+        (25, "ce dernier mois"),
+        (21, "ce dernier mois"),
+        (20, f"ces 20{NBSP}derniers jours de bourse"),
+        (7, f"ces sept{NBSP}derniers jours de bourse"),
+        (2, f"ces deux{NBSP}derniers jours de bourse"),
+        (1, "ce dernier jour de bourse"),
+    ],
+)
+def test_le_libelle_de_periode_suit_la_regle_des_textes_de_lecture(observations, attendu):
+    """Années près d'un entier à partir de 252 séances, mois arrondis à
+    partir de 21, jours de bourse en deçà. 241 séances ne font pas « cette
+    dernière année » : la règle part de 252."""
+    assert period_label(observations) == attendu
+
+
+def test_le_libelle_de_periode_refuse_une_fenetre_vide():
+    with pytest.raises(ValueError):
+        period_label(0)
+
+
+def test_une_fenetre_dit_la_periode_obtenue_et_non_la_periode_demandee():
+    fenetre = Window(
+        requested=504, observations=7, start=date(2026, 9, 17), end=date(2026, 9, 25)
+    )
+    assert fenetre.period_label == f"ces sept{NBSP}derniers jours de bourse"
+
+
+def test_les_nombres_d_une_phrase_s_ecrivent_en_lettres_jusqu_a_dix():
+    assert [cardinal(n) for n in (0, 1, 2, 10)] == ["zéro", "un", "deux", "dix"]
+    assert cardinal(11) == "11"
+    assert cardinal(1234) == f"1{NARROW_NBSP}234"
+
+
+def test_chaque_var_et_chaque_cvar_portent_leur_montant(conn):
+    j = seances(300)
+    peupler(
+        conn,
+        {
+            "A": cours_student(j, 100.0, 0.011, graine=21),
+            "B": cours_student(j, 70.0, 0.013, graine=22),
+            "SPY": cours(j, 400.0, 0.009, graine=23),
+        },
+        {"A": 10, "B": 12},
+    )
+    rapport = analyse_portfolio(conn, 1, window=250, monte_carlo=True)
+    assert rapport.student_parametric_var is not None, "témoin : la Student est ajustée"
+    familles = (
+        rapport.historical_var,
+        rapport.parametric_var,
+        rapport.monte_carlo_var,
+        rapport.student_parametric_var,
+        rapport.student_monte_carlo_var,
+        rapport.expected_shortfall,
+    )
+    for famille in familles:
+        for resultat in famille.values():
+            assert resultat.amount == resultat.value * rapport.total_value
+            assert resultat.amount > 0, "une perte positive donne un montant positif"
+
+
+def test_une_var_refusee_n_a_pas_de_montant(conn):
+    j = seances(12)
+    peupler(conn, {"A": cours(j, graine=24)}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=10, benchmark=None)
+    for niveau in (0.95, 0.99):
+        assert rapport.historical_var[niveau].value is None
+        assert rapport.historical_var[niveau].amount is None
+        assert rapport.expected_shortfall[niveau].amount is None
+        assert rapport.parametric_var[niveau].amount is not None
+
+
+def test_le_creux_porte_son_montant_et_son_retour_au_pic(conn):
+    j = seances(8)
+    # Pic à 110, creux à 90, retour au-dessus du pic à 112, deux séances
+    # après le creux.
+    prix = [100.0, 110.0, 100.0, 90.0, 95.0, 112.0, 115.0, 111.0]
+    peupler(conn, {"A": list(zip(j, prix))}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=7, benchmark=None)
+    creux = rapport.drawdown
+    assert (creux.peak_date, creux.trough_date) == (j[1], j[3])
+    assert creux.amount == creux.value * rapport.total_value
+    assert creux.amount < 0
+    assert (creux.recovery_date, creux.recovery_sessions) == (j[5], 2)
+
+
+def test_un_creux_non_efface_n_a_pas_de_date_de_retour(conn):
+    j = seances(6)
+    prix = [100.0, 110.0, 100.0, 90.0, 95.0, 100.0]
+    peupler(conn, {"A": list(zip(j, prix))}, {"A": 10})
+    creux = analyse_portfolio(conn, 1, window=5, benchmark=None).drawdown
+    assert creux.recovery_date is None
+    assert creux.recovery_sessions is None
+
+
+def test_la_volatilite_de_l_indice_porte_sur_les_seances_du_portefeuille(conn):
+    """Une séance manque à SPY : elle disparaît pour le portefeuille comme pour
+    l'indice, et la volatilité de l'indice se calcule sur le panel aligné."""
+    j = seances(70)
+    spy = [point for rang, point in enumerate(cours(j, 400.0, 0.02, graine=26)) if rang != 30]
+    peupler(conn, {"A": cours(j, graine=25), "SPY": spy}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=60)
+
+    niveaux = np.array([valeur for _, valeur in spy])
+    rendements = (niveaux[1:] / niveaux[:-1] - 1.0)[-60:]
+    attendue = float(np.std(rendements, ddof=1) * np.sqrt(252))
+
+    indice = rapport.benchmark_volatility
+    assert indice.annualised == pytest.approx(attendue, rel=1e-12)
+    assert indice.window == rapport.volatility.window
+    assert indice.method == rapport.volatility.method
+    assert indice.annualised != rapport.volatility.annualised
+
+
+def test_la_volatilite_de_l_indice_porte_la_meme_reserve_que_celle_du_portefeuille(conn):
+    j = seances(10)
+    peupler(conn, {"A": cours(j, graine=27), "SPY": cours(j, 400.0, graine=28)}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=7)
+    assert rapport.volatility.caveat is not None
+    assert rapport.benchmark_volatility.caveat == rapport.volatility.caveat
+
+
+def test_sans_indice_de_reference_pas_de_volatilite_de_l_indice(conn):
+    j = seances(40)
+    peupler(conn, {"A": cours(j, graine=29)}, {"A": 10})
+    assert analyse_portfolio(conn, 1, window=30, benchmark=None).benchmark_volatility is None
+
+
+def test_la_pire_seance_est_celle_du_rapport_avec_son_montant(conn):
+    j = seances(30)
+    peupler(conn, {"A": cours(j, graine=30)}, {"A": 10})
+    rapport = analyse_portfolio(conn, 1, window=25, benchmark=None)
+    pire = rapport.worst_day
+    assert pire.date == rapport.returns.idxmin()
+    assert pire.loss == -rapport.returns.min()
+    assert pire.amount == pire.loss * rapport.total_value
+    assert pire.window == rapport.window
+
+
+def test_le_resultat_d_un_scenario_porte_son_montant_sur_la_valeur_couverte(conn):
+    j = seances(40)
+    # B n'est coté qu'à partir de la onzième séance : exclu de l'épisode.
+    peupler(conn, {"A": cours(j, graine=31), "B": cours(j[10:], graine=32)}, {"A": 10, "B": 5})
+    episode = Scenario(
+        key="essai", name="Épisode d'essai", start=j[2], end=j[8], benchmark="A", description=""
+    )
+    resultat = run_scenario(conn, 1, episode)
+    assert not resultat.coverage.is_complete
+    assert resultat.end_to_end_amount == (
+        resultat.end_to_end_return * resultat.coverage.covered_value
+    )
+
+
+def test_un_scenario_sans_ligne_couverte_n_a_pas_de_montant(conn):
+    j = seances(20)
+    peupler(conn, {"A": cours(j, graine=33)}, {"A": 10})
+    avant = Scenario(
+        key="avant",
+        name="Avant la cotation",
+        start=date(2020, 1, 2),
+        end=date(2020, 2, 3),
+        benchmark="A",
+        description="",
+    )
+    resultat = run_scenario(conn, 1, avant)
+    assert resultat.end_to_end_return is None
+    assert resultat.end_to_end_amount is None
+    assert not resultat.coverage.sufficient
+
+
+def test_la_couverture_suffit_a_partir_du_seuil_choisi():
+    def couverture(part):
+        return ScenarioCoverage(
+            covered=("A",),
+            excluded=(ExcludedPosition("B", "absent", 1.0 - part, 1.0 - part),),
+            covered_value=part,
+            total_value=1.0,
+        )
+
+    assert couverture(MIN_SCENARIO_COVERAGE_SHARE).sufficient
+    assert couverture(0.95).sufficient
+    assert not couverture(0.79).sufficient
+
+
+def test_le_seuil_de_couverture_n_a_qu_une_valeur():
+    """La constante du moteur et le seuil déclaré des règles sont le même
+    nombre : le verdict publié avec un scénario et l'observation du moteur de
+    règles ne peuvent pas se contredire."""
+    from backend.rules.thresholds import MIN_SCENARIO_COVERAGE
+
+    assert MIN_SCENARIO_COVERAGE.value == MIN_SCENARIO_COVERAGE_SHARE
+    assert MIN_SCENARIO_COVERAGE.chosen
+
+
+def test_seul_un_indice_connu_recoit_un_nom():
+    nom = benchmark_name("SPY")
+    assert nom.label == "le S&P 500"
+    assert nom.description == "l'indice de 500 grandes entreprises américaines"
+    assert benchmark_name("QQQ") is None
+    assert benchmark_name(None) is None
+
+
+def test_une_comparaison_de_regimes_nomme_son_indice_et_sa_periode_calme():
+    commun = dict(
+        beta=0.5, r_squared=0.4, standard_error=0.05, start=date(2024, 9, 5), end=date(2026, 9, 9)
+    )
+    comparaison = RegimeComparison(
+        scenario=SCENARIOS[0],
+        coverage=ScenarioCoverage(("A",), (), 1.0, 1.0),
+        benchmark="SPY",
+        crisis_beta=RegressedBeta(observations=355, **commun),
+        calm_beta=RegressedBeta(observations=504, **commun),
+    )
+    assert comparaison.benchmark_label == "le S&P 500"
+    assert comparaison.calm_period_label == f"ces deux{NBSP}dernières années"
+
+    autre = replace(comparaison, benchmark="QQQ", calm_beta=None)
+    assert autre.benchmark_label is None
+    assert autre.calm_period_label is None

@@ -285,6 +285,11 @@ export interface components {
             valuation: components["schemas"]["ValuationOut"];
             /** @description Fenêtre du panel de régime courant. Les mesures calculées sur ce panel la partagent ; chacune porte néanmoins la sienne, et une mesure peut en avoir une autre. */
             estimation_window: components["schemas"]["WindowOut"];
+            /**
+             * Estimation Period Label
+             * @description La période de `estimation_window`, dite pour un lecteur : « ces deux dernières années ».
+             */
+            estimation_period_label: string;
             /** Limiting Positions */
             limiting_positions: components["schemas"]["LimitingPositionOut"][];
             parameters: components["schemas"]["ParametersOut"];
@@ -537,7 +542,14 @@ export interface components {
             /** Body */
             body: string;
         };
-        /** DrawdownOut */
+        /**
+         * DrawdownOut
+         * @description Creux maximal de la fenêtre, et le retour au pic qui l'a effacé.
+         *
+         *     `recovery_date` et `recovery_sessions` valent `null` ensemble quand la
+         *     baisse n'est pas effacée à la fin de la fenêtre, ou quand il n'y a pas eu
+         *     de baisse (`value` nul) : rien n'est alors à retrouver.
+         */
         DrawdownOut: {
             /** Value */
             value: number;
@@ -552,6 +564,26 @@ export interface components {
              */
             trough_date: string;
             window: components["schemas"]["WindowOut"];
+            /**
+             * Amount
+             * @description `value` appliqué à la valeur du portefeuille au jour de la valorisation, dans la devise de `valuation.currency`, même signe que `value`. Une conversion d'échelle, pas une perte reconstituée.
+             */
+            amount: number;
+            /**
+             * Recovery Date
+             * @description Première séance, après le creux, où la valeur retrouve son pic. `null` sans retour avant la fin de la fenêtre.
+             */
+            recovery_date: string | null;
+            /**
+             * Recovery Sessions
+             * @description Séances écoulées du creux au retour au pic.
+             */
+            recovery_sessions: number | null;
+            /**
+             * Period Label
+             * @description La période de `window`, dite pour un lecteur : « ces deux dernières années ». Rédigée par le moteur (`engine.period_label`), d'après les séances obtenues.
+             */
+            period_label: string;
         };
         /** ExcludedPositionOut */
         ExcludedPositionOut: {
@@ -616,6 +648,16 @@ export interface components {
             /** Undefined Reason */
             undefined_reason: string | null;
             window: components["schemas"]["WindowOut"];
+            /**
+             * Amount
+             * @description `value` appliqué à la valeur du portefeuille au jour de la valorisation, dans la devise de `valuation.currency`, même signe que `value`. Une conversion d'échelle, pas une perte reconstituée. `null` avec `value`.
+             */
+            amount: number | null;
+            /**
+             * Period Label
+             * @description La période de `window`, dite pour un lecteur : « ces deux dernières années ». Rédigée par le moteur (`engine.period_label`), d'après les séances obtenues.
+             */
+            period_label: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -657,6 +699,16 @@ export interface components {
             /** Undefined Reason */
             undefined_reason: string | null;
             window: components["schemas"]["WindowOut"];
+            /**
+             * Amount
+             * @description `value` appliqué à la valeur du portefeuille au jour de la valorisation, dans la devise de `valuation.currency`, même signe que `value`. Une conversion d'échelle, pas une perte reconstituée. `null` avec `value`.
+             */
+            amount: number | null;
+            /**
+             * Period Label
+             * @description La période de `window`, dite pour un lecteur : « ces deux dernières années ». Rédigée par le moteur (`engine.period_label`), d'après les séances obtenues.
+             */
+            period_label: string;
         };
         /**
          * LimitingPositionOut
@@ -794,6 +846,16 @@ export interface components {
             benchmark: string | null;
             /** Confidence Levels */
             confidence_levels: number[];
+            /**
+             * Benchmark Label
+             * @description Ce que suit l'indice demandé, pour une phrase : « le S&P 500 ». `null` sans indice, ou pour un indice sans nom connu.
+             */
+            benchmark_label: string | null;
+            /**
+             * Benchmark Description
+             * @description L'indice présenté à sa première apparition : « l'indice de 500 grandes entreprises américaines ». `null` avec `benchmark_label`.
+             */
+            benchmark_description: string | null;
         };
         /**
          * PointOut
@@ -1010,6 +1072,16 @@ export interface components {
             unavailable_reason: string | null;
             /** Summary */
             summary: string;
+            /**
+             * Benchmark Label
+             * @description Ce que suit l'indice de référence, pour une phrase : « le S&P 500 ». `null` pour un indice sans nom connu, cité alors par son ticker.
+             */
+            benchmark_label: string | null;
+            /**
+             * Calm Period Label
+             * @description La période du régime calme, dite pour un lecteur : « ces deux dernières années ». Celle du régime de crise n'en a pas : elle se termine dans le passé.
+             */
+            calm_period_label: string | null;
         };
         /**
          * RegressedBetaOut
@@ -1085,6 +1157,9 @@ export interface components {
             variance_contributions: components["schemas"]["VarianceContributionsOut"];
             beta: components["schemas"]["BetaOut"] | null;
             tail_risk: components["schemas"]["TailRiskOut"];
+            /** @description Volatilité de l'indice de référence, sur les mêmes séances que le portefeuille et par la même méthode : un repère pour lire `volatility`. `null` sans indice de référence. */
+            benchmark_volatility: components["schemas"]["VolatilityOut"] | null;
+            worst_day: components["schemas"]["WorstDayOut"];
         };
         /** ScenarioDefOut */
         ScenarioDefOut: {
@@ -1134,6 +1209,16 @@ export interface components {
             unavailable_reason: string | null;
             /** Summary */
             summary: string;
+            /**
+             * End To End Amount
+             * @description `end_to_end_return` appliqué à la valeur d'aujourd'hui des lignes couvertes, dans la devise de `valuation.currency`. `null` avec le rendement. Le pire moment traversé n'a pas de montant : il se mesure depuis un plus haut atteint pendant l'épisode.
+             */
+            end_to_end_amount: number | null;
+            /**
+             * Coverage Sufficient
+             * @description La partie rejouée atteint-elle le seuil choisi de couverture (80 % de la valeur) ? En deçà, le moteur de règles ne donne pas de chiffre principal pour le portefeuille.
+             */
+            coverage_sufficient: boolean;
         };
         /** SecurityOut */
         SecurityOut: {
@@ -1388,6 +1473,16 @@ export interface components {
             /** Caveat */
             caveat: string | null;
             window: components["schemas"]["WindowOut"];
+            /**
+             * Amount
+             * @description `value` appliqué à la valeur du portefeuille au jour de la valorisation, dans la devise de `valuation.currency`, même signe que `value`. Une conversion d'échelle, pas une perte reconstituée.
+             */
+            amount: number;
+            /**
+             * Period Label
+             * @description La période de `window`, dite pour un lecteur : « ces deux dernières années ». Rédigée par le moteur (`engine.period_label`), d'après les séances obtenues.
+             */
+            period_label: string;
         };
         /**
          * VarianceContributionsOut
@@ -1434,6 +1529,11 @@ export interface components {
             /** Caveat */
             caveat: string | null;
             window: components["schemas"]["WindowOut"];
+            /**
+             * Period Label
+             * @description La période de `window`, dite pour un lecteur : « ces deux dernières années ». Rédigée par le moteur (`engine.period_label`), d'après les séances obtenues.
+             */
+            period_label: string;
         };
         /** WeightOut */
         WeightOut: {
@@ -1472,6 +1572,31 @@ export interface components {
              * @description Fenêtre demandée entièrement remplie (propriété du moteur).
              */
             complete: boolean;
+        };
+        /**
+         * WorstDayOut
+         * @description La pire séance de la fenêtre, en PERTE POSITIVE comme la VaR.
+         *
+         *     Une séance qui a eu lieu, pas un quantile : à côté de la VaR, elle dit que
+         *     le seuil n'est pas un plafond.
+         */
+        WorstDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Loss
+             * @description Perte de la séance, en fraction et en perte positive : 0.0587 se lit « 5,87 % ».
+             */
+            loss: number;
+            /**
+             * Amount
+             * @description `loss` appliqué à la valeur du portefeuille au jour de la valorisation, dans la devise de `valuation.currency`, même signe que `loss`. Une conversion d'échelle, pas une perte reconstituée.
+             */
+            amount: number;
+            window: components["schemas"]["WindowOut"];
         };
     };
     responses: never;

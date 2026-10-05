@@ -179,6 +179,69 @@ def max_drawdown(levels: pd.Series) -> Drawdown:
     )
 
 
+@dataclass(frozen=True)
+class Recovery:
+    """Retour au niveau du pic après le creux d'un drawdown."""
+
+    date: date
+    # Séances écoulées du creux au retour, comptées sur la série elle-même :
+    # le creux est la séance 0.
+    sessions: int
+
+
+def recovery_after(levels: pd.Series, drawdown: Drawdown) -> Recovery | None:
+    """Première séance, après le creux, où la série retrouve le niveau du pic.
+
+    Retrouver, c'est atteindre ou dépasser `peak_level` : le pic lui-même est
+    l'état d'avant la baisse, et y revenir suffit à l'avoir effacée.
+
+    None dans deux cas, qui ne se confondent pas avec un retour :
+    * la série ne retrouve pas son pic avant sa dernière séance — la baisse
+      n'est pas encore effacée à la fin de la fenêtre ;
+    * le drawdown est nul — la série n'a jamais reculé sous un plus haut
+      précédent, et il n'y a rien à retrouver.
+    """
+    if drawdown.value == 0.0:
+        return None
+    apres = levels.loc[drawdown.trough_date :]
+    retrouves = apres[apres >= drawdown.peak_level]
+    if retrouves.empty:
+        return None
+    jour = retrouves.index[0]
+    return Recovery(
+        date=jour,
+        sessions=int(levels.index.get_loc(jour) - levels.index.get_loc(drawdown.trough_date)),
+    )
+
+
+@dataclass(frozen=True)
+class WorstSession:
+    """La séance au plus mauvais rendement d'une série, en PERTE POSITIVE.
+
+    Même convention de signe que la VaR et la CVaR (`risk_engine.var`) : une
+    perte de 5,87 % vaut `0.0587`. Une valeur négative dirait que même la pire
+    séance a été un gain.
+    """
+
+    date: date
+    loss: float
+
+
+def worst_session(returns: pd.Series) -> WorstSession:
+    """La pire séance d'une série de rendements, et sa date.
+
+    Ce n'est pas un quantile : c'est une séance qui a eu lieu. À côté d'une VaR,
+    elle rappelle que le seuil n'est pas un plafond. En cas d'égalité, la
+    première des séances ex æquo.
+    """
+    if returns.empty:
+        raise ValueError("Série de rendements vide.")
+    if returns.isna().any():
+        raise ValueError("La série contient des NaN : aligner avant de mesurer.")
+    jour = returns.idxmin()
+    return WorstSession(date=jour, loss=float(-returns.loc[jour]))
+
+
 # ------------------------------------------------------------ Histogramme --
 
 
@@ -401,3 +464,18 @@ def equal_weight_reference(n_positions: int) -> float:
     if n_positions <= 0:
         raise ValueError("Un portefeuille comporte au moins une position.")
     return 1.0 / n_positions
+
+
+# ---------------------------------------------------------------- Montants --
+
+
+def amount(fraction: float, value: float) -> float:
+    """Ce que représente une fraction de la valeur, en devise : `fraction × value`.
+
+    Une CONVERSION D'ÉCHELLE, pas une perte reconstituée. « 1,06 % représente
+    890 USD sur la valeur d'aujourd'hui » est exact ; « le portefeuille a perdu
+    890 USD » ne l'est pas, puisqu'il ne valait pas cette somme le jour de la
+    perte. Le signe suit celui de la fraction : une VaR, perte positive, donne
+    un montant positif ; un drawdown, négatif, un montant négatif.
+    """
+    return fraction * value

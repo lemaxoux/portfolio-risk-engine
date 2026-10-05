@@ -122,6 +122,23 @@ def grouped(nombre: int, singulier: str, pluriel: str | None = None) -> str:
     return counted(nombre, singulier, pluriel, affiche=thousands(nombre))
 
 
+_EN_LETTRES = (
+    "zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
+)
+
+
+def cardinal(nombre: int) -> str:
+    """Un entier dans une phrase de lecture : en lettres jusqu'à dix, en
+    chiffres au-delà — « ces deux dernières années », « ces 14 derniers mois ».
+
+    Seulement là où une phrase se lit comme de la prose. Un chiffre de mesure,
+    un nombre de séances dans une provenance, restent en chiffres.
+    """
+    if 0 <= nombre <= 10:
+        return _EN_LETTRES[nombre]
+    return thousands(nombre)
+
+
 MINUS = "\u2212"
 
 

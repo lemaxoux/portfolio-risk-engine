@@ -30,6 +30,7 @@ from backend.risk_engine.config import (
     MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
+    MIN_SCENARIO_COVERAGE_SHARE,
     historical_var_min_observations,
 )
 
@@ -128,15 +129,19 @@ STRONG_CORRELATION = Threshold(
     ),
 )
 
+# La constante vit dans le moteur, qui publie le verdict avec chaque scénario
+# (`ScenarioCoverage.sufficient`) ; le seuil — le nombre plus sa provenance —
+# vit ici, comme `MIN_REGRESSION_SAMPLE`.
 MIN_SCENARIO_COVERAGE = Threshold(
     name="couverture minimale d'un scénario",
     kind=ThresholdKind.CHOSEN,
-    value=0.80,
+    value=MIN_SCENARIO_COVERAGE_SHARE,
     decimals=0,
     rationale=(
         "le biais de la renormalisation est orienté — la partie exclue est plus "
         "récente, donc en moyenne plus spéculative —, un seuil plus strict qu'un "
-        f"pile ou face s'impose ; à {typography.percent(0.80, 0)}, même si la "
+        "pile ou face s'impose ; à "
+        f"{typography.percent(MIN_SCENARIO_COVERAGE_SHARE, 0)}, même si la "
         "partie exclue avait perdu deux fois plus que la partie couverte, la perte "
         "de l'ensemble ne dépasserait le chiffre affiché que d'un cinquième, contre "
         f"moitié plus à {typography.percent(0.50, 0)}"

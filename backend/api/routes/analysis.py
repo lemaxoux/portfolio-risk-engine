@@ -42,6 +42,7 @@ from backend.risk_engine.config import (
 from backend.risk_engine.engine import (
     RiskReport,
     analyse_portfolio,
+    benchmark_name,
     compare_all_regimes,
     run_all_scenarios,
 )
@@ -174,6 +175,7 @@ def analyse(
     # réponse d'une matrice qui peut manquer priverait le client de son ordre
     # de référence précisément quand il en a le plus besoin.
     tickers = [str(colonne) for colonne in report.matrices.covariance.columns]
+    nom_indice = benchmark_name(indice)
 
     return AnalysisOut(
         portfolio_id=portfolio_id,
@@ -197,6 +199,7 @@ def analyse(
         # donnerait aujourd'hui le même nombre et inventerait une convention
         # que rien ne garantirait demain.
         estimation_window=WindowOut.of(report.window),
+        estimation_period_label=report.window.period_label,
         limiting_positions=[
             LimitingPositionOut.of(position)
             for position in report.limiting_positions
@@ -205,6 +208,8 @@ def analyse(
             window=window,
             benchmark=indice,
             confidence_levels=list(CONFIDENCE_LEVELS),
+            benchmark_label=None if nom_indice is None else nom_indice.label,
+            benchmark_description=None if nom_indice is None else nom_indice.description,
         ),
         risk=RiskOut.of(report, tickers),
         series=PortfolioSeriesOut.of(report),

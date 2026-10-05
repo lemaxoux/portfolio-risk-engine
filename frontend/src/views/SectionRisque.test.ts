@@ -95,6 +95,8 @@ const SCENARIO_2022: Scenario = {
   observations: 196,
   unavailable_reason: null,
   summary: '',
+  end_to_end_amount: 0.597,
+  coverage_sufficient: false,
 }
 
 function rendu(surcharges: Partial<Parameters<typeof SectionRisque>[0]> = {}): string {

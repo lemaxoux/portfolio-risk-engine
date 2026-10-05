@@ -25,6 +25,10 @@ const CREUX: Drawdown = {
   peak_date: '2026-01-02',
   trough_date: '2026-01-06',
   window: { requested: 504, observations: 4, start: '2026-01-05', end: '2026-01-08', complete: false },
+  amount: -8400,
+  recovery_date: '2026-01-08',
+  recovery_sessions: 2,
+  period_label: 'ces quatre derniers jours de bourse',
 }
 
 interface MarqueInspectee {

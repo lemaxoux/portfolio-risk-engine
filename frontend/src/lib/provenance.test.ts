@@ -25,6 +25,8 @@ const STUDENT: Var = {
   nu: 4.0731,
   caveat: null,
   window: FENETRE,
+  amount: 1064,
+  period_label: 'ces deux dernières années',
 }
 
 const NORMALE: Var = {
@@ -35,6 +37,8 @@ const NORMALE: Var = {
   nu: null,
   caveat: null,
   window: FENETRE,
+  amount: 1157,
+  period_label: 'ces deux dernières années',
 }
 
 describe('ν est nommé avant d’être écrit seul', () => {
@@ -67,6 +71,8 @@ describe('provenance d’une CVaR', () => {
     caveat: null,
     undefined_reason: null,
     window: FENETRE,
+    amount: 2020,
+    period_label: 'ces deux dernières années',
   }
 
   it('dit ce que compte le nombre de tête : des séances dans la queue', () => {
