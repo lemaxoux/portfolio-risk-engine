@@ -967,7 +967,9 @@ def scenario_coverage(
         observations.append(
             Observation(
                 rule=RuleId.SCENARIO_COVERAGE,
-                subject=resultat.scenario.key,
+                # Le nom, pas la clé du catalogue : la page affiche le sujet
+                # tel quel, à côté du libellé de la règle.
+                subject=resultat.scenario.name,
                 statement=texte,
                 facts=faits,
                 provenance=(

@@ -886,6 +886,20 @@ def test_une_couverture_partielle_donne_le_chiffre_avec_sa_portee(conn):
     assert obs.thresholds == (MIN_SCENARIO_COVERAGE,)
 
 
+def test_le_sujet_d_une_crise_rejouee_en_partie_est_son_nom_jamais_sa_cle(rapport):
+    """La page affiche le sujet tel quel, à côté du libellé : « gfc_2008 » y
+    serait une clé technique sous les yeux du lecteur."""
+    (obs,) = rapport.of_rule(RuleId.SCENARIO_COVERAGE)
+    assert obs.subject == CRISE.name == "Crise de test"
+    assert obs.subject != CRISE.key
+
+    # Aucun sujet, d'aucune règle, n'a la forme d'une clé technique.
+    cle = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)+$")
+    assert cle.match(CRISE.key), "le témoin a bien la forme d'une clé"
+    for observation in rapport.observations:
+        assert cle.match(observation.subject) is None, observation.subject
+
+
 def test_sous_le_seuil_aucun_chiffre_principal(conn):
     """70 % de couverture : un chiffre aurait été produit sous l'ancien seuil de
     50 %, il ne l'est plus. Le chiffre décrirait la partie la plus établie du

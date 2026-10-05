@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import type { Observation as ObservationApi, Threshold } from '../api/types'
-import { Observation } from './Observation'
+import { Observation, sujetDejaDit } from './Observation'
 import styles from './Observation.module.css'
 
 function seuil(
@@ -46,6 +46,35 @@ function rendu(o: ObservationApi): string {
     "'",
   )
 }
+
+describe('le sujet, à côté du libellé', () => {
+  const avec = (rule_label: string, subject: string): ObservationApi => ({
+    ...observation([]),
+    rule_label,
+    subject,
+  })
+  const sujetAffiche = (o: ObservationApi) => rendu(o).includes(`<span class="${styles.sujet}">`)
+
+  it('est masqué quand le libellé le dit déjà', () => {
+    const html = rendu(avec('Le portefeuille en crise', 'portefeuille'))
+    expect(sujetAffiche(avec('Le portefeuille en crise', 'portefeuille'))).toBe(false)
+    // Le mot n'apparaît qu'une fois dans l'en-tête : celle du libellé.
+    expect(html.split('portefeuille').length - 1).toBe(1)
+  })
+
+  it('reste affiché quand le libellé ne le dit pas', () => {
+    expect(sujetAffiche(avec('Combien de lignes, en réalité', 'portefeuille'))).toBe(true)
+    expect(sujetAffiche(avec('Poids dans les variations', 'JPM'))).toBe(true)
+    expect(sujetAffiche(avec('Crise rejouée en partie', 'Crise financière 2008'))).toBe(true)
+  })
+
+  it('cherche un mot entier, casse comprise : un ticker n’est pas un mot du libellé', () => {
+    expect(sujetDejaDit('Le portefeuille en crise', 'portefeuille')).toBe(true)
+    expect(sujetDejaDit('Le portefeuille en crise', 'EN')).toBe(false)
+    expect(sujetDejaDit('Le portefeuille en crise', 'porte')).toBe(false)
+    expect(sujetDejaDit('Poids dans les variations', 'A')).toBe(false)
+  })
+})
 
 describe('les trois cas de §9.2', () => {
   it('aucun seuil : AUCUNE ligne de seuil, pas même « n/a »', () => {

@@ -652,6 +652,12 @@ ensemble », « Part qui suit le marché », « Le portefeuille en crise »,
 dans les détails du calcul, qui ne changent pas. L'interface affiche ces
 phrases telles quelles.
 
+**Le sujet, à côté du libellé**, dit de quoi parle l'observation : un ticker,
+une paire, le nom d'une crise, ou « portefeuille ». Ce n'est jamais une clé
+technique : une crise rejouée en partie a pour sujet « Crise financière
+2008 », pas `gfc_2008`. Il n'est pas affiché quand le libellé le dit déjà :
+« Le portefeuille en crise » ne se double pas d'un « portefeuille ».
+
 Les trois cas à distinguer visuellement — **c'est le point le plus important de
 tout ce document** :
 

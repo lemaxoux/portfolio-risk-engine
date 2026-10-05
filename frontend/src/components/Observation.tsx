@@ -39,12 +39,25 @@ const ETIQUETTE: Record<Threshold['role'], string> = {
   reference: 'Référence',
 }
 
+/**
+ * Le libellé dit-il déjà le sujet ? « Le portefeuille en crise » à côté de
+ * « portefeuille » : l'afficher le répéterait. Le sujet est cherché comme un
+ * MOT entier, casse comprise : un ticker ne se confond pas avec un mot du
+ * libellé qui lui ressemblerait.
+ */
+export function sujetDejaDit(libelle: string, sujet: string): boolean {
+  const litteral = sujet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${litteral}(?![\\p{L}\\p{N}])`, 'u').test(libelle)
+}
+
 export function Observation({ observation }: { observation: ObservationApi }) {
   return (
     <article className={styles.observation}>
       <p className={styles.regle}>
         {observation.rule_label}
-        <span className={styles.sujet}>{observation.subject}</span>
+        {!sujetDejaDit(observation.rule_label, observation.subject) && (
+          <span className={styles.sujet}>{observation.subject}</span>
+        )}
       </p>
       <p className={styles.phrase}>{observation.statement}</p>
 
