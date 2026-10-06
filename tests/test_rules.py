@@ -994,12 +994,20 @@ def test_le_bandeau_couvre_les_points_attendus():
     for attendu in (
         "pas un conseil en investissement réglementé",
         "Aucune garantie",
-        "504 dernières séances de bourse, soit environ 2 ans",
+        "504 dernières séances de bourse, soit environ 2 ans",
         "Elles ne prédisent pas son comportement futur",
         "ne prédisent ni la survenue, ni l'ampleur, ni la forme",
         "à vos propres risques",
     ):
         assert attendu in texte, attendu
+
+
+def test_la_duree_du_bandeau_ne_se_separe_pas_de_son_unite():
+    """« soit environ 2 » finissait une ligne que « ans. » commençait, sur
+    l'écran d'acceptation à 390 px (captures du 2026-10-05)."""
+    assert "soit environ 2 ans." in acceptance_text(504)
+    assert "soit environ 1 an." in acceptance_text(252)
+    assert "soit environ 6 mois." in acceptance_text(126)
 
 
 def test_le_bandeau_et_les_observations_vouvoient(rapport):
@@ -1017,7 +1025,7 @@ def test_le_bandeau_et_les_observations_vouvoient(rapport):
 
 
 def test_le_bandeau_suit_la_fenetre_reellement_utilisee(rapport):
-    assert "252 dernières séances de bourse, soit environ 1 an" in acceptance_text(252)
+    assert "252 dernières séances de bourse, soit environ 1 an" in acceptance_text(252)
     assert "100 dernières séances" in rapport.disclaimer
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend import typography
 from backend.risk_engine.config import DEFAULT_WINDOW, TRADING_DAYS_PER_YEAR
 
 ACCEPTANCE_TITLE = "Avant d'utiliser Mx Risk MGT"
@@ -35,11 +36,13 @@ class DisclaimerSection:
 
 
 def _duree(seances: int) -> str:
+    """« environ 2 ans », « environ 6 mois » : le nombre et son unité liés par
+    une espace insécable (`typography.counted`). Avec une espace ordinaire,
+    « soit environ 2 » finissait une ligne que « ans. » commençait."""
     annees = seances / TRADING_DAYS_PER_YEAR
     if abs(annees - round(annees)) < 0.05 and round(annees) >= 1:
-        n = round(annees)
-        return f"environ {n} an" if n == 1 else f"environ {n} ans"
-    return f"environ {round(seances / 21)} mois"
+        return f"environ {typography.counted(round(annees), 'an')}"
+    return f"environ {typography.counted(round(seances / 21), 'mois', 'mois')}"
 
 
 def acceptance_sections(window: int = DEFAULT_WINDOW) -> tuple[DisclaimerSection, ...]:

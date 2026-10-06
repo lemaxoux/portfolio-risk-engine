@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from backend.typography import long_date
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -56,6 +58,16 @@ class Scenario:
         return f"{self.name} ({self.start} → {self.end})"
 
 
+def _du_sommet_au_point_bas(sommet: date, point_bas: date) -> str:
+    """La phrase qui borne une crise. Ses dates passent par `long_date` : le
+    jour, le mois et l'année ne se séparent pas. Écrites à la main, « (3 »
+    finissait une ligne que « janvier 2022) » commençait."""
+    return (
+        f"Du sommet de clôture du S&P 500 ({long_date(sommet)}) à son point bas "
+        f"de clôture ({long_date(point_bas)})."
+    )
+
+
 SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         key="gfc_2008",
@@ -64,9 +76,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         start=date(2007, 10, 9),
         end=date(2009, 3, 9),
         benchmark="SPY",
-        description=(
-            "Du sommet de clôture du S&P 500 (9 octobre 2007) à son point bas de clôture (9 mars 2009)."
-        ),
+        description=_du_sommet_au_point_bas(date(2007, 10, 9), date(2009, 3, 9)),
     ),
     Scenario(
         key="covid_2020",
@@ -75,9 +85,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         start=date(2020, 2, 19),
         end=date(2020, 3, 23),
         benchmark="SPY",
-        description=(
-            "Du sommet de clôture du S&P 500 (19 février 2020) à son point bas de clôture (23 mars 2020)."
-        ),
+        description=_du_sommet_au_point_bas(date(2020, 2, 19), date(2020, 3, 23)),
     ),
     Scenario(
         key="tightening_2022",
@@ -86,9 +94,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         start=date(2022, 1, 3),
         end=date(2022, 10, 12),
         benchmark="SPY",
-        description=(
-            "Du sommet de clôture du S&P 500 (3 janvier 2022) à son point bas de clôture (12 octobre 2022)."
-        ),
+        description=_du_sommet_au_point_bas(date(2022, 1, 3), date(2022, 10, 12)),
     ),
 )
 

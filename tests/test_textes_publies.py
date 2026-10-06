@@ -1,6 +1,6 @@
 """La ponctuation et les glyphes des textes que l'API publie.
 
-Quatre règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
+Cinq règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
 `test_nombres_publies.py` le fait pour les nombres :
 
 ═══ 1. AUCUNE ESPACE ORDINAIRE AVANT « : », « ; », « ? », « ! » NI DANS LES
@@ -41,6 +41,15 @@ caractère de liaison invisible (U+2060) après le tiret court d'une paire. Ne
 sont pas de la prose, et gardent la paire nue : les faits d'une observation
 (`facts`, des données) et son sujet (`subject`, que la page affiche sur une
 seule ligne).
+
+═══ 5. UNE DURÉE NE SE SÉPARE PAS DE SON UNITÉ, NI UN JOUR DE SON MOIS ═══
+
+« soit environ 2 » finissait une ligne que « ans. » commençait, sur l'écran
+d'acceptation, et « (3 » une ligne que « janvier 2022) » commençait, dans la
+description d'une crise (captures du 2026-10-05, à 390 px). L'espace y est
+insécable, U+00A0 : `typography.counted` lie un nombre au mot qu'il compte,
+`typography.long_date` le jour, le mois et l'année. Les séances, les lignes et
+les points sont surveillés de la même façon par `test_api_analysis.py`.
 """
 
 from __future__ import annotations
@@ -78,6 +87,18 @@ PAIRE_SECABLE = re.compile(rf"\S{TIRET_COURT}(?=[^\s{WORD_JOINER}])")
 # sujet d'une observation.
 HORS_PROSE = re.compile(r"\.facts\.|\.subject$")
 
+# Un nombre, une espace ORDINAIRE, puis l'unité de durée qu'il compte ou le
+# mois dont il est le jour ; un mois, une espace ordinaire, puis son année.
+MOIS = (
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+)
+DUREES = ("ans", "an", "mois", "semaines", "semaine", "jours", "jour")
+LIEN_SECABLE = re.compile(
+    rf".{{0,30}}(?:\d (?:{'|'.join(DUREES + MOIS)})\b"
+    rf"|\b(?:{'|'.join(MOIS)}) \d{{4}}\b).{{0,10}}"
+)
+
 
 def toutes_les_chaines(noeud, chemin=""):
     """Chaque chaîne d'une réponse, avec son chemin — pour nommer la fautive."""
@@ -101,6 +122,7 @@ def fautes_dans(corps) -> list[tuple[str, str]]:
             fautes.append((chemin, f"tiret cadratin : {texte[:60]}"))
         if PAIRE_SECABLE.search(texte) and not HORS_PROSE.search(chemin):
             fautes.append((chemin, f"paire sécable : {texte[:60]}"))
+        fautes += [(chemin, f"lien sécable : {extrait}") for extrait in LIEN_SECABLE.findall(texte)]
     return fautes
 
 
@@ -188,6 +210,38 @@ def test_prose_lie_la_paire_une_seule_fois_et_ne_touche_a_rien_d_autre():
     assert une_fois.replace(WORD_JOINER, "") == f"corrélation {paire} = 0,42"
     for intact in ("−3", "2024-09-05 → 2026-09-09", f"calme {TIRET_COURT} crise", "10:30"):
         assert prose(intact) == intact
+
+
+def test_la_garde_voit_une_duree_separee_de_son_unite_et_un_jour_de_son_mois():
+    fautifs = (
+        "soit environ 2 ans.",
+        "depuis 6 mois",
+        "sur 7 jours de bourse",
+        "(3 janvier 2022)",
+        f"(3{NBSP}janvier 2022)",
+        f"(3 janvier{NBSP}2022)",
+    )
+    for fautif in fautifs:
+        assert fautes_dans({"a": fautif}), fautif
+    legitimes = (
+        f"soit environ 2{NBSP}ans.",
+        f"(3{NBSP}janvier{NBSP}2022)",
+        "il en faut au moins 20 pour ce calcul",
+        "pendant la Crise financière 2008 et le Krach COVID",
+        "0,50 en régime calme, mais 0,86 en crise",
+        "2024-09-05 → 2026-09-09",
+    )
+    for legitime in legitimes:
+        assert fautes_dans({"a": legitime}) == [], legitime
+
+
+def test_les_durees_et_les_dates_en_lettres_publiees_sont_liees(analyse_reelle):
+    """Contrôle en sens inverse : la réponse CONTIENT une durée et des dates en
+    toutes lettres, liées par des espaces insécables."""
+    textes = [t for _, t in toutes_les_chaines(analyse_reelle.json())]
+    assert any(f"soit environ 2{NBSP}ans" in t for t in textes)
+    assert any(f"(3{NBSP}janvier{NBSP}2022)" in t for t in textes)
+    assert any(f"(9{NBSP}mars{NBSP}2009)" in t for t in textes)
 
 
 # ------------------------------------------- Les réponses de l'API --
