@@ -282,6 +282,15 @@ confond en thème clair avec le gris `--div-zero` d'une corrélation nulle
 (#E7E5DE contre #DFDEDB). La légende nomme la diagonale. Le domaine reste fixé
 à [−1, +1].
 
+**La légende de la carte** (décision du 2026-10-06). Sous la grille,
+l'échelle de couleurs, cinq pastilles de −1,0 à 1,0, puis la clé de la
+diagonale. La lecture de l'échelle (« +1 : les deux lignes bougent toujours
+dans le même sens… ») passe à droite de la carte à partir de 900 px, dans la
+place que des cellules de 64 px au plus laissent vide, le haut de ses
+capitales sur le haut de la première rangée de cellules. Sous 900 px, elle
+reste sous la grille, entre l'échelle et la diagonale. Le titre et ses
+conditions courent sur toute la largeur.
+
 Quand la corrélation n'est pas estimable (`correlation: null`), **on ne dessine
 pas de heatmap vide** : on affiche `correlation_undefined_reason`, en texte.
 

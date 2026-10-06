@@ -8,11 +8,14 @@ import type { Matrix } from '../../api/types'
 import type { Couleurs } from './couleurs'
 import {
   DOMAINE_CORRELATION,
+  MARGE_HAUTE_CARTE,
   type Cellule,
   cellulesDe,
   echelleDeCorrelation,
   encreDeCellule,
   estDiagonale,
+  hautDeGrille,
+  largeurMaxCarte,
   optionsCarteCorrelation,
 } from './correlation'
 
@@ -151,5 +154,37 @@ describe('la valeur est écrite dans chaque cellule', () => {
     // l'encre inverse, la surface, qui est choisie.
     expect(encreDeCellule(CLAIR, 1)).toBe(CLAIR.surface0)
     expect(encreDeCellule(CLAIR, 0)).toBe(CLAIR.texte1)
+  })
+})
+
+describe('la place de la carte, sur laquelle sa légende se règle', () => {
+  const SIX: Matrix = {
+    tickers: ['A', 'B', 'C', 'D', 'E', 'F'],
+    values: Array.from({ length: 6 }, (_, i) =>
+      Array.from({ length: 6 }, (_, j) => (i === j ? 1 : 0.2)),
+    ),
+  }
+
+  it('quand la place ne manque pas, la carte a sa largeur maximale : des cellules de 64 px', () => {
+    // C'est la largeur que la mise en page réserve à la carte à partir de
+    // 900 px ; la lecture de l'échelle prend la place qui reste à droite.
+    const large = optionsCarteCorrelation(SIX, { couleurs: CLAIR, largeur: 2000 })
+    expect(large.width).toBe(largeurMaxCarte(6))
+    expect(largeurMaxCarte(6)).toBe(52 + 6 * 64 + 8)
+  })
+
+  it('la grille commence sous la marge des tickers', () => {
+    expect(options(SERRE).marginTop).toBe(MARGE_HAUTE_CARTE)
+  })
+
+  it('le haut de la grille est lu dans l’échelle du tracé dessiné, retrait de la cellule compris', () => {
+    // Plot arrondit la position de ses bandes : le haut de la première
+    // rangée se lit sur le tracé, il ne se recalcule pas.
+    const trace = {
+      scale: (nom: string) => (nom === 'y' ? { apply: (t: string) => (t === 'A' ? 41 : NaN) } : undefined),
+    }
+    expect(hautDeGrille(trace as unknown as Plot.Plot, SERRE)).toBe(42)
+    const sansEchelle = { scale: () => undefined }
+    expect(hautDeGrille(sansEchelle as unknown as Plot.Plot, SERRE)).toBe(MARGE_HAUTE_CARTE)
   })
 })

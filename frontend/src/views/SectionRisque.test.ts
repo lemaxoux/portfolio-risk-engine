@@ -4,6 +4,8 @@
  * exacte, le refus écrit à la place d'une carte vide, la contribution négative
  * qui se voit, et le comportement en scénario posé dans le même bloc (§11.4).
  */
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -15,6 +17,7 @@ import type {
   VarianceContributions,
   Window,
 } from '../api/types'
+import { MARGE_HAUTE_CARTE, largeurMaxCarte } from '../components/charts/correlation'
 import { PHRASE_CONTRIBUTION_NEGATIVE } from '../lib/phrases'
 import { LEGENDE_CONTRIBUTIONS, SectionRisque } from './SectionRisque'
 import styles from './SectionRisque.module.css'
@@ -168,5 +171,73 @@ describe('carte de corrélation', () => {
 
   it('annonce son échelle fixe sous la carte', () => {
     expect(rendu()).toContain('échelle fixe')
+  })
+
+  it("sa légende tient en trois paragraphes, dans l'ordre : l'échelle, sa lecture, la diagonale", () => {
+    // La lecture est un paragraphe à elle : c'est ce qui lui permet de passer
+    // à droite de la carte à partir de 900 px. Sous 900 px, l'ordre est celui
+    // d'avant : l'échelle, la lecture, la diagonale.
+    const html = rendu()
+    const classe = (nom: string | undefined): string => {
+      if (nom === undefined) throw new Error('classe absente du module')
+      return nom
+    }
+    const echelle = html.indexOf(classe(styles.echelle))
+    const lecture = html.indexOf(`<p class="${classe(styles.lectureEchelle)}">+1`)
+    const diagonale = html.indexOf(classe(styles.cleDiagonale))
+    expect(echelle).toBeGreaterThan(-1)
+    expect(lecture).toBeGreaterThan(echelle)
+    expect(diagonale).toBeGreaterThan(lecture)
+  })
+
+  it('la carte porte sa largeur maximale et la hauteur de ses tickers, venues du module qui la dessine', () => {
+    const html = rendu()
+    expect(html).toContain(`--largeur-carte:${largeurMaxCarte(MATRICES.correlation?.tickers.length ?? 0)}px`)
+    expect(html).toContain(`--haut-de-grille:${MARGE_HAUTE_CARTE}px`)
+  })
+})
+
+/** Le CSS sans ses commentaires, qui citent les règles qu'ils expliquent. */
+function sansCommentaires(css: string): string {
+  return css
+    .split('/*')
+    .map((morceau, rang) => (rang === 0 ? morceau : morceau.slice(morceau.indexOf('*/') + 2)))
+    .join('')
+}
+
+/** Le bloc d'une requête de média, accolades comprises. */
+function blocDeMedia(css: string, requete: string): string {
+  const debut = css.indexOf(requete)
+  if (debut < 0) return ''
+  let profondeur = 0
+  for (let i = css.indexOf('{', debut); i < css.length; i++) {
+    if (css[i] === '{') profondeur++
+    if (css[i] === '}') {
+      profondeur--
+      if (profondeur === 0) return css.slice(debut, i + 1)
+    }
+  }
+  return ''
+}
+
+describe('la carte, à partir de 900 px', () => {
+  const css = sansCommentaires(
+    readFileSync(fileURLToPath(new URL('./SectionRisque.module.css', import.meta.url)), 'utf-8'),
+  )
+  const large = blocDeMedia(css, '@media (width >= 900px)')
+
+  it('la lecture passe dans la seconde colonne, à la hauteur de la grille', () => {
+    expect(large).toContain('.carte > figure')
+    expect(large).toContain('display: grid')
+    expect(large).toContain('var(--largeur-carte')
+    const regle = large.slice(large.indexOf('.carte .lectureEchelle'))
+    expect(regle).toContain('grid-column: 2')
+    expect(regle).toContain('margin-block-start: var(--haut-de-grille')
+    expect(regle).toContain('text-box-trim: trim-start')
+  })
+
+  it("sous 900 px, rien ne la déplace : aucune règle de la carte hors de ce bloc", () => {
+    expect(large).not.toBe('')
+    expect(css.replace(large, '')).not.toContain('.carte')
   })
 })

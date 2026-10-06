@@ -1,7 +1,6 @@
 /* Section 4 — §5.4, §11.4. */
 
-.legende,
-.legendeCorrelation {
+.legende {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -10,6 +9,28 @@
   color: var(--text-2);
   font-size: var(--text-micro);
   line-height: var(--leading-ui);
+}
+
+/*
+ * La légende de la carte : l'échelle, sa lecture, la clé de la diagonale, les
+ * unes sous les autres, sous la grille. À partir de 900 px, voir `.carte`.
+ */
+.legendeCorrelation {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-block-start: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  line-height: var(--leading-ui);
+}
+
+.echelle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
 }
 
 /* Les clés de légende reprennent la MARQUE : un rectangle pour la barre, un
@@ -133,9 +154,63 @@
   background-color: var(--div-pos-strong);
 }
 
-/* La lecture de l'échelle est une phrase : à la ligne, et à la largeur de
- * prose, comme la légende de l'histogramme (§6.3). */
+/* La lecture de l'échelle est une phrase : à la largeur de prose, comme la
+ * légende de l'histogramme (§6.3). */
 .lectureEchelle {
-  flex-basis: 100%;
   max-inline-size: var(--prose-width);
+}
+
+/*
+ * La carte, à partir de 900 px : deux colonnes. À gauche, la grille à sa
+ * largeur quand la place ne manque pas (`--largeur-carte`), puis l'échelle et
+ * la clé de la diagonale dessous. À droite, dans la place que les cellules
+ * laissaient vide, la lecture de l'échelle, alignée sur le haut de la grille
+ * (`--haut-de-grille`, la hauteur des tickers). L'en-tête, titre et
+ * conditions, court sur les deux. Les deux mesures viennent du module qui
+ * dessine la carte, posées sur `.carte` par `SectionRisque`.
+ *
+ * Sous 900 px, rien de tout cela : la lecture reste sous la grille, entre
+ * l'échelle et la diagonale, comme les deux autres.
+ */
+@media (width >= 900px) {
+  .carte > figure {
+    display: grid;
+    grid-template-columns: minmax(0, var(--largeur-carte, 1fr)) minmax(14rem, 1fr);
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .carte > figure > * {
+    grid-column: 1;
+  }
+
+  .carte > figure > figcaption {
+    grid-column: 1 / -1;
+  }
+
+  /* Les trois paragraphes de la légende deviennent des cases de la figure. */
+  .carte .legendeCorrelation {
+    display: contents;
+  }
+
+  .carte .echelle {
+    grid-column: 1;
+    margin-block-start: var(--space-2);
+  }
+
+  .carte .cleDiagonale {
+    grid-column: 1;
+    margin-block-start: var(--space-1);
+  }
+
+  /* Le haut de ses capitales sur le haut des premières cellules : la boîte du
+   * texte est rognée à la hauteur des capitales de sa première ligne, puis
+   * posée à la hauteur de la grille, lue sur la carte dessinée. */
+  .carte .lectureEchelle {
+    grid-column: 2;
+    grid-row: 2 / span 3;
+    margin-block-start: var(--haut-de-grille, 0);
+    text-box-trim: trim-start;
+    text-box-edge: cap alphabetic;
+  }
 }

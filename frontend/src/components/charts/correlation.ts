@@ -93,9 +93,50 @@ export function estDiagonale(cellule: Cellule): boolean {
   return cellule.ligne === cellule.colonne
 }
 
+/*
+ * Géométrie de la carte, en px : la marge des tickers à gauche et au-dessus de
+ * la grille, et le côté de ses cellules carrées.
+ */
+const MARGE_GAUCHE = 52
+const MARGE_DROITE = 8
+const MARGE_BASSE = 8
+const COTE_MIN = 36
+const COTE_MAX = 64
+
+/** La hauteur des tickers au-dessus de la grille : la grille commence là. */
+export const MARGE_HAUTE_CARTE = 32
+
+/** Le retrait de chaque cellule dans sa bande : le filet entre deux cellules. */
+const RETRAIT_CELLULE = 1
+
+/**
+ * Le haut de la première rangée de cellules, en px depuis le haut du tracé.
+ *
+ * Lu dans l'échelle verticale du tracé DESSINÉ, et non recalculé : Plot
+ * arrondit la position de ses bandes, et ce haut varie de quelques px avec le
+ * nombre de lignes et la place (38 à 42 px pour 6 ou 7 lignes, de 900 à
+ * 1280 px de large). C'est sur lui que la lecture de l'échelle s'aligne, à
+ * droite de la carte (`SectionRisque`).
+ */
+export function hautDeGrille(trace: Plot.Plot, matrice: Matrix): number {
+  const premiere = matrice.tickers[0]
+  const y = trace.scale('y')
+  if (premiere === undefined || y === undefined) return MARGE_HAUTE_CARTE
+  return Number(y.apply(premiere)) + RETRAIT_CELLULE
+}
+
 /** Côté d'une cellule : carrée, entre 36 et 64 px selon la place. */
 function coteDeCellule(nombre: number, largeur: number, marge: number): number {
-  return Math.max(36, Math.min(64, Math.floor((largeur - marge) / Math.max(nombre, 1))))
+  return Math.max(COTE_MIN, Math.min(COTE_MAX, Math.floor((largeur - marge) / Math.max(nombre, 1))))
+}
+
+/**
+ * La largeur de la carte quand la place ne manque pas : des cellules de 64 px.
+ * Au-delà, la colonne restait vide à droite de la carte ; à partir de 900 px,
+ * la lecture de l'échelle y prend place (`SectionRisque`).
+ */
+export function largeurMaxCarte(nombre: number): number {
+  return MARGE_GAUCHE + COTE_MAX * nombre + MARGE_DROITE
 }
 
 export function optionsCarteCorrelation(
@@ -112,17 +153,17 @@ export function optionsCarteCorrelation(
   const parEncre = encres.map((encre) =>
     horsDiagonale.filter((c) => encreDeCellule(couleurs, c.valeur) === encre),
   )
-  const marge = 52
+  const marge = MARGE_GAUCHE
   const cote = coteDeCellule(matrice.tickers.length, largeur, marge)
   const cote_total = cote * matrice.tickers.length
 
   return {
-    width: marge + cote_total + 8,
-    height: cote_total + 40,
+    width: marge + cote_total + MARGE_DROITE,
+    height: cote_total + MARGE_HAUTE_CARTE + MARGE_BASSE,
     marginLeft: marge,
-    marginTop: 32,
-    marginRight: 8,
-    marginBottom: 8,
+    marginTop: MARGE_HAUTE_CARTE,
+    marginRight: MARGE_DROITE,
+    marginBottom: MARGE_BASSE,
     x: { axis: 'top', domain: matrice.tickers, label: null, tickSize: 0 },
     y: { domain: matrice.tickers, label: null, tickSize: 0 },
     color: echelleDeCorrelation(couleurs),
@@ -131,14 +172,14 @@ export function optionsCarteCorrelation(
         x: 'colonne',
         y: 'ligne',
         fill: 'valeur',
-        inset: 1,
+        inset: RETRAIT_CELLULE,
         ariaDescription: 'corrélations',
       }),
       Plot.cell(diagonale, {
         x: 'colonne',
         y: 'ligne',
         fill: couleurs.surface1,
-        inset: 1,
+        inset: RETRAIT_CELLULE,
         ariaDescription: 'diagonale',
       }),
       Plot.text(diagonale, {

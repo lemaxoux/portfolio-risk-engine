@@ -1698,6 +1698,28 @@ nulle (#E7E5DE contre #DFDEDB). La légende nomme la diagonale. Le domaine de
 l'échelle reste fixé à [−1, +1], puisqu'il ne dépend pas des cellules qu'elle
 colore.
 
+#### La légende de la carte de corrélation
+
+Des cellules de 64 px au plus laissent vide, à partir de 900 px, la droite de
+la colonne. La lecture de l'échelle (« +1 : les deux lignes bougent toujours
+dans le même sens… ») s'y place (DESIGN.md §5.4) : la figure devient une
+grille de deux colonnes, la carte à sa largeur maximale (`largeurMaxCarte`)
+et la lecture à côté. L'échelle de couleurs et la clé de la diagonale restent
+sous la grille. Sous 900 px, les trois paragraphes se suivent sous la grille,
+dans l'ordre d'avant.
+
+Le haut de la lecture est aligné sur le haut de la première rangée de
+cellules. Plot arrondit la position de ses bandes, si bien que ce haut varie
+de 38 à 42 px selon le nombre de lignes et la place : il est lu sur la carte
+dessinée (`hautDeGrille`, par l'échelle verticale du tracé), puis posé sur la
+figure en propriété CSS par `<Graphique>` (`proprietesDuTrace`). La boîte du
+texte est rognée à la hauteur de ses capitales (`text-box-trim`), pour que ce
+soient elles, et non l'interligne, qui touchent cette ligne.
+
+Avant, la lecture était un `span` à `flex-basis: 100%` borné à la largeur de
+prose : à 1280 px, la borne la rendait assez étroite pour tenir à côté des
+pastilles, et elle s'y rangeait au lieu d'aller à la ligne.
+
 #### Acceptation
 
 L'écran d'acceptation est une **page entière**, pas une modale : une modale se

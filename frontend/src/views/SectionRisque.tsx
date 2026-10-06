@@ -19,7 +19,7 @@
  * scénario est `scenarios[].contributions[].contribution`. Rien n'est soustrait
  * ni moyenné ici.
  */
-import { useCallback } from 'react'
+import { useCallback, type CSSProperties } from 'react'
 
 import type {
   Concentration,
@@ -30,12 +30,18 @@ import type {
 } from '../api/types'
 import { Absent } from '../components/Absent'
 import { DataTable, type Colonne } from '../components/DataTable'
-import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
+import { Graphique, type ContexteGraphique, type Trace } from '../components/charts/Graphique'
 import {
   lignesParContribution,
   optionsContributions,
 } from '../components/charts/contributions'
-import { DOMAINE_CORRELATION, optionsCarteCorrelation } from '../components/charts/correlation'
+import {
+  DOMAINE_CORRELATION,
+  MARGE_HAUTE_CARTE,
+  hautDeGrille,
+  largeurMaxCarte,
+  optionsCarteCorrelation,
+} from '../components/charts/correlation'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
@@ -127,7 +133,15 @@ export function colonnesDuRisque(scenarios: readonly Scenario[]): Colonne<Contri
   ]
 }
 
-/** Les cinq points de l'échelle, en légende : des pastilles, pas un dégradé (§12). */
+/**
+ * La légende de la carte, en trois paragraphes : l'échelle de couleurs, sa
+ * lecture, la clé de la diagonale. Sous 900 px, ils se suivent sous la grille,
+ * dans cet ordre. À partir de 900 px, la lecture passe à droite de la carte,
+ * alignée sur le haut de sa grille, dans la place que les cellules laissent
+ * vide ; l'échelle et la diagonale restent dessous (`.carte`, §5.4).
+ *
+ * Les cinq points de l'échelle sont des pastilles, pas un dégradé (§12).
+ */
 function LegendeCorrelation() {
   const classes = [
     styles.divNegFort,
@@ -137,25 +151,42 @@ function LegendeCorrelation() {
     styles.divPosFort,
   ]
   return (
-    <p className={styles.legendeCorrelation}>
-      {DOMAINE_CORRELATION.map((valeur, rang) => (
-        <span key={valeur} className={styles.pas}>
-          <span className={`${styles.pastille} ${classes[rang] ?? ''}`} aria-hidden="true" />
-          {decimal(valeur, 1)}
-        </span>
-      ))}
-      <span className={styles.lectureEchelle}>
+    <div className={styles.legendeCorrelation}>
+      <p className={styles.echelle}>
+        {DOMAINE_CORRELATION.map((valeur, rang) => (
+          <span key={valeur} className={styles.pas}>
+            <span className={`${styles.pastille} ${classes[rang] ?? ''}`} aria-hidden="true" />
+            {decimal(valeur, 1)}
+          </span>
+        ))}
+      </p>
+      <p className={styles.lectureEchelle}>
         +1&nbsp;: les deux lignes bougent toujours dans le même sens. 0&nbsp;: aucun lien
         visible. −1&nbsp;: toujours en sens inverse. Plus les nombres approchent +1, moins
         détenir les deux amortit les variations. Les couleurs suivent une échelle fixe, la
         même pour tout portefeuille.
-      </span>
-      <span className={styles.pas}>
+      </p>
+      <p className={`${styles.pas} ${styles.cleDiagonale}`}>
         <span className={`${styles.pastille} ${styles.diagonale}`} aria-hidden="true" />
         diagonale&nbsp;: chaque ligne avec elle-même, 1 par définition, hors échelle
-      </span>
-    </p>
+      </p>
+    </div>
   )
+}
+
+/**
+ * Les deux mesures de la carte dont sa mise en page a besoin, posées en
+ * propriétés CSS sur son conteneur : sa largeur quand la place ne manque pas,
+ * et la hauteur des tickers au-dessus de sa grille. À partir de 900 px, la
+ * lecture de l'échelle se place juste à droite de la première, à la hauteur
+ * de la seconde. Elles viennent du module qui dessine la carte : rien n'est
+ * recopié ici.
+ */
+function dispositionDeCarte(nombreDeLignes: number): CSSProperties {
+  return {
+    '--largeur-carte': `${largeurMaxCarte(nombreDeLignes)}px`,
+    '--haut-de-grille': `${MARGE_HAUTE_CARTE}px`,
+  } as CSSProperties
 }
 
 interface Props {
@@ -186,6 +217,15 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
   const optionsCarte = useCallback(
     (contexte: ContexteGraphique) =>
       optionsCarteCorrelation(correlation ?? { tickers: [], values: [] }, contexte),
+    [correlation],
+  )
+  // Le haut de la grille, lu sur la carte dessinée : la lecture de l'échelle
+  // s'y aligne à partir de 900 px. Avant le premier dessin, `.carte` donne la
+  // hauteur des tickers.
+  const proprietesCarte = useCallback(
+    (trace: Trace) => ({
+      '--haut-de-grille': `${hautDeGrille(trace, correlation ?? { tickers: [], values: [] })}px`,
+    }),
     [correlation],
   )
 
@@ -288,16 +328,19 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             'Corrélation non estimable, sans raison publiée.'}
         </p>
       ) : (
-        <Graphique
-          titre="Corrélation des variations quotidiennes"
-          unite="coefficient de corrélation, sans unité"
-          fenetre={matrices.window}
-          asOf={asOf}
-          description={`Corrélations deux à deux de ${compteLignes(correlation.tickers.length)}, valeur écrite dans chaque cellule.`}
-          options={optionsCarte}
-        >
-          <LegendeCorrelation />
-        </Graphique>
+        <div className={styles.carte} style={dispositionDeCarte(correlation.tickers.length)}>
+          <Graphique
+            titre="Corrélation des variations quotidiennes"
+            unite="coefficient de corrélation, sans unité"
+            fenetre={matrices.window}
+            asOf={asOf}
+            description={`Corrélations deux à deux de ${compteLignes(correlation.tickers.length)}, valeur écrite dans chaque cellule.`}
+            options={optionsCarte}
+            proprietesDuTrace={proprietesCarte}
+          >
+            <LegendeCorrelation />
+          </Graphique>
+        </div>
       )}
       {correlation !== null && <p className={commun.neDitPas}>{NE_DIT_PAS_CORRELATION}</p>}
     </Section>

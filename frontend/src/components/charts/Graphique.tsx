@@ -37,6 +37,12 @@ export interface ContexteGraphique {
   readonly largeur: number
 }
 
+/** Le tracé tel que Plot le rend : l'élément, et ses échelles (`scale`). */
+export type Trace = ReturnType<typeof Plot.plot>
+
+/** Des propriétés CSS, par nom : `{ '--haut-de-grille': '42px' }`. */
+export type ProprietesCss = Readonly<Record<string, string>>
+
 interface Props {
   readonly titre: string
   /** Ce que mesure l'axe des valeurs : « rendement quotidien, en % ». */
@@ -51,6 +57,13 @@ interface Props {
    */
   readonly description: string
   readonly options: (contexte: ContexteGraphique) => Plot.PlotOptions
+  /**
+   * Ce que la mise en page autour du tracé doit savoir de lui, et qui n'est
+   * connu qu'une fois Plot passé : des propriétés CSS, posées sur la figure à
+   * chaque dessin et retirées avec lui. La carte de corrélation y donne le
+   * haut de sa grille, sur lequel sa légende s'aligne.
+   */
+  readonly proprietesDuTrace?: (trace: Trace) => ProprietesCss
   /** Légende ou mention placée sous le tracé. */
   readonly children?: ReactNode
 }
@@ -62,6 +75,7 @@ export function Graphique({
   asOf,
   description,
   options,
+  proprietesDuTrace,
   children,
 }: Props) {
   const conteneur = useRef<HTMLDivElement>(null)
@@ -90,8 +104,14 @@ export function Graphique({
       style: { color: couleurs.texte2, background: 'transparent', overflow: 'visible' },
     })
     noeud.replaceChildren(trace)
-    return () => trace.remove()
-  }, [options, couleurs, largeur])
+    const figure = noeud.parentElement
+    const proprietes = Object.entries(proprietesDuTrace?.(trace) ?? {})
+    for (const [nom, valeur] of proprietes) figure?.style.setProperty(nom, valeur)
+    return () => {
+      trace.remove()
+      for (const [nom] of proprietes) figure?.style.removeProperty(nom)
+    }
+  }, [options, couleurs, largeur, proprietesDuTrace])
 
   return (
     <figure className={styles.graphique}>
