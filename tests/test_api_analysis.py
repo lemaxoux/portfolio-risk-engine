@@ -415,7 +415,9 @@ def test_chaque_seuil_dit_s_il_est_un_seuil_ou_une_reference(analyse_reelle):
         "threshold",
         "reference",
     ]
-    assert "Référence\u00a0: corrélation JNJ–KO" in diversification["rendered"]
+    # La paire porte le caractère de liaison (U+2060) qui l'empêche de se
+    # couper au tiret, posé à la publication.
+    assert "Référence\u00a0: corrélation JNJ–\u2060KO" in diversification["rendered"]
     for contribution in (o for o in observations if o["rule"] == "variance_contribution"):
         assert contribution["thresholds"][0]["role"] == "reference"
 

@@ -19,8 +19,11 @@
   font-weight: var(--weight-medium);
 }
 
+/* Un ticker, une paire, le nom d'une crise : sur une seule ligne. Une paire
+ * comme « JNJ–KO » se couperait sinon au tiret. */
 .sujet {
   font-weight: var(--weight-normal);
+  white-space: nowrap;
 }
 
 /* Ce que le moteur AFFIRME : une phrase, en serif (§6.1). */

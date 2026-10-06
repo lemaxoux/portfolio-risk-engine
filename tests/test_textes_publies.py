@@ -1,6 +1,6 @@
 """La ponctuation et les glyphes des textes que l'API publie.
 
-Trois règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
+Quatre règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
 `test_nombres_publies.py` le fait pour les nombres :
 
 ═══ 1. AUCUNE ESPACE ORDINAIRE AVANT « : », « ; », « ? », « ! » NI DANS LES
@@ -31,6 +31,16 @@ période (→) ne sont pas concernés.
 Les réponses ne déclenchent pas toutes les phrases que le code sait écrire :
 la règle est donc vérifiée une seconde fois sur le CODE qui publie, chaîne par
 chaîne (`test_aucune_chaine_publiee_n_ecrit_de_tiret_cadratin`).
+
+═══ 4. UNE PAIRE NE SE COUPE PAS AU TIRET ═══
+
+Une coupure de ligne est permise juste après un tiret court : « La paire la
+plus liée est JNJ– » finissait une ligne que « KO, à 0,42. » commençait
+(captures du 2026-10-05). `typography.prose` pose donc, à la publication, un
+caractère de liaison invisible (U+2060) après le tiret court d'une paire. Ne
+sont pas de la prose, et gardent la paire nue : les faits d'une observation
+(`facts`, des données) et son sujet (`subject`, que la page affiche sur une
+seule ligne).
 """
 
 from __future__ import annotations
@@ -41,7 +51,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.typography import NBSP
+from backend.typography import NBSP, WORD_JOINER, prose
 
 RACINE = Path(__file__).resolve().parents[1]
 
@@ -58,6 +68,15 @@ CADRATIN = chr(0x2014)
 
 # La provenance d'une mesure : écrite en Plex Sans, qui a le grec.
 PROVENANCE = re.compile(r"\.risk\..*\.(method|detail)$")
+
+# Un tiret court entre deux caractères qui ne sont pas des blancs, sans le
+# caractère de liaison qui interdit la coupure après lui.
+TIRET_COURT = chr(0x2013)
+PAIRE_SECABLE = re.compile(rf"\S{TIRET_COURT}(?=[^\s{WORD_JOINER}])")
+
+# Des données ou un identifiant, pas de la prose : la paire d'un fait, le
+# sujet d'une observation.
+HORS_PROSE = re.compile(r"\.facts\.|\.subject$")
 
 
 def toutes_les_chaines(noeud, chemin=""):
@@ -80,6 +99,8 @@ def fautes_dans(corps) -> list[tuple[str, str]]:
             fautes.append((chemin, f"lettre grecque : {texte[:60]}"))
         if CADRATIN in texte:
             fautes.append((chemin, f"tiret cadratin : {texte[:60]}"))
+        if PAIRE_SECABLE.search(texte) and not HORS_PROSE.search(chemin):
+            fautes.append((chemin, f"paire sécable : {texte[:60]}"))
     return fautes
 
 
@@ -135,8 +156,38 @@ def test_la_garde_voit_un_tiret_cadratin_et_lui_seul():
     assert fautes_dans(phrase)
     assert fautes_dans(provenance)
     # Le tiret court d'une paire, le signe moins et la flèche d'une période.
-    legitimes = {"a": "corrélation JNJ–KO = 0,42", "b": "−3", "c": "2024-09-05 → 2026-09-09"}
+    legitimes = {
+        "a": f"corrélation JNJ{TIRET_COURT}{WORD_JOINER}KO = 0,42",
+        "b": "−3",
+        "c": "2024-09-05 → 2026-09-09",
+    }
     assert fautes_dans(legitimes) == []
+
+
+def test_la_garde_voit_une_paire_secable_dans_la_prose_seulement():
+    paire = f"JNJ{TIRET_COURT}KO"
+    phrase = {"observations": [{"statement": f"La paire la plus liée est {paire}, à 0,42."}]}
+    assert fautes_dans(phrase)
+    # Publiée par `prose`, la même phrase passe : le caractère de liaison y est.
+    publiee = {"observations": [{"statement": prose(f"La paire la plus liée est {paire}, à 0,42.")}]}
+    assert fautes_dans(publiee) == []
+    assert f"JNJ{TIRET_COURT}{WORD_JOINER}KO" in publiee["observations"][0]["statement"]
+    # Un fait et un sujet ne sont pas de la prose : la paire y reste nue.
+    donnees = {"observations": [{"subject": paire, "facts": {"paire": paire}}]}
+    assert fautes_dans(donnees) == []
+    # Un tiret entouré d'espaces n'est pas une paire.
+    assert fautes_dans({"a": f"calme {TIRET_COURT} crise"}) == []
+
+
+def test_prose_lie_la_paire_une_seule_fois_et_ne_touche_a_rien_d_autre():
+    paire = f"JNJ{TIRET_COURT}KO"
+    une_fois = prose(f"corrélation {paire} = 0,42")
+    assert une_fois == f"corrélation JNJ{TIRET_COURT}{WORD_JOINER}KO = 0,42"
+    assert prose(une_fois) == une_fois, "appliquée deux fois, elle n'ajoute rien"
+    # Seul un caractère invisible est ajouté : les caractères visibles sont les mêmes.
+    assert une_fois.replace(WORD_JOINER, "") == f"corrélation {paire} = 0,42"
+    for intact in ("−3", "2024-09-05 → 2026-09-09", f"calme {TIRET_COURT} crise", "10:30"):
+        assert prose(intact) == intact
 
 
 # ------------------------------------------- Les réponses de l'API --
@@ -230,6 +281,8 @@ def test_la_garde_mord_sur_de_vraies_reponses(
     textes = [t for _, t in toutes_les_chaines(analyse_reelle.json())]
     assert any(NBSP + ":" in t for t in textes)
     assert any(NBSP + ";" in t for t in textes)
+    # La paire la plus liée du portefeuille de démonstration, liée par U+2060.
+    assert any(f"JNJ{TIRET_COURT}{WORD_JOINER}KO" in t for t in textes)
 
     refus = client_synthetique.post(
         f"/api/portfolios/{portefeuille_synthetique}/positions/csv",

@@ -1,6 +1,8 @@
 /**
  * `<Observation>` — les trois cas de §9.2, rendus côté serveur.
  */
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -73,6 +75,24 @@ describe('le sujet, à côté du libellé', () => {
     expect(sujetDejaDit('Le portefeuille en crise', 'EN')).toBe(false)
     expect(sujetDejaDit('Le portefeuille en crise', 'porte')).toBe(false)
     expect(sujetDejaDit('Poids dans les variations', 'A')).toBe(false)
+  })
+})
+
+describe('une paire ne se coupe pas au tiret', () => {
+  it('dans une phrase, le caractère de liaison du backend arrive intact à l’écran', () => {
+    // `typography.prose` le pose après le tiret court, à la publication.
+    const phrase = 'La paire la plus liée est JNJ\u2013\u2060KO, à 0,42.'
+    const html = rendu({ ...observation([]), statement: phrase })
+    expect(html).toContain('JNJ\u2013\u2060KO')
+  })
+
+  it('en sujet, elle tient sur une seule ligne', () => {
+    const css = readFileSync(
+      fileURLToPath(new URL('./Observation.module.css', import.meta.url)),
+      'utf-8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '')
+    const regle = /\.sujet\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(regle).toMatch(/white-space\s*:\s*nowrap/)
   })
 })
 

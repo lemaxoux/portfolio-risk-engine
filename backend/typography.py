@@ -61,14 +61,27 @@ NBSP = " "
 _PONCTUATION_HAUTE = re.compile(r" ([:;?!])(?=\s|$)")
 
 
+# Un tiret court pris entre deux caractères qui ne sont pas des blancs : une
+# paire de titres, « JNJ–KO ». Une coupure de ligne est permise juste APRÈS ce
+# tiret (UAX #14, classe BA), et la paire se retrouvait en deux morceaux :
+# « JNJ– » en fin de ligne, « KO » au début de la suivante. Le caractère de
+# liaison (U+2060), invisible et sans largeur, interdit cette coupure.
+WORD_JOINER = chr(0x2060)
+_TIRET_DE_PAIRE = re.compile(r"(?<=\S)\u2013(?=[^\s\u2060])")
+
+
 def prose(texte: str) -> str:
-    """Les espaces de la ponctuation française, rendues insécables.
+    """Les espaces de la ponctuation française, rendues insécables, et les
+    paires de titres, rendues insécables elles aussi.
 
     Avant « : », « ; », « ? » et « ! », et à l'intérieur des guillemets « » :
     avec une espace ordinaire, le signe ou le guillemet fermant part seul en
     début de ligne, et « Colonnes obligatoires » finit une ligne que
-    « : ticker » commence. Seule l'espace change : aucun mot, aucun caractère
-    n'est ajouté ni retiré.
+    « : ticker » commence. Seule l'espace change.
+
+    Après le tiret court d'une paire (« JNJ–KO »), un caractère de liaison
+    invisible : la paire ne se coupe plus en fin de ligne. Aucun mot, aucun
+    caractère VISIBLE n'est ajouté ni retiré.
 
     Appliquée UNE fois, à la publication, à chaque champ de texte rédigé
     (`api.schemas.Texte`) et aux corps d'erreur : les phrases du moteur et des
@@ -76,11 +89,12 @@ def prose(texte: str) -> str:
     tient pour toutes, y compris celles qui restent à écrire.
     `tests/test_textes_publies.py` la vérifie sur les réponses.
     """
-    return (
+    espace = (
         _PONCTUATION_HAUTE.sub(lambda signe: NBSP + signe.group(1), texte)
         .replace("« ", f"«{NBSP}")
         .replace(" »", f"{NBSP}»")
     )
+    return _TIRET_DE_PAIRE.sub(lambda tiret: tiret.group(0) + WORD_JOINER, espace)
 
 
 def counted(

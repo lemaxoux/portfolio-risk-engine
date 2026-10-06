@@ -356,6 +356,14 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   compilateur TypeScript (une recherche de texte prendrait chaque ternaire
   `a ? b : c` pour de la prose). L'espace est la même, insécable, devant les
   quatre signes : pas d'espace fine.
+- **Une paire ne se coupe pas au tiret.** Une coupure de ligne est permise
+  juste après un tiret court : « La paire la plus liée est JNJ– » finissait
+  une ligne que « KO, à 0,42. » commençait. Le backend pose donc, à la
+  publication, un caractère de liaison invisible et sans largeur (U+2060)
+  après le tiret court d'une paire (`typography.prose`, vérifié par
+  `tests/test_textes_publies.py`). Le tiret lui-même ne change pas. Le sujet
+  d'une observation, qui peut être une paire, tient sur une seule ligne
+  (`white-space: nowrap`).
 - **Aucun tiret cadratin (U+2014) dans l'interface, sans exception** (décision
   du 2026-10-05) : ni dans ce que le frontend compose, ni dans ce que le
   backend publie. Dans une phrase, la ponctuation dit le lien : deux-points,
