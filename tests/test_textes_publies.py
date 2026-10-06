@@ -1,6 +1,6 @@
 """La ponctuation et les glyphes des textes que l'API publie.
 
-Cinq règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
+Six règles, vérifiées sur ce que le client REÇOIT, chaîne par chaîne, comme
 `test_nombres_publies.py` le fait pour les nombres :
 
 ═══ 1. AUCUNE ESPACE ORDINAIRE AVANT « : », « ; », « ? », « ! » NI DANS LES
@@ -50,6 +50,16 @@ description d'une crise (captures du 2026-10-05, à 390 px). L'espace y est
 insécable, U+00A0 : `typography.counted` lie un nombre au mot qu'il compte,
 `typography.long_date` le jour, le mois et l'année. Les séances, les lignes et
 les points sont surveillés de la même façon par `test_api_analysis.py`.
+
+═══ 6. UNE DATE NE SE COUPE PAS AU TRAIT D'UNION ═══
+
+Une coupure de ligne est permise après le trait d'union d'une date ISO :
+« valorisation au 2026-09- » finissait une ligne que « 25 » commençait, sous
+« Détails du calcul » d'une observation (captures du 2026-10-05, à 390 px).
+`typography.prose` pose donc le caractère de liaison (U+2060) après chaque
+trait d'union d'une date citée dans un texte rédigé. Un champ qui n'est
+qu'une date (`as_of`, `start`, `end`, la date d'une séance) est une donnée :
+il reste nu, comme les faits et le sujet d'une observation.
 """
 
 from __future__ import annotations
@@ -87,6 +97,19 @@ PAIRE_SECABLE = re.compile(rf"\S{TIRET_COURT}(?=[^\s{WORD_JOINER}])")
 # sujet d'une observation.
 HORS_PROSE = re.compile(r"\.facts\.|\.subject$")
 
+# Une date ISO citée dans un texte : chacun de ses deux traits d'union porte
+# le caractère de liaison. Un champ qui n'est qu'une date (`as_of`, `start`,
+# `end`, la date d'une séance) est une donnée, pas de la prose : il reste nu.
+DATE_ISO = re.compile(rf"[0-9]{{4}}-{WORD_JOINER}?[0-9]{{2}}-{WORD_JOINER}?[0-9]{{2}}")
+DATE_NUE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+# Une période telle que `prose` la publie.
+PERIODE_LIEE = f"2024-{WORD_JOINER}09-{WORD_JOINER}05 → 2026-{WORD_JOINER}09-{WORD_JOINER}09"
+
+
+def dates_secables(texte: str) -> list[str]:
+    """Les dates ISO d'un texte dont un trait d'union au moins est sans liaison."""
+    return [d.group(0) for d in DATE_ISO.finditer(texte) if d.group(0).count(WORD_JOINER) < 2]
+
 # Un nombre, une espace ORDINAIRE, puis l'unité de durée qu'il compte ou le
 # mois dont il est le jour ; un mois, une espace ordinaire, puis son année.
 MOIS = (
@@ -123,6 +146,8 @@ def fautes_dans(corps) -> list[tuple[str, str]]:
         if PAIRE_SECABLE.search(texte) and not HORS_PROSE.search(chemin):
             fautes.append((chemin, f"paire sécable : {texte[:60]}"))
         fautes += [(chemin, f"lien sécable : {extrait}") for extrait in LIEN_SECABLE.findall(texte)]
+        if not DATE_NUE.match(texte) and not HORS_PROSE.search(chemin):
+            fautes += [(chemin, f"date sécable : {date}") for date in dates_secables(texte)]
     return fautes
 
 
@@ -181,7 +206,7 @@ def test_la_garde_voit_un_tiret_cadratin_et_lui_seul():
     legitimes = {
         "a": f"corrélation JNJ{TIRET_COURT}{WORD_JOINER}KO = 0,42",
         "b": "−3",
-        "c": "2024-09-05 → 2026-09-09",
+        "c": PERIODE_LIEE,
     }
     assert fautes_dans(legitimes) == []
 
@@ -201,6 +226,20 @@ def test_la_garde_voit_une_paire_secable_dans_la_prose_seulement():
     assert fautes_dans({"a": f"calme {TIRET_COURT} crise"}) == []
 
 
+def test_la_garde_voit_une_date_secable_dans_la_prose_seulement():
+    phrase = f"capital{NBSP}: valorisation au 2026-09-25{NBSP}; risque"
+    assert fautes_dans({"observations": [{"provenance": phrase}]})
+    # Publiée par `prose`, la même phrase passe : les deux traits sont liés.
+    publiee = prose(phrase)
+    assert fautes_dans({"observations": [{"provenance": publiee}]}) == []
+    assert f"au 2026-{WORD_JOINER}09-{WORD_JOINER}25{NBSP};" in publiee
+    # Un seul trait lié sur les deux : encore sécable.
+    assert fautes_dans({"a": f"au 2026-{WORD_JOINER}09-25"})
+    # Une date nue est une donnée : elle reste sans liaison.
+    donnees = {"as_of": "2026-09-25", "window": {"start": "2024-09-05", "end": "2026-09-09"}}
+    assert fautes_dans(donnees) == []
+
+
 def test_prose_lie_la_paire_une_seule_fois_et_ne_touche_a_rien_d_autre():
     paire = f"JNJ{TIRET_COURT}KO"
     une_fois = prose(f"corrélation {paire} = 0,42")
@@ -208,7 +247,18 @@ def test_prose_lie_la_paire_une_seule_fois_et_ne_touche_a_rien_d_autre():
     assert prose(une_fois) == une_fois, "appliquée deux fois, elle n'ajoute rien"
     # Seul un caractère invisible est ajouté : les caractères visibles sont les mêmes.
     assert une_fois.replace(WORD_JOINER, "") == f"corrélation {paire} = 0,42"
-    for intact in ("−3", "2024-09-05 → 2026-09-09", f"calme {TIRET_COURT} crise", "10:30"):
+    for intact in ("−3", f"calme {TIRET_COURT} crise", "10:30"):
+        assert prose(intact) == intact
+
+
+def test_prose_lie_la_date_une_seule_fois_et_ne_touche_a_rien_d_autre():
+    periode = "2024-09-05 → 2026-09-09"
+    une_fois = prose(periode)
+    assert une_fois == PERIODE_LIEE
+    assert prose(une_fois) == une_fois, "appliquée deux fois, elle n'ajoute rien"
+    assert une_fois.replace(WORD_JOINER, "") == periode
+    # Ni un nombre, ni un mois, ni un intervalle d'années, ni un identifiant.
+    for intact in ("2026", "100 000", "2024-09", "de 2007-2009", "01-02-03", "FR0000120271"):
         assert prose(intact) == intact
 
 
@@ -229,7 +279,7 @@ def test_la_garde_voit_une_duree_separee_de_son_unite_et_un_jour_de_son_mois():
         "il en faut au moins 20 pour ce calcul",
         "pendant la Crise financière 2008 et le Krach COVID",
         "0,50 en régime calme, mais 0,86 en crise",
-        "2024-09-05 → 2026-09-09",
+        PERIODE_LIEE,
     )
     for legitime in legitimes:
         assert fautes_dans({"a": legitime}) == [], legitime
@@ -242,6 +292,14 @@ def test_les_durees_et_les_dates_en_lettres_publiees_sont_liees(analyse_reelle):
     assert any(f"soit environ 2{NBSP}ans" in t for t in textes)
     assert any(f"(3{NBSP}janvier{NBSP}2022)" in t for t in textes)
     assert any(f"(9{NBSP}mars{NBSP}2009)" in t for t in textes)
+
+
+def test_les_dates_iso_citees_dans_la_prose_sont_liees(analyse_reelle):
+    """Contrôle en sens inverse : la provenance d'une observation CITE la date
+    de valorisation et la période d'estimation, traits d'union liés."""
+    textes = [t for _, t in toutes_les_chaines(analyse_reelle.json())]
+    assert any(f"valorisation au 2026-{WORD_JOINER}09-{WORD_JOINER}09" in t for t in textes)
+    assert any(PERIODE_LIEE in t for t in textes)
 
 
 # ------------------------------------------- Les réponses de l'API --

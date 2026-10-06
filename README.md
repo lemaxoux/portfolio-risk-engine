@@ -990,8 +990,11 @@ dans le code ; `typography.prose` les rend insécables avant « : », « ; », �
 et « ! » suivis d'un blanc, et dans les guillemets, et seulement là. Elle pose
 aussi un caractère de liaison invisible (U+2060) après le tiret court d'une
 paire comme « JNJ–KO », qui se coupait sinon en fin de ligne, le « KO »
-renvoyé seul à la ligne suivante ; les faits et le sujet d'une observation,
-qui ne sont pas de la prose, gardent la paire nue. Elle s'applique une fois, aux champs de texte
+renvoyé seul à la ligne suivante, et après chaque trait d'union d'une date ISO
+citée dans un texte (« valorisation au 2026-09-25 »), qui se coupait sinon
+avant son jour ; les faits et le sujet d'une observation, qui ne sont pas de la
+prose, gardent la paire nue, et les champs de date (`as_of`, `start`, `end`),
+qui sont des données, restent nus. Elle s'applique une fois, aux champs de texte
 rédigé des schémas — typés `Texte` (`Annotated[str, AfterValidator(prose)]`),
 48 champs : raisons, phrases, réserves, provenances, libellés de période et
 d'indice, bandeau — et aux corps

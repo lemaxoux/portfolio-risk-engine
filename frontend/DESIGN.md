@@ -364,6 +364,15 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   `tests/test_textes_publies.py`). Le tiret lui-même ne change pas. Le sujet
   d'une observation, qui peut être une paire, tient sur une seule ligne
   (`white-space: nowrap`).
+- **Une date ne se coupe pas au trait d'union.** Une coupure de ligne est
+  permise après le trait d'union d'une date ISO : sous « Détails du calcul »
+  d'une observation, « valorisation au 2026-09- » finissait une ligne que
+  « 25 » commençait (captures du 2026-10-05, à 390 px). Le backend pose le
+  même caractère de liaison (U+2060) après chaque trait d'union d'une date
+  citée dans un texte rédigé (`typography.prose`). Une date affichée seule
+  par le client dans sa propre cellule (« Valorisé au », bandeau, liste des
+  portefeuilles) n'est pas concernée : elle ne s'est jamais coupée, et le
+  client ne cherche aucun motif dans un texte du backend.
 - **Aucun tiret cadratin (U+2014) dans l'interface, sans exception** (décision
   du 2026-10-05) : ni dans ce que le frontend compose, ni dans ce que le
   backend publie. Dans une phrase, la ponctuation dit le lien : deux-points,

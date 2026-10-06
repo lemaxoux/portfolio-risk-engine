@@ -10,6 +10,8 @@ typographie française, ces liens ne se coupent pas.
     U+2212  SIGNE MOINS             jamais le trait d'union U+002D
     U+00A0  ESPACE INSÉCABLE        avant « : », « ; », « ? », « ! » ; après « « »
                                     et avant « » »
+    U+2060  CARACTÈRE DE LIAISON    après le tiret court d'une paire (« JNJ–KO »)
+                                    et chaque trait d'union d'une date ISO citée
     ,       VIRGULE DÉCIMALE        jamais le point
 
 INSÉCABLE est le mot important, pas la largeur. Avec une espace ordinaire,
@@ -69,6 +71,15 @@ _PONCTUATION_HAUTE = re.compile(r" ([:;?!])(?=\s|$)")
 WORD_JOINER = chr(0x2060)
 _TIRET_DE_PAIRE = re.compile(r"(?<=\S)\u2013(?=[^\s\u2060])")
 
+# Une date ISO cit\u00e9e dans une phrase, \u00ab valorisation au 2026-09-25 \u00bb : une
+# coupure est permise apr\u00e8s chacun de ses traits d'union, et \u00ab 2026-09- \u00bb
+# finissait une ligne que \u00ab 25 \u00bb commen\u00e7ait. Le m\u00eame caract\u00e8re de liaison,
+# apr\u00e8s chaque trait. Une date qui est \u00e0 elle seule un champ (`as_of`,
+# `start`, `end`) n'est pas de la prose et ne passe pas ici : elle reste nue.
+# Appliqu\u00e9e deux fois, la r\u00e8gle n'ajoute rien : un trait d\u00e9j\u00e0 suivi du
+# caract\u00e8re de liaison n'est plus suivi d'un chiffre.
+_DATE_ISO = re.compile(r"(?<![0-9])([0-9]{4})-([0-9]{2})-([0-9]{2})(?![0-9])")
+
 
 def prose(texte: str) -> str:
     """Les espaces de la ponctuation française, rendues insécables, et les
@@ -79,9 +90,10 @@ def prose(texte: str) -> str:
     début de ligne, et « Colonnes obligatoires » finit une ligne que
     « : ticker » commence. Seule l'espace change.
 
-    Après le tiret court d'une paire (« JNJ–KO »), un caractère de liaison
-    invisible : la paire ne se coupe plus en fin de ligne. Aucun mot, aucun
-    caractère VISIBLE n'est ajouté ni retiré.
+    Après le tiret court d'une paire (« JNJ–KO ») et après chaque trait
+    d'union d'une date ISO (« 2026-09-25 »), un caractère de liaison
+    invisible : ni la paire ni la date ne se coupent plus en fin de ligne.
+    Aucun mot, aucun caractère VISIBLE n'est ajouté ni retiré.
 
     Appliquée UNE fois, à la publication, à chaque champ de texte rédigé
     (`api.schemas.Texte`) et aux corps d'erreur : les phrases du moteur et des
@@ -94,7 +106,10 @@ def prose(texte: str) -> str:
         .replace("« ", f"«{NBSP}")
         .replace(" »", f"{NBSP}»")
     )
-    return _TIRET_DE_PAIRE.sub(lambda tiret: tiret.group(0) + WORD_JOINER, espace)
+    paires = _TIRET_DE_PAIRE.sub(lambda tiret: tiret.group(0) + WORD_JOINER, espace)
+    return _DATE_ISO.sub(
+        lambda d: f"{d.group(1)}-{WORD_JOINER}{d.group(2)}-{WORD_JOINER}{d.group(3)}", paires
+    )
 
 
 def counted(
