@@ -33,7 +33,12 @@
 }
 
 /* L'introduction d'une section : la question à laquelle elle répond, en deux
- * lignes. De la prose, comme le chapeau, mais au premier plan. */
+ * lignes. De la prose, comme le chapeau, mais au premier plan.
+ *
+ * Alignée à gauche, même au-delà de 900 px (DESIGN.md §6.3) : justifiée sans
+ * dictionnaire de césure, celui que Chrome télécharge après coup et qu'un
+ * visiteur peut ne pas avoir, une introduction ouvrait des espaces trois fois
+ * plus larges que la normale (« … a-t-il mis à s'en remettre ? »). */
 .introduction {
   max-inline-size: var(--prose-width);
   margin-block-end: var(--space-5);
@@ -57,21 +62,22 @@
 }
 
 /*
- * La prose longue, justifiée à partir de 900 px (DESIGN.md §6.3, décision du
- * 2026-10-06) : l'introduction d'une section et ses chapeaux. Les mots se
- * coupent (`hyphens: auto`) selon la langue de la page, `lang="fr"`.
+ * La prose longue justifiée à partir de 900 px (DESIGN.md §6.3, décisions du
+ * 2026-10-06) : les chapeaux, et eux seuls. Les mots se coupent
+ * (`hyphens: auto`) selon la langue de la page, `lang="fr"`.
+ *
+ * Mesuré dans Chrome sur les quatre portefeuilles des captures, AVEC et SANS
+ * dictionnaire de césure : aucune ligne d'un chapeau ne dépasse 2 fois
+ * l'espace normale. Les introductions et l'écran d'acceptation, justifiés
+ * d'abord, montaient à 3,0 et 2,9 sans dictionnaire : ils sont à gauche.
  *
  * Coupure de lignes ordinaire (`wrap`), pas `pretty` : pour éviter une
  * dernière ligne courte, `pretty` raccourcit les lignes d'avant, que la
- * justification étire. Mesuré dans Chrome sur les quatre portefeuilles des
- * captures : avec `pretty`, la moitié des introductions avaient une ligne
- * aux espaces plus de deux fois plus larges que la normale ; avec `wrap`,
- * aucune ligne de ces paragraphes ne dépasse 2,2 fois l'espace normale.
+ * justification étire.
  *
  * Sous 900 px, et partout ailleurs, le texte reste aligné à gauche.
  */
 @media (width >= 900px) {
-  .introduction,
   .chapeau {
     text-align: justify;
     hyphens: auto;

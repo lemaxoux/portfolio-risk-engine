@@ -343,24 +343,27 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   Spectral : `line-height: 1.6`. Interface en Plex Sans : `1.45`. Chiffres
   principaux : `1.1`.
 - **Justifié pour la prose longue au-delà de 900 px, avec coupure ; aligné à
-  gauche partout ailleurs** (décision du 2026-10-06). À partir de 900 px, les
-  introductions de section, les chapeaux et la prose de l'écran d'acceptation
-  sont justifiés, avec `hyphens: auto` (la page déclare `lang="fr"`, sans quoi
-  aucun mot ne se coupe) et la coupure de lignes ordinaire. Tout le reste est
+  gauche partout ailleurs** (décisions du 2026-10-06). **Une ligne justifiée
+  n'ouvre aucune espace de plus de 2,5 fois la normale, avec ou sans
+  dictionnaire de césure** : seule la prose qui tient cette condition est
+  justifiée. Mesurée dans Chrome, elle se réduit aux chapeaux, justifiés à
+  partir de 900 px avec `hyphens: auto` (la page déclare `lang="fr"`, sans
+  quoi aucun mot ne se coupe) et la coupure de lignes ordinaire ; leur ligne
+  la plus lâche est à 2,0, avec comme sans dictionnaire. Tout le reste est
   aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`, qui
   évite une dernière ligne d'un seul mot : légendes de tableau et de
   graphique, « Détails du calcul », lignes de seuil, cellules, libellés,
   boutons, messages d'erreur, et tout le texte sous 900 px.
-  **Les phrases de lecture des mesures et les observations restent à
-  gauche.** Essayées justifiées, elles ouvraient des espaces de 2,8 à 4,9 fois
-  la normale : un groupe qui ne se coupe pas (« 890 USD »,
-  « 4 septembre 2026 », « 8,3 points ») reporte toute sa largeur à la ligne
-  suivante, et la ligne qu'il quitte s'étire d'autant.
-  **Une ligne justifiée n'ouvre aucune espace de plus de 2,5 fois la
-  normale**, vérifié aux captures ; la plus lâche, dans l'introduction de la
-  section 6, est à 2,2. La prose justifiée ne prend pas `pretty` : pour éviter
-  une dernière ligne courte, il raccourcit les lignes d'avant, que la
-  justification étire ensuite.
+  **Essayés justifiés, puis remis à gauche** : les phrases de lecture des
+  mesures et les observations, dont les espaces montaient de 2,8 à 4,9 fois
+  la normale, un groupe qui ne se coupe pas (« 890 USD »,
+  « 4 septembre 2026 », « 8,3 points ») reportant toute sa largeur à la ligne
+  suivante ; puis les introductions de section et l'écran d'acceptation, qui
+  tenaient sous 2,5 avec le dictionnaire de césure français mais montaient à
+  3,0 et 2,9 sans lui. Chrome télécharge ce dictionnaire après coup : un
+  visiteur peut ne pas l'avoir. La prose justifiée ne prend pas `pretty` :
+  pour éviter une dernière ligne courte, il raccourcit les lignes d'avant, que
+  la justification étire ensuite.
 - **Casse phrase partout.** Pas de capitales sur les libellés (§12).
 - **Format français obligatoire**, avec des caractères **fixés explicitement**
   et non laissés à `Intl.NumberFormat` : virgule décimale, **U+202F** (espace
@@ -461,8 +464,8 @@ sections, escamotée sous 900 px. Les tableaux peuvent déborder de la colonne d
 lecture jusqu'à 1280 px, parce qu'un tableau tronqué ou en défilement
 horizontal est pire qu'un tableau large.
 
-**Alignement.** Libellés et prose à gauche, sauf la prose longue au-delà de
-900 px, justifiée (§6.3). **Tous les chiffres à droite**, sans
+**Alignement.** Libellés et prose à gauche, sauf les chapeaux au-delà de
+900 px, justifiés (§6.3). **Tous les chiffres à droite**, sans
 exception, y compris dans les blocs mesure — c'est ce qui rend deux mesures
 comparables d'un coup d'œil vertical.
 
@@ -557,7 +560,7 @@ qualificatif se lit dollar canadien.
 portefeuille peut-il perdre en une journée ? On rejoue ces deux dernières
 années sur sa composition d'aujourd'hui : c'est le passé, pas une
 prévision. » De la prose, comme les chapeaux : Spectral, `--text-body`, mais
-en `--text-1`, à la largeur de prose, justifiée au-delà de 900 px comme eux
+en `--text-1`, à la largeur de prose, alignée à gauche à toutes les largeurs
 (§6.3). Elle ne remplace pas les chapeaux des sous-parties, qui expliquent un
 choix de méthode.
 

@@ -32,22 +32,16 @@
 }
 
 /* Le corps des sections est de la PROSE rédigée par le backend : Spectral,
- * interlignage 1,6 (§6.3). */
+ * interlignage 1,6 (§6.3).
+ *
+ * Aligné à gauche, même au-delà de 900 px : justifié sans dictionnaire de
+ * césure, il ouvrait des espaces près de trois fois plus larges que la
+ * normale (« … sur les 504 dernières séances de bourse, soit… »). */
 .corps {
   color: var(--text-1);
   font-family: var(--font-serif);
   font-size: var(--text-body);
   line-height: var(--leading-prose);
-}
-
-/* Justifié à partir de 900 px, avec coupure des mots, comme les
- * introductions et les chapeaux de l'analyse (§6.3, `Section.module.css`). */
-@media (width >= 900px) {
-  .corps {
-    text-align: justify;
-    hyphens: auto;
-    text-wrap: wrap;
-  }
 }
 
 .confirmation {

@@ -1658,42 +1658,47 @@ plus.
 
 #### Justification et coupure des lignes
 
-Décision du 2026-10-06 (DESIGN.md §6.3) : la prose longue est justifiée à
-partir de 900 px, avec coupure des mots ; tout le reste est aligné à gauche.
+Décisions du 2026-10-06 (DESIGN.md §6.3) : une prose n'est justifiée, à
+partir de 900 px et avec coupure des mots, que si aucune de ses lignes
+n'ouvre une espace de plus de 2,5 fois la normale, avec ou sans dictionnaire
+de césure. Tout le reste est aligné à gauche.
 
-- **Justifiés** : les introductions de section, les chapeaux et la prose de
-  l'écran d'acceptation, avec `hyphens: auto`. La page déclare `lang="fr"`,
-  sans quoi aucun mot ne se coupe.
+- **Justifiés** : les chapeaux, avec `hyphens: auto`. La page déclare
+  `lang="fr"`, sans quoi aucun mot ne se coupe. Leur ligne la plus lâche est
+  à 2,0, avec comme sans dictionnaire.
 - **À gauche, à toutes les largeurs** : tout le reste, en
   `text-wrap: pretty`, posé sur le corps de la page, qui évite une dernière
   ligne d'un seul mot. Les titres gardent `balance`.
-- **Laissés à gauche après mesure** : les phrases de lecture des mesures et
-  les observations. Justifiées, elles ouvraient des espaces de 2,8 à 4,9
-  fois la normale. En cause, les groupes qui ne se coupent pas, un montant,
-  une date en toutes lettres, un nombre et son unité : la ligne qu'ils
-  quittent s'étire de toute leur largeur, surtout dans un bloc mesure de
-  quelque 360 px.
+- **Essayés justifiés, puis remis à gauche** :
+  - les phrases de lecture des mesures et les observations, dont les espaces
+    montaient de 2,8 à 4,9 fois la normale. En cause, les groupes qui ne se
+    coupent pas, un montant, une date en toutes lettres, un nombre et son
+    unité : la ligne qu'ils quittent s'étire de toute leur largeur, surtout
+    dans un bloc mesure de quelque 360 px ;
+  - les introductions de section et l'écran d'acceptation, qui tenaient sous
+    2,5 avec le dictionnaire de césure français (2,2 et 1,6), mais montaient
+    à 3,0 et 2,9 sans lui. Chrome télécharge ce dictionnaire après coup,
+    comme un composant : un visiteur dont le Chrome ne l'a pas encore verrait
+    ces trous.
 
 La mesure a été faite dans Chrome, sur l'écran d'acceptation et les quatre
-portefeuilles des captures : pour chaque ligne justifiée sauf la dernière, la
-largeur de l'espace la plus large rapportée à l'espace naturelle de la
-police. Une ligne justifiée n'ouvre aucune espace de plus de 2,5 fois la
-normale ; la plus lâche, dans l'introduction de la section 6, est à 2,2.
-Elle est la même de 900 à 1280 px, ces paragraphes étant bornés à la largeur
-de prose.
+portefeuilles des captures, à 900 et à 1280 px, avec et sans dictionnaire :
+pour chaque ligne justifiée sauf la dernière, la largeur de l'espace la plus
+large rapportée à l'espace naturelle de la police. Elle est la même aux deux
+largeurs, ces paragraphes étant bornés à la largeur de prose.
 
 - **`wrap`, pas `pretty`, pour la prose justifiée.** Pour éviter une dernière
   ligne courte, `pretty` raccourcit les lignes d'avant, que la justification
   étire ensuite. Avec lui, la moitié des introductions avaient une ligne aux
   espaces plus de deux fois plus larges que la normale ; sans lui, un
   sixième.
-- **Les captures ont besoin du dictionnaire de césure.** Chrome le télécharge
-  après coup, comme un composant : un profil neuf n'en a aucun, et
-  `hyphens: auto` n'y coupe rien. Le script des captures copie celui du
-  Chrome du poste dans son profil.
-- `src/styles/justification.test.ts` tient la règle : seules ces trois
-  classes se justifient, jamais sous 900 px, toujours avec coupure et sans
-  `pretty` ; la page déclare le français.
+- **Les captures ont besoin du dictionnaire de césure**, puisqu'un profil
+  Chrome neuf n'en a aucun : le script des captures copie celui du Chrome du
+  poste dans son profil. La mesure sans dictionnaire se fait, elle, sur un
+  profil neuf, sans cette copie.
+- `src/styles/justification.test.ts` tient la règle : seuls les chapeaux se
+  justifient, jamais sous 900 px, toujours avec coupure et sans `pretty` ; la
+  page déclare le français.
 
 Le critère 1.4.8 des WCAG, de niveau AAA, déconseille le texte justifié. Le
 projet vise le niveau AA (DESIGN.md §13), et ne justifie ni sous 900 px ni

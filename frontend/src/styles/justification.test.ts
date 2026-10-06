@@ -1,16 +1,19 @@
 /**
- * La justification de la prose longue — DESIGN.md §6.3, décision du
+ * La justification de la prose longue — DESIGN.md §6.3, décisions du
  * 2026-10-06.
  *
- * Justifiés à partir de 900 px, avec coupure des mots : les introductions de
- * section, les chapeaux, la prose de l'écran d'acceptation. Tout le reste est
- * aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`.
+ * Justifiés à partir de 900 px, avec coupure des mots : les chapeaux, et eux
+ * seuls. Tout le reste est aligné à gauche, à toutes les largeurs, et passe
+ * en `text-wrap: pretty`.
  *
- * Les phrases de lecture des mesures et les observations ont été essayées
- * justifiées, et mesurées dans Chrome : les groupes qui ne se coupent pas (un
- * montant, une date en toutes lettres, un nombre et son unité) y ouvraient
- * des espaces de 2,8 à 4,9 fois la normale. Elles restent à gauche ; ce test
- * empêche qu'elles se justifient par mégarde, comme il empêche la
+ * Le reste a été essayé justifié, et mesuré dans Chrome. Les phrases de
+ * lecture des mesures et les observations ouvraient des espaces de 2,8 à 4,9
+ * fois la normale, à cause des groupes qui ne se coupent pas (un montant, une
+ * date en toutes lettres, un nombre et son unité). Les introductions et
+ * l'écran d'acceptation tenaient sous 2,5 avec le dictionnaire de césure
+ * français, mais montaient à 3,0 et 2,9 sans lui : un visiteur dont le Chrome
+ * ne l'a pas encore téléchargé verrait ces trous. Tous restent à gauche ; ce
+ * test empêche qu'ils se justifient par mégarde, comme il empêche la
  * justification de passer sous 900 px.
  *
  * Ce qui se voit dans le navigateur, l'espace réelle des lignes justifiées,
@@ -62,14 +65,14 @@ const FEUILLES = new Map(
 const JUSTIFIE = 'text-align: justify'
 
 describe('la prose longue, justifiée à partir de 900 px', () => {
-  it('seules les introductions, les chapeaux et l’écran d’acceptation se justifient', () => {
+  it('seuls les chapeaux se justifient', () => {
     const justifiees = [...FEUILLES].filter(([, css]) => css.includes(JUSTIFIE)).map(([chemin]) => chemin)
-    expect(justifiees.sort()).toEqual(['components/Section.module.css', 'views/Acceptation.module.css'])
+    expect(justifiees).toEqual(['components/Section.module.css'])
     const section = blocsDeMedia(FEUILLES.get('components/Section.module.css') ?? '', LARGE).join('')
-    expect(section).toContain('.introduction')
     expect(section).toContain('.chapeau')
-    const acceptation = blocsDeMedia(FEUILLES.get('views/Acceptation.module.css') ?? '', LARGE).join('')
-    expect(acceptation).toContain('.corps')
+    // Les introductions, essayées justifiées, montaient à 3,0 fois l'espace
+    // normale sans dictionnaire de césure.
+    expect(section).not.toContain('.introduction')
   })
 
   it('jamais sous 900 px, et toujours avec coupure des mots et coupure de lignes ordinaire', () => {
