@@ -540,8 +540,11 @@ def test_un_refus_de_ligne_du_fichier_ne_porte_pas_de_deux_points_en_tete():
     assert absente.startswith(
         "Quantité absente, 1 colonne(s) lue(s) avec le séparateur `,`. En-tête attendu"
     )
-    assert illisible == "'dix' n'est pas une quantité lisible. Décimale acceptée : `.`."
-    assert prix == "'cher' n'est pas un prix de revient lisible. Décimale acceptée : `.`."
+    # La valeur refusée est citée entre guillemets français, comme dans le
+    # tableau de saisie (décision du 2026-10-05) ; ici, avant publication,
+    # les espaces des guillemets sont encore ordinaires.
+    assert illisible == "« dix » n'est pas une quantité lisible. Décimale acceptée : `.`."
+    assert prix == "« cher » n'est pas un prix de revient lisible. Décimale acceptée : `.`."
     assert en_trop == (
         "5 colonnes lues, l'en-tête en a 3. Avec le séparateur `,`, une virgule "
         "décimale coupe le nombre en deux."

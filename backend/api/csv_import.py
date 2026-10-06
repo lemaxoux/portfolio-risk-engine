@@ -359,8 +359,11 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                     line=numero,
                     field=COLONNE_QUANTITE,
                     value=brut_quantite.strip(),
+                    # La valeur est citée entre guillemets français, comme dans
+                    # le tableau de saisie ; `prose` rend leurs espaces
+                    # insécables à la publication.
                     problem=(
-                        f"{brut_quantite.strip()!r} n'est pas une quantité "
+                        f"« {brut_quantite.strip()} » n'est pas une quantité "
                         f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
                     ),
                 )
@@ -383,7 +386,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                             field=COLONNE_PRIX_REVIENT,
                             value=brut_prix,
                             problem=(
-                                f"{brut_prix!r} n'est pas un prix de revient "
+                                f"« {brut_prix} » n'est pas un prix de revient "
                                 f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
                             ),
                         )

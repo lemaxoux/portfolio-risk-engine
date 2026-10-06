@@ -1618,8 +1618,11 @@ dit le lien : deux-points, virgule, parenthèses ou point.
 - **Refus d'une ligne** : « Ligne 4 : XYZ n'est pas un titre connu. », suivi
   des titres disponibles. Le sujet vient d'abord, dans l'API comme dans le
   client, pour que la première phrase ne porte pas un second deux-points :
-  « 'dix' n'est pas une quantité lisible. », « Quantité absente, 1 colonne(s)
-  lue(s)… ». Après « Ligne N : », la minuscule, sauf devant un ticker
+  la valeur citée ouvre la phrase (« dix » n'est pas une quantité lisible.),
+  comme le mot qui manque (Quantité absente, 1 colonne(s) lue(s)…). Une
+  valeur refusée se cite entre guillemets français, dans l'API comme dans le
+  client (décision du 2026-10-05) ; l'import CSV la citait entre apostrophes
+  droites. Après « Ligne N : », la minuscule, sauf devant un ticker
   (`phrases.messageDeLigne`).
 - **Valeur absente** : c'est le seul tiret isolé de l'interface. Un tiret
   court (U+2013), écrit par `<Absent>` avec le texte « non disponible » pour
