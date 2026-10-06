@@ -37,7 +37,13 @@ from backend.risk_engine.config import (
 
 
 class ThresholdKind(Enum):
-    """D'où vient un seuil. L'ordre de déclaration est l'ordre de préférence."""
+    """D'où vient un seuil. L'ordre de déclaration est l'ordre de préférence.
+
+    Les valeurs décrivent les catégories ; elles ne s'affichent pas. Ce que la
+    ligne de seuil dit de la provenance est écrit par `Threshold.origin`, qui
+    tient compte aussi du rôle : un seuil dérivé peut être une référence
+    calculée sur ce portefeuille ou un seuil démontré, le même pour tous.
+    """
 
     DERIVED = "référence calculée"
     PORTFOLIO_RELATIVE = "relatif au portefeuille"
@@ -75,6 +81,12 @@ class Threshold:
     jamais arrondie d'avance : `round()` tranche les égalités au pair,
     `typography` comme `toFixed`, et un double arrondi pourrait écrire
     « 0,12 » sous une phrase qui dit « 0,13 ».
+
+    `feminine` est le genre du NOM du seuil, avec lequel s'accorde sa
+    provenance : « part de JPM dans la valeur = 24,5 %, calculée sur ce
+    portefeuille », mais « nombre minimal de séances estimables = 3,
+    démontré ». « Choisi à la main » ne s'accorde pas : c'est la formule
+    validée telle quelle, « corrélation forte = 0,70, choisi à la main ».
     """
 
     name: str
@@ -84,6 +96,7 @@ class Threshold:
     rationale: str
     percent: bool = False
     role: ThresholdRole = ThresholdRole.THRESHOLD
+    feminine: bool = False
 
     def __post_init__(self) -> None:
         # Deux combinaisons n'ont pas de sens : une convention choisie à la
@@ -108,13 +121,45 @@ class Threshold:
             return typography.percent(self.value, self.decimals)
         return typography.number(self.value, self.decimals)
 
-    def __str__(self) -> str:
+    @property
+    def origin(self) -> str:
+        """D'où vient la valeur, dit au lecteur après la virgule de la ligne.
+
+        - Choisi à la main : « choisi à la main (non dérivé des données) », la
+          formule validée le 2026-10-05.
+        - Une RÉFÉRENCE, dérivée ou relative au portefeuille, est calculée sur
+          CE portefeuille : « calculée sur ce portefeuille », accordé avec le
+          nom (décision du 2026-10-06). Elle disait « référence calculée » ou
+          « relatif au portefeuille », et la ligne, qui commence par
+          « Référence : », répétait le mot.
+        - Un seuil DÉMONTRÉ, dérivé mais posé d'avance, n'est calculé sur
+          aucun portefeuille : « démontré (le même pour tout portefeuille) ».
+          « Calculé sur ce portefeuille » dirait faux au lecteur d'un refus
+          sous trois séances.
+        """
         if self.chosen:
-            return (
-                f"{self.name} = {self.displayed} (seuil CHOISI à la main, non "
-                f"dérivé des données) : {self.rationale}"
-            )
-        return f"{self.name} = {self.displayed} ({self.kind.value}) : {self.rationale}"
+            return "choisi à la main (non dérivé des données)"
+        accord = "e" if self.feminine else ""
+        if self.role is ThresholdRole.REFERENCE:
+            return f"calculé{accord} sur ce portefeuille"
+        meme = "la même" if self.feminine else "le même"
+        return f"démontré{accord} ({meme} pour tout portefeuille)"
+
+    def __str__(self) -> str:
+        """La ligne de seuil : « corrélation forte = 0,70, choisi à la main
+        (non dérivé des données). Convention usuelle… ». La valeur, puis sa
+        provenance (`origin`) après une virgule, puis la justification en
+        phrase. Casse phrase, sans mot en capitales (DESIGN.md §6.3, décision
+        du 2026-10-05) : c'est le champ machine `kind`, pas un mot du texte,
+        qui dit au client qu'un seuil est choisi."""
+        return f"{self.name} = {self.displayed}, {self.origin}. {_phrase(self.rationale)}"
+
+
+def _phrase(justification: str) -> str:
+    """La justification d'un seuil, déclarée en minuscule et sans point final
+    (elle est aussi publiée telle quelle, `rationale`), écrite en phrase :
+    capitale initiale, point final."""
+    return justification[0].upper() + justification[1:] + "."
 
 
 # ------------------------------------------------ Seuils choisis à la main --
@@ -284,6 +329,7 @@ def capital_share(ticker: str, weight: float) -> Threshold:
         ),
         percent=True,
         role=ThresholdRole.REFERENCE,
+        feminine=True,  # « part … calculée sur ce portefeuille »
     )
 
 
@@ -296,4 +342,5 @@ def most_correlated_pair(first: str, second: str, correlation: float) -> Thresho
         decimals=2,
         rationale="corrélation de la paire la plus corrélée du portefeuille",
         role=ThresholdRole.REFERENCE,
+        feminine=True,  # « corrélation … calculée sur ce portefeuille »
     )

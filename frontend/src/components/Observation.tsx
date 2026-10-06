@@ -28,7 +28,7 @@
  * sans être reformulés : ce sont des phrases du moteur, composées en serif
  * pour les distinguer de ce que l'interface a mesuré (§6.1). Et la décision
  * d'afficher le point repose sur `kind`, un champ MACHINE — jamais sur la
- * présence du mot « CHOISI » dans le texte.
+ * présence du mot « choisi » dans le texte.
  */
 import type { Observation as ObservationApi, Threshold } from '../api/types'
 import { Provenance } from './Provenance'

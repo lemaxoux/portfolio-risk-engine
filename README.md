@@ -774,9 +774,21 @@ moteur de règles. Par ordre de préférence : pas de seuil du tout quand la mes
 parle d'elle-même ; un seuil dérivé d'une référence calculée ; un seuil relatif au
 portefeuille lui-même ; en dernier recours seulement, un nombre rond choisi à la
 main. Chaque observation porte ses seuils et leur provenance, et un seuil choisi
-le dit en toutes lettres — « seuil CHOISI à la main, non dérivé des données » —,
+le dit en toutes lettres — « choisi à la main (non dérivé des données) » —,
 selon la même règle de provenance que les fenêtres d'estimation et les dates de
-valorisation.
+valorisation. La ligne de seuil s'écrit en casse phrase : la valeur, puis la
+provenance après une virgule, puis la justification en phrase (« corrélation
+forte = 0,70, choisi à la main (non dérivé des données). Convention usuelle
+pour qualifier une corrélation de forte ; aucun calcul sur le portefeuille ne
+la produit. »). Elle portait un second deux-points et le mot « CHOISI » en
+capitales (décision du 2026-10-05). La provenance dit d'où vient la valeur :
+« choisi à la main (non dérivé des données) » pour un seuil choisi,
+« démontré (le même pour tout portefeuille) » pour un seuil démontré (les 3
+séances estimables, le minimum d'une VaR historique), « calculée sur ce
+portefeuille » pour une référence, accordé avec le nom du seuil : « part de
+JPM dans la valeur = 24,5 %, calculée sur ce portefeuille. » Une référence
+disait « référence calculée » ou « relatif au portefeuille », et la ligne, qui
+commence par « Référence : », répétait le mot (décision du 2026-10-06).
 
 **Un seuil n'est pas une référence.** Chaque ligne porte un `role` en plus de
 son `kind`. Un **seuil** est une frontière posée d'avance, la même pour tout
@@ -1184,7 +1196,7 @@ figure en tête, sous `parameters`, nommée comme telle.
 **Les seuils sont lisibles par une machine.** Chaque seuil sort avec
 `kind: "chosen" | "derived" | "portfolio_relative"`, sa valeur, son
 `rationale` et sa phrase rendue. Le client distingue un seuil choisi à la main
-d'un seuil dérivé sans chercher le mot « CHOISI » dans du texte français.
+d'un seuil dérivé sans chercher le mot « choisi » dans du texte français.
 
 **Un scénario, c'est trois chiffres indissociables :** `end_to_end_return`,
 `max_drawdown` (le pire moment traversé, souvent plus profond) et
@@ -1612,9 +1624,10 @@ Décision du 2026-10-05 (DESIGN.md §6.3), sans exception : ni le client ni
 l'API n'écrivent de tiret cadratin (U+2014). Dans une phrase, la ponctuation
 dit le lien : deux-points, virgule, parenthèses ou point.
 
-- **Lignes de seuil** : la provenance passe entre parenthèses. « corrélation
-  forte = 0,70 (seuil CHOISI à la main, non dérivé des données) :
-  convention usuelle… »
+- **Lignes de seuil** : la valeur, puis la provenance après une virgule,
+  puis la justification en phrase, sans second deux-points ni capitales
+  (décision du 2026-10-05). « corrélation forte = 0,70, choisi à la main
+  (non dérivé des données). Convention usuelle… »
 - **Refus d'une ligne** : « Ligne 4 : XYZ n'est pas un titre connu. », suivi
   des titres disponibles. Le sujet vient d'abord, dans l'API comme dans le
   client, pour que la première phrase ne porte pas un second deux-points :

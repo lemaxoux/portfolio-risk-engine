@@ -1330,7 +1330,7 @@ export interface components {
          * @description Un seuil et sa provenance, lisible par une machine.
          *
          *     `kind` est un champ MACHINE, pas une chaîne à analyser : le client distingue
-         *     un seuil choisi à la main d'un seuil dérivé sans chercher le mot « CHOISI »
+         *     un seuil choisi à la main d'un seuil dérivé sans chercher le mot « choisi »
          *     dans du texte français. `rendered` reste disponible pour l'affichage, mais
          *     aucune décision d'interface ne doit dépendre de son contenu.
          *

@@ -690,9 +690,9 @@ tout ce document** :
 │  coûté au portefeuille à chaque fois, de 15,9 points (Crise      │
 │  financière 2008) à 8,3 points (Resserrement monétaire 2022).    │
 │                                                                  │
-│  Référence : part de JPM dans la valeur = 24,5 % (référence      │  text-sm/text-2
-│  calculée) : au-dessus, la ligne pèse davantage dans le risque   │
-│  que dans le capital ; en dessous, moins.                        │
+│  Référence : part de JPM dans la valeur = 24,5 %, calculée sur   │  text-sm/text-2
+│  ce portefeuille. Au-dessus, la ligne pèse davantage dans le     │
+│  risque que dans le capital ; en dessous, moins.                 │
 │  Détails du calcul   fenêtre d'estimation : 504 séances,         │
 │  2024-09-23 → 2026-09-25                                         │
 └──────────────────────────────────────────────────────────────────┘
@@ -702,11 +702,20 @@ tout ce document** :
 mention « choisi » reste dans la phrase :
 
 ```
-│  ● Seuil : corrélation forte = 0,70 (seuil CHOISI à la main,     │  --caveat
-│    non dérivé des données) : convention usuelle pour qualifier   │
-│    une corrélation de forte ; aucun calcul sur le portefeuille   │
-│    ne la produit                                                 │
+│  ● Seuil : corrélation forte = 0,70, choisi à la main (non       │  --caveat
+│    dérivé des données). Convention usuelle pour qualifier une    │
+│    corrélation de forte ; aucun calcul sur le portefeuille ne    │
+│    la produit.                                                   │
 ```
+
+La ligne de seuil s'écrit en casse phrase (§6.3, décision du 2026-10-05) :
+la valeur, puis la provenance après une virgule, puis la justification en
+phrase. Elle portait un second deux-points et le mot « CHOISI » en capitales.
+La provenance dit d'où vient la valeur : « choisi à la main (non dérivé des
+données) », « démontré (le même pour tout portefeuille) » pour les 3 séances
+estimables, et, pour une référence, « calculée sur ce portefeuille », accordé
+avec le nom du seuil (décision du 2026-10-06). Une référence disait
+« référence calculée » ou « relatif au portefeuille ».
 
 *Aucun seuil* (`thresholds == ()`) — **aucune ligne de seuil n'est affichée.**
 C'est le cas de la concentration effective (« Combien de lignes, en réalité »)

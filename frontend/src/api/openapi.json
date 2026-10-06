@@ -2804,7 +2804,7 @@
           "rendered"
         ],
         "title": "ThresholdOut",
-        "description": "Un seuil et sa provenance, lisible par une machine.\n\n`kind` est un champ MACHINE, pas une chaîne à analyser : le client distingue\nun seuil choisi à la main d'un seuil dérivé sans chercher le mot « CHOISI »\ndans du texte français. `rendered` reste disponible pour l'affichage, mais\naucune décision d'interface ne doit dépendre de son contenu.\n\n`role` dit ce que la valeur EST : `threshold`, une frontière posée d'avance\n(choisie ou démontrée) ; `reference`, une valeur calculée sur ce\nportefeuille, à laquelle la mesure se compare. Le client en tire\nl'étiquette « Seuil » ou « Référence » (DESIGN.md §9.2). `kind` ne suffit\npas : `derived` couvre les deux."
+        "description": "Un seuil et sa provenance, lisible par une machine.\n\n`kind` est un champ MACHINE, pas une chaîne à analyser : le client distingue\nun seuil choisi à la main d'un seuil dérivé sans chercher le mot « choisi »\ndans du texte français. `rendered` reste disponible pour l'affichage, mais\naucune décision d'interface ne doit dépendre de son contenu.\n\n`role` dit ce que la valeur EST : `threshold`, une frontière posée d'avance\n(choisie ou démontrée) ; `reference`, une valeur calculée sur ce\nportefeuille, à laquelle la mesure se compare. Le client en tire\nl'étiquette « Seuil » ou « Référence » (DESIGN.md §9.2). `kind` ne suffit\npas : `derived` couvre les deux."
       },
       "TrajectoryDrawdownOut": {
         "properties": {

@@ -377,7 +377,7 @@ def test_les_matrices_sont_carrees_et_de_la_taille_du_portefeuille(
 
 def test_chaque_seuil_porte_son_kind_machine(analyse_reelle):
     """Le client distingue un seuil choisi d'un seuil dérivé sans chercher le
-    mot « CHOISI » dans du texte français."""
+    mot « choisi » dans du texte français."""
     seuils = [
         seuil
         for observation in analyse_reelle.json()["observations"]
@@ -433,8 +433,12 @@ def test_un_meme_nombre_a_la_meme_forme_dans_la_phrase_et_la_ligne_de_seuil(
     seuil, paire = diversification["thresholds"]
 
     assert "aucune corrélation n'atteint 0,70." in diversification["statement"]
-    assert seuil["rendered"].startswith("corrélation forte = 0,70 (seuil CHOISI")
-    rho = paire["rendered"].split(" = ")[1].split(" (")[0]
+    assert seuil["rendered"].startswith(
+        "corrélation forte = 0,70, choisi à la main (non dérivé des données). "
+    )
+    # « corrélation JNJ–KO = 0,42, calculée sur ce portefeuille. … » : la
+    # valeur s'arrête à la virgule qui précède la provenance.
+    rho = paire["rendered"].split(" = ")[1].split(", ")[0]
     assert f"à {rho}." in diversification["statement"]
 
 
@@ -447,7 +451,7 @@ def test_un_seuil_choisi_le_dit_dans_le_champ_et_dans_le_texte(analyse_reelle):
     ]
     assert choisis
     for seuil in choisis:
-        assert "CHOISI" in seuil["rendered"]
+        assert "choisi à la main (non dérivé des données)" in seuil["rendered"]
 
 
 def test_une_observation_sans_seuil_a_une_liste_vide_et_non_un_null(analyse_reelle):

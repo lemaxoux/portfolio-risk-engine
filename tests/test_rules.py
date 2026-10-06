@@ -466,7 +466,7 @@ def test_une_paire_fortement_correlee_est_signalee_avec_son_seuil_choisi(rapport
     assert obs.facts["correlation"] >= STRONG_CORRELATION.value
     assert "à elles deux, elles diversifient moins que leur nombre ne le laisse penser" in obs.statement
     assert obs.uses_chosen_threshold
-    assert "CHOISI à la main" in obs.render()
+    assert "choisi à la main (non dérivé des données)" in obs.render()
 
 
 def test_sans_paire_forte_la_paire_la_plus_correlee_est_decrite(risque):
@@ -537,7 +537,7 @@ def test_le_plafond_de_nu_est_le_quatrieme_seuil_choisi():
         if seuil.chosen
     ]
     assert len(choisis) == 4
-    assert "seuil CHOISI à la main" in str(STUDENT_NU_CEILING)
+    assert ", choisi à la main (non dérivé des données). " in str(STUDENT_NU_CEILING)
 
 
 def test_le_minimum_de_seances_d_une_loi_est_le_cinquieme_seuil_choisi():
@@ -549,7 +549,7 @@ def test_le_minimum_de_seances_d_une_loi_est_le_cinquieme_seuil_choisi():
     assert MIN_DISTRIBUTION_SAMPLE.role is ThresholdRole.THRESHOLD
     assert MIN_DISTRIBUTION_SAMPLE.value == MIN_DISTRIBUTION_OBSERVATIONS == 30
     assert MIN_DISTRIBUTION_SAMPLE.displayed == "30"
-    assert "seuil CHOISI à la main" in str(MIN_DISTRIBUTION_SAMPLE)
+    assert ", choisi à la main (non dérivé des données). " in str(MIN_DISTRIBUTION_SAMPLE)
     choisis = [
         seuil
         for seuil in (
@@ -615,7 +615,7 @@ def test_le_minimum_d_une_var_historique_est_un_seuil_derive():
         assert seuil.role is ThresholdRole.THRESHOLD
         assert seuil.value == minimum
         assert seuil.displayed == str(minimum)
-        assert "référence calculée" in str(seuil)
+        assert ", démontré (le même pour tout portefeuille). " in str(seuil)
 
 
 def test_un_role_incoherent_avec_la_provenance_est_refuse():
@@ -641,15 +641,22 @@ def test_le_seuil_choisi_s_ecrit_comme_dans_la_phrase(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.42))
 
     assert "aucune corrélation n'atteint 0,70." in obs.statement
-    assert "  Seuil : corrélation forte = 0,70 (seuil CHOISI" in obs.render()
+    assert (
+        "  Seuil : corrélation forte = 0,70, choisi à la main (non dérivé des données). "
+        "Convention usuelle" in obs.render()
+    )
     assert "= 0,7 " not in obs.render()
+    assert "= 0,7," not in obs.render()
 
 
 def test_la_reference_de_la_paire_garde_ses_deux_decimales(risque):
     (obs,) = apparent_diversification(_sans_paire_forte(risque, 0.40))
 
     assert "La paire la plus liée est JNJ–KO, à 0,40." in obs.statement
-    assert "  Référence : corrélation JNJ–KO = 0,40 (relatif au portefeuille)" in obs.render()
+    assert (
+        "  Référence : corrélation JNJ–KO = 0,40, calculée sur ce portefeuille. "
+        "Corrélation de la paire la plus corrélée du portefeuille." in obs.render()
+    )
 
 
 def test_une_egalite_exacte_s_ecrit_pareil_dans_la_phrase_et_la_reference(risque):
@@ -673,7 +680,7 @@ def test_une_part_de_capital_ronde_garde_sa_decimale_dans_la_reference(risque):
 
     obs = observations["B"]
     assert "B représente 25,0\u202f% de la valeur du portefeuille" in obs.statement
-    assert "  Référence : part de B dans la valeur = 25,0\u202f% (référence calculée)" in obs.render()
+    assert "  Référence : part de B dans la valeur = 25,0\u202f%, calculée sur ce portefeuille. Au-dessus" in obs.render()
 
 
 def test_les_seuils_fixes_s_ecrivent_sous_la_forme_de_leur_phrase():
@@ -959,7 +966,76 @@ def test_la_fragilite_de_la_queue_n_est_plus_une_regle_qui_se_declenche(rapport)
 def test_chaque_seuil_choisi_dit_qu_il_a_ete_choisi():
     for seuil in (STRONG_CORRELATION, MIN_SCENARIO_COVERAGE, MIN_REGRESSION_SAMPLE):
         assert seuil.kind is ThresholdKind.CHOSEN
-        assert "CHOISI à la main, non dérivé des données" in str(seuil)
+        assert ", choisi à la main (non dérivé des données). " in str(seuil)
+
+
+def test_la_ligne_de_seuil_est_une_phrase_en_casse_phrase():
+    """« corrélation forte = 0,70, choisi à la main (non dérivé des données).
+    Convention usuelle… » : la valeur, la provenance après une virgule, puis
+    la justification en phrase, capitale initiale et point final. Plus de
+    second deux-points après la provenance, plus de mot en capitales
+    (DESIGN.md §6.3, décision du 2026-10-05) : c'est `kind` qui dit au client
+    qu'un seuil est choisi. La justification publiée à part (`rationale`) ne
+    change pas d'un mot."""
+    from backend.rules.thresholds import capital_share, historical_var_sample, most_correlated_pair
+
+    modele = re.compile(
+        "^(.+) = (.+), (choisi à la main [(]non dérivé des données[)]"
+        "|calculée? sur ce portefeuille|démontrée? [(](?:le|la) même pour tout portefeuille[)])"
+        "[.] ([A-ZÀ-Ý].*[.])$"
+    )
+    capitales = re.compile("(?<![A-Za-zÀ-ÿ])[A-ZÀ-Ý]{3,}(?![A-Za-zÀ-ÿ])")
+    for seuil in (
+        STRONG_CORRELATION,
+        MIN_SCENARIO_COVERAGE,
+        MIN_REGRESSION_SAMPLE,
+        STUDENT_NU_CEILING,
+        MIN_DISTRIBUTION_SAMPLE,
+        MIN_ESTIMABLE_SAMPLE,
+        historical_var_sample(0.99),
+        capital_share("JPM", 0.256),
+        most_correlated_pair("JNJ", "KO", 0.42),
+    ):
+        ligne = str(seuil)
+        forme = modele.match(ligne)
+        assert forme, ligne
+        assert forme.group(2) == seuil.displayed
+        assert forme.group(4) == seuil.rationale[0].upper() + seuil.rationale[1:] + "."
+        assert capitales.search(forme.group(3) + " " + forme.group(4)) is None, ligne
+
+
+def test_une_reference_dit_calculee_sur_ce_portefeuille_accorde_avec_son_nom():
+    """« Référence : part de JPM dans la valeur = 24,5 %, calculée sur ce
+    portefeuille. » La provenance d'une référence, dérivée ou relative au
+    portefeuille, dit d'où vient le chiffre sans répéter « référence »
+    (décision du 2026-10-06). Elle s'accorde avec le nom du seuil : les deux
+    références du module ont un nom féminin, un nom masculin donnerait
+    « calculé »."""
+    from backend.rules.thresholds import capital_share, most_correlated_pair
+
+    for reference in (capital_share("JPM", 0.245), most_correlated_pair("JNJ", "KO", 0.42)):
+        assert reference.role is ThresholdRole.REFERENCE
+        assert reference.origin == "calculée sur ce portefeuille"
+    masculin = replace(capital_share("JPM", 0.245), name="poids de JPM", feminine=False)
+    assert masculin.origin == "calculé sur ce portefeuille"
+    assert str(masculin).startswith("poids de JPM = 24,5\u202f%, calculé sur ce portefeuille. ")
+
+
+def test_un_seuil_demontre_ne_se_dit_pas_calcule_sur_ce_portefeuille():
+    """Les 3 séances estimables et le minimum d'une VaR historique se
+    démontrent : ce sont les mêmes pour tout portefeuille. « Calculé sur ce
+    portefeuille » dirait faux au lecteur d'un refus sous trois séances, où
+    la ligne s'affiche."""
+    from backend.rules.thresholds import historical_var_sample
+
+    for seuil in (MIN_ESTIMABLE_SAMPLE, historical_var_sample(0.95)):
+        assert seuil.kind is ThresholdKind.DERIVED and seuil.role is ThresholdRole.THRESHOLD
+        assert seuil.origin == "démontré (le même pour tout portefeuille)"
+        assert "sur ce portefeuille" not in str(seuil)
+    assert str(MIN_ESTIMABLE_SAMPLE).startswith(
+        "nombre minimal de séances estimables = 3, démontré (le même pour tout "
+        "portefeuille). À deux observations, "
+    )
 
 
 def test_la_couverture_minimale_est_plus_stricte_qu_un_pile_ou_face():
@@ -982,8 +1058,8 @@ def test_la_justification_du_seuil_de_couverture_dit_ce_qui_est_vrai():
 
 def test_un_seuil_calcule_ne_se_presente_pas_comme_choisi(rapport):
     (seuil,) = rapport.of_rule(RuleId.VARIANCE_CONTRIBUTION)[0].thresholds
-    assert "CHOISI" not in str(seuil)
-    assert "référence calculée" in str(seuil)
+    assert "choisi" not in str(seuil)
+    assert ", calculée sur ce portefeuille. " in str(seuil)
 
 
 # ================================================================== Bandeau ==
