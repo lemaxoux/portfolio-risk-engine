@@ -40,6 +40,16 @@
   line-height: var(--leading-prose);
 }
 
+/* Justifié à partir de 900 px, avec coupure des mots, comme les
+ * introductions et les chapeaux de l'analyse (§6.3, `Section.module.css`). */
+@media (width >= 900px) {
+  .corps {
+    text-align: justify;
+    hyphens: auto;
+    text-wrap: wrap;
+  }
+}
+
 .confirmation {
   margin-block-start: var(--space-7);
   padding-block-start: var(--space-5);

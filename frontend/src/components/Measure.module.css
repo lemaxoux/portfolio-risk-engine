@@ -61,7 +61,12 @@
 
 /* La phrase de lecture : la mesure dite en calendrier, en dollars et en
  * période. Deux ou trois phrases, donc de la prose, alignée à gauche (§7) ;
- * composée par l'interface, donc en Plex Sans (§6.1). */
+ * composée par l'interface, donc en Plex Sans (§6.1).
+ *
+ * À gauche même au-delà de 900 px (§6.3) : justifiée dans un bloc de quelque
+ * 360 px, entre des groupes qui ne se coupent pas (« 890 USD »,
+ * « 4 septembre 2026 »), elle et la ligne « ne dit pas » ouvraient des
+ * espaces jusqu'à cinq fois plus larges que la normale. */
 .lecture {
   /* Un bloc seul sur sa ligne s'étire : la phrase, elle, reste à la largeur
    * de prose (§6.3). */

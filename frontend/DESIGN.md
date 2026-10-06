@@ -342,6 +342,25 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
 - Longueur de ligne : **< 80 caractères**, cible 66 pour la prose. Prose en
   Spectral : `line-height: 1.6`. Interface en Plex Sans : `1.45`. Chiffres
   principaux : `1.1`.
+- **Justifié pour la prose longue au-delà de 900 px, avec coupure ; aligné à
+  gauche partout ailleurs** (décision du 2026-10-06). À partir de 900 px, les
+  introductions de section, les chapeaux et la prose de l'écran d'acceptation
+  sont justifiés, avec `hyphens: auto` (la page déclare `lang="fr"`, sans quoi
+  aucun mot ne se coupe) et la coupure de lignes ordinaire. Tout le reste est
+  aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`, qui
+  évite une dernière ligne d'un seul mot : légendes de tableau et de
+  graphique, « Détails du calcul », lignes de seuil, cellules, libellés,
+  boutons, messages d'erreur, et tout le texte sous 900 px.
+  **Les phrases de lecture des mesures et les observations restent à
+  gauche.** Essayées justifiées, elles ouvraient des espaces de 2,8 à 4,9 fois
+  la normale : un groupe qui ne se coupe pas (« 890 USD »,
+  « 4 septembre 2026 », « 8,3 points ») reporte toute sa largeur à la ligne
+  suivante, et la ligne qu'il quitte s'étire d'autant.
+  **Une ligne justifiée n'ouvre aucune espace de plus de 2,5 fois la
+  normale**, vérifié aux captures ; la plus lâche, dans l'introduction de la
+  section 6, est à 2,2. La prose justifiée ne prend pas `pretty` : pour éviter
+  une dernière ligne courte, il raccourcit les lignes d'avant, que la
+  justification étire ensuite.
 - **Casse phrase partout.** Pas de capitales sur les libellés (§12).
 - **Format français obligatoire**, avec des caractères **fixés explicitement**
   et non laissés à `Intl.NumberFormat` : virgule décimale, **U+202F** (espace
@@ -442,7 +461,8 @@ sections, escamotée sous 900 px. Les tableaux peuvent déborder de la colonne d
 lecture jusqu'à 1280 px, parce qu'un tableau tronqué ou en défilement
 horizontal est pire qu'un tableau large.
 
-**Alignement.** Libellés et prose à gauche. **Tous les chiffres à droite**, sans
+**Alignement.** Libellés et prose à gauche, sauf la prose longue au-delà de
+900 px, justifiée (§6.3). **Tous les chiffres à droite**, sans
 exception, y compris dans les blocs mesure — c'est ce qui rend deux mesures
 comparables d'un coup d'œil vertical.
 
@@ -537,8 +557,9 @@ qualificatif se lit dollar canadien.
 portefeuille peut-il perdre en une journée ? On rejoue ces deux dernières
 années sur sa composition d'aujourd'hui : c'est le passé, pas une
 prévision. » De la prose, comme les chapeaux : Spectral, `--text-body`, mais
-en `--text-1`, à la largeur de prose. Elle ne remplace pas les chapeaux des
-sous-parties, qui expliquent un choix de méthode.
+en `--text-1`, à la largeur de prose, justifiée au-delà de 900 px comme eux
+(§6.3). Elle ne remplace pas les chapeaux des sous-parties, qui expliquent un
+choix de méthode.
 
 **Section 1 sous 900 px.** L'ordre des colonnes devient ticker, valeur,
 poids, puis nom, quantité, prix : à 390 px, l'ordre large rejetait hors de
@@ -613,8 +634,9 @@ C'est le composant sur lequel repose la thèse du produit. Il rend un chiffre
    (« environ 890 USD » sur la valeur d'aujourd'hui) et en période (« ces deux
    dernières années »). Deux ou trois phrases : elle ne tient plus en
    `--text-micro`. Elle passe en `--text-sm` et `--text-1`, alignée à gauche
-   et bornée à la largeur de prose. Elle est en IBM Plex Sans, puisque c'est
-   l'interface qui la compose, pas le moteur (§6.1).
+   à toutes les largeurs (§6.3) et bornée à la largeur de prose. Elle est en
+   IBM Plex Sans, puisque c'est l'interface qui la compose, pas le moteur
+   (§6.1).
 2. **Ce que le chiffre ne dit pas** : une phrase courte, sans étiquette, en
    `--text-2`. Elle manque quand la réserve du moteur le dit déjà, comme pour
    la CVaR à 99 %.
@@ -676,7 +698,7 @@ de lignes, en réalité », « Poids dans les variations », « Lignes qui bouge
 ensemble », « Part qui suit le marché », « Le portefeuille en crise »,
 « Crise rejouée en partie ». Le terme exact reste dans les lignes de seuil et
 dans les détails du calcul, qui ne changent pas. L'interface affiche ces
-phrases telles quelles.
+phrases telles quelles, alignées à gauche à toutes les largeurs (§6.3).
 
 **Le sujet, à côté du libellé**, dit de quoi parle l'observation : un ticker,
 une paire, le nom d'une crise, ou « portefeuille ». Ce n'est jamais une clé

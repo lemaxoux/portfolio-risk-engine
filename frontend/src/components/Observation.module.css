@@ -26,7 +26,12 @@
   white-space: nowrap;
 }
 
-/* Ce que le moteur AFFIRME : une phrase, en serif (§6.1). */
+/* Ce que le moteur AFFIRME : une phrase, en serif (§6.1).
+ *
+ * Alignée à gauche, même au-delà de 900 px (§6.3) : justifiée, une
+ * observation sur cinquante ouvrait des espaces près de trois fois plus
+ * larges que la normale, devant un nombre et son unité qui ne se coupent pas
+ * (« 8,3 points »), et cinq autres plus de deux fois. */
 .phrase {
   max-inline-size: var(--prose-width);
   color: var(--text-1);

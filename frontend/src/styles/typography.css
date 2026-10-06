@@ -69,7 +69,15 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-body);
   line-height: var(--leading-ui);
-  /* Pas de `text-wrap` global : il a un coût, et il est posé là où il sert. */
+  /*
+   * Tout texte aligné à gauche évite une dernière ligne d'un seul mot, à
+   * toutes les largeurs : légendes, détails du calcul, lignes de seuil,
+   * cellules, libellés, boutons, messages, et toute la prose sous 900 px
+   * (DESIGN.md §6.3, décision du 2026-10-06). Les titres équilibrent leurs
+   * lignes (`balance`, plus bas). La prose longue justifiée au-delà de
+   * 900 px revient à la coupure ordinaire (`Section.module.css`).
+   */
+  text-wrap: pretty;
 }
 
 /*
@@ -112,16 +120,6 @@ h2 {
 
 h3 {
   font-size: var(--text-body);
-}
-
-/*
- * Prose — les phrases que le moteur de règles RÉDIGE, en serif.
- *
- * L'usage est structurel, pas décoratif : composer en Spectral distingue
- * visuellement « ce que le moteur affirme » de « ce que le moteur a mesuré ».
- */
-p {
-  text-wrap: pretty;
 }
 
 code,

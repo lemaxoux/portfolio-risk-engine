@@ -57,6 +57,29 @@
 }
 
 /*
+ * La prose longue, justifiée à partir de 900 px (DESIGN.md §6.3, décision du
+ * 2026-10-06) : l'introduction d'une section et ses chapeaux. Les mots se
+ * coupent (`hyphens: auto`) selon la langue de la page, `lang="fr"`.
+ *
+ * Coupure de lignes ordinaire (`wrap`), pas `pretty` : pour éviter une
+ * dernière ligne courte, `pretty` raccourcit les lignes d'avant, que la
+ * justification étire. Mesuré dans Chrome sur les quatre portefeuilles des
+ * captures : avec `pretty`, la moitié des introductions avaient une ligne
+ * aux espaces plus de deux fois plus larges que la normale ; avec `wrap`,
+ * aucune ligne de ces paragraphes ne dépasse 2,2 fois l'espace normale.
+ *
+ * Sous 900 px, et partout ailleurs, le texte reste aligné à gauche.
+ */
+@media (width >= 900px) {
+  .introduction,
+  .chapeau {
+    text-align: justify;
+    hyphens: auto;
+    text-wrap: wrap;
+  }
+}
+
+/*
  * Les blocs d'un même groupe. `auto-fit` plutôt qu'un nombre de colonnes fixé :
  * une colonne unique sous 390 px sans requête de média.
  */
@@ -71,6 +94,11 @@
  * Une phrase de lecture posée hors d'un bloc mesure — la ligne qui fait le plus
  * bouger le portefeuille, une crise rejouée — et sa ligne « ne dit pas ». Même
  * traitement que dans `<Measure>` : composées par l'interface, en Plex Sans.
+ *
+ * Alignées à gauche, même au-delà de 900 px (DESIGN.md §6.3) : justifiées,
+ * les groupes qui ne se coupent pas, une date en toutes lettres ou un montant
+ * (« 3 septembre 2026 », « 1 960 USD »), y ouvraient des espaces plus de
+ * trois fois plus larges que la normale.
  */
 .lecture {
   max-inline-size: var(--prose-width);
