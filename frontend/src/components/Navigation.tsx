@@ -1,5 +1,5 @@
 /**
- * Navigation entre les sections de la page d'analyse — DESIGN.md §7, §8.2.
+ * Navigation entre les sections d'une page — DESIGN.md §7, §8.2.
  *
  * DEUX FORMES, UNE SEULE LISTE. Au-dessus de 900 px, un rail de 220 px à
  * gauche de la colonne de lecture, qui suit le défilement et signale la
@@ -8,14 +8,16 @@
  * gagner — et une liste d'ancres prend sa place EN TÊTE de page : sur un
  * téléphone, on choisit où aller avant de défiler, pas pendant.
  *
- * Seules les sections qui existent sont listées : pas d'entrée grisée, pas de
- * « bientôt ». La méthodologie viendra avec son écran.
+ * Deux pages ont des sections : l'analyse, numérotées de 1 à 6 (`SECTIONS`),
+ * et la méthodologie, dont les parties viennent de son texte, sans numéro
+ * (§12 réserve la numérotation aux six sections de l'analyse). Seules les
+ * sections qui existent sont listées : pas d'entrée grisée, pas de « bientôt ».
  *
  * ═══ LES PAGES, SOUS UN SÉPARATEUR ═══
  *
  * Sous les sections, comme « Importer » dans la maquette de §8.2 : les autres
  * pages de l'application. Une liste distincte, dans son propre `<nav>`, parce
- * que ce ne sont pas des sections de l'analyse. La page courante porte
+ * que ce ne sont pas des sections de la page. La page courante porte
  * `aria-current="page"`, et le filet en `--accent` le montre (§5.3).
  */
 import { useEffect, useState } from 'react'
@@ -34,10 +36,11 @@ export interface PageApplication {
 /**
  * Les pages que la navigation propose, depuis `courante`. L'analyse n'est
  * proposée que lorsqu'un portefeuille est en vue : sans lui, elle n'a rien à
- * montrer.
+ * montrer. La méthodologie l'est toujours, en dernier : elle ne dépend
+ * d'aucun portefeuille.
  */
 export function pagesApplication(
-  courante: 'analyse' | 'positions' | 'portefeuilles',
+  courante: 'analyse' | 'positions' | 'portefeuilles' | 'methodologie',
   id: number | null,
 ): PageApplication[] {
   const pages: PageApplication[] = []
@@ -55,11 +58,18 @@ export function pagesApplication(
       },
     )
   }
-  pages.push({
-    vers: cheminDe({ vue: 'portefeuilles' }),
-    libelle: 'Portefeuilles',
-    courante: courante === 'portefeuilles',
-  })
+  pages.push(
+    {
+      vers: cheminDe({ vue: 'portefeuilles' }),
+      libelle: 'Portefeuilles',
+      courante: courante === 'portefeuilles',
+    },
+    {
+      vers: cheminDe({ vue: 'methodologie' }),
+      libelle: 'Méthodologie',
+      courante: courante === 'methodologie',
+    },
+  )
   return pages
 }
 
@@ -89,6 +99,14 @@ function ListePages({
   )
 }
 
+/** Une section d'une page, telle que le rail et la liste d'ancres la proposent. */
+export interface SectionDeNavigation {
+  readonly ancre: string
+  readonly libelle: string
+  /** Le numéro affiché devant le libellé : les seules sections de l'analyse. */
+  readonly numero?: number
+}
+
 export const SECTIONS = [
   { ancre: 'portefeuille', numero: 1, libelle: 'Le portefeuille' },
   { ancre: 'jour-ordinaire', numero: 2, libelle: 'Un jour ordinaire' },
@@ -98,54 +116,84 @@ export const SECTIONS = [
   { ancre: 'moteur', numero: 6, libelle: 'Ce que le moteur en dit' },
 ] as const
 
-type Ancre = (typeof SECTIONS)[number]['ancre']
+const SECTIONS_DE_L_ANALYSE = "Sections de l'analyse"
 
 /**
  * La section en cours de lecture : la dernière dont le haut est passé sous
  * le premier tiers de l'écran. Présentation seulement — rien ne change dans
  * la page selon elle, sinon l'indicateur du rail.
+ *
+ * Ce qui est observé est la `<section>` qui contient l'ancre : la section
+ * elle-même sur l'analyse, celle qu'ouvre le titre de la partie sur la
+ * méthodologie, où l'ancre est portée par le titre.
  */
-function useSectionEnCours(): Ancre | null {
-  const [enCours, setEnCours] = useState<Ancre | null>(null)
+function useSectionEnCours(sections: readonly SectionDeNavigation[]): string | null {
+  const [enCours, setEnCours] = useState<string | null>(null)
+  const ancres = sections.map((section) => section.ancre).join(' ')
 
   useEffect(() => {
+    const liste = ancres.split(' ')
     const visibles = new Set<string>()
     const observateur = new IntersectionObserver(
       (entrees) => {
         for (const entree of entrees) {
-          if (entree.isIntersecting) visibles.add(entree.target.id)
-          else visibles.delete(entree.target.id)
+          const ancre = (entree.target as HTMLElement).dataset['ancre'] ?? ''
+          if (entree.isIntersecting) visibles.add(ancre)
+          else visibles.delete(ancre)
         }
-        const premiere = SECTIONS.find((section) => visibles.has(section.ancre))
-        if (premiere !== undefined) setEnCours(premiere.ancre)
+        const premiere = liste.find((ancre) => visibles.has(ancre))
+        if (premiere !== undefined) setEnCours(premiere)
       },
       { rootMargin: '-25% 0px -65% 0px' },
     )
-    for (const section of SECTIONS) {
-      const noeud = document.getElementById(section.ancre)
-      if (noeud !== null) observateur.observe(noeud)
+    for (const ancre of liste) {
+      const noeud = document.getElementById(ancre)?.closest('section')
+      if (noeud === null || noeud === undefined) continue
+      noeud.dataset['ancre'] = ancre
+      observateur.observe(noeud)
     }
     return () => observateur.disconnect()
-  }, [])
+  }, [ancres])
 
   return enCours
 }
 
-/** Le rail de l'analyse, au-dessus de 900 px : les sections, puis les pages. */
-export function RailSections({ pages }: { pages: readonly PageApplication[] }) {
-  const enCours = useSectionEnCours()
+function Numero({ section }: { section: SectionDeNavigation }) {
+  if (section.numero === undefined) return null
+  return (
+    <>
+      <span className={styles.numero}>{section.numero}.</span>{' '}
+    </>
+  )
+}
+
+/**
+ * Le rail d'une page à sections, au-dessus de 900 px : les sections, puis les
+ * pages. Sans `sections`, celles de l'analyse.
+ */
+export function RailSections({
+  pages,
+  sections = SECTIONS,
+  etiquette = SECTIONS_DE_L_ANALYSE,
+}: {
+  pages: readonly PageApplication[]
+  sections?: readonly SectionDeNavigation[]
+  etiquette?: string
+}) {
+  const enCours = useSectionEnCours(sections)
   return (
     <div className={styles.rail}>
-      <nav aria-label="Sections de l'analyse">
+      <nav aria-label={etiquette}>
         <ol>
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <li key={section.ancre}>
               <a
                 href={`#${section.ancre}`}
                 className={section.ancre === enCours ? styles.actif : undefined}
                 aria-current={section.ancre === enCours ? 'location' : undefined}
               >
-                <span className={styles.numero}>{section.numero}.</span> {section.libelle}
+                <Numero section={section} />
+                {section.libelle}
               </a>
             </li>
           ))}
@@ -165,23 +213,31 @@ export function RailPages({ pages }: { pages: readonly PageApplication[] }) {
   )
 }
 
-/** Sous 900 px, en tête de page : les ancres des sections, s'il y en a, puis les pages. */
+/**
+ * Sous 900 px, en tête de page : les ancres des sections, s'il y en a, puis
+ * les pages. Sans `liste`, les sections de l'analyse.
+ */
 export function AncresSections({
   pages,
   sections = true,
+  liste = SECTIONS,
+  etiquette = SECTIONS_DE_L_ANALYSE,
 }: {
   pages: readonly PageApplication[]
   sections?: boolean
+  liste?: readonly SectionDeNavigation[]
+  etiquette?: string
 }) {
   return (
     <div className={styles.ancres}>
       {sections && (
-        <nav aria-label="Sections de l'analyse">
+        <nav aria-label={etiquette}>
           <ol>
-            {SECTIONS.map((section) => (
+            {liste.map((section) => (
               <li key={section.ancre}>
                 <a href={`#${section.ancre}`}>
-                  <span className={styles.numero}>{section.numero}.</span> {section.libelle}
+                  <Numero section={section} />
+                  {section.libelle}
                 </a>
               </li>
             ))}

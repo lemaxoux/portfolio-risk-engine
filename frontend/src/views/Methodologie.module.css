@@ -1,0 +1,93 @@
+/*
+ * La page méthodologie — DESIGN.md §8.2, §6.3.
+ *
+ * Une colonne de prose : Spectral, à la largeur de prose, alignée à gauche.
+ * Pas justifiée : la justification est réservée aux chapeaux
+ * (`justification.test.ts`), et la justifier ici demanderait de la mesurer
+ * avec et sans dictionnaire de césure.
+ */
+
+/* Une partie : un titre de section, sans numéro (§12 réserve la numérotation
+ * aux six sections de l'analyse). */
+.partie {
+  margin-block-start: var(--space-8);
+}
+
+/* Un titre visé par une ancre s'arrête SOUS le bandeau collant, comme une
+ * section de l'analyse : le bandeau publie sa hauteur (`--hauteur-bandeau`). */
+.titrePartie,
+.entree {
+  scroll-margin-block-start: calc(var(--hauteur-bandeau, var(--space-8)) + var(--space-4));
+}
+
+.titrePartie {
+  margin-block-end: var(--space-5);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+/* Une entrée : un sous-titre, calme (§3.3). */
+.entree {
+  margin-block: var(--space-6) var(--space-3);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.texte,
+.liste {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-4);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+.liste {
+  padding-inline-start: var(--space-5);
+  list-style: disc;
+}
+
+.liste li + li {
+  margin-block-start: var(--space-2);
+}
+
+/* L'étiquette en tête d'un paragraphe ou d'un élément : « Hypothèses. » */
+.etiquette {
+  font-weight: var(--weight-medium);
+}
+
+/* Une formule dans la phrase : Plex Sans, à la taille de la prose, d'un seul
+ * tenant. La plus longue fait 17 caractères. */
+.formule {
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+/*
+ * Une formule sur sa ligne, en retrait. Si elle dépassait la colonne, elle
+ * défilerait dans son cadre, jamais la page. Le défilement vertical est
+ * fermé : un indice déborde de la ligne de quelques pixels, et ferait
+ * apparaître une barre. Le remplissage lui laisse sa place.
+ */
+.formuleBloc {
+  margin-block-end: var(--space-4);
+  padding-block: var(--space-1);
+  padding-inline-start: var(--space-5);
+  overflow-x: auto;
+  overflow-y: hidden;
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  white-space: nowrap;
+}
+
+/* Un indice ou un exposant n'écarte pas les lignes. */
+.formule sub,
+.formule sup,
+.formuleBloc sub,
+.formuleBloc sup {
+  font-size: 0.75em;
+  line-height: 0;
+}

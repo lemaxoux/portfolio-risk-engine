@@ -37,6 +37,7 @@ import { DataTable, type Colonne } from '../components/DataTable'
 import { FormatCsv } from '../components/FormatCsv'
 import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
+import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
 import { SqueletteTableau } from '../components/Squelette'
 import { dateISO, decimal, lignes, montant, TIRET_INDEFINI } from '../lib/format'
 import type { EtatListe } from '../lib/liste'
@@ -54,6 +55,9 @@ interface Props {
 
 const PAGE = cheminDe({ vue: 'portefeuilles' })
 
+/** Aucun portefeuille n'est en vue ici : ni analyse, ni saisie. */
+const PAGES = pagesApplication('portefeuilles', null)
+
 export function VuePortefeuilles({ liste, recharger, annonce, annoncer }: Props) {
   return (
     <Cadre
@@ -62,7 +66,9 @@ export function VuePortefeuilles({ liste, recharger, annonce, annoncer }: Props)
       annonce={annonce}
       occupe={liste.phase === 'chargement'}
       entete={<BandeauSimple portefeuille={null} navigation={false} />}
+      rail={<RailPages pages={PAGES} />}
     >
+      <AncresSections pages={PAGES} sections={false} />
       <h1 tabIndex={-1} className={styles.titre}>
         Portefeuilles
       </h1>

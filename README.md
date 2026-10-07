@@ -1641,7 +1641,17 @@ et aucun chiffre d'un portefeuille n'y figure.
   bloc et en ligne avec indices et exposants, liens vers une ancre, trois
   entités. Tout le reste est une erreur, avec sa ligne (`contenu.test.ts`).
   Aucune dépendance et aucun HTML injecté : le lecteur rend des blocs typés,
-  la vue des éléments React. Le texte pèse environ 28 kB (9,5 kB compressés).
+  la vue des éléments React. Le texte pèse 29,8 kB (10,1 kB compressés) et
+  reste en clair dans le bundle, qui passe de 593 à 631 kB (de 189 à 205 kB
+  compressés, selon Vite). Un chargement à la demande n'économiserait que le
+  texte, au prix d'un état de chargement : à revoir en 7D, avec deux langues.
+- **La page** (`src/views/Methodologie.tsx`) : chaque partie est une
+  `<section>` nommée par son titre ; chaque titre de partie ou d'entrée porte
+  son ancre et `tabIndex={-1}`, et s'arrête sous le bandeau quand une adresse
+  le vise. La prose est en Spectral, alignée à gauche, à la largeur de prose ;
+  les formules en IBM Plex Sans, dans la phrase ou sur leur ligne. Une formule
+  en bloc qui dépasserait la colonne défilerait dans son cadre, jamais la
+  page.
 - **La typographie est écrite dans la source**, en entités (`&nbsp;`,
   `&#x202F;`), comme le JSX écrit `&nbsp;`. Le lecteur les décode ; il ne pose
   aucune espace lui-même.
@@ -1839,11 +1849,12 @@ texte-là », et une limite reformulée fait revenir l'écran.
 
 #### Les pages et leurs adresses
 
-Quatre adresses, lues par `src/lib/route.ts` sans bibliothèque de routage :
-`/`, `/portefeuilles`, `/portefeuilles/<id>` (l'analyse) et
-`/portefeuilles/<id>/positions` (la saisie). De vraies adresses et non des
-fragments : les fragments servent déjà aux ancres des sections, et une
-adresse se recharge, se partage, s'ouvre dans un onglet. FastAPI rend
+Cinq adresses, lues par `src/lib/route.ts` sans bibliothèque de routage :
+`/`, `/portefeuilles`, `/portefeuilles/<id>` (l'analyse),
+`/portefeuilles/<id>/positions` (la saisie) et `/methodologie`. De vraies
+adresses et non des fragments : les fragments servent déjà aux ancres des
+sections et des entrées de la méthodologie (`#cvar`), et une adresse se
+recharge, se partage, s'ouvre dans un onglet. FastAPI rend
 `index.html` pour toute adresse hors de `/api`, Vite aussi en développement.
 Les liens internes restent de vrais `<a href>` (`components/Lien.tsx`) : clic
 du milieu et Ctrl + clic ouvrent un onglet, comme partout.
@@ -1859,6 +1870,15 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   confirme sur place, sous le tableau ; la question reçoit le focus et nomme ce
   qui disparaît. Un menu déroulant dans le bandeau a été écarté : il changerait
   de page au moindre coup de flèche (WCAG 3.2.2). DESIGN.md §8.2.
+- **Chaque page liste les autres**, dans le rail au-dessus de 900 px, en tête
+  de page en dessous (`components/Navigation.tsx`) : « Analyse » et
+  « Positions et import » quand un portefeuille est en vue, puis
+  « Portefeuilles », puis « Méthodologie », partout, la page Portefeuilles
+  comprise depuis 7B.3b.
+- **La page Méthodologie** ne dépend d'aucun portefeuille et n'appelle pas
+  l'API : elle s'affiche sans attendre la liste. Son bandeau nomme le dernier
+  portefeuille consulté s'il existe encore, sinon aucun, et pas le premier de
+  la liste. Son rail liste ses neuf parties, sans numéro, puis les pages.
 - **Une annonce, une page.** Ce qu'une action vient de faire (« Portefeuille
   « Démo » supprimé. ») est écrit dans une seule région `role="status"`,
   présente même vide, et n'apparaît que sur la page à laquelle elle est
@@ -1866,6 +1886,17 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
 - **Le focus suit la page.** Après une navigation décidée par l'utilisateur, le
   titre de la nouvelle page (`<h1 tabIndex={-1}>`) reçoit le focus, et
   l'onglet prend son titre. Pas au chargement, ni après une redirection.
+- **Une adresse peut viser un titre.** Quand le fragment désigne un titre du
+  contenu qui porte `tabIndex={-1}` (`/methodologie#cvar`), la page défile
+  jusqu'à lui, sous le bandeau collant, et c'est lui qui reçoit le focus ; au
+  chargement, la page défile seulement. Un retour arrière d'une ancre à
+  l'autre y ramène le focus. Les sections de l'analyse, dont l'ancre est
+  portée par la `<section>`, gardent le comportement du navigateur
+  (`components/Cadre.tsx`). Tant que la page s'installe, le titre est ramené
+  sous le bandeau à chaque changement de taille, jusqu'au premier geste de
+  l'utilisateur ou pendant dix secondes : les polices qui arrivent après le
+  défilement le faisaient descendre de 790 px au chargement, et le bandeau,
+  qui s'allonge quand la liste des portefeuilles arrive, passait dessus.
 - **La garde des modifications non enregistrées** : une page peut en poser une
   (`poserGarde`) ; toute navigation interne la consulte et, si elle refuse,
   rien ne bouge et la page affiche sa confirmation sur place. Le retour
@@ -2115,8 +2146,17 @@ l'ordre chronologique.
     - [x] Aucun tiret cadratin dans l'interface : ponctuation des textes
       publiés et affichés, tiret court et « non disponible » pour une
       valeur absente, gardes des deux côtés
-  - [ ] 7B.3b — Méthodologie, checklist §17, tableaux équivalents aux
-    graphiques
+  - [x] **7B.3b — Page méthodologie** (2026-10-07)
+    - `/methodologie` : un texte propre à la page, pour un lecteur qui part
+      de zéro, dans un fichier de contenu par langue, lu par un lecteur à
+      grammaire fermée
+    - Gardes des textes publiés appliquées au fichier ; liste fermée des
+      nombres, recalculés depuis le moteur ; caractères admis par police
+    - « Méthodologie » dans la navigation de toutes les pages, la page
+      Portefeuilles comprise ; focus sur le titre que vise une adresse
+  - [ ] 7D — L'interface en anglais
+  - [ ] 7E — Lien de chaque mesure vers sa méthode, tableaux équivalents aux
+    graphiques, clavier, checklist §17
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
 

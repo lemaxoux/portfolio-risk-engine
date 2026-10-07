@@ -21,6 +21,16 @@
  * suivante part de la nouvelle page, et un lecteur d'écran lit son titre. Pas
  * au premier affichage, où rien n'a encore été quitté. L'anneau de focus
  * reste visible (§13) : il montre où l'on est arrivé.
+ *
+ * ═══ UNE ADRESSE QUI VISE UN TITRE ═══
+ *
+ * `/methodologie#cvar` mène à un titre de la page, pas à son haut. Quand le
+ * fragment de l'adresse désigne un titre du contenu qui porte `tabIndex={-1}`,
+ * la page défile jusqu'à lui et c'est lui qui reçoit le focus ; au premier
+ * affichage, elle défile seulement. Un fragment changé sur la même page, par
+ * un retour arrière d'une ancre à l'autre, y ramène le focus. Les sections de
+ * l'analyse portent leur ancre sur la `<section>`, pas sur un titre : elles
+ * gardent le comportement du navigateur.
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
@@ -42,6 +52,42 @@ interface Props {
 
 const APPLICATION = 'Mx Risk MGT'
 
+/** Le titre du contenu que vise le fragment de l'adresse, s'il en est un. */
+function titreVise(contenu: HTMLElement | null): HTMLElement | null {
+  const ancre = window.location.hash.slice(1)
+  if (contenu === null || ancre === '') return null
+  const cible = document.getElementById(ancre)
+  if (cible === null || !contenu.contains(cible)) return null
+  return /^H[1-3]$/.test(cible.tagName) && cible.getAttribute('tabindex') === '-1' ? cible : null
+}
+
+/** Ce qui rend la main à l'utilisateur : il fait défiler, touche, clique ou tape. */
+const GESTES = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
+
+/**
+ * Fait défiler jusqu'au titre, sous le bandeau, et l'y garde pendant que la
+ * page s'installe, comme le navigateur le fait d'une ancre au chargement. Les
+ * polices qui arrivent allongent le texte au-dessus du titre (mesuré : 790 px
+ * au chargement de `/methodologie#cvar`), et le navigateur ne compense pas ce
+ * déplacement ; le bandeau collant s'allonge quand la liste des portefeuilles
+ * arrive, et le titre passe dessous. Chaque changement de taille de la page
+ * ramène donc le titre, jusqu'au premier geste de l'utilisateur ou pendant
+ * dix secondes au plus. Rend de quoi arrêter.
+ */
+function garderEnVue(titre: HTMLElement): () => void {
+  const observateur = new ResizeObserver(() => titre.scrollIntoView({ block: 'start' }))
+  const arreter = () => {
+    observateur.disconnect()
+    window.clearTimeout(delai)
+    for (const geste of GESTES) window.removeEventListener(geste, arreter)
+  }
+  const delai = window.setTimeout(arreter, 10_000)
+  for (const geste of GESTES) window.addEventListener(geste, arreter, { passive: true })
+  // Le premier rapport, à l'image suivante, fait le premier défilement.
+  observateur.observe(document.body)
+  return arreter
+}
+
 export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: Props) {
   const contenu = useRef<HTMLElement>(null)
 
@@ -53,11 +99,25 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
     // Le chargement de l'application change de page lui aussi (démarrage,
     // redirection de `/`) : seul un changement DÉCIDÉ par l'utilisateur
     // déplace le focus.
-    if (!aDejaNavigue()) return
+    const decide = aDejaNavigue()
+    const vise = titreVise(contenu.current)
+    if (vise !== null) {
+      if (decide) vise.focus({ preventScroll: true })
+      return garderEnVue(vise)
+    }
+    if (!decide) return
     const titrePage = contenu.current?.querySelector<HTMLElement>('h1[tabindex="-1"]')
     ;(titrePage ?? contenu.current)?.focus()
     window.scrollTo({ top: 0 })
   }, [page])
+
+  useEffect(() => {
+    // Un lien suivi sur la page a déjà fait défiler et posé le focus ; un
+    // retour arrière d'une ancre à l'autre rend sa position, pas le focus.
+    const surFragment = () => titreVise(contenu.current)?.focus({ preventScroll: true })
+    window.addEventListener('hashchange', surFragment)
+    return () => window.removeEventListener('hashchange', surFragment)
+  }, [])
 
   return (
     <>

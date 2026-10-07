@@ -10,21 +10,23 @@ import {
 } from './route'
 
 describe('lireRoute', () => {
-  it('lit les quatre adresses', () => {
+  it('lit les cinq adresses', () => {
     expect(lireRoute('/')).toEqual({ vue: 'accueil' })
     expect(lireRoute('/portefeuilles')).toEqual({ vue: 'portefeuilles' })
     expect(lireRoute('/portefeuilles/3')).toEqual({ vue: 'analyse', id: 3 })
     expect(lireRoute('/portefeuilles/3/positions')).toEqual({ vue: 'positions', id: 3 })
+    expect(lireRoute('/methodologie')).toEqual({ vue: 'methodologie' })
   })
 
   it('tolère une barre oblique finale', () => {
     expect(lireRoute('/portefeuilles/')).toEqual({ vue: 'portefeuilles' })
     expect(lireRoute('/portefeuilles/12/')).toEqual({ vue: 'analyse', id: 12 })
+    expect(lireRoute('/methodologie/')).toEqual({ vue: 'methodologie' })
   })
 
   it('ne devine pas une adresse qu’elle ne connaît pas', () => {
     for (const chemin of [
-      '/methodologie',
+      '/methodologie/cvar',
       '/portefeuilles/abc',
       '/portefeuilles/0',
       '/portefeuilles/07',
@@ -41,6 +43,7 @@ describe('lireRoute', () => {
       { vue: 'portefeuilles' },
       { vue: 'analyse', id: 7 },
       { vue: 'positions', id: 7 },
+      { vue: 'methodologie' },
     ]
     for (const route of routes) expect(lireRoute(cheminDe(route))).toEqual(route)
   })

@@ -42,6 +42,7 @@ import controles from './styles/controles.module.css'
 import { Acceptation } from './views/Acceptation'
 import { VueAnalyse } from './views/Analyse'
 import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
+import { VueMethodologie } from './views/Methodologie'
 import { VuePortefeuilles } from './views/Portefeuilles'
 import { VuePositions } from './views/Positions'
 
@@ -160,6 +161,17 @@ function Application() {
           annoncer={annoncer}
         />
       )
+    }
+    case 'methodologie': {
+      // Elle ne dépend d'aucun portefeuille, et n'attend pas la liste. Le
+      // bandeau nomme le dernier consulté s'il existe encore ; sinon aucun,
+      // et pas le premier de la liste, que personne n'a ouvert.
+      const memorise = dernierPortefeuille()
+      const portefeuille =
+        liste.phase === 'prete'
+          ? (liste.portefeuilles.find((p) => p.id === memorise) ?? null)
+          : null
+      return <VueMethodologie portefeuille={portefeuille} />
     }
     case 'inconnue':
       return <PageInconnue chemin={chemin} />

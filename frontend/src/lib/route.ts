@@ -1,18 +1,19 @@
 /**
  * Les routes du client — History API, sans bibliothèque.
  *
- * Quatre adresses, et c'est tout :
+ * Cinq adresses, et c'est tout :
  *
  *   /                              le dernier portefeuille ouvert, ou le premier
  *   /portefeuilles                 la liste : choisir, créer, supprimer
  *   /portefeuilles/<id>            l'analyse
  *   /portefeuilles/<id>/positions  la saisie et l'import
+ *   /methodologie                  comment chaque chiffre est calculé (7B.3b)
  *
  * De VRAIES adresses et non des fragments : les fragments servent déjà aux
- * ancres des six sections (`#en-crise`), et une adresse se recharge, se
- * partage, s'ouvre dans un nouvel onglet. FastAPI rend `index.html` pour
- * toute adresse hors de `/api` (`backend/api/static.py`), Vite aussi en
- * développement.
+ * ancres des six sections (`#en-crise`) et des entrées de la méthodologie
+ * (`#cvar`), et une adresse se recharge, se partage, s'ouvre dans un nouvel
+ * onglet. FastAPI rend `index.html` pour toute adresse hors de `/api`
+ * (`backend/api/static.py`), Vite aussi en développement.
  *
  * ═══ LA GARDE ═══
  *
@@ -32,6 +33,7 @@ export type Route =
   | { readonly vue: 'portefeuilles' }
   | { readonly vue: 'analyse'; readonly id: number }
   | { readonly vue: 'positions'; readonly id: number }
+  | { readonly vue: 'methodologie' }
   | { readonly vue: 'inconnue'; readonly chemin: string }
 
 /** Un identifiant tel que la base les attribue : entier, à partir de 1. */
@@ -42,6 +44,9 @@ export function lireRoute(chemin: string): Route {
   const segments = chemin.split('/').filter((segment) => segment.length > 0)
   const [premier, identifiant, suite, ...reste] = segments
   if (premier === undefined) return { vue: 'accueil' }
+  if (premier === 'methodologie') {
+    return identifiant === undefined ? { vue: 'methodologie' } : { vue: 'inconnue', chemin }
+  }
   if (premier !== 'portefeuilles' || reste.length > 0) return { vue: 'inconnue', chemin }
   if (identifiant === undefined) return { vue: 'portefeuilles' }
   if (!IDENTIFIANT.test(identifiant)) return { vue: 'inconnue', chemin }
@@ -62,6 +67,8 @@ export function cheminDe(route: Exclude<Route, { vue: 'inconnue' }>): string {
       return `/portefeuilles/${route.id}`
     case 'positions':
       return `/portefeuilles/${route.id}/positions`
+    case 'methodologie':
+      return '/methodologie'
   }
 }
 
