@@ -20,6 +20,15 @@
   scroll-margin-block-start: calc(var(--hauteur-bandeau, var(--space-8)) + var(--space-4));
 }
 
+/* Un titre a la largeur de son texte : l'anneau de focus, à l'arrivée sur
+ * une ancre, l'entoure lui seul. À la largeur de la colonne, il courait bien
+ * au-delà de la prose, qui s'arrête à 66 caractères (captures du 2026-10-07). */
+.titrePage,
+.titrePartie,
+.entree {
+  inline-size: fit-content;
+}
+
 .titrePartie {
   margin-block-end: var(--space-5);
   font-size: var(--text-lg);

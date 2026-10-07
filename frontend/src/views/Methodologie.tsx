@@ -194,7 +194,7 @@ export function VueMethodologie({ portefeuille }: Props) {
       rail={<RailSections pages={pages} sections={sections} etiquette={PARTIES} />}
     >
       <AncresSections pages={pages} liste={sections} etiquette={PARTIES} />
-      <h1 tabIndex={-1} className={communs.titre}>
+      <h1 tabIndex={-1} className={`${communs.titre} ${styles.titrePage}`}>
         {contenu.titre}
       </h1>
       {tete.map((bloc) => (
