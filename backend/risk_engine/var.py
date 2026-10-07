@@ -58,11 +58,13 @@ class TailEstimate:
     """Expected Shortfall et la taille de queue qui le soutient.
 
     `tail_observations` fait partie du résultat, pas du journal : à 99 % sur une
-    fenêtre de 504 séances, la moyenne porte sur environ 5 points. Le chiffre
-    reste calculable mais devient une estimation fragile, d'une façon que le
-    même calcul à 95 % — une trentaine de points — n'est pas. Cette fragilité
-    doit être lisible dans la sortie, au même titre que la fenêtre ou la date de
-    valorisation.
+    fenêtre de 504 séances, la moyenne porte sur 6 séances. Le chiffre reste
+    calculable mais devient une estimation fragile, d'une façon que le même
+    calcul à 95 % — 26 séances — n'est pas. Le quantile « lower » est la 6e (la
+    26e) plus mauvaise séance, de rang ⌊(n − 1)·(1 − α)⌋ en comptant de zéro ;
+    la queue la compte avec les plus mauvaises qu'elle, hors ex æquo. Cette
+    fragilité doit être lisible dans la sortie, au même titre que la fenêtre ou
+    la date de valorisation.
     """
 
     value: float

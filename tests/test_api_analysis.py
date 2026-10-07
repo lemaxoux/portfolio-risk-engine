@@ -269,7 +269,6 @@ def test_un_sortino_indefini_ressort_null_avec_sa_raison(client_monotone):
     sortino = reponse.json()["risk"]["sortino"]
     assert "annualised" in sortino
     assert sortino["annualised"] is None
-    assert sortino["annualised"] is not 0
     assert "aucun rendement sous la cible" in sortino["undefined_reason"]
     # Le reste du résultat est bien là : l'indéfinition d'un ratio n'efface pas
     # la déviation qui l'a produite.

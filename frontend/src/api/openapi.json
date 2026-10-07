@@ -2447,7 +2447,7 @@
           "coverage_sufficient"
         ],
         "title": "ScenarioOut",
-        "description": "Un scénario, c'est trois chiffres indissociables.\n\n`end_to_end_return` (ce que vaudrait le portefeuille à la SORTIE),\n`max_drawdown` (le pire moment TRAVERSÉ, souvent plus profond) et\n`coverage.value_share` (la portée du chiffre) sont trois champs requis du\nmême objet. Aucun ne peut être servi sans les autres, et les deux premiers\nvalent `null` ensemble quand aucune ligne n'est couverte —\n`unavailable_reason` dit alors pourquoi."
+        "description": "Un scénario, c'est trois chiffres indissociables.\n\n`end_to_end_return` (ce que vaudrait le portefeuille au POINT BAS du marché,\nle dernier jour de l'épisode, qui n'est pas la sortie de la crise),\n`max_drawdown` (le pire moment TRAVERSÉ, souvent plus profond) et\n`coverage.value_share` (la portée du chiffre) sont trois champs requis du\nmême objet. Aucun ne peut être servi sans les autres, et les deux premiers\nvalent `null` ensemble quand aucune ligne n'est couverte —\n`unavailable_reason` dit alors pourquoi."
       },
       "SecurityOut": {
         "properties": {

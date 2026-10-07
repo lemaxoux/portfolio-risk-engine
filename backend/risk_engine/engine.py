@@ -1271,8 +1271,9 @@ class ScenarioResult:
 
     Deux mesures distinctes, à ne pas confondre :
 
-    * `end_to_end_return` — ce que vaudrait le portefeuille à la SORTIE de
-      l'épisode ;
+    * `end_to_end_return` — ce que vaudrait le portefeuille le dernier jour de
+      l'épisode, au POINT BAS du marché, qui n'est pas la sortie de la crise
+      (décision D8 des textes de lecture) ;
     * `max_drawdown` — le pire moment TRAVERSÉ en cours de route, qui peut être
       nettement plus profond.
 

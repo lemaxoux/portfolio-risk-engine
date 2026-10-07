@@ -472,8 +472,9 @@ rien à voir avec celui détenu.
 > pas le temps de dériver. Sur les dix-sept mois de 2008, des poids constants
 > supposent un rééquilibrage quotidien : vendre chaque jour ce qui a le mieux
 > tenu pour racheter ce qui vient de chuter, pendant toute la descente. Ce n'est
-> pas ce que fait un porteur passif, et lui prêter ce rééquilibrage donnerait un
-> résultat plus flatteur que la réalité.
+> pas ce que fait un porteur passif, qui n'achète ni ne vend. Un rééquilibrage
+> quotidien donnerait un autre résultat, dans un sens ou dans l'autre, que
+> l'outil ne mesure pas.
 
 **Deux mesures distinctes**, à ne pas confondre : le rendement de **bout en
 bout** (ce que vaut le portefeuille au dernier jour de l'épisode, le point bas

@@ -28,9 +28,9 @@ deux questions différentes, dont l'écart n'apparaît qu'aux horizons longs.
   racheter ce qui vient de chuter, pendant toute la descente. Ce n'est pas ce
   que fait un porteur passif, qui ne touche à rien et regarde ses poids dériver.
 
-Prêter au porteur un rééquilibrage qu'il ne fera pas donnerait un résultat plus
-flatteur que la réalité : le rééquilibrage rachète mécaniquement au plus bas et
-amortit la baisse.
+Un porteur passif n'achète ni ne vend. Lui prêter un rééquilibrage quotidien
+donnerait un autre résultat, dans un sens ou dans l'autre, que l'outil ne
+mesure pas : le rejeu s'en tient à ce que fait le porteur qui ne touche à rien.
 
 ═══ POURQUOI `adj_close` ═══
 
@@ -150,9 +150,12 @@ def buy_and_hold_value(
 def end_to_end_return(values: pd.Series) -> float:
     """Rendement du premier au dernier point de la fenêtre.
 
-    « Ce que vaudrait le portefeuille à la sortie de l'épisode. » À distinguer du
-    drawdown maximum, qui mesure le pire moment TRAVERSÉ et peut être plus
-    profond : un portefeuille peut finir à −20 % après être passé par −35 %.
+    Ce que vaudrait le portefeuille le dernier jour de l'épisode, au point bas
+    du marché, qui n'est pas la sortie de la crise (décision D8 des textes de
+    lecture : « à la sortie » se lirait « une fois la crise finie »). À
+    distinguer du drawdown maximum, qui mesure le pire moment TRAVERSÉ et peut
+    être plus profond : un portefeuille peut finir à −20 % après être passé par
+    −35 %.
     """
     if len(values) < 2:
         raise ValueError("Au moins deux points sont nécessaires.")

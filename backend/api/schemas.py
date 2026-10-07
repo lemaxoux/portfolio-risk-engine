@@ -1325,7 +1325,8 @@ class PositionContributionOut(Schema):
 class ScenarioOut(Schema):
     """Un scénario, c'est trois chiffres indissociables.
 
-    `end_to_end_return` (ce que vaudrait le portefeuille à la SORTIE),
+    `end_to_end_return` (ce que vaudrait le portefeuille au POINT BAS du marché,
+    le dernier jour de l'épisode, qui n'est pas la sortie de la crise),
     `max_drawdown` (le pire moment TRAVERSÉ, souvent plus profond) et
     `coverage.value_share` (la portée du chiffre) sont trois champs requis du
     même objet. Aucun ne peut être servi sans les autres, et les deux premiers
