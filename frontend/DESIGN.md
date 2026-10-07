@@ -439,6 +439,16 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   `tools/espace_fine.py`) est déclarée dans la famille 'Spectral' pour
   U+202F seulement, en 400 et 500 : une espace vide de 0,200 em, qui ramène
   le blanc au niveau de Plex. Mesures dans le README, section 10.
+- **Les formules de la méthodologie, en IBM Plex Sans.** Spectral n'a pas de
+  lettre grecque : une formule, même d'une lettre (« σ »), s'écrit dans un
+  élément en Plex Sans, en ligne ou en bloc, et la prose n'en contient
+  aucune (`tests/test_methodologie.py`). Indices et exposants passent par
+  `<sub>` et `<sup>` : Plex n'a ni ᵀ ni ᵢ. Deux signes ne sont dessinés par
+  aucune des polices du produit, √ et ≥ : ils viennent de la police de
+  repli, comme le √ et le → des provenances (décision du 2026-10-07 ; une
+  face de complément ne se discutera que si les captures montrent un défaut
+  visible). `src/contenu/methodologie.test.ts` tient la liste des caractères
+  admis, établie en lisant les polices.
 - Dates en `YYYY-MM-DD` dans les blocs de provenance (non ambigu, triable,
   cohérent avec l'API) ; en toutes lettres dans la prose.
 
@@ -573,8 +583,27 @@ ticker restant en place. Le nom ne se coupe pas (`nowrap`). L'ordre vient de
 cellule.
 
 Autres écrans, volontairement pauvres : **saisie / import du portefeuille**
-(tableau éditable + zone de dépôt CSV avec le format affiché en clair) et
-**méthodologie** (le README rendu, une colonne de prose à 66 caractères).
+(tableau éditable + zone de dépôt CSV avec le format affiché en clair).
+
+**Méthodologie** (`/methodologie`, 7B.3b, décision du 2026-10-07) : comment
+chaque chiffre est calculé, pour un lecteur qui part de zéro. Ce n'est pas le
+README rendu, mais un texte propre à la page, dans un fichier de contenu par
+langue (`src/contenu/methodologie.fr.md`) ; le README reste la référence
+technique. Le texte suit l'ordre de l'analyse : ce que fait l'outil, les
+données, les conventions, puis chaque mesure affichée, section par section
+(ce qu'elle calcule, sa formule, ses hypothèses, ses limites), les crises
+rejouées, les seuils et les refus. Chaque terme technique y est expliqué à
+sa première apparition (§15). Il ne cite aucun chiffre d'un portefeuille,
+seulement les constantes du moteur, que `tests/test_methodologie.py`
+compare au moteur. Une colonne de prose en Spectral, à la largeur de prose,
+alignée à gauche (§6.3). Les formules en IBM Plex Sans, en ligne ou en
+bloc, chacune précédée de la phrase qui la dit en mots, sans bibliothèque de
+mise en forme mathématique. Chaque partie et chaque entrée a une ancre fixe
+(`#var-historique`), la même dans toutes les langues : c'est elle que visera
+le lien d'une mesure vers sa méthode. Le rail liste les parties de la page,
+sans numéro, puis les pages ; sous 900 px, la même liste en tête de page. Le
+bandeau nomme le dernier portefeuille consulté, s'il existe encore, pour que
+« Analyse » et « Positions et import » y mènent.
 
 **Portefeuilles** (`/portefeuilles`, ajouté en 7B.3a) : le choix du
 portefeuille affiché. Un tableau — nom (lien vers son analyse), lignes,
@@ -590,9 +619,11 @@ dernier portefeuille consulté, mémorisé dans le navigateur comme le thème, o
 à défaut le premier.
 
 Sous les six sections, après un séparateur, le rail liste les pages de
-l'application — « Analyse », « Positions et import », « Portefeuilles » —, la
-page courante marquée comme l'est la section en cours. Sous 900 px, la même
-liste suit les ancres, en tête de page. Hors de l'analyse, le bandeau se
+l'application — « Analyse », « Positions et import », « Portefeuilles »,
+« Méthodologie » —, la page courante marquée comme l'est la section en cours.
+Sous 900 px, la même liste suit les ancres, en tête de page. La page
+Portefeuilles, qui n'a pas de sections, a la même liste de pages : la
+méthodologie s'atteint de partout. Hors de l'analyse, le bandeau se
 réduit à la marque, au portefeuille en vue et à la bascule de thème : la date
 de valorisation et la fenêtre d'estimation n'y conditionnent aucun chiffre.
 

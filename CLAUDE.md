@@ -22,7 +22,10 @@ et ne se versionnent pas.
 - **Un seul formateur de chaque côté.** Tout nombre écrit dans un texte
   publié passe par `backend/typography.py`, et côté client par
   `frontend/src/lib/format.ts`. Les espaces (U+202F, U+00A0) et le signe
-  moins (U+2212) sont fixés, jamais laissés à `Intl`.
+  moins (U+2212) sont fixés, jamais laissés à `Intl`. Les nombres du texte
+  de méthodologie (`frontend/src/contenu/`) sont écrits dans son fichier de
+  contenu et comparés au moteur, écriture comprise, par
+  `tests/test_methodologie.py`.
 - **Tokens seulement.** Aucune couleur hors de `src/styles/tokens.css`, aucune
   taille de police en `px` hors de `typography.css` (vérifié par
   `tokens.test.ts`).

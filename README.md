@@ -90,6 +90,7 @@ app/
 │   ├── src/styles/      #   tokens.css : SEUL fichier avec des valeurs brutes
 │   ├── src/api/         #   openapi.json commité + types ENGENDRÉS
 │   ├── src/lib/         #   format.ts : seul endroit qui écrit un nombre
+│   ├── src/contenu/     #   textes rédigés, un fichier par langue (méthodologie)
 │   ├── src/components/  #   Measure, Provenance, Bandeau, ThemeToggle
 │   └── src/views/       #   écran d'acceptation, sections de l'analyse
 ├── tools/               # Outils de développement, hors application
@@ -1618,6 +1619,63 @@ de lecture ») :
 `phrases.test.ts` fige ces textes sur les chiffres du portefeuille de
 démonstration, variantes comprises. `Measure.test.ts` vérifie l'ordre du bloc,
 et qu'aucun `<details>` ne replie la provenance.
+
+#### La page méthodologie
+
+La page `/methodologie` dit comment chaque chiffre de l'analyse est calculé,
+pour un lecteur qui part de zéro (DESIGN.md §8.2) : ce que fait l'outil, les
+données, les conventions, chaque mesure affichée avec sa formule, ses
+hypothèses et ses limites, les crises, les seuils et les refus. Ce n'est pas
+ce README rendu : un texte propre à la page, ce README restant la référence
+technique. Chaque terme technique y est expliqué à sa première apparition,
+et aucun chiffre d'un portefeuille n'y figure.
+
+- **Un fichier de contenu par langue.**
+  `frontend/src/contenu/methodologie.fr.md`, importé brut (`?raw`). La langue
+  se choisit en un seul endroit, `src/contenu/langue.ts` : le français seul
+  jusqu'au chantier 7D. Les ancres (`{#cvar}`) sont des identifiants, les
+  mêmes dans toutes les langues. Les liens d'une mesure vers sa méthode les
+  viseront, et `src/contenu/methodologie.test.ts` en fixe la liste.
+- **Un Markdown restreint, lu par un lecteur maison** (`src/lib/contenu.ts`) :
+  titres à ancre fixe, paragraphes, étiquettes en tête, listes, formules en
+  bloc et en ligne avec indices et exposants, liens vers une ancre, trois
+  entités. Tout le reste est une erreur, avec sa ligne (`contenu.test.ts`).
+  Aucune dépendance et aucun HTML injecté : le lecteur rend des blocs typés,
+  la vue des éléments React. Le texte pèse environ 28 kB (9,5 kB compressés).
+- **La typographie est écrite dans la source**, en entités (`&nbsp;`,
+  `&#x202F;`), comme le JSX écrit `&nbsp;`. Le lecteur les décode ; il ne pose
+  aucune espace lui-même.
+- **Les gardes des textes publiés s'appliquent au fichier.**
+  `tests/test_methodologie.py` importe leurs expressions de
+  `test_textes_publies.py`, `test_api_analysis.py` et `test_rules.py`, sans
+  les modifier : ponctuation haute et guillemets, tiret cadratin, lettre
+  grecque hors d'une formule, paire, durée et date sécables, espaces des
+  nombres, formulation prescriptive, score global, généralités sur une
+  couverture partielle. Deux gardes s'y ajoutent : « séance » n'apparaît que
+  dans une citation de l'écran ou une formule, et chaque citation « … » est un
+  libellé que la page affiche, lu dans le code qui l'écrit ou dans la réponse
+  de l'API.
+- **Une liste fermée des nombres.** Chaque valeur citée (0,70, 80 %, 504, 60,
+  30, 3, 20 et 100 jours de bourse, le 1er janvier 2005, 100 000 tirages…) est
+  recalculée depuis le moteur et écrite par `backend/typography.py`. Chaque
+  nombre du fichier doit tomber dans une de ces citations, dans un fragment
+  mathématique déclaré ou dans un numéro de section : une constante qui
+  change, ou un nombre écrit à la main, fait échouer le test. L'exemple des
+  lignes effectives (deux lignes de 90 % et 10 % pèsent comme 1,2 ligne) est
+  calculé par le test, pas recopié. Le test lit un fichier du client depuis la
+  suite Python, comme `test_typographie_partagee.py` : c'est le moteur qui
+  bouge.
+- **Les glyphes.** Spectral n'a pas de grec : toute formule, même d'une
+  lettre, s'écrit en IBM Plex Sans. Ni Plex Sans, ni Spectral, ni Plex Mono,
+  tels que @fontsource les livre, ne dessinent √, ≤, ≥, →, ᵀ ni ᵢ. Indices et
+  exposants passent donc par `<sub>` et `<sup>`, et √ et ≥ viennent de la
+  police de repli, comme le √ et le → des provenances. Le dépôt n'a pas de
+  lecteur de polices : `methodologie.test.ts` tient la liste des caractères
+  admis, établie le 2026-10-07 en lisant une fois les tables `cmap` des
+  fichiers `.woff` de @fontsource, aux versions figées de `package.json`
+  (Spectral 400 et 500 pour la prose, titres compris, IBM Plex Sans 400 pour
+  les formules). Un caractère hors de la liste fait échouer le test : on
+  vérifie alors la police à la main avant de l'ajouter.
 
 #### Aucun tiret cadratin dans l'interface
 
