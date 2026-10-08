@@ -27,7 +27,6 @@ import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'rea
 import { ApiErreur, importCsv, versApiErreur } from '../api/client'
 import type { CsvImport } from '../api/types'
 import { nomDecimale, nomEncodage } from '../lib/csv'
-import { compte, lignes } from '../lib/format'
 import { useLangue } from '../lib/langue'
 import { cite } from '../lib/phrases'
 import controles from '../styles/controles.module.css'
@@ -47,7 +46,8 @@ interface Props {
 }
 
 export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, importe }: Props) {
-  const { langue } = useLangue()
+  const { langue, libelles } = useLangue()
+  const l = libelles.csv
   const champ = useRef<HTMLInputElement>(null)
   const [fichier, setFichier] = useState<File | null>(null)
   const [survol, setSurvol] = useState(false)
@@ -101,7 +101,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
       await importe(lu)
       setCibleDuFocus({ cible: 'lu' })
     } catch (cause) {
-      setErreur(versApiErreur(cause))
+      setErreur(versApiErreur(cause, langue))
       setCibleDuFocus({ cible: 'bouton' })
     } finally {
       setEnCours(false)
@@ -119,9 +119,9 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
         onDragLeave={() => setSurvol(false)}
         onDrop={deposer}
       >
-        <p className={styles.consigne}>Déposer un fichier CSV ici, ou le choisir&nbsp;:</p>
+        <p className={styles.consigne}>{l.deposer}</p>
         <label htmlFor="fichier-csv" className={controles.libelle}>
-          Fichier CSV
+          {l.fichierCsv}
         </label>
         <input
           ref={champ}
@@ -133,19 +133,15 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
           onChange={(e) => choisir(e.target.files?.[0] ?? null)}
         />
         {fichier !== null && (
-          <p className={controles.aide}>
-            {fichier.name}, {compte(fichier.size, 'octet')}
-          </p>
+          <p className={controles.aide}>{l.fichierChoisi(fichier.name, fichier.size)}</p>
         )}
       </div>
 
       {fichier !== null && (
         <div className={styles.confirmation}>
           <p className={styles.question}>
-            {positionsActuelles === 0
-              ? `L'import donne à ${cite(nom)}, encore vide, les positions du fichier.`
-              : `L'import remplace les ${lignes(positionsActuelles)} actuelles de ${cite(nom)} par celles du fichier.`}
-            {modifie && ' Les modifications non enregistrées du tableau seront perdues.'}
+            {positionsActuelles === 0 ? l.donne(nom) : l.remplace(positionsActuelles, nom)}
+            {modifie && l.modificationsPerdues}
           </p>
           <div className={controles.groupe}>
             <button
@@ -154,7 +150,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
               className={`${controles.bouton} ${controles.principal}`}
               disabled={enCours}
             >
-              {enCours ? 'Import en cours…' : 'Importer le portefeuille'}
+              {enCours ? l.importEnCours : l.importer}
             </button>
           </div>
         </div>
@@ -164,14 +160,17 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
 
       {resultat !== null && (
         <div ref={blocLu} tabIndex={-1} className={styles.lu}>
-          <p className={styles.consigne}>Lu dans le fichier&nbsp;:</p>
+          <p className={styles.consigne}>{l.lu}</p>
           <Provenance
             lignes={[
-              { libelle: 'Fichier', valeur: resultat.source.filename ?? 'sans nom' },
-              { libelle: 'Encodage', valeur: nomEncodage(resultat.source.encoding) },
-              { libelle: 'Séparateur', valeur: cite(resultat.source.delimiter) },
-              { libelle: 'Décimale', valeur: nomDecimale(resultat.source.decimal_separator) },
-              { libelle: 'Lignes lues', valeur: lignes(resultat.source.rows_read) },
+              { libelle: l.fichier, valeur: resultat.source.filename ?? l.sansNom },
+              { libelle: l.encodage, valeur: nomEncodage(resultat.source.encoding, langue) },
+              { libelle: l.separateur, valeur: cite(resultat.source.delimiter, langue) },
+              {
+                libelle: l.decimale,
+                valeur: nomDecimale(resultat.source.decimal_separator, langue),
+              },
+              { libelle: l.lignesLues, valeur: l.lignes(resultat.source.rows_read) },
             ]}
           />
         </div>

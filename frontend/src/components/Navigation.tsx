@@ -22,6 +22,8 @@
  */
 import { useEffect, useState } from 'react'
 
+import { LIBELLES } from '../contenu/libelles'
+import { useLangue, type Langue } from '../lib/langue'
 import { cheminDe } from '../lib/route'
 import { Lien } from './Lien'
 import styles from './Navigation.module.css'
@@ -37,23 +39,25 @@ export interface PageApplication {
  * Les pages que la navigation propose, depuis `courante`. L'analyse n'est
  * proposée que lorsqu'un portefeuille est en vue : sans lui, elle n'a rien à
  * montrer. La méthodologie l'est toujours, en dernier : elle ne dépend
- * d'aucun portefeuille.
+ * d'aucun portefeuille. Les noms sont ceux de la langue demandée.
  */
 export function pagesApplication(
   courante: 'analyse' | 'positions' | 'portefeuilles' | 'methodologie',
   id: number | null,
+  langue: Langue = 'fr',
 ): PageApplication[] {
+  const noms = LIBELLES[langue].navigation.pages
   const pages: PageApplication[] = []
   if (id !== null) {
     pages.push(
       {
         vers: cheminDe({ vue: 'analyse', id }),
-        libelle: 'Analyse',
+        libelle: noms.analyse,
         courante: courante === 'analyse',
       },
       {
         vers: cheminDe({ vue: 'positions', id }),
-        libelle: 'Positions et import',
+        libelle: noms.positions,
         courante: courante === 'positions',
       },
     )
@@ -61,12 +65,12 @@ export function pagesApplication(
   pages.push(
     {
       vers: cheminDe({ vue: 'portefeuilles' }),
-      libelle: 'Portefeuilles',
+      libelle: noms.portefeuilles,
       courante: courante === 'portefeuilles',
     },
     {
       vers: cheminDe({ vue: 'methodologie' }),
-      libelle: 'Méthodologie',
+      libelle: noms.methodologie,
       courante: courante === 'methodologie',
     },
   )
@@ -80,8 +84,9 @@ function ListePages({
   pages: readonly PageApplication[]
   classe: string | undefined
 }) {
+  const { libelles } = useLangue()
   return (
-    <nav className={classe} aria-label="Pages">
+    <nav className={classe} aria-label={libelles.navigation.etiquettePages}>
       <ul>
         {pages.map((page) => (
           <li key={page.vers}>
@@ -116,7 +121,11 @@ export const SECTIONS = [
   { ancre: 'moteur', numero: 6, libelle: 'Ce que le moteur en dit' },
 ] as const
 
-const SECTIONS_DE_L_ANALYSE = "Sections de l'analyse"
+/** Les sections de l'analyse, nommées dans une langue : les ancres ne changent pas. */
+export function sectionsDe(langue: Langue): SectionDeNavigation[] {
+  const noms = LIBELLES[langue].navigation.sections
+  return SECTIONS.map((section, rang) => ({ ...section, libelle: noms[rang] ?? section.libelle }))
+}
 
 /**
  * La section en cours de lecture : la dernière dont le haut est passé sous
@@ -173,13 +182,16 @@ function Numero({ section }: { section: SectionDeNavigation }) {
  */
 export function RailSections({
   pages,
-  sections = SECTIONS,
-  etiquette = SECTIONS_DE_L_ANALYSE,
+  sections: donnees,
+  etiquette: donnee,
 }: {
   pages: readonly PageApplication[]
   sections?: readonly SectionDeNavigation[]
   etiquette?: string
 }) {
+  const { langue, libelles } = useLangue()
+  const sections = donnees ?? sectionsDe(langue)
+  const etiquette = donnee ?? libelles.navigation.sectionsDeLAnalyse
   const enCours = useSectionEnCours(sections)
   return (
     <div className={styles.rail}>
@@ -220,14 +232,17 @@ export function RailPages({ pages }: { pages: readonly PageApplication[] }) {
 export function AncresSections({
   pages,
   sections = true,
-  liste = SECTIONS,
-  etiquette = SECTIONS_DE_L_ANALYSE,
+  liste: donnee,
+  etiquette: nommee,
 }: {
   pages: readonly PageApplication[]
   sections?: boolean
   liste?: readonly SectionDeNavigation[]
   etiquette?: string
 }) {
+  const { langue, libelles } = useLangue()
+  const liste = donnee ?? sectionsDe(langue)
+  const etiquette = nommee ?? libelles.navigation.sectionsDeLAnalyse
   return (
     <div className={styles.ancres}>
       {sections && (

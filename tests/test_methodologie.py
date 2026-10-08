@@ -205,13 +205,14 @@ def test_seance_seulement_dans_une_citation_de_l_ecran(source):
     assert fautes_de_seance(lire(source)) == []
 
 
-# Ce que le client affiche, lu dans le fichier qui l'écrit.
+# Ce que le client affiche, lu dans le fichier qui l'écrit : depuis la 7D, les
+# libellés français dans `contenu/libelles.fr.ts`.
 LIBELLES_DU_CLIENT = {
-    "Détails du calcul": "components/Measure.tsx",
-    "Contrôle": "lib/provenance.ts",
-    "Séances dans la queue": "lib/provenance.ts",
-    "Valorisé au": "lib/provenance.ts",
-    "non disponible": "components/Absent.tsx",
+    "Détails du calcul": "contenu/libelles.fr.ts",
+    "Contrôle": "contenu/libelles.fr.ts",
+    "Séances dans la queue": "contenu/libelles.fr.ts",
+    "Valorisé au": "contenu/libelles.fr.ts",
+    "non disponible": "contenu/libelles.fr.ts",
     "±": "views/SectionCrise.tsx",
     "aurait perdu": "lib/phrases.ts",
 }

@@ -32,11 +32,13 @@
  * une affirmation que rien n'a testée, soit une addition faite ici.
  */
 import type { Valuation, ValuedPosition } from '../api/types'
+import { LIBELLES } from '../contenu/libelles'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { dateISO, decimal, decimalesDeColonne, pourcentage } from '../lib/format'
+import { useLangue, type Langue } from '../lib/langue'
 import { useEtroit } from '../lib/largeur'
 import { introPortefeuille } from '../lib/phrases'
 import styles from './SectionPortefeuille.module.css'
@@ -44,13 +46,13 @@ import styles from './SectionPortefeuille.module.css'
 /** Plafond des décimales d'une quantité : des fractions d'action, au plus. */
 const DECIMALES_QUANTITE_MAX = 4
 
-function BarrePoids({ poids }: { poids: number }) {
+function BarrePoids({ poids, langue }: { poids: number; langue: Langue }) {
   return (
     <span className={styles.poids}>
       <span className={styles.piste} aria-hidden="true">
         <span className={styles.barre} style={{ inlineSize: `${poids * 100}%` }} />
       </span>
-      <span>{pourcentage(poids, 1)}</span>
+      <span>{pourcentage(poids, 1, langue)}</span>
     </span>
   )
 }
@@ -61,7 +63,9 @@ export const ORDRE_ETROIT = ['ticker', 'valeur', 'poids', 'nom', 'quantite', 'pr
 export function colonnesDuPortefeuille(
   valorisation: Valuation,
   etroit = false,
+  langue: Langue = 'fr',
 ): Colonne<ValuedPosition>[] {
+  const titres = LIBELLES[langue].portefeuille.colonnes
   const devise = valorisation.currency
   const decimalesQuantite = decimalesDeColonne(
     valorisation.positions.map((ligne) => ligne.quantity),
@@ -70,44 +74,44 @@ export function colonnesDuPortefeuille(
   const colonnes: Colonne<ValuedPosition>[] = [
     {
       cle: 'ticker',
-      titre: 'Ticker',
+      titre: titres.ticker,
       nature: 'texte',
       cellule: (ligne) => ligne.ticker,
       tri: (ligne) => ligne.ticker,
     },
     {
       cle: 'nom',
-      titre: 'Nom',
+      titre: titres.nom,
       nature: 'texte',
       cellule: (ligne) => <span className={styles.nom}>{ligne.name}</span>,
       tri: (ligne) => ligne.name,
     },
     {
       cle: 'quantite',
-      titre: 'Quantité',
+      titre: titres.quantite,
       nature: 'nombre',
-      cellule: (ligne) => decimal(ligne.quantity, decimalesQuantite),
+      cellule: (ligne) => decimal(ligne.quantity, decimalesQuantite, langue),
       tri: (ligne) => ligne.quantity,
     },
     {
       cle: 'prix',
-      titre: `Prix (${devise})`,
+      titre: titres.prix(devise),
       nature: 'nombre',
-      cellule: (ligne) => decimal(ligne.price, 2),
+      cellule: (ligne) => decimal(ligne.price, 2, langue),
       tri: (ligne) => ligne.price,
     },
     {
       cle: 'valeur',
-      titre: `Valeur (${devise})`,
+      titre: titres.valeur(devise),
       nature: 'nombre',
-      cellule: (ligne) => decimal(ligne.value, 2),
+      cellule: (ligne) => decimal(ligne.value, 2, langue),
       tri: (ligne) => ligne.value,
     },
     {
       cle: 'poids',
-      titre: 'Poids',
+      titre: titres.poids,
       nature: 'nombre',
-      cellule: (ligne) => <BarrePoids poids={ligne.weight} />,
+      cellule: (ligne) => <BarrePoids poids={ligne.weight} langue={langue} />,
       tri: (ligne) => ligne.weight,
     },
   ]
@@ -116,38 +120,40 @@ export function colonnesDuPortefeuille(
 }
 
 /** Le pied suit l'ordre des colonnes : « Total » sous le ticker, la valeur publiée sous la valeur. */
-function piedDu(colonnes: Colonne<ValuedPosition>[], valorisation: Valuation) {
+function piedDu(colonnes: Colonne<ValuedPosition>[], valorisation: Valuation, langue: Langue) {
   return colonnes.map((colonne) =>
     colonne.cle === 'ticker'
-      ? 'Total'
+      ? LIBELLES[langue].portefeuille.total
       : colonne.cle === 'valeur'
-        ? decimal(valorisation.total_value, 2)
+        ? decimal(valorisation.total_value, 2, langue)
         : null,
   )
 }
 
 export function SectionPortefeuille({ valorisation }: { valorisation: Valuation }) {
-  const colonnes = colonnesDuPortefeuille(valorisation, useEtroit())
+  const { langue, libelles } = useLangue()
+  const l = libelles.portefeuille
+  const colonnes = colonnesDuPortefeuille(valorisation, useEtroit(), langue)
   const introduction = introPortefeuille(valorisation.as_of)
   return (
-    <Section ancre="portefeuille" numero={1} titre="Le portefeuille" introduction={introduction}>
+    <Section ancre="portefeuille" numero={1} titre={libelles.sections[0]} introduction={introduction}>
       <div className={commun.conditions}>
         <Provenance
           disposition="ligne"
           lignes={[
-            { libelle: 'Valorisé au', valeur: dateISO(valorisation.as_of) },
-            { libelle: 'Prix', valeur: 'dernière clôture brute, non ajustée' },
-            { libelle: 'Devise', valeur: valorisation.currency },
+            { libelle: libelles.provenance.valoriseAu, valeur: dateISO(valorisation.as_of) },
+            { libelle: l.prix, valeur: l.prixLu },
+            { libelle: l.devise, valeur: valorisation.currency },
           ]}
         />
       </div>
       <DataTable
-        legende="Positions détenues, désignées par leur ticker (le code du titre en bourse), valorisées à la dernière clôture"
+        legende={l.legende}
         colonnes={colonnes}
         lignes={valorisation.positions}
         cleDeLigne={(ligne) => ligne.ticker}
         triInitial={{ cle: 'poids', sens: 'decroissant' }}
-        pied={piedDu(colonnes, valorisation)}
+        pied={piedDu(colonnes, valorisation, langue)}
       />
     </Section>
   )

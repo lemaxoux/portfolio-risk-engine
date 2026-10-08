@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react'
 
+import { useLangue } from '../lib/langue'
 import {
   appliquerTheme,
   contraire,
@@ -17,9 +18,9 @@ import {
 } from '../lib/theme'
 import styles from './ThemeToggle.module.css'
 
-const NOM: Record<Theme, string> = { light: 'clair', dark: 'sombre' }
-
 export function ThemeToggle() {
+  const { libelles } = useLangue()
+  const NOM: Record<Theme, string> = { light: libelles.theme.clair, dark: libelles.theme.sombre }
   const [fige, setFige] = useState<Theme | null>(() => themeFige())
   const [systeme, setSysteme] = useState<Theme>(() => themeDuSysteme())
 
@@ -37,11 +38,9 @@ export function ThemeToggle() {
   const affiche = fige ?? systeme
   // Les deux états : « comme le système », et l'autre — figé littéralement.
   const cible: Theme | null = fige === null ? contraire(systeme) : null
-  const libelle = cible === null ? 'Suivre le système' : `Thème ${NOM[cible]}`
+  const libelle = cible === null ? libelles.theme.suivreLeSysteme : libelles.theme.vers(NOM[cible])
   const etat =
-    fige === null
-      ? `thème ${NOM[affiche]}, comme le système`
-      : `thème ${NOM[affiche]}, figé`
+    fige === null ? libelles.theme.commeLeSysteme(NOM[affiche]) : libelles.theme.fige(NOM[affiche])
 
   return (
     <button
@@ -51,7 +50,7 @@ export function ThemeToggle() {
       // utilisateur de commande vocale doit pouvoir dire ce qu'il lit. L'état
       // courant le complète, parce qu'un bouton qui ne dit que l'action laisse
       // ignorer d'où l'on part.
-      aria-label={`${libelle} (actuellement ${etat})`}
+      aria-label={libelles.theme.nomAccessible(libelle, etat)}
       onClick={() => {
         appliquerTheme(cible)
         setFige(cible)

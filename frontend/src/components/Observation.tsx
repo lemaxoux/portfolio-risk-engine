@@ -31,12 +31,13 @@
  * présence du mot « choisi » dans le texte.
  */
 import type { Observation as ObservationApi, Threshold } from '../api/types'
+import type { Libelles } from '../contenu/libelles'
+import { useLangue } from '../lib/langue'
 import { Provenance } from './Provenance'
 import styles from './Observation.module.css'
 
-const ETIQUETTE: Record<Threshold['role'], string> = {
-  threshold: 'Seuil',
-  reference: 'Référence',
+function etiquette(role: Threshold['role'], libelles: Libelles): string {
+  return role === 'threshold' ? libelles.observation.seuil : libelles.observation.reference
 }
 
 /**
@@ -51,6 +52,7 @@ export function sujetDejaDit(libelle: string, sujet: string): boolean {
 }
 
 export function Observation({ observation }: { observation: ObservationApi }) {
+  const { libelles } = useLangue()
   return (
     <article className={styles.observation}>
       <p className={styles.regle}>
@@ -71,14 +73,16 @@ export function Observation({ observation }: { observation: ObservationApi }) {
           >
             {choisi && <span className={styles.point} aria-hidden="true" />}
             <span>
-              <span className={styles.etiquette}>{ETIQUETTE[seuil.role]}&nbsp;: </span>
+              <span className={styles.etiquette}>{etiquette(seuil.role, libelles)}</span>
               {seuil.rendered}
             </span>
           </p>
         )
       })}
 
-      <Provenance lignes={[{ libelle: 'Détails du calcul', valeur: observation.provenance }]} />
+      <Provenance
+        lignes={[{ libelle: libelles.mesure.detailsDuCalcul, valeur: observation.provenance }]}
+      />
     </article>
   )
 }

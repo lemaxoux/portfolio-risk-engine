@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react'
 
 import { segmenter, type ApiErreur } from '../api/client'
+import { useLangue } from '../lib/langue'
 import { messageDeLigne } from '../lib/phrases'
 import styles from './MessageErreur.module.css'
 
@@ -66,20 +67,23 @@ export function MessageErreur({
    */
   alerte?: boolean
 }) {
+  const { langue } = useLangue()
   const [premier] = erreur.problems
   const unique =
     erreur.problems.length === 1 && premier !== undefined && premier.problem === erreur.detail
   return (
     <div className={styles.bloc} role={alerte ? 'alert' : undefined}>
       <p className={styles.phrase}>
-        <Segments message={unique ? messageDeLigne(premier.line, erreur.detail) : erreur.detail} />
+        <Segments
+          message={unique ? messageDeLigne(premier.line, erreur.detail, langue) : erreur.detail}
+        />
       </p>
 
       {erreur.problems.length > 0 && !unique && (
         <ul className={styles.problemes}>
           {erreur.problems.map((probleme, index) => (
             <li key={index}>
-              <Segments message={messageDeLigne(probleme.line, probleme.problem)} />
+              <Segments message={messageDeLigne(probleme.line, probleme.problem, langue)} />
             </li>
           ))}
         </ul>

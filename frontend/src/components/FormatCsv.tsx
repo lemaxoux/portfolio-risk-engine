@@ -12,19 +12,17 @@
  */
 import type { ApiErreur } from '../api/client'
 import type { CsvFormat } from '../api/types'
-import { compte, lignes } from '../lib/format'
 import { nomEncodage, nomEspace, useFormatCsv } from '../lib/csv'
 import { useLangue } from '../lib/langue'
-import { cite } from '../lib/phrases'
 import styles from './FormatCsv.module.css'
 
 export function FormatCsv({ niveau }: { niveau: 2 | 3 }) {
-  const { langue } = useLangue()
+  const { langue, libelles } = useLangue()
   const { format, erreur } = useFormatCsv(langue)
   const Titre = niveau === 2 ? 'h2' : 'h3'
   return (
     <div className={styles.bloc}>
-      <Titre className={styles.titre}>Format du fichier</Titre>
+      <Titre className={styles.titre}>{libelles.csv.format}</Titre>
       {format !== null ? (
         <Regles format={format} />
       ) : erreur !== null ? (
@@ -38,24 +36,30 @@ export function FormatCsv({ niveau }: { niveau: 2 | 3 }) {
 }
 
 function Indisponible({ erreur }: { erreur: ApiErreur }) {
+  const { libelles } = useLangue()
   return (
     // Aucune description de repli : elle serait la copie que la publication
     // du format existe pour éviter. Un import tenté dira, ligne par ligne, ce
     // qui ne va pas.
-    <p className={styles.texte}>Le format n'a pas pu être lu&nbsp;: {erreur.detail}</p>
+    <p className={styles.texte}>
+      {libelles.csv.formatIllisible}
+      {erreur.detail}
+    </p>
   )
 }
 
 function Regles({ format }: { format: CsvFormat }) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.csv
   return (
     <>
-      <p className={styles.texte}>Par exemple, tel qu'un tableur l'enregistre&nbsp;:</p>
+      <p className={styles.texte}>{l.exemple}</p>
       <pre className={styles.exemple}>
         <code>{format.example.trimEnd()}</code>
       </pre>
       <ul className={styles.regles}>
         <li>
-          Une ligne d'en-tête, puis une ligne par titre. Colonnes obligatoires&nbsp;:{' '}
+          {l.enTete}
           {format.required_columns.map((colonne, rang) => (
             <span key={colonne}>
               {rang > 0 && ', '}
@@ -64,33 +68,31 @@ function Regles({ format }: { format: CsvFormat }) {
           ))}
           {format.optional_columns.length > 0 && (
             <>
-              &nbsp;; facultative&nbsp;:{' '}
+              {l.facultative}
               {format.optional_columns.map((colonne, rang) => (
                 <span key={colonne}>
                   {rang > 0 && ', '}
                   <code>{colonne}</code>
                 </span>
-              ))}{' '}
-              (le prix de revient, sans effet sur l'analyse)
+              ))}
+              {l.sansEffet}
             </>
           )}
           .
         </li>
         {format.delimiters.map((regle) => (
-          <li key={regle.delimiter}>
-            Séparateur {cite(regle.delimiter)}&nbsp;: décimale{' '}
-            {regle.decimal_separators.map((decimale) => cite(decimale)).join(' ou ')}.
-          </li>
+          <li key={regle.delimiter}>{l.separateurEt(regle.delimiter, regle.decimal_separators)}</li>
         ))}
         <li>
-          Espaces de milliers admises&nbsp;:{' '}
-          {format.thousands_separators.map((espace) => nomEspace(espace)).join(', ')}.
+          {l.espaces}
+          {format.thousands_separators.map((espace) => nomEspace(espace, langue)).join(', ')}.
         </li>
-        <li>Encodage&nbsp;: {format.encodings.map((code) => nomEncodage(code)).join(', ')}.</li>
         <li>
-          Au plus {compte(format.max_bytes, 'octet')} et {lignes(format.max_positions)}.
+          {l.encodages}
+          {format.encodings.map((code) => nomEncodage(code, langue)).join(', ')}.
         </li>
-        <li>L'import remplace toutes les positions du portefeuille.</li>
+        <li>{l.auPlus(format.max_bytes, format.max_positions)}</li>
+        <li>{l.remplaceTout}</li>
       </ul>
     </>
   )

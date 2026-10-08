@@ -23,6 +23,7 @@ import { useEffect, useRef } from 'react'
 
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
+import { useLangue } from '../lib/langue'
 import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
 import { cheminDe } from '../lib/route'
 import { BoutonLangue } from './BoutonLangue'
@@ -39,13 +40,14 @@ import styles from './Bandeau.module.css'
  * toutes lettres, sous le nom.
  */
 function Identite({ nom, navigation = true }: { nom: string | null; navigation?: boolean }) {
+  const { libelles } = useLangue()
   return (
     <div className={styles.identite}>
       <span className={styles.marque}>Mx Risk MGT</span>
       {nom !== null && <span className={styles.portefeuille}>{nom}</span>}
       {navigation && (
         <Lien vers={cheminDe({ vue: 'portefeuilles' })} className={styles.changer}>
-          {nom === null ? 'Portefeuilles' : 'Changer de portefeuille'}
+          {nom === null ? libelles.bandeau.portefeuilles : libelles.bandeau.changerDePortefeuille}
         </Lien>
       )}
     </div>
@@ -110,6 +112,7 @@ export function useHauteurPubliee() {
 }
 
 export function Bandeau({ analyse }: { analyse: Analysis }) {
+  const { langue, libelles } = useLangue()
   const reduite = phraseFenetreReduite(
     analyse.estimation_window,
     analyse.limiting_positions,
@@ -127,13 +130,13 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
             deux paires, et disparaît quand elles s'empilent. */}
         <p className={styles.ligne}>
           <span className={styles.paire}>
-            <span className={styles.libelle}>Valorisé au</span>{' '}
+            <span className={styles.libelle}>{libelles.bandeau.valoriseAu}</span>{' '}
             <span className={styles.valeur}>{dateISO(analyse.as_of)}</span>
           </span>
           <span className={styles.paire}>
-            <span className={styles.libelle}>Fenêtre d'estimation</span>{' '}
+            <span className={styles.libelle}>{libelles.bandeau.fenetreDEstimation}</span>{' '}
             <span className={styles.valeur}>
-              {seances(analyse.estimation_window.observations)}
+              {seances(analyse.estimation_window.observations, langue)}
             </span>
           </span>
         </p>
@@ -155,7 +158,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
           côté du thème, et le bandeau ne gagne pas en hauteur (§8.1). */}
       <div className={`${styles.total} ${styles.avecMontant}`}>
         <span className={styles.montant}>
-          {montant(analyse.total_value, analyse.valuation.currency)}
+          {montant(analyse.total_value, analyse.valuation.currency, langue)}
         </span>
         <span className={styles.langue}>
           <BoutonLangue />

@@ -16,6 +16,7 @@ import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { dateISO } from '../lib/format'
+import { useLangue } from '../lib/langue'
 import styles from './SectionMoteur.module.css'
 
 interface Props {
@@ -25,17 +26,14 @@ interface Props {
 }
 
 export function SectionMoteur({ observations, bandeau, asOf }: Props) {
-  const introduction = (
-    <>
-      Ce que l'outil retient des sections précédentes. Des constats, pas des conseils&nbsp;:
-      il décrit votre portefeuille, il ne recommande rien. Quand une phrase repose sur un
-      seuil, il est indiqué&nbsp;; un seuil choisi à la main le dit.
-    </>
-  )
+  const { libelles } = useLangue()
   return (
-    <Section ancre="moteur" numero={6} titre="Ce que le moteur en dit" introduction={introduction}>
+    <Section ancre="moteur" numero={6} titre={libelles.sections[5]} introduction={libelles.moteur.introduction}>
       <div className={commun.conditions}>
-        <Provenance disposition="ligne" lignes={[{ libelle: 'Valorisé au', valeur: dateISO(asOf) }]} />
+        <Provenance
+          disposition="ligne"
+          lignes={[{ libelle: libelles.provenance.valoriseAu, valeur: dateISO(asOf) }]}
+        />
       </div>
 
       <div className={styles.liste}>

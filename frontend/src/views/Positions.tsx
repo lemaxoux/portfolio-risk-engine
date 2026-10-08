@@ -34,9 +34,8 @@ import { AncresSections, pagesApplication, RailPages } from '../components/Navig
 import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
 import { DepotCsv } from '../components/DepotCsv'
 import { FormatCsv } from '../components/FormatCsv'
-import { dateEnToutesLettres, lignes as compteLignes } from '../lib/format'
-import { cite, messageDeLigne } from '../lib/phrases'
 import { useLangue } from '../lib/langue'
+import { messageDeLigne } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
 import {
   empreinteDesLignes,
@@ -74,9 +73,10 @@ interface Depart {
 export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Props) {
   const nom = portefeuille.name
   const page = cheminDe({ vue: 'positions', id: portefeuille.id })
-  const pages = pagesApplication('positions', portefeuille.id)
+  const { langue, libelles } = useLangue()
+  const l = libelles.positions
+  const pages = pagesApplication('positions', portefeuille.id, langue)
   const devise = portefeuille.valuation?.currency ?? 'USD'
-  const { langue } = useLangue()
   const { univers, erreur: erreurUnivers } = useUnivers(langue)
 
   // Les positions stockées, par leur CONTENU : une liste relue à l'identique
@@ -192,7 +192,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     setErreur(null)
     setRefusServeur([])
     setGeneraux([])
-    const { positions, refus: locaux } = preparerEnvoi(lignes)
+    const { positions, refus: locaux } = preparerEnvoi(lignes, langue)
     setRefusLocaux(locaux)
     if (locaux.length > 0) {
       montrerResume()
@@ -201,16 +201,13 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     setEnCours(true)
     try {
       const ecrit = await putPositions(portefeuille.id, positions, langue)
-      annoncer(
-        `Positions enregistrées le ${dateEnToutesLettres(ecrit.updated_at)}\u00a0: ${compteLignes(ecrit.positions_count)}.`,
-        page,
-      )
+      annoncer(l.enregistrees(ecrit.updated_at, ecrit.positions_count), page)
       await recharger()
       // Désactivé pendant l'envoi, le bouton a perdu le focus : il le
       // retrouve, plutôt que de laisser la tabulation repartir du début.
       setCibleDuFocus({ id: 'enregistrer-positions' })
     } catch (cause) {
-      const refusApi = versApiErreur(cause)
+      const refusApi = versApiErreur(cause, langue)
       if (refusApi.statut === 422 && refusApi.problems.length > 0) {
         const ranges = rangerRefus(refusApi.problems)
         setRefusServeur(ranges.parCellule)
@@ -230,7 +227,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
 
   return (
     <Cadre
-      titre={`Positions de ${cite(nom)}`}
+      titre={l.titre(nom)}
       page={page}
       annonce={annonce}
       entete={<BandeauSimple portefeuille={nom} />}
@@ -238,7 +235,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     >
       <AncresSections pages={pages} sections={false} />
       <h1 tabIndex={-1} className={styles.titre}>
-        Positions de {cite(nom)}
+        {l.titre(nom)}
       </h1>
 
       {sortie !== null && (
@@ -251,15 +248,13 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       )}
 
       <p className={styles.texte}>
-        {portefeuille.positions.length === 0
-          ? `${cite(nom)} n'a encore aucune position. Les saisir ci-dessous, une ligne par titre, ou importer un fichier.`
-          : "Le tableau est le portefeuille\u00a0: l'enregistrer remplace toutes ses positions par les lignes affichées."}
+        {portefeuille.positions.length === 0 ? l.aucune(nom) : l.tableauEstLePortefeuille}
       </p>
 
       <form className={styles.saisie} onSubmit={(e) => void enregistrer(e)} noValidate>
-        <h2 className={styles.sousTitreProche}>Saisir les positions</h2>
+        <h2 className={styles.sousTitreProche}>{l.saisir}</h2>
         <TableauSaisie
-          legende={`Positions de ${cite(nom)}, une ligne par titre`}
+          legende={l.legende(nom)}
           lignes={lignes}
           refus={refus}
           univers={univers}
@@ -268,20 +263,13 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
           quitter={quitter}
           retirer={retirer}
         />
-        <p className={controles.aide}>
-          Le prix de revient est facultatif&nbsp;: il ne sert à aucune mesure de risque.
-          «&nbsp;Historique depuis&nbsp;» est la première séance de prix du titre en base&nbsp;;
-          une ligne cotée depuis peu raccourcit la fenêtre de toute l'analyse.
-        </p>
+        <p className={controles.aide}>{l.aide}</p>
         {erreurUnivers !== null && (
-          <p className={controles.aide}>
-            Les noms des titres n'ont pas pu être lus ({erreurUnivers.detail}). La saisie reste
-            possible&nbsp;: chaque ticker est vérifié à l'enregistrement.
-          </p>
+          <p className={controles.aide}>{l.universIllisible(erreurUnivers.detail)}</p>
         )}
         <div>
           <button type="button" className={controles.bouton} onClick={ajouter}>
-            Ajouter une ligne
+            {l.ajouter}
           </button>
         </div>
 
@@ -299,10 +287,10 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
             ) : (
               <>
                 <p className={styles.question}>
-                  Rien n'a été enregistré&nbsp;:{' '}
+                  {l.rienEnregistre}
                   {tousLesRefus.length > 0
-                    ? `${compteLignes(new Set(tousLesRefus.map((r) => r.ligne)).size)} à corriger.`
-                    : 'la saisie est refusée.'}
+                    ? l.aCorriger(new Set(tousLesRefus.map((r) => r.ligne)).size)
+                    : l.saisieRefusee}
                 </p>
                 <ul className={styles.refusListe}>
                   {generaux.map((texte) => (
@@ -312,7 +300,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
                   ))}
                   {tousLesRefus.map((r) => (
                     <li key={cleDeRefus(r.ligne, r.champ)}>
-                      <Segments message={messageDeLigne(r.ligne, r.message)} />
+                      <Segments message={messageDeLigne(r.ligne, r.message, langue)} />
                     </li>
                   ))}
                 </ul>
@@ -328,23 +316,20 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
             className={`${controles.bouton} ${controles.principal}`}
             disabled={enCours}
           >
-            {enCours ? 'Enregistrement en cours…' : 'Enregistrer les positions'}
+            {enCours ? l.enregistrementEnCours : l.enregistrer}
           </button>
-          {modifie && <span className={controles.aide}>Modifications non enregistrées.</span>}
+          {modifie && <span className={controles.aide}>{l.nonEnregistrees}</span>}
         </div>
       </form>
 
-      <h2 className={styles.sousTitre}>Importer un fichier CSV</h2>
+      <h2 className={styles.sousTitre}>{l.importer}</h2>
       <DepotCsv
         portefeuilleId={portefeuille.id}
         nom={nom}
         positionsActuelles={portefeuille.positions.length}
         modifie={modifie}
         importe={async (lu) => {
-          annoncer(
-            `Portefeuille importé depuis ${cite(lu.source.filename ?? 'le fichier')}\u00a0: ${compteLignes(lu.positions_count)}.`,
-            page,
-          )
+          annoncer(l.importe(lu.source.filename, lu.positions_count), page)
           await recharger()
         }}
       />
@@ -365,6 +350,8 @@ const CHAMP_DE: Record<Saisissable, Champ> = {
  * enregistrer » suit le lien retenu.
  */
 function ConfirmationSortie({ quitter, rester }: { quitter: () => void; rester: () => void }) {
+  const { libelles } = useLangue()
+  const l = libelles.positions
   const question = useRef<HTMLParagraphElement>(null)
   useEffect(() => {
     question.current?.focus()
@@ -372,15 +359,14 @@ function ConfirmationSortie({ quitter, rester }: { quitter: () => void; rester: 
   return (
     <div className={styles.confirmation}>
       <p ref={question} tabIndex={-1} className={styles.question}>
-        Les modifications du tableau ne sont pas enregistrées. Quitter cette page les
-        perd.
+        {l.quitterLesPerd}
       </p>
       <div className={controles.groupe}>
         <button type="button" className={`${controles.bouton} ${controles.principal}`} onClick={rester}>
-          Rester sur la page
+          {l.rester}
         </button>
         <button type="button" className={controles.bouton} onClick={quitter}>
-          Quitter sans enregistrer
+          {l.quitter}
         </button>
       </div>
     </div>

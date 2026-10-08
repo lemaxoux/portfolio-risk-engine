@@ -12,16 +12,19 @@
  */
 import type { ReactNode } from 'react'
 
+import { LIBELLES } from '../contenu/libelles'
 import { TIRET_INDEFINI } from '../lib/format'
+import { useLangue } from '../lib/langue'
 
 /** Ce qu'un lecteur d'écran lit à la place du tiret. */
-export const TEXTE_ABSENT = 'non disponible'
+export const TEXTE_ABSENT = LIBELLES.fr.mesure.nonDisponible
 
 export function Absent() {
+  const { libelles } = useLangue()
   return (
     <>
       <span aria-hidden="true">{TIRET_INDEFINI}</span>
-      <span className="visuellement-cache">{TEXTE_ABSENT}</span>
+      <span className="visuellement-cache">{libelles.mesure.nonDisponible}</span>
     </>
   )
 }

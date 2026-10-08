@@ -14,7 +14,9 @@
 import * as Plot from '@observablehq/plot'
 
 import type { Contribution } from '../../api/types'
+import { LIBELLES } from '../../contenu/libelles'
 import { pourcentage, pointsSignes } from '../../lib/format'
+import type { Langue } from '../../lib/langue'
 import type { ContexteGraphique } from './Graphique'
 
 /** Hauteur d'une ligne de barre : lisible, et bien au-dessus d'une cible tactile. */
@@ -25,20 +27,21 @@ export function lignesParContribution(lignes: readonly Contribution[]): Contribu
   return [...lignes].sort((a, b) => b.contribution - a.contribution)
 }
 
-export function texteDeContribution(ligne: Contribution): string {
-  return (
-    `${ligne.ticker}\n` +
-    `part de la variance ${pourcentage(ligne.contribution, 1)}\n` +
-    `part du capital ${pourcentage(ligne.weight, 1)}\n` +
-    `écart ${pointsSignes(ligne.excess_over_weight, 1)}`
+export function texteDeContribution(ligne: Contribution, langue: Langue = 'fr'): string {
+  return LIBELLES[langue].graphiques.infobulleContribution(
+    ligne.ticker,
+    pourcentage(ligne.contribution, 1, langue),
+    pourcentage(ligne.weight, 1, langue),
+    pointsSignes(ligne.excess_over_weight, 1, langue),
   )
 }
 
 export function optionsContributions(
   lignes: readonly Contribution[],
-  { couleurs }: ContexteGraphique,
+  { couleurs, langue = 'fr' }: ContexteGraphique,
 ): Plot.PlotOptions {
   const ordre = lignesParContribution(lignes)
+  const l = LIBELLES[langue].graphiques
 
   return {
     height: ordre.length * HAUTEUR_LIGNE + 40,
@@ -48,7 +51,7 @@ export function optionsContributions(
     x: {
       zero: true,
       label: null,
-      tickFormat: (valeur: number) => pourcentage(valeur, 0),
+      tickFormat: (valeur: number) => pourcentage(valeur, 0, langue),
     },
     y: {
       domain: ordre.map((ligne) => ligne.ticker),
@@ -65,14 +68,14 @@ export function optionsContributions(
         x2: 'contribution',
         y: 'ticker',
         fill: couleurs.serie1,
-        ariaDescription: 'part de la variance',
+        ariaDescription: l.partDeLaVariance,
       }),
       Plot.tickX(ordre, {
         x: 'weight',
         y: 'ticker',
         stroke: couleurs.texte1,
         strokeWidth: 2,
-        ariaDescription: 'part du capital',
+        ariaDescription: l.partDuCapital,
       }),
       Plot.ruleX([0], { stroke: couleurs.bordureForte }),
       Plot.text(ordre, {
@@ -80,16 +83,16 @@ export function optionsContributions(
         frameAnchor: 'right',
         dx: 72,
         textAnchor: 'end',
-        text: (ligne: Contribution) => pointsSignes(ligne.excess_over_weight, 1),
+        text: (ligne: Contribution) => pointsSignes(ligne.excess_over_weight, 1, langue),
         fill: couleurs.texte1,
-        ariaDescription: 'écart en points',
+        ariaDescription: l.ecartEnPoints,
       }),
       Plot.tip(
         ordre,
         Plot.pointerY({
           x: 'contribution',
           y: 'ticker',
-          title: texteDeContribution,
+          title: (ligne: Contribution) => texteDeContribution(ligne, langue),
           fill: couleurs.surface1,
           stroke: couleurs.bordureForte,
         }),

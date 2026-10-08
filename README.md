@@ -2237,10 +2237,23 @@ tourner sur les mêmes cas que `choisirLangue`.
   enregistrées (`route.remplacerLaPage`). La langue ne change qu'une fois
   cette réponse connue.
 - **Les libellés** vivent dans `src/contenu/libelles.ts` (l'interface),
-  `libelles.fr.ts` et `libelles.en.ts`.
+  `libelles.fr.ts` et `libelles.en.ts` : navigation, bandeau, thème, titres,
+  chapeaux, colonnes, provenance, graphiques, pages, saisie, import, messages
+  du client de l'API. Un libellé qui cite un nombre ou un nom est une
+  fonction, que chaque langue écrit avec `format.ts` et ses propres
+  guillemets (`cite(…, 'en')` : “Démo”). Les composants les lisent par
+  `useLangue()` ; une fonction hors composant (`provenance.ts`, les
+  graphiques, `csv.ts`, `saisie.ts`, `pagesApplication`) prend la langue en
+  dernier argument, le français par défaut. Le français y est recopié tel
+  qu'il était écrit dans chaque composant, sauf « Bêta » dans le tableau de la
+  section 5. `libelles.test.ts` : mêmes clés, chaque fonction exercée dans
+  les deux langues, aucune traduction oubliée hors liste déclarée, les mêmes
+  nombres, et les règles de l'anglais (aucune espace avant la ponctuation
+  haute, aucune contraction, aucun mot français, rien de prescriptif) ;
+  `ponctuation.test.ts` lit en plus chaque fichier `.en.ts`.
 
-**Ce qui reste à faire, en session 2** : les libellés et les phrases de
-l'interface, la méthodologie anglaise, les relevés aux captures.
+**Ce qui reste à faire, en session 2** : les phrases de l'interface, la
+méthodologie anglaise, les relevés aux captures.
 
 ## Schéma de données
 

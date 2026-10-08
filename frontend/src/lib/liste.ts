@@ -35,7 +35,7 @@ export function useListe(langue: Langue = 'fr'): { etat: EtatListe; recharger: (
       const portefeuilles = await getPortfolios(langue)
       setEtat({ phase: 'prete', portefeuilles })
     } catch (cause) {
-      setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
+      setEtat({ phase: 'erreur', erreur: versApiErreur(cause, langue) })
     }
   }, [langue])
 

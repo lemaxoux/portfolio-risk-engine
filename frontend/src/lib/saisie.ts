@@ -25,8 +25,9 @@
  */
 import type { Position, PositionIn } from '../api/types'
 import type { Probleme } from '../api/client'
+import { LIBELLES } from '../contenu/libelles'
 import { decimal, decimalesDeColonne } from './format'
-import { cite } from './phrases'
+import type { Langue } from './langue'
 
 // ═══════════════════════════════════════════════════════════ Les nombres ══
 
@@ -123,10 +124,14 @@ export interface RefusDeCellule {
  * n'est pas vide, rien n'est envoyé : un nombre illisible ne peut pas être
  * transmis, et le serveur ne verrait qu'un champ manquant.
  */
-export function preparerEnvoi(lignes: readonly LigneSaisie[]): {
+export function preparerEnvoi(
+  lignes: readonly LigneSaisie[],
+  langue: Langue = 'fr',
+): {
   positions: PositionIn[]
   refus: RefusDeCellule[]
 } {
+  const l = LIBELLES[langue].saisie
   const positions: PositionIn[] = []
   const refus: RefusDeCellule[] = []
 
@@ -136,12 +141,12 @@ export function preparerEnvoi(lignes: readonly LigneSaisie[]): {
 
     const quantite = lireNombreSaisi(ligne.quantite)
     if (ligne.quantite.trim() === '') {
-      refus.push({ ligne: numero, champ: 'quantity', message: 'Quantité manquante.' })
+      refus.push({ ligne: numero, champ: 'quantity', message: l.quantiteManquante })
     } else if (quantite === null) {
       refus.push({
         ligne: numero,
         champ: 'quantity',
-        message: `${cite(ligne.quantite.trim())} n'est pas une quantité lisible. Écrire par exemple 40 ou 12,5.`,
+        message: l.quantiteIllisible(ligne.quantite.trim()),
       })
     }
 
@@ -152,7 +157,7 @@ export function preparerEnvoi(lignes: readonly LigneSaisie[]): {
         refus.push({
           ligne: numero,
           champ: 'cost_basis',
-          message: `${cite(ligne.prixRevient.trim())} n'est pas un prix de revient lisible. Écrire par exemple 185,20, ou laisser vide.`,
+          message: l.prixIllisible(ligne.prixRevient.trim()),
         })
       }
     }

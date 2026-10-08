@@ -256,3 +256,69 @@ describe('les textes du frontend', () => {
     expect([...feuilles, page].filter((fichier) => fichier.lignes.length > 0)).toEqual([])
   })
 })
+
+// ═══════════════════════════════════════════════ Les fichiers anglais (7D) ══
+
+/**
+ * Les fichiers anglais du client (chantier 7D) : `libelles.en.ts`,
+ * `phrases.en.ts`. L'anglais n'a AUCUNE espace avant « : », « ; », « ? »
+ * ou « ! », ni ordinaire ni insécable, et cite entre guillemets doubles,
+ * jamais entre « ». La garde française ci-dessus ne voit que l'espace
+ * ordinaire : une insécable posée par erreur en anglais lui échapperait.
+ */
+const FICHIER_ANGLAIS = /\.en\.tsx?$/
+const PONCTUATION_ANGLAISE = /\s[:;?!](?=\s|$)|[«»]/
+
+/** Les valeurs des chaînes et des gabarits d'un fichier, lues par le compilateur. */
+function chainesDe(code: string, chemin: string): string[] {
+  const source = ts.createSourceFile(chemin, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const chaines: string[] = []
+  const visiter = (noeud: ts.Node): void => {
+    if (
+      ts.isStringLiteral(noeud) ||
+      ts.isNoSubstitutionTemplateLiteral(noeud) ||
+      ts.isTemplateHead(noeud) ||
+      ts.isTemplateMiddle(noeud) ||
+      ts.isTemplateTail(noeud)
+    ) {
+      chaines.push(noeud.text)
+    }
+    ts.forEachChild(noeud, visiter)
+  }
+  visiter(source)
+  return chaines
+}
+
+function fautesAnglaises(code: string, chemin: string): string[] {
+  return chainesDe(code, chemin).filter((texte) => PONCTUATION_ANGLAISE.test(texte))
+}
+
+describe('les textes anglais du frontend', () => {
+  const anglais = fichiers(RACINE).filter((chemin) => FICHIER_ANGLAIS.test(chemin))
+
+  it('existent : un glob vide passerait au vert', () => {
+    expect(anglais.map((chemin) => relative(RACINE, chemin).replaceAll('\\', '/'))).toContain(
+      'contenu/libelles.en.ts',
+    )
+  })
+
+  it('n’ont aucune espace avant « : », « ; », « ? », « ! », ni guillemet français', () => {
+    const fautes = anglais.flatMap((chemin) =>
+      fautesAnglaises(readFileSync(chemin, 'utf-8'), chemin).map(
+        (texte) => `${relative(RACINE, chemin)} : ${texte.slice(0, 70)}`,
+      ),
+    )
+    expect(fautes).toEqual([])
+  })
+
+  it('la garde voit l’espace, ordinaire comme insécable, et le guillemet français', () => {
+    const temoin = (code: string) => fautesAnglaises(code, 'temoin.en.ts').length > 0
+    expect(temoin(`const a = 'Threshold : 0.70'`)).toBe(true)
+    expect(temoin(`const b = 'Threshold\\u00a0: 0.70'`)).toBe(true)
+    expect(temoin('const c = `${n}\\u202f%`')).toBe(false)
+    expect(temoin(`const d = '« Demo »'`)).toBe(true)
+    expect(temoin(`const e = 'Threshold: 0.70'`)).toBe(false)
+    expect(temoin(`const f = 'Delete “Demo”?'`)).toBe(false)
+    expect(temoin(`const g = vrai ? 'yes' : 'no'`)).toBe(false)
+  })
+})

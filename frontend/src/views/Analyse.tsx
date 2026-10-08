@@ -40,7 +40,6 @@ import {
 } from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
 import { useLangue } from '../lib/langue'
-import { cite } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import { SectionAuPire } from './SectionAuPire'
@@ -63,7 +62,8 @@ interface Props {
 }
 
 export function VueAnalyse({ portefeuille, annonce }: Props) {
-  const { langue } = useLangue()
+  const { langue, libelles } = useLangue()
+  const l = libelles.analyse
   const vide = portefeuille.positions.length === 0
   const positionsStockees = JSON.stringify(portefeuille.positions)
   const [etat, setEtat] = useState<Etat>({ phase: 'chargement' })
@@ -83,7 +83,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
       },
       (cause: unknown) => {
         if (!vivant) return
-        const refus = versApiErreur(cause)
+        const refus = versApiErreur(cause, langue)
         // 409 : le portefeuille existe, il a des positions, mais il n'est pas
         // analysable en l'état. C'est un ÉTAT de la base, pas une panne.
         setEtat(
@@ -99,8 +99,8 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
   }, [portefeuille.id, positionsStockees, vide, essai, langue])
 
   const nom = portefeuille.name
-  const pages = pagesApplication('analyse', portefeuille.id)
-  const titre = `Analyse de ${cite(nom)}`
+  const pages = pagesApplication('analyse', portefeuille.id, langue)
+  const titre = l.titre(nom)
   const page = cheminDe({ vue: 'analyse', id: portefeuille.id })
 
   if (vide) {
@@ -115,13 +115,11 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         <AncresSections pages={pages} sections={false} />
         <div className={styles.vide}>
           <h1 tabIndex={-1} className={styles.titre}>
-            {cite(nom)} n'a encore aucune position
+            {l.vide(nom)}
           </h1>
-          <p className={styles.texte}>
-            L'analyse décrit des positions&nbsp;: ce portefeuille n'en a aucune.
-          </p>
+          <p className={styles.texte}>{l.decritDesPositions}</p>
           <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
-            Saisir ou importer les positions
+            {l.saisirOuImporter}
           </Lien>
           <FormatCsv niveau={2} />
         </div>
@@ -141,16 +139,13 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         <AncresSections pages={pages} sections={false} />
         <div className={styles.vide}>
           <h1 tabIndex={-1} className={styles.titre}>
-            {cite(nom)} ne s'analyse pas en l'état
+            {l.insuffisant(nom)}
           </h1>
-          <p className={styles.texte}>
-            Ses positions sont en base, mais le moteur n'en tire pas d'analyse. Il dit
-            pourquoi, et ce qu'il faut faire&nbsp;:
-          </p>
+          <p className={styles.texte}>{l.ditPourquoi}</p>
           <MessageErreur erreur={etat.raison} alerte={false} />
           <p className={`${styles.texte} ${styles.suite}`}>
             <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
-              Revoir les positions
+              {l.revoirLesPositions}
             </Lien>
           </p>
         </div>
@@ -186,7 +181,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
                 className={controles.bouton}
                 onClick={() => setEssai((n) => n + 1)}
               >
-                Recharger l'analyse
+                {l.rechargerLAnalyse}
               </button>
             }
           />

@@ -4,8 +4,14 @@
  * remplissent. TypeScript refuse une clé manquante dans une langue, et
  * `libelles.test.ts` une traduction oubliée.
  *
- * Ce module ne décide rien : quel libellé afficher se décide dans les
- * composants, sur des champs publiés ; ici, chaque langue l'écrit.
+ * Un libellé qui cite un nombre, une date ou un nom est une fonction : chaque
+ * langue l'écrit avec `lib/format` dans sa propre écriture (« 6 lignes »,
+ * « 6 holdings »), et cite un nom avec ses propres guillemets. Ce module ne
+ * décide rien : quel libellé afficher se décide dans les composants, sur des
+ * champs publiés ; ici, chaque langue l'écrit.
+ *
+ * Les phrases de lecture des mesures, qui choisissent leur tournure sur un
+ * signe publié, sont dans `lib/phrases.fr.ts` et `lib/phrases.en.ts`.
  */
 import { LIBELLES_EN } from './libelles.en'
 import { LIBELLES_FR } from './libelles.fr'
@@ -17,6 +23,9 @@ import type { Langue } from '../lib/langue'
  */
 export type Destination = 'analyse' | 'positions' | 'portefeuilles' | 'methodologie' | 'page'
 
+/** Les pages que la navigation propose. */
+export type PageDuSite = 'analyse' | 'positions' | 'portefeuilles' | 'methodologie'
+
 export interface Libelles {
   /** Le bouton qui passe à l'autre langue. */
   readonly langue: {
@@ -27,6 +36,338 @@ export interface Libelles {
     /** Le bouton dit la page où il mène, comme son message. */
     readonly ouvrir: Readonly<Record<Destination, string>>
     readonly condition: Readonly<Record<Destination, string>>
+  }
+  /** Le démarrage : avant l'acceptation, ou quand la liste ne se lit pas. */
+  readonly application: {
+    readonly chargement: string
+    readonly apiInjoignable: string
+    readonly rechargerLaPage: string
+    readonly portefeuillesIllisibles: string
+    readonly rechargerLaListe: string
+  }
+  /** Ce que le client de l'API dit d'un échec qui n'a pas de corps du serveur. */
+  readonly api: {
+    readonly serveurInjoignable: string
+    readonly erreurDuClient: (cause: string) => string
+    readonly reponseInattendue: (statut: number) => string
+    readonly corpsVide: string
+  }
+  readonly cadre: {
+    readonly allerAuContenu: string
+  }
+  readonly bandeau: {
+    readonly portefeuilles: string
+    readonly changerDePortefeuille: string
+    readonly valoriseAu: string
+    readonly fenetreDEstimation: string
+  }
+  readonly theme: {
+    readonly clair: string
+    readonly sombre: string
+    readonly suivreLeSysteme: string
+    /** Le libellé d'action : « Thème sombre ». */
+    readonly vers: (nom: string) => string
+    /** L'état courant : « thème sombre, comme le système ». */
+    readonly commeLeSysteme: (nom: string) => string
+    /** L'état courant, figé : « thème sombre, figé ». */
+    readonly fige: (nom: string) => string
+    /** Le nom accessible : le libellé, puis l'état. */
+    readonly nomAccessible: (libelle: string, etat: string) => string
+  }
+  readonly navigation: {
+    readonly pages: Readonly<Record<PageDuSite, string>>
+    readonly etiquettePages: string
+    /** Les six sections de l'analyse, dans l'ordre, telles que le rail les nomme. */
+    readonly sections: readonly [string, string, string, string, string, string]
+    readonly sectionsDeLAnalyse: string
+    readonly partiesDeLaMethodologie: string
+  }
+  readonly mesure: {
+    readonly detailsDuCalcul: string
+    /** Ce qu'un lecteur d'écran lit à la place du tiret d'une valeur absente. */
+    readonly nonDisponible: string
+  }
+  readonly provenance: {
+    readonly fenetre: string
+    readonly periode: string
+    readonly methode: string
+    readonly degresDeLiberte: string
+    readonly calcul: string
+    readonly controle: string
+    /** La ligne de contrôle quand le moteur dit pourquoi il manque. */
+    readonly controleIndisponible: (raison: string) => string
+    /** Le contrôle d'une autre méthode : « Monte Carlo : ». */
+    readonly controleDe: (methode: string) => string
+    readonly seancesDansLaQueue: string
+    readonly seuilRendement: string
+    readonly quotidienne: string
+    readonly unite: string
+    readonly valoriseAu: string
+  }
+  readonly observation: {
+    /** L'étiquette d'une ligne de seuil, ponctuation comprise. */
+    readonly seuil: string
+    readonly reference: string
+  }
+  /** Le titre de chaque section, numéro à part. */
+  readonly sections: readonly [string, string, string, string, string, string]
+  /** Section 1. */
+  readonly portefeuille: {
+    readonly colonnes: {
+      readonly ticker: string
+      readonly nom: string
+      readonly quantite: string
+      readonly prix: (devise: string) => string
+      readonly valeur: (devise: string) => string
+      readonly poids: string
+    }
+    readonly total: string
+    readonly prix: string
+    readonly prixLu: string
+    readonly devise: string
+    readonly legende: string
+  }
+  /** Section 2. */
+  readonly jourOrdinaire: {
+    readonly observes: string
+    readonly chapeauObserves: string
+    readonly varHistorique: (niveau: string) => string
+    readonly titreHistogramme: string
+    readonly uniteHistogramme: (largeur: number) => string
+    readonly courbe: string
+    readonly chapeauCourbe: string
+    readonly varNormale: (niveau: string) => string
+    readonly varStudent: (niveau: string) => string
+    readonly studentSansRaison: string
+    readonly ampleur: string
+    readonly volatilite: string
+    readonly piresJours: string
+    readonly chapeauPiresJours: string
+    readonly cvar: (niveau: string) => string
+  }
+  /** Section 3. */
+  readonly auPire: {
+    readonly perteMaximale: string
+    readonly pic: string
+    readonly creux: string
+    readonly retourAuPic: string
+    readonly niveaux: string
+    readonly ou: string
+    readonly titreSansDepart: string
+    readonly titre: (devise: string, depart: string) => string
+    readonly unite: (depart: string | null) => string
+    readonly descriptionVide: string
+    readonly description: (
+      depart: string,
+      valeurFinale: number,
+      arrivee: string,
+      creux: number,
+      pic: string,
+      fond: string,
+    ) => string
+  }
+  /** Section 4. */
+  readonly risque: {
+    readonly introduction: string
+    readonly combien: string
+    readonly enCapital: string
+    readonly enRisque: string
+    readonly lignes: string
+    readonly nonEstimable: string
+    readonly poids: string
+    readonly contributionsNonEstimables: string
+    readonly chapeauPoids: string
+    readonly titreBarres: string
+    readonly uniteBarres: string
+    readonly descriptionBarres: (lignes: number, ecarts: string) => string
+    readonly cleBarre: string
+    readonly cleTrait: string
+    readonly legendeTableau: string
+    readonly colonnes: {
+      readonly ticker: string
+      readonly variance: string
+      readonly capital: string
+      readonly ecart: string
+    }
+    readonly nonCouverte: string
+    readonly ensemble: string
+    readonly chapeauEnsemble: string
+    readonly correlationNonEstimable: string
+    readonly titreCarte: string
+    readonly uniteCarte: string
+    readonly descriptionCarte: (lignes: number) => string
+    readonly lectureEchelle: string
+    readonly diagonale: string
+  }
+  /** Section 5. */
+  readonly crise: {
+    readonly introduction: string
+    readonly regimeIndisponible: string
+    readonly legendeRegime: (indice: string) => string
+    readonly periodeDEstimation: string
+    readonly colonnes: { readonly mesure: string; readonly crise: string }
+    readonly lignesRegime: {
+      readonly beta: string
+      readonly r2: string
+      readonly seances: string
+      readonly periode: string
+    }
+    readonly auPointBas: string
+    readonly pireMoment: string
+    readonly couverture: string
+    readonly couvertes: (couvertes: number, total: number) => string
+    readonly exclue: (poids: number) => string
+    readonly seances: string
+    readonly poids: string
+    readonly poidsFiges: (date: string) => string
+    readonly reference: string
+  }
+  /** Section 6. */
+  readonly moteur: {
+    readonly introduction: string
+  }
+  /** Les annotations et infobulles des graphiques. */
+  readonly graphiques: {
+    readonly partDeLaVariance: string
+    readonly partDuCapital: string
+    readonly ecartEnPoints: string
+    readonly infobulleContribution: (ticker: string, variance: string, capital: string, ecart: string) => string
+    readonly correlations: string
+    readonly diagonale: string
+    readonly valeursDeLaDiagonale: string
+    readonly valeurs: string
+    readonly infobulleCorrelation: (ligne: string, colonne: string, valeur: string) => string
+    readonly classe: (seances: number, bas: number, haut: number) => string
+    readonly queueDeLaCVaR: string
+    readonly queue: (niveau: number, seances: number) => string
+    readonly classesDeRendements: string
+    readonly creuxMaximal: string
+    readonly courbeDeValeur: string
+    readonly pic: string
+    readonly creux: string
+  }
+  readonly analyse: {
+    readonly titre: (nom: string) => string
+    readonly vide: (nom: string) => string
+    readonly decritDesPositions: string
+    readonly saisirOuImporter: string
+    readonly insuffisant: (nom: string) => string
+    readonly ditPourquoi: string
+    readonly revoirLesPositions: string
+    readonly rechargerLAnalyse: string
+  }
+  readonly introuvable: {
+    readonly page: string
+    readonly aucunePage: string
+    readonly adresse: (chemin: string) => string
+    readonly voirLesPortefeuilles: string
+    readonly portefeuille: string
+    readonly numero: (id: number) => string
+  }
+  readonly portefeuilles: {
+    readonly titre: string
+    readonly aucun: string
+    readonly creerUn: string
+    readonly suiteDeLaCreation: string
+    readonly colonnes: {
+      readonly nom: string
+      readonly lignes: string
+      readonly valeur: string
+      readonly valorise: string
+      readonly modifie: string
+      readonly actions: string
+    }
+    readonly jamais: string
+    readonly positionsDe: string
+    readonly deNom: (nom: string) => string
+    readonly supprimer: string
+    readonly nomCite: (nom: string) => string
+    readonly chacun: string
+    readonly legende: string
+    readonly supprime: (nom: string) => string
+    readonly nouveau: string
+    readonly aucunePosition: string
+    readonly nonValorise: (raison: string | null) => string
+    readonly question: (nom: string, positions: number) => string
+    readonly suppressionEnCours: string
+    readonly supprimerDefinitivement: string
+    readonly annuler: string
+    readonly nomVide: string
+    readonly cree: (nom: string) => string
+    readonly nom: string
+    readonly aideNom: string
+    readonly creationEnCours: string
+    readonly creer: string
+  }
+  readonly positions: {
+    readonly titre: (nom: string) => string
+    readonly aucune: (nom: string) => string
+    readonly tableauEstLePortefeuille: string
+    readonly saisir: string
+    readonly legende: (nom: string) => string
+    readonly aide: string
+    readonly universIllisible: (detail: string) => string
+    readonly ajouter: string
+    readonly rienEnregistre: string
+    readonly aCorriger: (lignes: number) => string
+    readonly saisieRefusee: string
+    readonly enregistrementEnCours: string
+    readonly enregistrer: string
+    readonly nonEnregistrees: string
+    readonly importer: string
+    readonly enregistrees: (date: string, positions: number) => string
+    readonly importe: (fichier: string | null, positions: number) => string
+    readonly quitterLesPerd: string
+    readonly rester: string
+    readonly quitter: string
+  }
+  readonly saisie: {
+    readonly ticker: string
+    readonly nom: string
+    readonly historique: string
+    readonly quantite: string
+    readonly prix: (devise: string) => string
+    readonly numero: string
+    readonly retirer: string
+    readonly ligne: string
+    readonly retirerLaLigne: (numero: number) => string
+    readonly titreInconnu: string
+    readonly ligneDeRefus: (ligne: number, message: string) => string
+    readonly quantiteManquante: string
+    readonly quantiteIllisible: (saisi: string) => string
+    readonly prixIllisible: (saisi: string) => string
+  }
+  readonly csv: {
+    readonly deposer: string
+    readonly fichierCsv: string
+    readonly fichierChoisi: (nom: string, octets: number) => string
+    readonly donne: (nom: string) => string
+    readonly remplace: (positions: number, nom: string) => string
+    readonly modificationsPerdues: string
+    readonly importEnCours: string
+    readonly importer: string
+    readonly lu: string
+    readonly fichier: string
+    readonly sansNom: string
+    readonly encodage: string
+    readonly separateur: string
+    readonly decimale: string
+    readonly lignesLues: string
+    readonly lignes: (nombre: number) => string
+    readonly format: string
+    readonly formatIllisible: string
+    readonly exemple: string
+    readonly enTete: string
+    readonly facultative: string
+    readonly sansEffet: string
+    readonly separateurEt: (separateur: string, decimales: readonly string[]) => string
+    readonly espaces: string
+    readonly encodages: string
+    readonly auPlus: (octets: number, positions: number) => string
+    readonly remplaceTout: string
+    readonly nomsEncodages: Readonly<Record<'utf-8' | 'utf-8-sig' | 'cp1252', string>>
+    readonly nomsDecimales: Readonly<Record<',' | '.' | 'mixte' | 'aucune', string>>
+    readonly nomsEspaces: Readonly<Record<string, string>>
   }
 }
 

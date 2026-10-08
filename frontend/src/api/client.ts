@@ -34,6 +34,7 @@ import type {
   PositionsWritten,
   Security,
 } from './types'
+import { LIBELLES } from '../contenu/libelles'
 import type { Langue } from '../lib/langue'
 
 const BASE = '/api'
@@ -151,16 +152,14 @@ export class ApiErreur extends Error {
 
 /**
  * Toute erreur en `ApiErreur` : celles de l'API passent telles quelles, une
- * erreur du client est nommée comme telle plutôt que tue.
+ * erreur du client est nommée comme telle plutôt que tue, dans la langue de
+ * la page.
  */
-export function versApiErreur(cause: unknown): ApiErreur {
+export function versApiErreur(cause: unknown, langue: Langue = 'fr'): ApiErreur {
   return cause instanceof ApiErreur
     ? cause
-    : new ApiErreur(0, `Erreur inattendue du client\u00a0: ${String(cause)}`)
+    : new ApiErreur(0, LIBELLES[langue].api.erreurDuClient(String(cause)))
 }
-
-const SERVEUR_INJOIGNABLE =
-  "L'API ne répond pas. La démarrer\u00a0: python -m backend.api"
 
 /**
  * Ce qu'une requête envoie. `json` est sérialisé ; `fichier` part en
@@ -174,14 +173,14 @@ interface Envoi {
   readonly fichier?: File
 }
 
-async function lire<T>(chemin: string, envoi?: Envoi): Promise<T> {
+async function lire<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T> {
   let reponse: Response
   try {
-    reponse = await fetch(`${BASE}${chemin}`, requete(envoi))
+    reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
   } catch {
-    throw new ApiErreur(0, SERVEUR_INJOIGNABLE)
+    throw new ApiErreur(0, LIBELLES[langue].api.serveurInjoignable)
   }
-  return decoder<T>(reponse)
+  return decoder<T>(reponse, langue)
 }
 
 function requete(envoi: Envoi | undefined): RequestInit {
@@ -203,18 +202,18 @@ function requete(envoi: Envoi | undefined): RequestInit {
 }
 
 /** Une écriture qui ne rend rien (204) : le succès EST la réponse. */
-async function ecrireSansCorps(chemin: string, envoi: Envoi): Promise<void> {
+async function ecrireSansCorps(chemin: string, langue: Langue, envoi: Envoi): Promise<void> {
   let reponse: Response
   try {
-    reponse = await fetch(`${BASE}${chemin}`, requete(envoi))
+    reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
   } catch {
-    throw new ApiErreur(0, SERVEUR_INJOIGNABLE)
+    throw new ApiErreur(0, LIBELLES[langue].api.serveurInjoignable)
   }
   if (reponse.ok) return
-  await decoder<never>(reponse)
+  await decoder<never>(reponse, langue)
 }
 
-async function decoder<T>(reponse: Response): Promise<T> {
+async function decoder<T>(reponse: Response, langue: Langue): Promise<T> {
   // Le corps est lu comme du TEXTE avant d'être décodé : si l'API rendait autre
   // chose que du JSON, `response.json()` lèverait une erreur de syntaxe qui ne
   // dirait pas ce qui est arrivé. Ici on peut montrer ce qu'on a reçu.
@@ -229,12 +228,12 @@ async function decoder<T>(reponse: Response): Promise<T> {
   if (!reponse.ok) {
     throw new ApiErreur(
       reponse.status,
-      detailDe(corps) ?? `Réponse ${reponse.status} inattendue de l'API.`,
+      detailDe(corps) ?? LIBELLES[langue].api.reponseInattendue(reponse.status),
       problemesDe(corps),
     )
   }
   if (corps === null) {
-    throw new ApiErreur(reponse.status, "L'API a répondu un corps vide.")
+    throw new ApiErreur(reponse.status, LIBELLES[langue].api.corpsVide)
   }
   return corps as T
 }
@@ -252,15 +251,15 @@ function problemesDe(corps: unknown): Probleme[] {
 }
 
 export function getMeta(langue: Langue = 'fr'): Promise<Meta> {
-  return lire<Meta>(avecLangue('/meta', langue))
+  return lire<Meta>('/meta', langue)
 }
 
 export function getDisclaimer(langue: Langue = 'fr'): Promise<Disclaimer> {
-  return lire<Disclaimer>(avecLangue('/disclaimer', langue))
+  return lire<Disclaimer>('/disclaimer', langue)
 }
 
 export function getAnalysis(portfolioId: number, langue: Langue = 'fr'): Promise<Analysis> {
-  return lire<Analysis>(avecLangue(`/portfolios/${portfolioId}/analysis`, langue))
+  return lire<Analysis>(`/portfolios/${portfolioId}/analysis`, langue)
 }
 
 /**
@@ -269,28 +268,28 @@ export function getAnalysis(portfolioId: number, langue: Langue = 'fr'): Promise
  * est vide — par ses positions, jamais par le texte d'une erreur.
  */
 export function getPortfolios(langue: Langue = 'fr'): Promise<PortfolioDetail[]> {
-  return lire<PortfolioDetail[]>(avecLangue('/portfolios', langue))
+  return lire<PortfolioDetail[]>('/portfolios', langue)
 }
 
 /** L'univers : tickers, noms, et première séance de prix de chacun. */
 export function getSecurities(langue: Langue = 'fr'): Promise<Security[]> {
-  return lire<Security[]>(avecLangue('/securities', langue))
+  return lire<Security[]>('/securities', langue)
 }
 
 /** Le format que lit l'import CSV, publié par le lecteur lui-même. */
 export function getCsvFormat(langue: Langue = 'fr'): Promise<CsvFormat> {
-  return lire<CsvFormat>(avecLangue('/csv-format', langue))
+  return lire<CsvFormat>('/csv-format', langue)
 }
 
 export function createPortfolio(nom: string, langue: Langue = 'fr'): Promise<Portfolio> {
-  return lire<Portfolio>(avecLangue('/portfolios', langue), {
+  return lire<Portfolio>('/portfolios', langue, {
     methode: 'POST',
     json: { name: nom },
   })
 }
 
 export function deletePortfolio(portfolioId: number, langue: Langue = 'fr'): Promise<void> {
-  return ecrireSansCorps(avecLangue(`/portfolios/${portfolioId}`, langue), { methode: 'DELETE' })
+  return ecrireSansCorps(`/portfolios/${portfolioId}`, langue, { methode: 'DELETE' })
 }
 
 /** Remplace TOUTES les positions : le tableau envoyé EST le portefeuille. */
@@ -299,7 +298,7 @@ export function putPositions(
   positions: readonly PositionIn[],
   langue: Langue = 'fr',
 ): Promise<PositionsWritten> {
-  return lire<PositionsWritten>(avecLangue(`/portfolios/${portfolioId}/positions`, langue), {
+  return lire<PositionsWritten>(`/portfolios/${portfolioId}/positions`, langue, {
     methode: 'PUT',
     json: { positions },
   })
@@ -311,7 +310,7 @@ export function importCsv(
   fichier: File,
   langue: Langue = 'fr',
 ): Promise<CsvImport> {
-  return lire<CsvImport>(avecLangue(`/portfolios/${portfolioId}/positions/csv`, langue), {
+  return lire<CsvImport>(`/portfolios/${portfolioId}/positions/csv`, langue, {
     methode: 'POST',
     fichier,
   })

@@ -16,40 +16,30 @@ import { useEffect, useState } from 'react'
 
 import { ApiErreur, getCsvFormat, versApiErreur } from '../api/client'
 import type { CsvFormat, CsvSource } from '../api/types'
+import { LIBELLES } from '../contenu/libelles'
 import type { Langue } from './langue'
-import { cite } from './phrases'
 
-const ENCODAGES: Record<CsvSource['encoding'], string> = {
-  'utf-8': 'UTF-8',
-  'utf-8-sig': "UTF-8 avec marque d'ordre des octets (BOM)",
-  cp1252: 'Windows-1252 (CP1252)',
-}
-
-export function nomEncodage(code: string): string {
-  return code in ENCODAGES ? ENCODAGES[code as CsvSource['encoding']] : code
-}
-
-const DECIMALES: Record<CsvSource['decimal_separator'], string> = {
-  ',': cite(','),
-  '.': cite('.'),
-  mixte: 'mixte\u00a0: virgules et points dans le même fichier',
-  aucune: 'aucune\u00a0: tous les nombres sont entiers',
+/**
+ * Les noms vivent dans les libellés de chaque langue (`contenu/libelles.*`) :
+ * leurs tables sont typées sur les valeurs fermées de l'API, et une valeur
+ * ajoutée côté serveur sans nom ne compile pas.
+ */
+export function nomEncodage(code: string, langue: Langue = 'fr'): string {
+  const noms = LIBELLES[langue].csv.nomsEncodages
+  return code in noms ? noms[code as CsvSource['encoding']] : code
 }
 
 /** La décimale OBSERVÉE dans un fichier importé. */
-export function nomDecimale(code: CsvSource['decimal_separator']): string {
-  return DECIMALES[code]
-}
-
-const ESPACES: Record<string, string> = {
-  ' ': 'ordinaire',
-  '\u00A0': 'insécable',
-  '\u202F': 'fine insécable',
+export function nomDecimale(code: CsvSource['decimal_separator'], langue: Langue = 'fr'): string {
+  return LIBELLES[langue].csv.nomsDecimales[code]
 }
 
 /** Une espace de milliers admise, nommée — elle ne se voit pas écrite. */
-export function nomEspace(caractere: string): string {
-  return ESPACES[caractere] ?? `U+${caractere.codePointAt(0)?.toString(16).toUpperCase() ?? '?'}`
+export function nomEspace(caractere: string, langue: Langue = 'fr'): string {
+  return (
+    LIBELLES[langue].csv.nomsEspaces[caractere] ??
+    `U+${caractere.codePointAt(0)?.toString(16).toUpperCase() ?? '?'}`
+  )
 }
 
 // ═══════════════════════════════════════════════ Le format, une fois lu ══
@@ -85,7 +75,7 @@ export function useFormatCsv(langue: Langue = 'fr'): {
         if (vivant) setFormat(lu)
       },
       (cause: unknown) => {
-        if (vivant) setErreur(versApiErreur(cause))
+        if (vivant) setErreur(versApiErreur(cause, langue))
       },
     )
     return () => {

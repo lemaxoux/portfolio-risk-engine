@@ -33,6 +33,7 @@
 import * as Plot from '@observablehq/plot'
 
 import type { Matrix } from '../../api/types'
+import { LIBELLES } from '../../contenu/libelles'
 import { decimal } from '../../lib/format'
 import { encreLisible, type Couleurs } from './couleurs'
 import type { ContexteGraphique } from './Graphique'
@@ -141,8 +142,9 @@ export function largeurMaxCarte(nombre: number): number {
 
 export function optionsCarteCorrelation(
   matrice: Matrix,
-  { couleurs, largeur }: ContexteGraphique,
+  { couleurs, largeur, langue = 'fr' }: ContexteGraphique,
 ): Plot.PlotOptions {
+  const l = LIBELLES[langue].graphiques
   const cellules = cellulesDe(matrice)
   const diagonale = cellules.filter(estDiagonale)
   const horsDiagonale = cellules.filter((c) => !estDiagonale(c))
@@ -173,29 +175,29 @@ export function optionsCarteCorrelation(
         y: 'ligne',
         fill: 'valeur',
         inset: RETRAIT_CELLULE,
-        ariaDescription: 'corrélations',
+        ariaDescription: l.correlations,
       }),
       Plot.cell(diagonale, {
         x: 'colonne',
         y: 'ligne',
         fill: couleurs.surface1,
         inset: RETRAIT_CELLULE,
-        ariaDescription: 'diagonale',
+        ariaDescription: l.diagonale,
       }),
       Plot.text(diagonale, {
         x: 'colonne',
         y: 'ligne',
-        text: (c: Cellule) => decimal(c.valeur, 2),
+        text: (c: Cellule) => decimal(c.valeur, 2, langue),
         fill: couleurs.texte2,
-        ariaDescription: 'valeurs de la diagonale',
+        ariaDescription: l.valeursDeLaDiagonale,
       }),
       ...encres.map((encre, rang) =>
         Plot.text(parEncre[rang] ?? [], {
           x: 'colonne',
           y: 'ligne',
-          text: (c: Cellule) => decimal(c.valeur, 2),
+          text: (c: Cellule) => decimal(c.valeur, 2, langue),
           fill: encre,
-          ariaDescription: 'valeurs',
+          ariaDescription: l.valeurs,
         }),
       ),
       Plot.tip(
@@ -204,7 +206,7 @@ export function optionsCarteCorrelation(
           x: 'colonne',
           y: 'ligne',
           title: (c: Cellule) =>
-            `${c.ligne} et ${c.colonne}\ncorrélation ${decimal(c.valeur, 2)}`,
+            l.infobulleCorrelation(c.ligne, c.colonne, decimal(c.valeur, 2, langue)),
           fill: couleurs.surface1,
           stroke: couleurs.bordureForte,
         }),

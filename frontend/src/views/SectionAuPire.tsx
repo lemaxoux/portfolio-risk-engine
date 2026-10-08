@@ -21,25 +21,29 @@ import type { LigneProvenance } from '../components/Provenance'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import {
-  ESPACE_INSECABLE,
-  dateEnToutesLettres,
-  dateISO,
-  decimal,
-  pourcentage,
-} from '../lib/format'
+import { LIBELLES } from '../contenu/libelles'
+import { dateISO, decimal, pourcentage } from '../lib/format'
+import { useLangue, type Langue } from '../lib/langue'
 import { introAuPire, lectureCreux, neDitPasCreux } from '../lib/phrases'
 import { lignesDeFenetre } from '../lib/provenance'
 
 /** Ce que lit un lecteur d'écran à la place de la courbe (§13). */
-export function descriptionRichesse(serie: PortfolioSeries, creux: Drawdown): string {
+export function descriptionRichesse(
+  serie: PortfolioSeries,
+  creux: Drawdown,
+  langue: Langue = 'fr',
+): string {
+  const l = LIBELLES[langue].auPire
   const depart = serie.wealth[0]
   const arrivee = serie.wealth[serie.wealth.length - 1]
-  if (depart === undefined || arrivee === undefined) return 'Courbe de richesse vide.'
-  return (
-    `Une unité investie le ${dateISO(depart.date)} vaut ${decimal(arrivee.value, 2)} ` +
-    `le ${dateISO(arrivee.date)}${ESPACE_INSECABLE}; perte maximale de ${pourcentage(creux.value, 1)} ` +
-    `entre le pic du ${dateISO(creux.peak_date)} et le creux du ${dateISO(creux.trough_date)}.`
+  if (depart === undefined || arrivee === undefined) return l.descriptionVide
+  return l.description(
+    depart.date,
+    arrivee.value,
+    arrivee.date,
+    creux.value,
+    creux.peak_date,
+    creux.trough_date,
   )
 }
 
@@ -52,6 +56,8 @@ interface Props {
 }
 
 export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.auPire
   const options = useCallback(
     (contexte: ContexteGraphique) =>
       optionsRichesse({ richesse: serie.wealth, creux }, contexte),
@@ -64,40 +70,36 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
   const retour: LigneProvenance[] =
     creux.recovery_date === null
       ? []
-      : [{ libelle: 'Retour au pic', valeur: dateISO(creux.recovery_date) }]
+      : [{ libelle: l.retourAuPic, valeur: dateISO(creux.recovery_date) }]
 
   return (
-    <Section ancre="au-pire" numero={3} titre="Ce qu'il a perdu au pire" introduction={introduction}>
+    <Section ancre="au-pire" numero={3} titre={libelles.sections[2]} introduction={introduction}>
       <div className={commun.rangee}>
         <Measure
-          libelle="Perte maximale pic-creux"
-          valeur={pourcentage(creux.value, 1)}
+          libelle={l.perteMaximale}
+          valeur={pourcentage(creux.value, 1, langue)}
           lecture={lectureCreux(creux, devise)}
           neDitPas={neDitPasCreux(creux)}
           provenance={[
-            { libelle: 'Pic', valeur: dateISO(creux.peak_date) },
-            { libelle: 'Creux', valeur: dateISO(creux.trough_date) },
+            { libelle: l.pic, valeur: dateISO(creux.peak_date) },
+            { libelle: l.creux, valeur: dateISO(creux.trough_date) },
             ...retour,
             {
-              libelle: 'Niveaux',
-              valeur: `${decimal(pointA(serie.wealth, creux.peak_date).value, 3)} → ${decimal(pointA(serie.wealth, creux.trough_date).value, 3)}`,
+              libelle: l.niveaux,
+              valeur: `${decimal(pointA(serie.wealth, creux.peak_date).value, 3, langue)} → ${decimal(pointA(serie.wealth, creux.trough_date).value, 3, langue)}`,
             },
-            ...lignesDeFenetre(creux.window),
+            ...lignesDeFenetre(creux.window, langue),
           ]}
         />
       </div>
 
-      <h3 className={commun.sousTitre}>Où ce creux s'est produit</h3>
+      <h3 className={commun.sousTitre}>{l.ou}</h3>
       <Graphique
-        titre={
-          depart === undefined
-            ? "Valeur d'une unité investie"
-            : `Valeur de 1${ESPACE_INSECABLE}${devise} placé le ${dateEnToutesLettres(depart.date)}`
-        }
-        unite={`base 1${depart === undefined ? '' : ` le ${dateISO(depart.date)}`}, poids actuels`}
+        titre={depart === undefined ? l.titreSansDepart : l.titre(devise, depart.date)}
+        unite={l.unite(depart === undefined ? null : depart.date)}
         fenetre={serie.window}
         asOf={asOf}
-        description={descriptionRichesse(serie, creux)}
+        description={descriptionRichesse(serie, creux, langue)}
         options={options}
       />
     </Section>

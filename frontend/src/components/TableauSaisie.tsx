@@ -32,6 +32,7 @@ import { Fragment, type ReactNode } from 'react'
 import { segmenter } from '../api/client'
 import type { Security } from '../api/types'
 import { dateISO } from '../lib/format'
+import { useLangue } from '../lib/langue'
 import { useEtroit } from '../lib/largeur'
 import { Absent } from './Absent'
 import type { Champ, LigneSaisie } from '../lib/saisie'
@@ -85,6 +86,8 @@ export function TableauSaisie({
   quitter,
   retirer,
 }: Props) {
+  const { libelles } = useLangue()
+  const l = libelles.saisie
   const ordre = ordreDesColonnes(useEtroit())
   const champ = (ligne: LigneSaisie, rang: number, cle: Saisissable, colonne: string) => {
     const numero = rang + 1
@@ -154,31 +157,31 @@ export function TableauSaisie({
       case 'ticker':
         return (
           <th key={cle} scope="col" id="saisie-col-ticker" className={styles.entete}>
-            Ticker
+            {l.ticker}
           </th>
         )
       case 'nom':
         return (
           <th key={cle} scope="col" className={styles.entete}>
-            Nom
+            {l.nom}
           </th>
         )
       case 'historique':
         return (
           <th key={cle} scope="col" className={styles.entete}>
-            Historique depuis
+            {l.historique}
           </th>
         )
       case 'quantite':
         return (
           <th key={cle} scope="col" id="saisie-col-quantite" className={`${styles.entete} ${styles.nombre}`}>
-            Quantité
+            {l.quantite}
           </th>
         )
       case 'prix':
         return (
           <th key={cle} scope="col" id="saisie-col-prix" className={`${styles.entete} ${styles.nombre}`}>
-            Prix de revient ({devise}), facultatif
+            {l.prix(devise)}
           </th>
         )
     }
@@ -192,11 +195,11 @@ export function TableauSaisie({
           <thead>
             <tr>
               <th scope="col" className={`${styles.entete} ${styles.numero}`}>
-                N°
+                {l.numero}
               </th>
               {ordre.map((cle) => entete(cle))}
               <th scope="col" className={styles.entete}>
-                <span className="visuellement-cache">Retirer</span>
+                <span className="visuellement-cache">{l.retirer}</span>
               </th>
             </tr>
           </thead>
@@ -208,7 +211,7 @@ export function TableauSaisie({
                 <Fragment key={ligne.cle}>
                 <tr className={styles.rangee}>
                   <th scope="row" id={`saisie-rang-${ligne.cle}`} className={`${styles.cellule} ${styles.numero} ${styles.surLeChamp}`}>
-                    <span className="visuellement-cache">ligne </span>
+                    <span className="visuellement-cache">{l.ligne}</span>
                     {rang + 1}
                   </th>
                   {ordre.map((cle) => {
@@ -225,7 +228,7 @@ export function TableauSaisie({
                             {titre !== undefined ? (
                               titre.name
                             ) : tape && univers !== null ? (
-                              'Titre inconnu'
+                              l.titreInconnu
                             ) : (
                               <Absent />
                             )}
@@ -257,7 +260,8 @@ export function TableauSaisie({
                   })}
                   <td className={`${styles.cellule} ${styles.surLeChamp}`}>
                     <button type="button" className={controles.discret} onClick={() => retirer(rang)}>
-                      Retirer<span className="visuellement-cache"> la ligne {rang + 1}</span>
+                      {l.retirer}
+                      <span className="visuellement-cache">{l.retirerLaLigne(rang + 1)}</span>
                     </button>
                   </td>
                 </tr>

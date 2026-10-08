@@ -60,13 +60,17 @@ import {
   pourcentageAbsolu,
   seances,
 } from './format'
+import type { Langue } from './langue'
 
 /**
  * Un nom cité entre guillemets français : « Démo ». Les espaces qui les
  * séparent du nom sont INSÉCABLES, sinon le « » » part seul en début de ligne
  * — le même défaut que le « % » que `format.ts` retient par une espace fine.
+ *
+ * En anglais (chantier 7D), des guillemets doubles sans espace : “Démo”.
  */
-export function cite(texte: string): string {
+export function cite(texte: string, langue: Langue = 'fr'): string {
+  if (langue === 'en') return `“${texte}”`
   return `«${ESPACE_INSECABLE}${texte}${ESPACE_INSECABLE}»`
 }
 
@@ -88,10 +92,11 @@ export function apresDeuxPoints(message: string): string {
 
 /**
  * Le refus d'une ligne de saisie ou d'un fichier, précédé de son numéro. Sans
- * numéro, le message passe tel quel.
+ * numéro, le message passe tel quel. « Line 4: » en anglais.
  */
-export function messageDeLigne(ligne: number | null, message: string): string {
+export function messageDeLigne(ligne: number | null, message: string, langue: Langue = 'fr'): string {
   if (ligne === null) return message
+  if (langue === 'en') return `Line ${ligne}: ${apresDeuxPoints(message)}`
   return `Ligne ${ligne}${ESPACE_INSECABLE}: ${apresDeuxPoints(message)}`
 }
 

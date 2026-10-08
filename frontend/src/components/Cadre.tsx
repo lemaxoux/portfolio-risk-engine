@@ -34,6 +34,7 @@
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
+import { useLangue } from '../lib/langue'
 import { aDejaNavigue } from '../lib/route'
 import styles from './Cadre.module.css'
 
@@ -89,6 +90,7 @@ function garderEnVue(titre: HTMLElement): () => void {
 }
 
 export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: Props) {
+  const { libelles } = useLangue()
   const contenu = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -122,7 +124,7 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
   return (
     <>
       <a className={styles.evitement} href="#contenu">
-        Aller au contenu
+        {libelles.cadre.allerAuContenu}
       </a>
 
       {entete}

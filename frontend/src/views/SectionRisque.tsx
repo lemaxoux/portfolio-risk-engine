@@ -28,6 +28,7 @@ import type {
   Scenario,
   VarianceContributions,
 } from '../api/types'
+import { LIBELLES } from '../contenu/libelles'
 import { Absent } from '../components/Absent'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Graphique, type ContexteGraphique, type Trace } from '../components/charts/Graphique'
@@ -45,16 +46,8 @@ import {
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import {
-  ESPACE_FINE,
-  ESPACE_INSECABLE,
-  dateISO,
-  decimal,
-  decimalOuTiret,
-  lignes as compteLignes,
-  pointsSignes,
-  pourcentage,
-} from '../lib/format'
+import { dateISO, decimal, decimalOuTiret, lignes as compteLignes, pointsSignes, pourcentage } from '../lib/format'
+import { useLangue, type Langue } from '../lib/langue'
 import {
   NE_DIT_PAS_CAPITAL,
   NE_DIT_PAS_CONTRIBUTIONS,
@@ -70,13 +63,16 @@ import {
 import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
 
-/** La légende exacte de §5.4. */
-const CLE_BARRE = 'barre\u00a0: part dans les variations'
-const CLE_TRAIT = 'trait\u00a0: part dans la valeur'
-export const LEGENDE_CONTRIBUTIONS = `${CLE_BARRE}, ${CLE_TRAIT}`
+/** La légende exacte de §5.4, dans une langue. */
+export function legendeContributions(langue: Langue = 'fr'): string {
+  const l = LIBELLES[langue].risque
+  return `${l.cleBarre}, ${l.cleTrait}`
+}
+export const LEGENDE_CONTRIBUTIONS = legendeContributions('fr')
 
 /** Une contribution de scénario : le chiffre signé, et sa marque de signe. */
 function ApportEnCrise({ scenario, ticker }: { scenario: Scenario; ticker: string }) {
+  const { langue, libelles } = useLangue()
   if (scenario.end_to_end_return === null) {
     return (
       <span className={styles.absent}>
@@ -88,39 +84,44 @@ function ApportEnCrise({ scenario, ticker }: { scenario: Scenario; ticker: strin
   if (apport === undefined) {
     return (
       <span className={styles.absent}>
-        <Absent /> non couverte
+        <Absent />
+        {libelles.risque.nonCouverte}
       </span>
     )
   }
   const sens = apport.contribution < 0 ? styles.perte : apport.contribution > 0 ? styles.gain : ''
   return (
     <span className={styles.apport}>
-      {pointsSignes(apport.contribution, 1)}
+      {pointsSignes(apport.contribution, 1, langue)}
       <span className={`${styles.marque} ${sens}`} aria-hidden="true" />
     </span>
   )
 }
 
-export function colonnesDuRisque(scenarios: readonly Scenario[]): Colonne<Contribution>[] {
+export function colonnesDuRisque(
+  scenarios: readonly Scenario[],
+  langue: Langue = 'fr',
+): Colonne<Contribution>[] {
+  const titres = LIBELLES[langue].risque.colonnes
   return [
-    { cle: 'ticker', titre: 'Ticker', nature: 'texte', cellule: (l) => l.ticker },
+    { cle: 'ticker', titre: titres.ticker, nature: 'texte', cellule: (l) => l.ticker },
     {
       cle: 'variance',
-      titre: 'Part des variations',
+      titre: titres.variance,
       nature: 'nombre',
-      cellule: (l) => pourcentage(l.contribution, 1),
+      cellule: (l) => pourcentage(l.contribution, 1, langue),
     },
     {
       cle: 'capital',
-      titre: 'Part de la valeur',
+      titre: titres.capital,
       nature: 'nombre',
-      cellule: (l) => pourcentage(l.weight, 1),
+      cellule: (l) => pourcentage(l.weight, 1, langue),
     },
     {
       cle: 'ecart',
-      titre: 'Écart',
+      titre: titres.ecart,
       nature: 'nombre',
-      cellule: (l) => pointsSignes(l.excess_over_weight, 1),
+      cellule: (l) => pointsSignes(l.excess_over_weight, 1, langue),
     },
     ...scenarios.map(
       (scenario): Colonne<Contribution> => ({
@@ -143,6 +144,7 @@ export function colonnesDuRisque(scenarios: readonly Scenario[]): Colonne<Contri
  * Les cinq points de l'échelle sont des pastilles, pas un dégradé (§12).
  */
 function LegendeCorrelation() {
+  const { langue, libelles } = useLangue()
   const classes = [
     styles.divNegFort,
     styles.divNegMoyen,
@@ -156,19 +158,14 @@ function LegendeCorrelation() {
         {DOMAINE_CORRELATION.map((valeur, rang) => (
           <span key={valeur} className={styles.pas}>
             <span className={`${styles.pastille} ${classes[rang] ?? ''}`} aria-hidden="true" />
-            {decimal(valeur, 1)}
+            {decimal(valeur, 1, langue)}
           </span>
         ))}
       </p>
-      <p className={styles.lectureEchelle}>
-        +1&nbsp;: les deux lignes bougent toujours dans le même sens. 0&nbsp;: aucun lien
-        visible. −1&nbsp;: toujours en sens inverse. Plus les nombres approchent +1, moins
-        détenir les deux amortit les variations. Les couleurs suivent une échelle fixe, la
-        même pour tout portefeuille.
-      </p>
+      <p className={styles.lectureEchelle}>{libelles.risque.lectureEchelle}</p>
       <p className={`${styles.pas} ${styles.cleDiagonale}`}>
         <span className={`${styles.pastille} ${styles.diagonale}`} aria-hidden="true" />
-        diagonale&nbsp;: chaque ligne avec elle-même, 1 par définition, hors échelle
+        {libelles.risque.diagonale}
       </p>
     </div>
   )
@@ -198,17 +195,14 @@ interface Props {
 }
 
 export function SectionRisque({ variance, concentration, matrices, scenarios, asOf }: Props) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.risque
   const contributions = variance.contributions
   const correlation = matrices.correlation
   // La ligne qui fait le plus bouger le portefeuille : la première du tri par
   // part de variance, celui du graphique. Un tri, pas un calcul.
   const premiere = contributions === null ? undefined : lignesParContribution(contributions)[0]
-  const introduction = (
-    <>
-      Quelles lignes font le plus bouger votre portefeuille&nbsp;? Leur poids en argent ne
-      suffit pas à le dire&nbsp;: certaines bougent plus que d'autres, ou en même temps.
-    </>
-  )
+  const introduction = l.introduction
 
   const optionsBarres = useCallback(
     (contexte: ContexteGraphique) => optionsContributions(contributions ?? [], contexte),
@@ -230,72 +224,68 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
   )
 
   return (
-    <Section ancre="qui-porte" numero={4} titre="Qui porte le risque" introduction={introduction}>
-      <h3 className={commun.sousTitre}>Combien de lignes, en réalité</h3>
+    <Section ancre="qui-porte" numero={4} titre={libelles.sections[3]} introduction={introduction}>
+      <h3 className={commun.sousTitre}>{l.combien}</h3>
       <p className={commun.chapeau}>{chapeauLignesEffectives(concentration.n_positions)}</p>
       <div className={commun.rangee}>
         <Measure
-          libelle="Lignes effectives en capital"
-          valeur={decimal(concentration.effective_positions, 1)}
+          libelle={l.enCapital}
+          valeur={decimal(concentration.effective_positions, 1, langue)}
           lecture={lectureLignesEnCapital(
             concentration.n_positions,
             concentration.effective_positions,
           )}
           neDitPas={NE_DIT_PAS_CAPITAL}
           provenance={[
-            { libelle: 'Lignes', valeur: compteLignes(concentration.n_positions) },
-            { libelle: 'Valorisé au', valeur: dateISO(concentration.as_of) },
+            { libelle: l.lignes, valeur: compteLignes(concentration.n_positions, langue) },
+            { libelle: libelles.provenance.valoriseAu, valeur: dateISO(concentration.as_of) },
           ]}
         />
         <Measure
-          libelle="Lignes effectives en risque"
-          valeur={decimalOuTiret(variance.effective_positions, 1)}
+          libelle={l.enRisque}
+          valeur={decimalOuTiret(variance.effective_positions, 1, langue)}
           lecture={
             variance.effective_positions === null
-              ? (variance.undefined_reason ?? 'non estimable, sans raison publiée')
+              ? (variance.undefined_reason ?? l.nonEstimable)
               : lectureLignesEnRisque(concentration.n_positions, variance.effective_positions)
           }
           neDitPas={variance.effective_positions === null ? NE_DIT_PAS_REFUS : NE_DIT_PAS_RISQUE}
-          provenance={lignesDeFenetre(variance.window)}
+          provenance={lignesDeFenetre(variance.window, langue)}
         />
       </div>
 
-      <h3 className={commun.sousTitre}>Le poids de chaque ligne dans les variations</h3>
+      <h3 className={commun.sousTitre}>{l.poids}</h3>
       {contributions === null ? (
         <p className={styles.refus}>
           <span className={styles.point} aria-hidden="true" />
-          {variance.undefined_reason ?? 'Contributions non estimables, sans raison publiée.'}
+          {variance.undefined_reason ?? l.contributionsNonEstimables}
         </p>
       ) : (
         <>
-          <p className={commun.chapeau}>
-            La barre montre la part d'une ligne dans les variations du portefeuille, le
-            trait sa part dans sa valeur. Quand la barre dépasse le trait, la ligne le
-            fait bouger plus que son poids ne le laisse croire.
-          </p>
+          <p className={commun.chapeau}>{l.chapeauPoids}</p>
           {premiere !== undefined && (
             <p className={commun.lecture}>{lectureContribution(premiere)}</p>
           )}
           <p className={commun.neDitPas}>{NE_DIT_PAS_CONTRIBUTIONS}</p>
           <Graphique
-            titre="Part de chaque ligne dans les variations et dans la valeur"
-            unite="% de la variance du portefeuille, % de sa valeur&nbsp;; écart en points"
+            titre={l.titreBarres}
+            unite={l.uniteBarres}
             fenetre={variance.window}
             asOf={asOf}
-            description={
-              `Parts des variations comparées aux parts de la valeur, ${compteLignes(contributions.length)}\u00a0: ` +
+            description={l.descriptionBarres(
+              contributions.length,
               lignesParContribution(contributions)
-                .map((l) => `${l.ticker} ${pointsSignes(l.excess_over_weight, 1)}`)
-                .join(', ')
-            }
+                .map((ligne) => `${ligne.ticker} ${pointsSignes(ligne.excess_over_weight, 1, langue)}`)
+                .join(', '),
+            )}
             options={optionsBarres}
           >
             <p className={styles.legende}>
               <span className={styles.cleBarre} aria-hidden="true" />
-              {CLE_BARRE}
+              {l.cleBarre}
               {', '}
               <span className={styles.cleTrait} aria-hidden="true" />
-              {CLE_TRAIT}
+              {l.cleTrait}
             </p>
           </Graphique>
           {variance.has_negative_contribution === true && (
@@ -303,12 +293,8 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           )}
           <div className={styles.tableau}>
             <DataTable
-              legende={
-                "Part de chaque ligne dans les variations et dans la valeur, puis ce qu'elle " +
-                `a apporté au portefeuille dans chaque crise rejouée, en points${ESPACE_INSECABLE}: ` +
-                `un point vaut 1${ESPACE_FINE}% de sa valeur au début de la crise`
-              }
-              colonnes={colonnesDuRisque(scenarios)}
+              legende={l.legendeTableau}
+              colonnes={colonnesDuRisque(scenarios, langue)}
               lignes={lignesParContribution(contributions)}
               cleDeLigne={(l) => l.ticker}
             />
@@ -316,25 +302,21 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
         </>
       )}
 
-      <h3 className={commun.sousTitre}>Ce qui bouge ensemble</h3>
-      <p className={commun.chapeau}>
-        Deux lignes qui montent et baissent les mêmes jours s'amortissent mal l'une
-        l'autre. La corrélation mesure ce lien, de −1 à +1.
-      </p>
+      <h3 className={commun.sousTitre}>{l.ensemble}</h3>
+      <p className={commun.chapeau}>{l.chapeauEnsemble}</p>
       {correlation === null ? (
         <p className={styles.refus}>
           <span className={styles.point} aria-hidden="true" />
-          {matrices.correlation_undefined_reason ??
-            'Corrélation non estimable, sans raison publiée.'}
+          {matrices.correlation_undefined_reason ?? l.correlationNonEstimable}
         </p>
       ) : (
         <div className={styles.carte} style={dispositionDeCarte(correlation.tickers.length)}>
           <Graphique
-            titre="Corrélation des variations quotidiennes"
-            unite="coefficient de corrélation, sans unité"
+            titre={l.titreCarte}
+            unite={l.uniteCarte}
             fenetre={matrices.window}
             asOf={asOf}
-            description={`Corrélations deux à deux de ${compteLignes(correlation.tickers.length)}, valeur écrite dans chaque cellule.`}
+            description={l.descriptionCarte(correlation.tickers.length)}
             options={optionsCarte}
             proprietesDuTrace={proprietesCarte}
           >

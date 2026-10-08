@@ -18,6 +18,7 @@
 import * as Plot from '@observablehq/plot'
 
 import type { Drawdown, Point } from '../../api/types'
+import { LIBELLES } from '../../contenu/libelles'
 import { dateDepuisISO, dateISO, decimal, moisISO, pourcentage } from '../../lib/format'
 import type { ContexteGraphique } from './Graphique'
 import { halo } from './habillage'
@@ -61,8 +62,9 @@ interface Donnees {
 
 export function optionsRichesse(
   { richesse, creux }: Donnees,
-  { couleurs, largeur }: ContexteGraphique,
+  { couleurs, largeur, langue = 'fr' }: ContexteGraphique,
 ): Plot.PlotOptions {
+  const l = LIBELLES[langue].graphiques
   const courbe = enDates(richesse)
   const pic = pointA(richesse, creux.peak_date)
   const fond = pointA(richesse, creux.trough_date)
@@ -82,7 +84,7 @@ export function optionsRichesse(
     },
     y: {
       label: null,
-      tickFormat: (valeur: number) => decimal(valeur, 2),
+      tickFormat: (valeur: number) => decimal(valeur, 2, langue),
       // De la place DANS le cadre, sous le point le plus bas et au-dessus du
       // plus haut : l'annotation du creux, posée sous lui, ne doit pas
       // déborder sur les dates de l'axe.
@@ -99,14 +101,14 @@ export function optionsRichesse(
         y2: 'value',
         fill: couleurs.serie1,
         fillOpacity: 0.15,
-        ariaDescription: 'creux maximal',
+        ariaDescription: l.creuxMaximal,
       }),
       Plot.lineY(courbe, {
         x: 'date',
         y: 'value',
         stroke: couleurs.serie1,
         strokeWidth: 2,
-        ariaDescription: 'courbe de richesse',
+        ariaDescription: l.courbeDeValeur,
       }),
       Plot.dot(annotations, {
         x: 'date',
@@ -121,7 +123,7 @@ export function optionsRichesse(
         y: 'value',
         dy: -10,
         lineAnchor: 'bottom',
-        text: (p: PointDate) => `pic\n${dateISO(p.iso)}`,
+        text: (p: PointDate) => `${l.pic}\n${dateISO(p.iso)}`,
         ...halo(couleurs, couleurs.texte1),
       }),
       Plot.text([annotations[1]], {
@@ -130,7 +132,7 @@ export function optionsRichesse(
         dy: 10,
         lineAnchor: 'top',
         text: (p: PointDate) =>
-          `creux ${pourcentage(creux.value, 1)}\n${dateISO(p.iso)}`,
+          `${l.creux} ${pourcentage(creux.value, 1, langue)}\n${dateISO(p.iso)}`,
         ...halo(couleurs, couleurs.texte1),
       }),
       Plot.tip(
@@ -138,7 +140,7 @@ export function optionsRichesse(
         Plot.pointerX({
           x: 'date',
           y: 'value',
-          title: (p: PointDate) => `${dateISO(p.iso)}\n${decimal(p.value, 3)}`,
+          title: (p: PointDate) => `${dateISO(p.iso)}\n${decimal(p.value, 3, langue)}`,
           fill: couleurs.surface1,
           stroke: couleurs.bordureForte,
         }),

@@ -35,18 +35,17 @@
 import * as Plot from '@observablehq/plot'
 
 import type { HistogramBin, ReturnHistogram, TailRiskLevel } from '../../api/types'
-import { decimal, pourcentage, seances } from '../../lib/format'
+import { LIBELLES } from '../../contenu/libelles'
+import { decimal, pourcentage } from '../../lib/format'
+import type { Langue } from '../../lib/langue'
 import type { ContexteGraphique } from './Graphique'
 import { halo } from './habillage'
 
 export const HAUTEUR_HISTOGRAMME = 260
 
 /** Ce que dit une barre au survol : son compte exact et ses bornes (§8.2). */
-export function texteDeClasse(classe: HistogramBin): string {
-  return (
-    `${seances(classe.count)}\n` +
-    `de ${pourcentage(classe.lower, 2)} inclus à ${pourcentage(classe.upper, 2)} exclu`
-  )
+export function texteDeClasse(classe: HistogramBin, langue: Langue = 'fr'): string {
+  return LIBELLES[langue].graphiques.classe(classe.count, classe.lower, classe.upper)
 }
 
 /**
@@ -75,8 +74,9 @@ interface Donnees {
 
 export function optionsHistogramme(
   { histogramme, niveaux }: Donnees,
-  { couleurs, largeur }: ContexteGraphique,
+  { couleurs, largeur, langue = 'fr' }: ContexteGraphique,
 ): Plot.PlotOptions {
+  const l = LIBELLES[langue].graphiques
   const classes = histogramme.bins
   const debut = classes[0]?.lower ?? 0
   const fin = classes[classes.length - 1]?.upper ?? 0
@@ -101,7 +101,7 @@ export function optionsHistogramme(
         x2: queue.threshold,
         fill: couleurs.texte1,
         fillOpacity: 0.15,
-        ariaDescription: 'queue de la CVaR à 95 %',
+        ariaDescription: l.queueDeLaCVaR,
       }),
       // À mi-hauteur, à gauche : la zone la plus vide du graphique, loin des
       // étiquettes de quantile posées en haut.
@@ -109,8 +109,7 @@ export function optionsHistogramme(
         x: debut,
         frameAnchor: 'left',
         dx: 4,
-        text: (q: typeof queue) =>
-          `queue à ${pourcentage(q.confidence, 0)}\u00a0:\n${seances(nombre)}`,
+        text: (q: typeof queue) => l.queue(q.confidence, nombre),
         textAnchor: 'start',
         lineAnchor: 'middle',
         ...halo(couleurs, couleurs.texte2),
@@ -126,7 +125,7 @@ export function optionsHistogramme(
       y2: 'count',
       inset: 0.5,
       fill: couleurs.serie1,
-      ariaDescription: 'classes de rendements',
+      ariaDescription: l.classesDeRendements,
     }),
     Plot.ruleX([0], { stroke: couleurs.bordureForte }),
     Plot.ruleY([0], { stroke: couleurs.bordureForte }),
@@ -151,7 +150,7 @@ export function optionsHistogramme(
         lineAnchor: 'top',
         ...halo(couleurs, couleurs.texte1),
         text: () =>
-          `VaR ${pourcentage(niveau.confidence, 0)}\n${pourcentage(valeur, 2)}`,
+          `VaR ${pourcentage(niveau.confidence, 0, langue)}\n${pourcentage(valeur, 2, langue)}`,
       }),
     )
   })
@@ -163,7 +162,7 @@ export function optionsHistogramme(
         x1: 'lower',
         x2: 'upper',
         y: 'count',
-        title: texteDeClasse,
+        title: (classe: HistogramBin) => texteDeClasse(classe, langue),
         fill: couleurs.surface1,
         stroke: couleurs.bordureForte,
       }),
@@ -178,14 +177,14 @@ export function optionsHistogramme(
     x: {
       domain: [debut, fin],
       ticks: graduationsDeRendement(debut, fin, largeur),
-      tickFormat: (valeur: number) => pourcentage(valeur, 0),
+      tickFormat: (valeur: number) => pourcentage(valeur, 0, langue),
       label: null,
     },
     y: {
       label: null,
       // Des séances : un compte entier, écrit par lib/format. Une graduation
       // fractionnaire (2,5 séances) n'a pas de sens et reste muette.
-      tickFormat: (valeur: number) => (Number.isInteger(valeur) ? decimal(valeur, 0) : ''),
+      tickFormat: (valeur: number) => (Number.isInteger(valeur) ? decimal(valeur, 0, langue) : ''),
     },
     marks: marques,
   }

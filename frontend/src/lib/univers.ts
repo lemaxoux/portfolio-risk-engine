@@ -44,7 +44,7 @@ export function useUnivers(langue: Langue = 'fr'): {
         if (vivant) setUnivers(new Map(titres.map((titre) => [titre.ticker, titre])))
       },
       (cause: unknown) => {
-        if (vivant) setErreur(versApiErreur(cause))
+        if (vivant) setErreur(versApiErreur(cause, langue))
       },
     )
     return () => {

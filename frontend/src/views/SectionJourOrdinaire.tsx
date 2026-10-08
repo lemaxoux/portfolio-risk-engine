@@ -55,6 +55,7 @@ import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { ESPACE_INSECABLE, compte, points, pourcentage, TIRET_INDEFINI } from '../lib/format'
+import { useLangue, type Langue } from '../lib/langue'
 import {
   NE_DIT_PAS_COURBES,
   NE_DIT_PAS_VOLATILITE,
@@ -75,8 +76,8 @@ import {
 } from '../lib/provenance'
 import styles from './SectionJourOrdinaire.module.css'
 
-function niveauLu(confiance: number): string {
-  return pourcentage(confiance, 0)
+function niveauLu(confiance: number, langue: Langue): string {
+  return pourcentage(confiance, 0, langue)
 }
 
 /**
@@ -97,20 +98,23 @@ function CoupleParametrique({
   raisonMonteCarlo: string | null
   devise: string
 }) {
-  const confiance = niveauLu(niveau.confidence)
+  const { langue, libelles } = useLangue()
+  const l = libelles.jourOrdinaire
+  const confiance = niveauLu(niveau.confidence, langue)
   const student = niveau.student_parametric_var
 
   return (
     <div className={styles.couple}>
       <Measure
         niveau="secondaire"
-        libelle={`VaR ${confiance} paramétrique, loi normale`}
-        valeur={pourcentage(niveau.parametric_var.value, 2)}
+        libelle={l.varNormale(confiance)}
+        valeur={pourcentage(niveau.parametric_var.value, 2, langue)}
         lecture={lectureVarParametrique(niveau.parametric_var, 'normale', devise)}
         provenance={provenanceDeVar(
           niveau.parametric_var,
           niveau.monte_carlo_var,
           raisonMonteCarlo,
+          langue,
         )}
         caveat={niveau.parametric_var.caveat}
       />
@@ -118,16 +122,15 @@ function CoupleParametrique({
       {student !== null ? (
         <Measure
           niveau="secondaire"
-          libelle={`VaR ${confiance} paramétrique, loi de Student`}
-          valeur={pourcentage(student.value, 2)}
+          libelle={l.varStudent(confiance)}
+          valeur={pourcentage(student.value, 2, langue)}
           lecture={lectureVarParametrique(student, 'de Student', devise)}
-          provenance={provenanceDeVar(student, niveau.student_monte_carlo_var)}
+          provenance={provenanceDeVar(student, niveau.student_monte_carlo_var, null, langue)}
         />
       ) : (
         <p className={styles.absenceStudent}>
           <span className={styles.point} aria-hidden="true" />
-          {raisonStudent ??
-            "Le volet Student n'a pas pu être ajusté, sans raison publiée."}
+          {raisonStudent ?? l.studentSansRaison}
         </p>
       )}
     </div>
@@ -156,8 +159,6 @@ export function descriptionHistogramme(
   return seuils.length === 0 ? `${debut}.` : `${debut}${ESPACE_INSECABLE}: ${seuils.join(', ')}.`
 }
 
-const TITRE = "Ce qu'il perd un jour ordinaire"
-
 interface Props {
   readonly risque: Risk
   readonly histogramme: ReturnHistogram
@@ -178,6 +179,8 @@ export function SectionJourOrdinaire({
   devise,
   periode,
 }: Props) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.jourOrdinaire
   const niveaux = risque.tail_risk.levels
   const raisonStudent = risque.tail_risk.student_unavailable_reason
   const raisonMonteCarlo = risque.tail_risk.monte_carlo_unavailable_reason
@@ -188,28 +191,24 @@ export function SectionJourOrdinaire({
   const introduction = introJourOrdinaire(periode)
 
   return (
-    <Section ancre="jour-ordinaire" numero={2} titre={TITRE} introduction={introduction}>
-      <h3 className={commun.sousTitre}>Les jours réellement observés</h3>
-      <p className={commun.chapeau}>
-        La VaR, ou valeur à risque, répond à une question&nbsp;: à partir de quelle perte
-        une journée devient-elle rare&nbsp;? Ici, la réponse vient des jours réellement
-        observés, sans formule.
-      </p>
+    <Section ancre="jour-ordinaire" numero={2} titre={libelles.sections[1]} introduction={introduction}>
+      <h3 className={commun.sousTitre}>{l.observes}</h3>
+      <p className={commun.chapeau}>{l.chapeauObserves}</p>
       <div className={commun.rangee}>
         {niveaux.map((niveau) => {
           const valeur = niveau.historical_var.value
           return (
             <Measure
               key={niveau.confidence}
-              libelle={`VaR ${niveauLu(niveau.confidence)} historique, horizon 1 séance`}
-              valeur={valeur === null ? TIRET_INDEFINI : pourcentage(valeur, 2)}
+              libelle={l.varHistorique(niveauLu(niveau.confidence, langue))}
+              valeur={valeur === null ? TIRET_INDEFINI : pourcentage(valeur, 2, langue)}
               lecture={lectureVarHistorique(niveau.historical_var, 2, devise)}
               neDitPas={neDitPasVarHistorique(
                 niveau.historical_var,
                 risque.worst_day,
                 niveau.expected_shortfall.tail_observations,
               )}
-              provenance={provenanceDeVar(niveau.historical_var)}
+              provenance={provenanceDeVar(niveau.historical_var, null, null, langue)}
             />
           )
         })}
@@ -217,8 +216,8 @@ export function SectionJourOrdinaire({
 
       <div className={styles.histogramme}>
         <Graphique
-          titre="Variations de valeur, jour par jour"
-          unite={`séances par classe de ${points(histogramme.bin_width, 2)}`}
+          titre={l.titreHistogramme}
+          unite={l.uniteHistogramme(histogramme.bin_width)}
           fenetre={histogramme.window}
           asOf={asOf}
           description={descriptionHistogramme(histogramme, niveaux)}
@@ -238,12 +237,8 @@ export function SectionJourOrdinaire({
         </Graphique>
       </div>
 
-      <h3 className={commun.sousTitre}>Avec une courbe mathématique</h3>
-      <p className={commun.chapeau}>
-        La même question, posée à une courbe ajustée sur vos variations plutôt qu'aux
-        jours observés. La loi normale rend les très mauvais jours très rares&nbsp;; la
-        loi de Student leur laisse plus de place.
-      </p>
+      <h3 className={commun.sousTitre}>{l.courbe}</h3>
+      <p className={commun.chapeau}>{l.chapeauCourbe}</p>
       {niveaux.map((niveau) => (
         <CoupleParametrique
           key={niveau.confidence}
@@ -255,34 +250,31 @@ export function SectionJourOrdinaire({
       ))}
       <p className={commun.neDitPas}>{NE_DIT_PAS_COURBES}</p>
 
-      <h3 className={commun.sousTitre}>L'ampleur habituelle des variations</h3>
+      <h3 className={commun.sousTitre}>{l.ampleur}</h3>
       <div className={commun.rangee}>
         <Measure
-          libelle="Volatilité annualisée"
-          valeur={pourcentage(risque.volatility.annualised, 1)}
+          libelle={l.volatilite}
+          valeur={pourcentage(risque.volatility.annualised, 1, langue)}
           lecture={lectureVolatilite(risque.benchmark_volatility, parametres)}
           neDitPas={NE_DIT_PAS_VOLATILITE}
-          provenance={provenanceDeVolatilite(risque.volatility)}
+          provenance={provenanceDeVolatilite(risque.volatility, langue)}
           caveat={risque.volatility.caveat}
         />
       </div>
 
-      <h3 className={commun.sousTitre}>Les pires jours</h3>
-      <p className={commun.chapeau}>
-        Les jours où le seuil est franchi, combien perd-on en moyenne&nbsp;? C'est la
-        CVaR&nbsp;: la perte moyenne des pires jours.
-      </p>
+      <h3 className={commun.sousTitre}>{l.piresJours}</h3>
+      <p className={commun.chapeau}>{l.chapeauPiresJours}</p>
       <div className={commun.rangee}>
         {niveaux.map((niveau) => {
           const cvar = niveau.expected_shortfall
           return (
             <Measure
               key={niveau.confidence}
-              libelle={`CVaR ${niveauLu(niveau.confidence)}, horizon 1 séance`}
-              valeur={cvar.value === null ? TIRET_INDEFINI : pourcentage(cvar.value, 2)}
+              libelle={l.cvar(niveauLu(niveau.confidence, langue))}
+              valeur={cvar.value === null ? TIRET_INDEFINI : pourcentage(cvar.value, 2, langue)}
               lecture={lectureCVaR(cvar, devise)}
               neDitPas={neDitPasCVaR(cvar)}
-              provenance={provenanceDeCVaR(cvar)}
+              provenance={provenanceDeCVaR(cvar, langue)}
               caveat={cvar.caveat}
             />
           )

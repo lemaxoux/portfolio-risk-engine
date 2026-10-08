@@ -26,6 +26,7 @@ import * as Plot from '@observablehq/plot'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Window } from '../../api/types'
+import { useLangue, type Langue } from '../../lib/langue'
 import { provenanceDeGraphique } from '../../lib/provenance'
 import { Provenance } from '../Provenance'
 import type { Couleurs } from './couleurs'
@@ -35,6 +36,8 @@ import styles from './Graphique.module.css'
 export interface ContexteGraphique {
   readonly couleurs: Couleurs
   readonly largeur: number
+  /** La langue des annotations et des infobulles ; le français sans elle. */
+  readonly langue?: Langue
 }
 
 /** Le tracé tel que Plot le rend : l'élément, et ses échelles (`scale`). */
@@ -78,6 +81,7 @@ export function Graphique({
   proprietesDuTrace,
   children,
 }: Props) {
+  const { langue } = useLangue()
   const conteneur = useRef<HTMLDivElement>(null)
   const couleurs = useCouleurs()
   const [largeur, setLargeur] = useState(0)
@@ -97,7 +101,7 @@ export function Graphique({
     if (noeud === null || largeur === 0 || couleurs === null) return
     // La largeur de la colonne par défaut ; un graphique peut en demander
     // MOINS (une carte de chaleur garde ses cellules carrées), jamais plus.
-    const demande = options({ couleurs, largeur })
+    const demande = options({ couleurs, largeur, langue })
     const trace = Plot.plot({
       ...demande,
       width: Math.min(demande.width ?? largeur, largeur),
@@ -111,14 +115,14 @@ export function Graphique({
       trace.remove()
       for (const [nom] of proprietes) figure?.style.removeProperty(nom)
     }
-  }, [options, couleurs, largeur, proprietesDuTrace])
+  }, [options, couleurs, largeur, langue, proprietesDuTrace])
 
   return (
     <figure className={styles.graphique}>
       <figcaption className={styles.entete}>
         <span className={styles.titre}>{titre}</span>
         <Provenance
-          lignes={provenanceDeGraphique(unite, fenetre, asOf)}
+          lignes={provenanceDeGraphique(unite, fenetre, asOf, langue)}
           disposition="ligne"
         />
       </figcaption>

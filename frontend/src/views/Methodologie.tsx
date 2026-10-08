@@ -40,14 +40,12 @@ import {
 } from '../components/Navigation'
 import { METHODOLOGIE } from '../contenu/methodologie'
 import { lireContenu, type Bloc, type Corps, type EnLigne, type Morceau } from '../lib/contenu'
+import { useLangue } from '../lib/langue'
 import { cheminDe } from '../lib/route'
 import communs from './Pages.module.css'
 import styles from './Methodologie.module.css'
 
 const PAGE = cheminDe({ vue: 'methodologie' })
-
-/** Le nom du rail et de la liste d'ancres, pour un lecteur d'écran. */
-const PARTIES = 'Parties de la méthodologie'
 
 type Titre = Extract<Bloc, { type: 'titre' }>
 
@@ -184,16 +182,19 @@ export function VueMethodologie({ portefeuille }: Props) {
     // Le premier bloc est le titre de la page, rendu à part.
     return { contenu: lu, sections, ...enParties(lu.blocs.slice(1)) }
   }, [])
-  const pages = pagesApplication('methodologie', portefeuille?.id ?? null)
+  const { langue, libelles } = useLangue()
+  const pages = pagesApplication('methodologie', portefeuille?.id ?? null, langue)
+  // Le nom du rail et de la liste d'ancres, pour un lecteur d'écran.
+  const etiquette = libelles.navigation.partiesDeLaMethodologie
 
   return (
     <Cadre
       titre={contenu.titre}
       page={PAGE}
       entete={<BandeauSimple portefeuille={portefeuille?.name ?? null} />}
-      rail={<RailSections pages={pages} sections={sections} etiquette={PARTIES} />}
+      rail={<RailSections pages={pages} sections={sections} etiquette={etiquette} />}
     >
-      <AncresSections pages={pages} liste={sections} etiquette={PARTIES} />
+      <AncresSections pages={pages} liste={sections} etiquette={etiquette} />
       <h1 tabIndex={-1} className={`${communs.titre} ${styles.titrePage}`}>
         {contenu.titre}
       </h1>

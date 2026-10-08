@@ -28,20 +28,14 @@
 import type { ReactNode } from 'react'
 
 import type { Regime, Scenario } from '../api/types'
+import { LIBELLES } from '../contenu/libelles'
 import { avecAbsence } from '../components/Absent'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import {
-  TIRET_INDEFINI,
-  dateISO,
-  decimal,
-  lignes,
-  pourcentage,
-  pourcentageSigne,
-  seances,
-} from '../lib/format'
+import { TIRET_INDEFINI, dateISO, decimal, pourcentage, pourcentageSigne, seances } from '../lib/format'
+import { useLangue, type Langue } from '../lib/langue'
 import {
   NE_DIT_PAS_REGIME,
   NE_DIT_PAS_SCENARIO,
@@ -88,39 +82,52 @@ interface LigneRegime {
  * années » —, pas l'étiquette « régime calme » : la fenêtre d'estimation
  * contient aussi des baisses.
  */
-function colonnesRegime(calme: string): Colonne<LigneRegime>[] {
+function colonnesRegime(calme: string, langue: Langue): Colonne<LigneRegime>[] {
+  const titres = LIBELLES[langue].crise.colonnes
   return [
-    { cle: 'mesure', titre: 'Mesure', nature: 'texte', cellule: (l) => l.mesure },
+    { cle: 'mesure', titre: titres.mesure, nature: 'texte', cellule: (l) => l.mesure },
     { cle: 'calme', titre: calme, nature: 'nombre', cellule: (l) => l.calme },
-    { cle: 'crise', titre: 'Crise', nature: 'nombre', cellule: (l) => l.crise },
+    { cle: 'crise', titre: titres.crise, nature: 'nombre', cellule: (l) => l.crise },
   ]
 }
 
-function avecErreur(valeur: number, erreur: number | null): string {
-  return erreur === null ? decimal(valeur, 2) : `${decimal(valeur, 2)} ± ${decimal(erreur, 2)}`
+function avecErreur(valeur: number, erreur: number | null, langue: Langue): string {
+  return erreur === null
+    ? decimal(valeur, 2, langue)
+    : `${decimal(valeur, 2, langue)} ± ${decimal(erreur, 2, langue)}`
 }
 
 function BlocRegime({ regime }: { regime: Regime }) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.crise
   const { calm_beta: calme, crisis_beta: crise } = regime
   if (regime.unavailable_reason !== null || calme === null || crise === null) {
     return (
       <p className={styles.reserve}>
         <span className={styles.point} aria-hidden="true" />
-        {regime.unavailable_reason ?? 'Comparaison de régimes indisponible, sans raison publiée.'}
+        {regime.unavailable_reason ?? l.regimeIndisponible}
       </p>
     )
   }
 
   const lignesRegime: LigneRegime[] = [
     {
-      mesure: 'Beta',
-      calme: avecErreur(calme.beta, calme.standard_error),
-      crise: avecErreur(crise.beta, crise.standard_error),
+      mesure: l.lignesRegime.beta,
+      calme: avecErreur(calme.beta, calme.standard_error, langue),
+      crise: avecErreur(crise.beta, crise.standard_error, langue),
     },
-    { mesure: 'R²', calme: decimal(calme.r_squared, 2), crise: decimal(crise.r_squared, 2) },
-    { mesure: 'Séances', calme: seances(calme.observations), crise: seances(crise.observations) },
     {
-      mesure: 'Période',
+      mesure: l.lignesRegime.r2,
+      calme: decimal(calme.r_squared, 2, langue),
+      crise: decimal(crise.r_squared, 2, langue),
+    },
+    {
+      mesure: l.lignesRegime.seances,
+      calme: seances(calme.observations, langue),
+      crise: seances(crise.observations, langue),
+    },
+    {
+      mesure: l.lignesRegime.periode,
       calme: `${dateISO(calme.start)} → ${dateISO(calme.end)}`,
       crise: `${dateISO(crise.start)} → ${dateISO(crise.end)}`,
     },
@@ -134,8 +141,11 @@ function BlocRegime({ regime }: { regime: Regime }) {
       {prediction !== null && <p className={commun.lecture}>{prediction}</p>}
       <p className={commun.neDitPas}>{NE_DIT_PAS_REGIME}</p>
       <DataTable
-        legende={`Sensibilité à ${regime.benchmark}, en temps ordinaire et en crise (jamais moyennées)`}
-        colonnes={colonnesRegime(majuscule(regime.calm_period_label ?? "période d'estimation"))}
+        legende={l.legendeRegime(regime.benchmark)}
+        colonnes={colonnesRegime(
+          majuscule(regime.calm_period_label ?? l.periodeDEstimation),
+          langue,
+        )}
         lignes={lignesRegime}
         cleDeLigne={(l) => l.mesure}
       />
@@ -160,6 +170,8 @@ export function BlocScenario({
   asOf: string
   devise: string
 }) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.crise
   const definition = scenario.scenario
   const couverture = scenario.coverage
   const partielle = !couverture.is_complete
@@ -177,25 +189,25 @@ export function BlocScenario({
 
       <dl className={styles.triade}>
         <Chiffre
-          libelle="Au point bas du marché"
+          libelle={l.auPointBas}
           valeur={
             scenario.end_to_end_return === null
               ? TIRET_INDEFINI
-              : pourcentageSigne(scenario.end_to_end_return, 1)
+              : pourcentageSigne(scenario.end_to_end_return, 1, langue)
           }
         />
         <Chiffre
-          libelle="Pire moment traversé"
+          libelle={l.pireMoment}
           valeur={
             scenario.max_drawdown === null
               ? TIRET_INDEFINI
-              : pourcentageSigne(scenario.max_drawdown.value, 1)
+              : pourcentageSigne(scenario.max_drawdown.value, 1, langue)
           }
         />
-        <Chiffre libelle="Couverture" valeur={pourcentage(couverture.value_share, 0)}>
+        <Chiffre libelle={l.couverture} valeur={pourcentage(couverture.value_share, 0, langue)}>
           <dd className={styles.sousChiffre}>
             {partielle && <span className={styles.point} aria-hidden="true" />}
-            {lignes(couverture.covered_count)} sur {couverture.total_count}
+            {l.couvertes(couverture.covered_count, couverture.total_count)}
           </dd>
         </Chiffre>
       </dl>
@@ -229,7 +241,8 @@ export function BlocScenario({
               {couverture.excluded.map((ligne) => (
                 <li key={ligne.ticker}>
                   <span className={styles.ticker}>{ligne.ticker}</span>{' '}
-                  {pourcentage(ligne.weight, 1)} de la valeur&nbsp;: {ligne.reason}
+                  {l.exclue(ligne.weight)}
+                  {ligne.reason}
                 </li>
               ))}
             </ul>
@@ -237,14 +250,14 @@ export function BlocScenario({
         </div>
       )}
 
-      <p className={commun.detailsTitre}>Détails du calcul</p>
+      <p className={commun.detailsTitre}>{libelles.mesure.detailsDuCalcul}</p>
       <Provenance
         disposition="ligne"
         lignes={[
           // La période est dans le titre du bloc, à côté du nom de la crise.
-          { libelle: 'Séances', valeur: seances(scenario.observations) },
-          { libelle: 'Poids', valeur: `ceux du ${dateISO(asOf)}, quantités figées ensuite` },
-          { libelle: 'Référence', valeur: definition.benchmark },
+          { libelle: l.seances, valeur: seances(scenario.observations, langue) },
+          { libelle: l.poids, valeur: l.poidsFiges(asOf) },
+          { libelle: l.reference, valeur: definition.benchmark },
         ]}
       />
 
@@ -262,15 +275,9 @@ interface Props {
 }
 
 export function SectionCrise({ scenarios, regimes, asOf, devise }: Props) {
-  const introduction = (
-    <>
-      Qu'aurait perdu votre portefeuille d'aujourd'hui dans les grandes crises passées&nbsp;?
-      Chaque crise est rejouée avec ses montants actuels au départ, sans rien acheter ni
-      vendre ensuite.
-    </>
-  )
+  const { libelles } = useLangue()
   return (
-    <Section ancre="en-crise" numero={5} titre="Ce qui se passe en crise" introduction={introduction}>
+    <Section ancre="en-crise" numero={5} titre={libelles.sections[4]} introduction={libelles.crise.introduction}>
       <div className={styles.liste}>
         {scenarios.map((scenario) => (
           <BlocScenario

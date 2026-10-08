@@ -8,35 +8,37 @@
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { Lien } from '../components/Lien'
-import { cite } from '../lib/phrases'
+import { useLangue } from '../lib/langue'
 import { cheminDe } from '../lib/route'
 import styles from './Pages.module.css'
 
 export function PageInconnue({ chemin }: { chemin: string }) {
+  const { libelles } = useLangue()
+  const l = libelles.introuvable
   return (
-    <Cadre titre="Page introuvable" page={chemin} entete={<BandeauSimple portefeuille={null} />}>
+    <Cadre titre={l.page} page={chemin} entete={<BandeauSimple portefeuille={null} />}>
       <div className={styles.vide}>
         <h1 tabIndex={-1} className={styles.titre}>
-          Aucune page à cette adresse
+          {l.aucunePage}
         </h1>
-        <p className={styles.texte}>{cite(chemin)} ne correspond à aucune page de l'application.</p>
-        <Lien vers={cheminDe({ vue: 'portefeuilles' })}>Voir les portefeuilles</Lien>
+        <p className={styles.texte}>{l.adresse(chemin)}</p>
+        <Lien vers={cheminDe({ vue: 'portefeuilles' })}>{l.voirLesPortefeuilles}</Lien>
       </div>
     </Cadre>
   )
 }
 
 export function PortefeuilleIntrouvable({ id, page }: { id: number; page: string }) {
+  const { libelles } = useLangue()
+  const l = libelles.introuvable
   return (
-    <Cadre titre="Portefeuille introuvable" page={page} entete={<BandeauSimple portefeuille={null} />}>
+    <Cadre titre={l.portefeuille} page={page} entete={<BandeauSimple portefeuille={null} />}>
       <div className={styles.vide}>
         <h1 tabIndex={-1} className={styles.titre}>
-          Portefeuille introuvable
+          {l.portefeuille}
         </h1>
-        <p className={styles.texte}>
-          Aucun portefeuille ne porte le numéro {id}&nbsp;: il a peut-être été supprimé.
-        </p>
-        <Lien vers={cheminDe({ vue: 'portefeuilles' })}>Voir les portefeuilles</Lien>
+        <p className={styles.texte}>{l.numero(id)}</p>
+        <Lien vers={cheminDe({ vue: 'portefeuilles' })}>{l.voirLesPortefeuilles}</Lien>
       </div>
     </Cadre>
   )

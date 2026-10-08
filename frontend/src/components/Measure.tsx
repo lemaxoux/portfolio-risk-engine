@@ -34,6 +34,7 @@
  * l'intertitre « Détails du calcul ». L'intertitre NOMME le bloc, il ne le
  * replie pas : la provenance reste dans le flux (règle 1).
  */
+import { useLangue } from '../lib/langue'
 import { avecAbsence } from './Absent'
 import type { LigneProvenance } from './Provenance'
 import { Provenance } from './Provenance'
@@ -68,6 +69,7 @@ export function Measure({
   caveat = null,
   niveau = 'principal',
 }: Props) {
+  const { libelles } = useLangue()
   const classes = [styles.bloc, niveau === 'principal' ? styles.principal : styles.secondaire]
 
   return (
@@ -84,7 +86,7 @@ export function Measure({
       {neDitPas !== null && <p className={styles.neDitPas}>{neDitPas}</p>}
 
       <div className={styles.details}>
-        <p className={styles.detailsTitre}>Détails du calcul</p>
+        <p className={styles.detailsTitre}>{libelles.mesure.detailsDuCalcul}</p>
         <Provenance lignes={provenance} />
       </div>
 

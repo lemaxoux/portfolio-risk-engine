@@ -90,7 +90,7 @@ export function App() {
         )
       },
       (cause: unknown) => {
-        if (vivant) setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
+        if (vivant) setEtat({ phase: 'erreur', erreur: versApiErreur(cause, premiere) })
       },
     )
     return () => {
@@ -112,7 +112,7 @@ export function App() {
           else remplacerLaPage(() => passer({ phase: 'acceptation', bandeau }))
         },
         (cause: unknown) => {
-          remplacerLaPage(() => passer({ phase: 'erreur', erreur: versApiErreur(cause) }))
+          remplacerLaPage(() => passer({ phase: 'erreur', erreur: versApiErreur(cause, nouvelle) }))
         },
       )
     },
@@ -130,7 +130,7 @@ export function App() {
 
 /** L'écran que demande l'état de l'acceptation, dans la langue affichée. */
 function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void }) {
-  const { langue } = useLangue()
+  const { langue, libelles } = useLangue()
 
   if (etat.phase === 'acceptation') {
     // Une clé par langue : la case cochée sous un texte ne l'est pas sous
@@ -141,7 +141,9 @@ function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void
 
   return (
     <Cadre
-      titre={etat.phase === 'erreur' ? 'API injoignable' : 'Chargement'}
+      titre={
+        etat.phase === 'erreur' ? libelles.application.apiInjoignable : libelles.application.chargement
+      }
       page="demarrage"
       occupe={etat.phase === 'verification'}
       entete={<BandeauSimple portefeuille={null} navigation={false} />}
@@ -157,7 +159,7 @@ function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void
               className={controles.bouton}
               onClick={() => window.location.reload()}
             >
-              Recharger la page
+              {libelles.application.rechargerLaPage}
             </button>
           }
         />
@@ -277,9 +279,14 @@ function ListeEnAttente({
   page: string
   forme: 'analyse' | 'tableau'
 }) {
+  const { libelles } = useLangue()
   return (
     <Cadre
-      titre={liste.phase === 'erreur' ? 'Portefeuilles illisibles' : 'Chargement'}
+      titre={
+        liste.phase === 'erreur'
+          ? libelles.application.portefeuillesIllisibles
+          : libelles.application.chargement
+      }
       page={page}
       occupe={liste.phase !== 'erreur'}
       entete={<BandeauSimple portefeuille={null} />}
@@ -289,7 +296,7 @@ function ListeEnAttente({
           erreur={liste.erreur}
           action={
             <button type="button" className={controles.bouton} onClick={() => void recharger()}>
-              Recharger la liste
+              {libelles.application.rechargerLaListe}
             </button>
           }
         />
