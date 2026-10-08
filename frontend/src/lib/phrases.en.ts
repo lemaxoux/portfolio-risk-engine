@@ -40,8 +40,8 @@ import {
   decimal,
   lignes as lignesFr,
   montantArrondi,
-  points,
   pointsAbsolus,
+  pointsEnAdjectif,
   pourcentage as pourcentageFr,
   pourcentageAbsolu,
   seances,
@@ -282,8 +282,8 @@ export function legendeHistogramme(
     lectureDuNiveau(confiance)?.seuil ?? `the quantile at ${pourcentage(confiance, 0)}`
   const voir = `(see ${cite('The worst days', EN)})`
   const morceaux = [
-    'Each bar counts the trading days whose change falls in the same bin of ' +
-      `${points(largeur, 2, EN)}; left of zero, the down days.`,
+    'Each bar counts the trading days whose change falls in the same ' +
+      `${pointsEnAdjectif(largeur, 2)} bin; left of zero, the down days.`,
   ]
   const [premier] = traces
   if (traces.length === 1 && premier !== undefined) {
@@ -320,7 +320,7 @@ export function descriptionHistogramme(
   })
   const debut =
     `Changes over ${joursDeBourse(histogramme.window.observations)}, ` +
-    `in bins of ${points(histogramme.bin_width, 2, EN)}`
+    `in ${pointsEnAdjectif(histogramme.bin_width, 2)} bins`
   return seuils.length === 0 ? `${debut}.` : `${debut}: ${seuils.join(', ')}.`
 }
 

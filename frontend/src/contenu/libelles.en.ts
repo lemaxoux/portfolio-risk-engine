@@ -14,7 +14,7 @@ import {
   dateISOLiee,
   decimal,
   lignes,
-  points,
+  pointsEnAdjectif,
   pourcentage,
   seances,
 } from '../lib/format'
@@ -154,7 +154,7 @@ export const LIBELLES_EN: Libelles = {
       'Here, the answer comes from the days actually observed, with no formula.',
     varHistorique: (niveau) => `Historical VaR ${niveau}, 1-session horizon`,
     titreHistogramme: 'Changes in value, day by day',
-    uniteHistogramme: (largeur) => `sessions per bin of ${points(largeur, 2, EN)}`,
+    uniteHistogramme: (largeur) => `sessions per ${pointsEnAdjectif(largeur, 2)} bin`,
     courbe: 'With a mathematical curve',
     chapeauCourbe:
       'The same question, put to a curve fitted to your fluctuations rather than to the ' +

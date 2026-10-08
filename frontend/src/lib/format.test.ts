@@ -38,6 +38,7 @@ import {
   montantArrondi,
   points,
   pointsAbsolus,
+  pointsEnAdjectif,
   pointsSignes,
   pourcentageAbsolu,
   valeurDePortefeuille,
@@ -181,6 +182,11 @@ describe('valeur de portefeuille', () => {
 describe('dates', () => {
   it('laisse la date de provenance telle que l’API l’écrit', () => {
     expect(dateISO('2026-09-09')).toBe('2026-09-09')
+  })
+
+  it('écrit une largeur en points en adjectif anglais, le tiret lié (7D)', () => {
+    expect(pointsEnAdjectif(0.0025, 2)).toBe('0.25-\u2060point')
+    expect(pointsEnAdjectif(0.01, 0)).toBe('1-\u2060point')
   })
 
   it('lie la date ISO d’une phrase anglaise après ses tirets (7D), sans rien changer d’autre', () => {

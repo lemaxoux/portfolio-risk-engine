@@ -468,14 +468,14 @@ describe('les phrases anglaises de référence', () => {
 
   it('la légende et la description de l’histogramme', () => {
     expect(p.legendeHistogramme([0.95, 0.99], [], 0.0025)).toBe(
-      'Each bar counts the trading days whose change falls in the same bin of ' +
-        `0.25${NB}points; left of zero, the down days. The lines mark the one-day-in-twenty ` +
+      'Each bar counts the trading days whose change falls in the same ' +
+        `0.25-${LIAISON}point bin; left of zero, the down days. The lines mark the one-day-in-twenty ` +
         'threshold and the one-day-in-a-hundred threshold; the shaded area, the days beyond ' +
         'the first (see “The worst days”). The bins are the same for every portfolio: ' +
         'a portfolio that moves more spreads out further.',
     )
     expect(p.descriptionHistogramme(c.histogramme, [c.niveau(0.95, -0.0106), c.niveau(0.99, -0.0169)])).toBe(
-      `Changes over 504${NB}trading days, in bins of 0.25${NB}points: one day in twenty at ` +
+      `Changes over 504${NB}trading days, in 0.25-${LIAISON}point bins: one day in twenty at ` +
         '\u22121.06% or less, one day in a hundred at \u22121.69% or less.',
     )
   })

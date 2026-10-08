@@ -368,6 +368,15 @@ export function points(fraction: number, decimales: number, langue: Langue = 'fr
 }
 
 /**
+ * Une largeur en points, en adjectif anglais (chantier 7D) : « 0.25-point »,
+ * comme l'échantillon validé (« sessions per 0.25-point bin »). Le tiret est
+ * suivi de U+2060 : « 0.25- » ne finit pas une ligne.
+ */
+export function pointsEnAdjectif(fraction: number, decimales: number): string {
+  return `${decimal(fraction * 100, decimales, 'en')}-${LIAISON}point`
+}
+
+/**
  * Un écart signé, en points : `0.098` → « +9,8 pts », `-0.081` → « −8,1 pts ».
  *
  * Pendant exact de `backend.typography.signed_points` : le « + » d'un écart
