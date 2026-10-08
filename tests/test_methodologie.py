@@ -42,6 +42,21 @@ Aucune valeur citée ne peut s'écarter du moteur sans qu'un test échoue :
    « Un » et « une » n'entrent pas dans cette garde : ce sont aussi des
    articles (« le rendement d'un jour », « un jour de bourse sur vingt »).
 
+═══ 4. L'ANGLAIS (chantier 7D, session 2) ═══
+
+`methodologie.en.md` passe les mêmes contrôles, avec les gardes anglaises de
+`gardes_texte.py` : aucune espace avant « : ; ? ! », “ ” pour citer, rien
+avant « % », virgule des milliers, aucune virgule décimale, aucun mot
+français, aucune contraction, rien de prescriptif (`PRESCRIPTIF_EN`).
+« Session » n'y apparaît que dans une citation de l'écran, comme « séance »
+en français ; chaque citation “…” est un libellé de l'écran ANGLAIS, lu dans
+`libelles.en.ts`, `phrases.en.ts` ou la réponse anglaise de l'API ; chaque
+nombre est une constante du moteur écrite par `typography` en anglais, un
+fragment déclaré ou un numéro de section. Les deux textes citent les mêmes
+nombres, autant de fois : une traduction ne dit ni plus ni moins. Les tests
+français ci-dessus sont ceux d'avant la traduction, inchangés ; les fonctions
+qu'ils appellent prennent la langue, le français par défaut.
+
 CE TEST LIT UN FICHIER DU CLIENT, comme `test_typographie_partagee.py` : les
 constantes qu'il cite vivent dans le moteur, et c'est le moteur qui bouge.
 """
@@ -62,25 +77,30 @@ from backend.risk_engine import config, engine
 from backend.risk_engine.scenarios import SCENARIOS
 from backend.rules import thresholds
 from backend.rules.rules import RuleId
+from backend.textes import textes
 
 from .gardes_texte import (
     CADRATIN,
-    ESPACE_AVANT_MOT,
-    ESPACE_AVANT_POURCENT,
-    ESPACE_ORDINAIRE,
-    GENERALITES,
+    ESPACES_AVANT_MOT,
+    ESPACES_AVANT_POURCENT,
+    FRANCAIS,
+    GENERALITES_PAR_LANGUE,
     GREC,
-    LIEN_SECABLE,
-    NOMBRE_EN_LETTRES,
+    LIENS_SECABLES,
+    NOMBRES_EN_LETTRES,
+    NOTES_SUR_100,
     PAIRE_SECABLE,
-    PRESCRIPTIF,
-    SCORE_SUR_100,
+    PONCTUATION,
+    PRESCRIPTIONS,
+    VIRGULE_DECIMALE,
     dates_secables,
+    nombres,
 )
 
 RACINE = Path(__file__).resolve().parents[1]
 CLIENT = RACINE / "frontend" / "src"
-FICHIER = CLIENT / "contenu" / "methodologie.fr.md"
+FICHIERS = {langue: CLIENT / "contenu" / f"methodologie.{langue}.md" for langue in ("fr", "en")}
+FICHIER = FICHIERS["fr"]
 
 NBSP = typography.NBSP
 NNBSP = typography.NARROW_NBSP
@@ -90,7 +110,9 @@ ENTITES = {"&nbsp;": NBSP, "&#x202F;": NNBSP, "&#x2060;": typography.WORD_JOINER
 
 FORMULE = re.compile(r"\$\$(.+?)\$\$|\$(.+?)\$")
 INDICE = re.compile(r"[_^]\{([^}]*)\}")
-CITATION = re.compile(f"«{NBSP}(.+?){NBSP}»")
+# Une citation : « … » en français, “…” en anglais.
+CITATIONS = {"fr": re.compile(f"«{NBSP}(.+?){NBSP}»"), "en": re.compile("“(.+?)”")}
+CITATION = CITATIONS["fr"]
 
 
 @dataclass(frozen=True)
@@ -106,7 +128,7 @@ class Lecture:
     citations: tuple[str, ...]
 
 
-def lire(source: str) -> Lecture:
+def lire(source: str, langue: str = "fr") -> Lecture:
     for entite, caractere in ENTITES.items():
         source = source.replace(entite, caractere)
     inconnues = re.findall(r"&[#\w]+;", source)
@@ -126,7 +148,7 @@ def lire(source: str) -> Lecture:
         lisible=lisible,
         prose=FORMULE.sub(" ", texte),
         sans_indices=FORMULE.sub(lambda m: formule(m, False), texte),
-        citations=tuple(CITATION.findall(lisible)),
+        citations=tuple(CITATIONS[langue].findall(lisible)),
     )
 
 
@@ -135,12 +157,20 @@ def source() -> str:
     return FICHIER.read_text(encoding="utf-8")
 
 
+@pytest.fixture(scope="module")
+def source_en() -> str:
+    return FICHIERS["en"].read_text(encoding="utf-8")
+
+
 # ══════════════════════════════════════════ 1. Les gardes existantes ══
 
 
-def fautes_de_typographie(lecture: Lecture) -> list[str]:
+def fautes_de_typographie(lecture: Lecture, langue: str = "fr") -> list[str]:
     t = lecture.lisible
-    fautes = [f"espace ordinaire : {e!r}" for e in ESPACE_ORDINAIRE.findall(t)]
+    # En français, l'espace ORDINAIRE avant « : ; ? ! » ; en anglais, toute
+    # espace, les guillemets « » et une espace collée dans “ ”.
+    nom = "espace ordinaire" if langue == "fr" else "ponctuation"
+    fautes = [f"{nom} : {e!r}" for e in PONCTUATION[langue].findall(t)]
     if CADRATIN in t:
         fautes.append("tiret cadratin")
     fautes += [
@@ -148,22 +178,36 @@ def fautes_de_typographie(lecture: Lecture) -> list[str]:
         for m in GREC.finditer(lecture.prose)
     ]
     fautes += [f"paire sécable : {m.group()!r}" for m in PAIRE_SECABLE.finditer(t)]
-    fautes += [f"lien sécable : {e!r}" for e in LIEN_SECABLE.findall(t)]
+    fautes += [f"lien sécable : {e!r}" for e in LIENS_SECABLES[langue].findall(t)]
     fautes += [f"date sécable : {d}" for d in dates_secables(t)]
-    fautes += [f"espace avant % : {e!r}" for e in ESPACE_AVANT_POURCENT.findall(t)]
-    fautes += [f"espace avant le mot compté : {e!r}" for e in ESPACE_AVANT_MOT.findall(t)]
+    fautes += [f"espace avant % : {e!r}" for e in ESPACES_AVANT_POURCENT[langue].findall(t)]
+    fautes += [f"espace avant le mot compté : {e!r}" for e in ESPACES_AVANT_MOT[langue].findall(t)]
+    if langue == "en":
+        fautes += [f"virgule décimale : {e!r}" for e in VIRGULE_DECIMALE.findall(t)]
+        fautes += [
+            f"français : {lecture.prose[max(0, m.start() - 25):m.end() + 10]!r}"
+            for m in FRANCAIS.finditer(lecture.prose)
+        ]
     return fautes
 
 
-def fautes_de_registre(lecture: Lecture) -> list[str]:
+# Une contraction anglaise (« does not », jamais « doesn't ») : la même
+# expression que les tests du client (`libelles.test.ts`). Le « 's » d'un
+# possessif (« today's ») n'en est pas une.
+CONTRACTION = re.compile(r"\b\w+n't\b|\b(it|that|there|what|here)'s\b|'(re|ll|ve|d)\b", re.IGNORECASE)
+
+
+def fautes_de_registre(lecture: Lecture, langue: str = "fr") -> list[str]:
     t = lecture.lisible
     fautes = [
         f"prescriptif : {t[max(0, m.start() - 25):m.end() + 10]!r}"
-        for m in PRESCRIPTIF.finditer(t)
+        for m in PRESCRIPTIONS[langue].finditer(t)
     ]
-    if "score" in t.lower() or SCORE_SUR_100.search(t):
+    if "score" in t.lower() or NOTES_SUR_100[langue].search(t):
         fautes.append("score global")
-    fautes += [f"généralité sur la couverture : {g}" for g in GENERALITES if g in t]
+    fautes += [f"généralité sur la couverture : {g}" for g in GENERALITES_PAR_LANGUE[langue] if g in t]
+    if langue == "en":
+        fautes += [f"contraction : {m.group()!r}" for m in CONTRACTION.finditer(t)]
     return fautes
 
 
@@ -192,12 +236,14 @@ def test_la_garde_mord_sur_le_vrai_texte(source):
 # ═════════════════════════════════════ 2. Deux gardes propres au fichier ══
 
 
-def fautes_de_seance(lecture: Lecture) -> list[str]:
-    """« Séance » n'apparaît que dans une citation de l'écran ou une formule."""
-    hors_citations = CITATION.sub(" ", lecture.prose)
+def fautes_de_seance(lecture: Lecture, langue: str = "fr") -> list[str]:
+    """« Séance » n'apparaît que dans une citation de l'écran ou une formule ;
+    « session » de même en anglais."""
+    hors_citations = CITATIONS[langue].sub(" ", lecture.prose)
+    mot, expression = ("séance", r"[Ss]éances?") if langue == "fr" else ("session", r"[Ss]essions?")
     return [
-        f"séance hors citation : {hors_citations[max(0, m.start() - 30):m.end() + 10]!r}"
-        for m in re.finditer(r"[Ss]éances?", hors_citations)
+        f"{mot} hors citation : {hors_citations[max(0, m.start() - 30):m.end() + 10]!r}"
+        for m in re.finditer(expression, hors_citations)
     ]
 
 
@@ -377,7 +423,7 @@ EXEMPLES_EN_LETTRES = (
 STRUCTURE = tuple(f"section {n}" for n in range(1, 7))
 
 
-def fautes_de_nombres(lecture: Lecture, citations: dict[str, str]) -> list[str]:
+def fautes_de_nombres(lecture: Lecture, citations: dict[str, str], langue: str = "fr") -> list[str]:
     t = lecture.sans_indices
     couvert = [False] * len(t)
     fautes = []
@@ -387,7 +433,7 @@ def fautes_de_nombres(lecture: Lecture, citations: dict[str, str]) -> list[str]:
             fautes.append(f"citation absente, le moteur a-t-il changé ? {nom} : {attendu!r}")
         for m in trouvees:
             couvert[m.start():m.end()] = [True] * (m.end() - m.start())
-    for fragment in FRAGMENTS_MATHEMATIQUES + STRUCTURE + EXEMPLES_EN_LETTRES + tuple(EXEMPLES):
+    for fragment in DECLARES[langue]:
         for m in re.finditer(re.escape(fragment), t):
             couvert[m.start():m.end()] = [True] * (m.end() - m.start())
     for m in re.finditer(r"[0-9]+", t):
@@ -395,7 +441,7 @@ def fautes_de_nombres(lecture: Lecture, citations: dict[str, str]) -> list[str]:
             fautes.append(f"nombre non déclaré : {t[max(0, m.start() - 25):m.end() + 15]!r}")
     # Le nombre lui-même, groupe 1 de l'expression : « trois » dans « environ
     # trois ans ». « Un » et « une » n'y entrent pas (voir `gardes_texte.py`).
-    for m in NOMBRE_EN_LETTRES.finditer(t):
+    for m in NOMBRES_EN_LETTRES[langue].finditer(t):
         if not all(couvert[m.start(1):m.end(1)]):
             fautes.append(f"nombre en lettres non déclaré : {t[max(0, m.start() - 25):m.end() + 15]!r}")
     return fautes
@@ -446,3 +492,282 @@ def test_la_garde_des_libelles_mord(source, analyse_reelle):
     lecture = lire(source.replace("Détails du calcul", "Détail du calcul", 1))
     fautes = fautes_de_libelles(lecture, libelles_de_l_ecran(analyse_reelle.json()))
     assert fautes == ["citation inconnue de l'écran : 'Détail du calcul'"]
+
+
+# ════════════════════════════════════════════════════ 4. L'anglais ══
+#
+# Les mêmes contrôles sur `methodologie.en.md`, avec ce que l'anglais cite et
+# déclare : les libellés de l'écran anglais, les constantes écrites par
+# `typography` en anglais.
+
+LIBELLES_DU_CLIENT_EN = {
+    "Calculation details": "contenu/libelles.en.ts",
+    "Cross-check": "contenu/libelles.en.ts",
+    "Sessions in the tail": "contenu/libelles.en.ts",
+    "Valued as of": "contenu/libelles.en.ts",
+    "not available": "contenu/libelles.en.ts",
+    "±": "views/SectionCrise.tsx",
+    "would have lost": "lib/phrases.en.ts",
+}
+
+EXEMPLES_EN = {"the past five years"}
+
+
+def libelles_de_l_ecran_en(analyse) -> set[str]:
+    """Chaque libellé de l'écran anglais que le texte peut citer, vérifié dans
+    le code qui l'écrit ou dans la réponse anglaise de l'API."""
+    for libelle, fichier in LIBELLES_DU_CLIENT_EN.items():
+        assert libelle in (CLIENT / fichier).read_text(encoding="utf-8"), (libelle, fichier)
+    niveau = analyse["risk"]["tail_risk"]["levels"][0]
+    detail_historique = niveau["historical_var"]["detail"]
+    detail_normale = niveau["parametric_var"]["detail"]
+    choisis = [t for t in vars(thresholds).values() if isinstance(t, thresholds.Threshold) and t.chosen]
+    lignes = choisis + [
+        thresholds.MIN_ESTIMABLE_SAMPLE,
+        thresholds.historical_var_sample(0.95),
+        thresholds.historical_var_sample(0.99),
+    ]
+    publies = {
+        "'lower' interpolation": "'lower' interpolation" in detail_historique,
+        "μ = 0": "μ = 0" in detail_normale,
+        "Monte Carlo": niveau["monte_carlo_var"]["method"] == "Monte Carlo",
+        "Small-sample estimate": engine._estimation_mince(
+            engine.Window(7, 7, BACKFILL_START, BACKFILL_START), "en"
+        ).startswith("Small-sample estimate"),
+        "large sample": "“large sample”" in thresholds.MIN_DISTRIBUTION_SAMPLE.justification("en"),
+    }
+    assert all(publies.values()), publies
+    return (
+        set(LIBELLES_DU_CLIENT_EN)
+        | set(publies)
+        | {engine.period_label(config.DEFAULT_WINDOW, "en")}
+        | {textes("en").regles.libelle(regle) for regle in RuleId}
+        | {t.origine("en") for t in lignes + [thresholds.capital_share("X", 0.1)]}
+        | {f"{t.nom('en')} = {t.affiche('en')}" for t in lignes}
+    )
+
+
+def citations_du_moteur_en() -> dict[str, str]:
+    """Chaque valeur que le texte anglais cite, écrite comme le moteur
+    l'écrirait en anglais. Les mêmes clés qu'en français, sauf les extraits
+    des justifications, qui sont les mots anglais."""
+
+    def jours(n: float) -> str:
+        return typography.counted(int(n), "trading day", "trading days", langue="en")
+
+    def en_lettres(n: int) -> str:
+        return typography.cardinal(n, langue="en")
+
+    choisis = [t for t in vars(thresholds).values() if isinstance(t, thresholds.Threshold) and t.chosen]
+    label, description = textes("en").moteur.NOMS_D_INDICE[BENCHMARK_TICKER]
+    indice = label.removeprefix("the ")
+    effectives = 1.0 / sum(w * w for w in EXEMPLE_POIDS)
+    largeur = config.HISTOGRAM_BIN_WIDTH * 100
+    citations = {
+        "profondeur": typography.long_date(BACKFILL_START, langue="en"),
+        "indice": f"{indice}, {description}",
+        "nom de l'indice": indice,
+        "fenêtre": jours(config.DEFAULT_WINDOW),
+        "période": engine.period_label(config.DEFAULT_WINDOW, "en"),
+        "durée": f"{en_lettres(round(config.DEFAULT_WINDOW / config.TRADING_DAYS_PER_YEAR))} years",
+        "année": jours(config.TRADING_DAYS_PER_YEAR),
+        "racine de l'année": f"√{config.TRADING_DAYS_PER_YEAR}",
+        "tranches": typography.counted(
+            largeur, "point", affiche=typography.number(largeur, 2, langue="en"), langue="en"
+        ),
+        "tranches en %": typography.percent(config.HISTOGRAM_BIN_WIDTH, 2, langue="en"),
+        "tirages": typography.grouped(config.MONTE_CARLO_SIMULATIONS, "draw", langue="en"),
+        "loi : jours": jours(config.MIN_DISTRIBUTION_OBSERVATIONS),
+        "Student : degrés": typography.number(config.MAX_STUDENT_NU, 0, langue="en")
+        + NBSP
+        + "degrees of freedom",
+        "régression": jours(config.MIN_REGRESSION_OBSERVATIONS),
+        "estimables": jours(config.MIN_ESTIMABLE_OBSERVATIONS),
+        "corrélation forte": thresholds.STRONG_CORRELATION.affiche("en"),
+        "couverture": thresholds.MIN_SCENARIO_COVERAGE.affiche("en"),
+        "seuils choisis": f"{en_lettres(len(choisis))} thresholds chosen by hand",
+        "nombre de seuils choisis": f"There are {en_lettres(len(choisis))} in the whole tool",
+        "crises": f"the {en_lettres(len(SCENARIOS))} crises that the tool replays",
+        "crises rejouées": f"replays {en_lettres(len(SCENARIOS))} major crises",
+        "exemple": (
+            f"two holdings of {typography.percent(EXEMPLE_POIDS[0], 0, langue='en')} and "
+            f"{typography.percent(EXEMPLE_POIDS[1], 0, langue='en')} of the value weigh like "
+            + typography.counted(
+                effectives,
+                "equal-sized holding",
+                affiche=typography.number(effectives, 1, langue="en"),
+                langue="en",
+            )
+        ),
+    }
+    for niveau in CONFIDENCE_LEVELS:
+        citations[f"niveau {niveau}"] = typography.percent(niveau, 0, langue="en")
+        citations[f"queue {niveau}"] = typography.percent(round(1.0 - niveau, 9), 0, langue="en")
+        citations[f"VaR historique {niveau} : jours"] = jours(config.historical_var_min_observations(niveau))
+        citations[f"quantile normal {niveau}"] = typography.number(-norm.ppf(1.0 - niveau), 3, langue="en")
+    for scenario in SCENARIOS:
+        citations[f"crise {scenario.key}"] = scenario.nom("en")
+    for seuil in choisis + [
+        thresholds.MIN_ESTIMABLE_SAMPLE,
+        thresholds.historical_var_sample(0.95),
+        thresholds.historical_var_sample(0.99),
+    ]:
+        citations[f"ligne {seuil.name}"] = f"{seuil.nom('en')} = {seuil.affiche('en')}"
+    # Tirés de la justification publiée d'un seuil, en anglais : ils doivent y
+    # figurer.
+    for extrait, seuil in (
+        (typography.percent(0.50, 0, langue="en"), thresholds.MIN_SCENARIO_COVERAGE),
+        ("twice as much", thresholds.MIN_SCENARIO_COVERAGE),
+        ("by only a fifth", thresholds.MIN_SCENARIO_COVERAGE),
+        ("a half", thresholds.MIN_SCENARIO_COVERAGE),
+        ("about three months", thresholds.MIN_REGRESSION_SAMPLE),
+        (typography.percent(0.0205, 2, langue="en"), thresholds.STUDENT_NU_CEILING),
+        (typography.percent(0.13, 0, langue="en"), thresholds.MIN_DISTRIBUTION_SAMPLE),
+    ):
+        assert extrait in seuil.justification("en"), (extrait, seuil.name)
+        citations[f"justification {extrait}"] = extrait
+    return citations
+
+
+# Les mêmes fragments qu'en français, dans les mots anglais.
+FRAGMENTS_MATHEMATIQUES_EN = (
+    "1 − α",
+    "1 / (1 − α)",
+    "n × (1 − α)",
+    "(1 + r)",
+    "ln(1 + r)",
+    "ln(1 + R)",
+    "− 1",
+    "1 / (",
+    "(ν − 2)",
+    "n − 1",
+    "from −1 to +1",
+    "+1 if",
+    "0 with no",
+    "−1 always",
+    "+1 or −1",
+    "100%",
+    "by 1%",
+    "starts at 1 ",
+    "2" + NBSP + "degrees of freedom",
+    "μ = 0",
+    "between two days",
+    "with two days",
+)
+
+EXEMPLES_EN_LETTRES_EN = ("seven days",)  # « estimated over two years or over seven days »
+
+# En tête de phrase, la section prend sa capitale : « Section 5 replays… ».
+STRUCTURE_EN = tuple(f"{s}ection {n}" for s in ("s", "S") for n in range(1, 7))
+
+# Ce que chaque langue déclare, hors des citations du moteur.
+DECLARES = {
+    "fr": FRAGMENTS_MATHEMATIQUES + STRUCTURE + EXEMPLES_EN_LETTRES + tuple(EXEMPLES),
+    "en": FRAGMENTS_MATHEMATIQUES_EN + STRUCTURE_EN + EXEMPLES_EN_LETTRES_EN + tuple(EXEMPLES_EN),
+}
+
+
+def test_en_anglais_le_fichier_n_emploie_que_les_trois_entites(source_en):
+    assert set(re.findall(r"&[#\w]+;", source_en)) <= set(ENTITES)
+
+
+def test_en_anglais_la_typographie_suit_les_gardes_anglaises(source_en):
+    assert fautes_de_typographie(lire(source_en, "en"), "en") == []
+
+
+def test_en_anglais_rien_de_prescriptif_aucune_note_globale_aucune_contraction(source_en):
+    assert fautes_de_registre(lire(source_en, "en"), "en") == []
+
+
+def test_en_anglais_la_garde_mord_sur_le_vrai_texte(source_en):
+    """Contrôle en sens inverse, comme en français : le texte anglais contient
+    de la ponctuation haute collée au mot, des guillemets “ ”, un « % » collé
+    au nombre, une espace insécable avant « trading days »."""
+    t = lire(source_en, "en").lisible
+    assert re.search(r"[a-z]: ", t) and re.search(r"[a-z]; ", t) and re.search(r"[a-z]\? ", t)
+    assert "“" in t and "”" in t
+    assert re.search(r"[0-9]%", t)
+    assert re.search(f"[0-9]{NBSP}trading days", t)
+
+
+def test_en_anglais_session_seulement_dans_une_citation_de_l_ecran(source_en):
+    assert fautes_de_seance(lire(source_en, "en"), "en") == []
+
+
+def test_en_anglais_les_libelles_cites_sont_ceux_de_l_ecran_anglais(source_en, analyse_reelle_en):
+    lecture = lire(source_en, "en")
+    assert len(lecture.citations) > 20
+    connus = libelles_de_l_ecran_en(analyse_reelle_en.json()) | EXEMPLES_EN
+    assert fautes_de_libelles(lecture, connus) == []
+
+
+def test_en_anglais_chaque_nombre_est_une_constante_du_moteur_ou_un_fragment_declare(source_en):
+    assert fautes_de_nombres(lire(source_en, "en"), citations_du_moteur_en(), "en") == []
+
+
+def test_en_anglais_un_changement_du_moteur_fait_echouer_la_liste(source_en, monkeypatch):
+    monkeypatch.setattr(config, "MIN_REGRESSION_OBSERVATIONS", 90)
+    fautes = fautes_de_nombres(lire(source_en, "en"), citations_du_moteur_en(), "en")
+    assert any("citation absente" in f and "90" in f for f in fautes), fautes
+
+
+def test_les_deux_langues_citent_les_memes_nombres_autant_de_fois(source, source_en):
+    """Une traduction ne dit ni plus ni moins : les deux textes, formules
+    comprises et indices retirés, écrivent les mêmes nombres, chacun autant de
+    fois (`gardes_texte.nombres` ramène « 1 645,5 » et « 1,645.5 » à une
+    même écriture). Les nombres en lettres se relisent dans le tableau du
+    rapport."""
+    francais = nombres(lire(source).sans_indices, "fr")
+    anglais = nombres(lire(source_en, "en").sans_indices, "en")
+    assert anglais == francais
+
+
+def test_les_citations_du_moteur_ont_les_memes_nombres_dans_les_deux_langues():
+    francaises = citations_du_moteur()
+    anglaises = citations_du_moteur_en()
+    communes = [nom for nom in francaises if nom in anglaises]
+    assert len(communes) == len(francaises) - 7  # les sept extraits de justification
+    for nom in communes:
+        assert nombres(anglaises[nom], "en") == nombres(francaises[nom], "fr"), nom
+
+
+TEMOINS_EN = (
+    ("strong correlation = 0.70", "strong correlation = 0.75", "nombre non déclaré"),
+    ("1.2&nbsp;equal-sized", "1.3&nbsp;equal-sized", "nombre non déclaré"),
+    ("about three months", "about 63 days", "nombre non déclaré"),
+    ("500 large US companies", "400 large US companies", "citation absente"),
+    ("how much is lost on average?", "how much is lost on average ?", "ponctuation"),
+    ("It never says what to do with it", "You should trim the holding", "prescriptif"),
+    ("no overall rating", "no overall score", "score global"),
+    ("$ν$ (the Greek letter nu)", "ν (the Greek letter nu)", "lettre grecque hors formule"),
+    ("“Sessions in the tail”", "the sessions in the tail", "session hors citation"),
+    ("252&nbsp;trading days", "252 trading days", "lien sécable"),
+    ("about two years", "about three years", "nombre en lettres non déclaré"),
+    # Propres à l'anglais.
+    ("“Calculation details”", "«&nbsp;Calculation details&nbsp;»", "ponctuation"),
+    ("January&nbsp;1,&nbsp;2005", "January&nbsp;1, 2005", "lien sécable"),
+    ("does not say the same thing", "doesn't say the same thing", "contraction"),
+    ("0.25&nbsp;points", "0,25&nbsp;points", "virgule décimale"),
+    ("Why there is no overall rating", "Pourquoi aucune note globale", "français"),
+)
+
+
+@pytest.mark.parametrize(
+    "avant, apres, attendue", TEMOINS_EN, ids=[t[2] + " " + t[1][:24] for t in TEMOINS_EN]
+)
+def test_en_anglais_chaque_garde_mord_sur_un_texte_fautif(source_en, avant, apres, attendue):
+    assert source_en.count(avant) >= 1, avant
+    lecture = lire(source_en.replace(avant, apres, 1), "en")
+    fautes = (
+        fautes_de_typographie(lecture, "en")
+        + fautes_de_registre(lecture, "en")
+        + fautes_de_seance(lecture, "en")
+        + fautes_de_nombres(lecture, citations_du_moteur_en(), "en")
+    )
+    assert any(attendue in f for f in fautes), fautes
+
+
+def test_en_anglais_la_garde_des_libelles_mord(source_en, analyse_reelle_en):
+    lecture = lire(source_en.replace("Calculation details", "Calculation detail", 1), "en")
+    connus = libelles_de_l_ecran_en(analyse_reelle_en.json()) | EXEMPLES_EN
+    assert fautes_de_libelles(lecture, connus) == ["citation inconnue de l'écran : 'Calculation detail'"]

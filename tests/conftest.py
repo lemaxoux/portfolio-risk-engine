@@ -165,6 +165,21 @@ def analyse_reelle(tmp_path_factory):
     dans un `MonkeyPatch.context()` qui la retire dès la réponse obtenue : elle
     ne fuit pas sur les tests suivants, qui ont leur propre base.
     """
+    return _analyser_la_base_reelle(tmp_path_factory, "")
+
+
+@pytest.fixture(scope="session")
+def analyse_reelle_en(tmp_path_factory):
+    """La même réponse, en anglais (`?lang=en`, chantier 7D) : la méthodologie
+    anglaise cite les libellés qu'elle publie (`test_methodologie.py`). Mêmes
+    garanties que `analyse_reelle` : sa propre copie figée, lue et jamais
+    écrite."""
+    return _analyser_la_base_reelle(tmp_path_factory, "?lang=en")
+
+
+def _analyser_la_base_reelle(tmp_path_factory, requete: str):
+    """La démonstration analysée sur une copie figée de la base réelle ;
+    `requete` complète l'adresse de `/analysis` (« ?lang=en »)."""
     if not BASE_REELLE.exists():
         pytest.skip("base locale absente")
 
@@ -192,7 +207,7 @@ def analyse_reelle(tmp_path_factory):
                 },
             )
             assert ecriture.status_code == 200, ecriture.text
-            reponse = client.get(f"/api/portfolios/{identifiant}/analysis")
+            reponse = client.get(f"/api/portfolios/{identifiant}/analysis{requete}")
 
     assert reponse.status_code == 200, reponse.text
     return reponse

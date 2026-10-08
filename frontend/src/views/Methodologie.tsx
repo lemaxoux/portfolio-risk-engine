@@ -173,16 +173,16 @@ interface Props {
 }
 
 export function VueMethodologie({ portefeuille }: Props) {
+  const { langue, libelles } = useLangue()
   const { contenu, tete, parties, sections } = useMemo(() => {
-    const lu = lireContenu(METHODOLOGIE.fr)
+    const lu = lireContenu(METHODOLOGIE[langue])
     const sections: SectionDeNavigation[] = lu.parties.map((partie) => ({
       ancre: partie.ancre,
       libelle: partie.titre,
     }))
     // Le premier bloc est le titre de la page, rendu à part.
     return { contenu: lu, sections, ...enParties(lu.blocs.slice(1)) }
-  }, [])
-  const { langue, libelles } = useLangue()
+  }, [langue])
   const pages = pagesApplication('methodologie', portefeuille?.id ?? null, langue)
   // Le nom du rail et de la liste d'ancres, pour un lecteur d'écran.
   const etiquette = libelles.navigation.partiesDeLaMethodologie

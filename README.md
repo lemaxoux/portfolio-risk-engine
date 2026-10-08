@@ -1790,20 +1790,27 @@ technique. Chaque terme technique y est expliqué à sa première apparition,
 et aucun chiffre d'un portefeuille n'y figure.
 
 - **Un fichier de contenu par langue.**
-  `frontend/src/contenu/methodologie.fr.md`, importé brut (`?raw`). Le
-  fichier d'une langue se choisit en un seul endroit,
-  `src/contenu/methodologie.ts`. Les ancres (`{#cvar}`) sont des
-  identifiants, les mêmes dans toutes les langues. Les liens d'une mesure vers sa méthode les
-  viseront, et `src/contenu/methodologie.test.ts` en fixe la liste.
+  `frontend/src/contenu/methodologie.fr.md` et `methodologie.en.md`
+  (chantier 7D), importés bruts (`?raw`). Le fichier d'une langue se choisit
+  en un seul endroit, `src/contenu/methodologie.ts`. Les ancres (`{#cvar}`)
+  sont des identifiants, les mêmes dans toutes les langues. Les liens d'une
+  mesure vers sa méthode les viseront, et `src/contenu/methodologie.test.ts`
+  en fixe la liste. Le même test compare les deux textes bloc par bloc (même
+  suite de titres, paragraphes, listes et formules, mêmes étiquettes, autant
+  de formules en ligne, les mêmes liens) et vérifie que les six parties
+  reprises de l'analyse portent les noms courts de son rail.
 - **Un Markdown restreint, lu par un lecteur maison** (`src/lib/contenu.ts`) :
   titres à ancre fixe, paragraphes, étiquettes en tête, listes, formules en
   bloc et en ligne avec indices et exposants, liens vers une ancre, trois
   entités. Tout le reste est une erreur, avec sa ligne (`contenu.test.ts`).
   Aucune dépendance et aucun HTML injecté : le lecteur rend des blocs typés,
-  la vue des éléments React. Le texte pèse 29,8 kB (10,1 kB compressés) et
-  reste en clair dans le bundle, qui passe de 593 à 631 kB (de 189 à 205 kB
-  compressés, selon Vite). Un chargement à la demande n'économiserait que le
-  texte, au prix d'un état de chargement : à revoir en 7D, avec deux langues.
+  la vue des éléments React. Le texte français pèse 29,8 kB (10,1 kB
+  compressés), l'anglais 27,4 kB (9,6 kB) ; les deux restent en clair dans
+  le bundle (décision du 2026-10-08), qui pèse 700 kB (226 kB compressés,
+  selon Vite) avec l'interface anglaise. Un chargement à la demande
+  n'économiserait qu'un texte, au prix d'un état de chargement et d'une
+  course de plus avec l'arrivée sur une ancre : il relève du découpage du
+  bundle, toujours reporté, pas de la langue.
 - **La page** (`src/views/Methodologie.tsx`) : chaque partie est une
   `<section>` nommée par son titre ; chaque titre de partie ou d'entrée porte
   son ancre et `tabIndex={-1}`, et s'arrête sous le bandeau quand une adresse
@@ -1822,7 +1829,15 @@ et aucun chiffre d'un portefeuille n'y figure.
   prescriptive, score global, généralités sur une couverture partielle. Deux
   gardes s'y ajoutent : « séance » n'apparaît que dans une citation de l'écran
   ou une formule, et chaque citation « … » est un libellé que la page affiche,
-  lu dans le code qui l'écrit ou dans la réponse de l'API.
+  lu dans le code qui l'écrit ou dans la réponse de l'API. Le texte anglais
+  passe les gardes anglaises (aucune espace avant la ponctuation haute, “ ”
+  pour citer, rien avant « % », aucune virgule décimale, aucun mot français,
+  aucune contraction, `PRESCRIPTIF_EN`) ; « session » n'y apparaît que dans
+  une citation, et chaque citation “…” est un libellé de l'écran anglais,
+  lu dans `libelles.en.ts`, `phrases.en.ts` ou la réponse anglaise de
+  l'analyse réelle (`analyse_reelle_en`). Les tests français sont ceux
+  d'avant la traduction ; les fonctions qu'ils appellent prennent la langue,
+  le français par défaut.
 - **Une liste fermée des nombres.** Chaque valeur citée (0,70, 80 %, 504, 60,
   30, 3, 20 et 100 jours de bourse, le 1er janvier 2005, 100 000 tirages…) est
   recalculée depuis le moteur et écrite par `backend/typography.py`, qui écrit
@@ -1838,7 +1853,12 @@ et aucun chiffre d'un portefeuille n'y figure.
   (« sept jours », « un ou deux jours », « entre deux jours », « avec deux
   jours ») ; « un » et « une » n'entrent pas dans la garde, parce qu'ils sont
   aussi des articles. Le test lit un fichier du client depuis la suite Python,
-  comme `test_typographie_partagee.py` : c'est le moteur qui bouge.
+  comme `test_typographie_partagee.py` : c'est le moteur qui bouge. En
+  anglais, les mêmes citations sont écrites par `typography` en anglais
+  (« January 1, 2005 », « 100,000 draws », « the past two years ») et les
+  fragments déclarés dans les mots anglais (« from −1 to +1 », « with two
+  days ») ; les deux textes citent les mêmes nombres, chacun autant de fois
+  (`gardes_texte.nombres`).
 - **Les glyphes.** Spectral n'a pas de grec : toute formule, même d'une
   lettre, s'écrit en IBM Plex Sans. Ni Plex Sans, ni Spectral, ni Plex Mono,
   tels que @fontsource les livre, ne dessinent √, ≤, ≥, →, ᵀ ni ᵢ. Indices et
@@ -1849,7 +1869,10 @@ et aucun chiffre d'un portefeuille n'y figure.
   fichiers `.woff` de @fontsource, aux versions figées de `package.json`
   (Spectral 400 et 500 pour la prose, titres compris, IBM Plex Sans 400 pour
   les formules). Un caractère hors de la liste fait échouer le test : on
-  vérifie alors la police à la main avant de l'ajouter.
+  vérifie alors la police à la main avant de l'ajouter. La liste anglaise
+  (chantier 7D) n'a ni lettre accentuée, ni « », ni espace fine, ni « é »
+  dans une formule ; elle ajoute “, ” et ’, lus le 2026-10-08 dans les mêmes
+  tables (sous-ensemble latin de Spectral 400 et 500, IBM Plex Sans 400).
 
 #### Aucun tiret cadratin dans l'interface
 
@@ -2254,7 +2277,6 @@ tourner sur les mêmes cas que `choisirLangue`.
   nombres, et les règles de l'anglais (aucune espace avant la ponctuation
   haute, aucune contraction, aucun mot français, rien de prescriptif) ;
   `ponctuation.test.ts` lit en plus chaque fichier `.en.ts`.
-
 - **Les phrases** de lecture des mesures : `src/lib/phrases.fr.ts` (le
   français d'avant, déplacé tel quel) et `src/lib/phrases.en.ts`, mêmes noms
   et mêmes signatures (l'interface `Phrases` de `phrases.ts`), les mêmes
@@ -2263,9 +2285,14 @@ tourner sur les mêmes cas que `choisirLangue`.
   dans les deux langues sur un catalogue de cas : aucune traduction oubliée,
   les règles de l'anglais, les mêmes nombres, et les phrases de référence de
   l'échantillon validé, mot pour mot.
+- **La méthodologie anglaise** : `src/contenu/methodologie.en.md`, les mêmes
+  30 ancres, la même forme bloc par bloc, chaque terme expliqué à sa première
+  apparition, “…” pour citer un libellé de l'écran anglais. La vue lit le
+  texte de la langue affichée. `tests/test_methodologie.py` lui applique les
+  contrôles du français avec les gardes anglaises (section 10, « La page
+  méthodologie ») ; `methodologie.test.ts`, les glyphes de sa propre liste.
 
-**Ce qui reste à faire, en session 2** : la méthodologie anglaise, les relevés
-aux captures.
+**Ce qui reste à faire, en session 2** : les relevés aux captures.
 
 ## Schéma de données
 
