@@ -25,6 +25,7 @@ from backend.risk_engine.portfolio import (
     load_securities,
     market_value_weights,
 )
+from backend.textes import textes
 
 from ..csv_import import PROBE_BYTES, CsvError, read as read_csv
 from ..dependencies import get_connection
@@ -97,7 +98,7 @@ def _detail(
     )
 
 
-def _resume(problemes: tuple[Problem, ...]) -> str:
+def _resume(problemes: tuple[Problem, ...], langue: Langue) -> str:
     """Phrase d'en-tête d'un refus.
 
     Un problème unique est repris tel quel : le résumer par « 1 position
@@ -106,10 +107,12 @@ def _resume(problemes: tuple[Problem, ...]) -> str:
     """
     if len(problemes) == 1:
         return problemes[0].problem
-    return f"{len(problemes)} lignes refusées : aucune position n'a été écrite."
+    return textes(langue).api.lignes_refusees(len(problemes))
 
 
-def _require(conn: sqlite3.Connection, portfolio_id: int) -> store.PortfolioRow:
+def _require(
+    conn: sqlite3.Connection, portfolio_id: int, langue: Langue = "fr"
+) -> store.PortfolioRow:
     """Le portefeuille, ou 404.
 
     L'existence est vérifiée par une lecture explicite, jamais en cherchant un
@@ -118,7 +121,7 @@ def _require(conn: sqlite3.Connection, portfolio_id: int) -> store.PortfolioRow:
     """
     row = store.get(conn, portfolio_id)
     if row is None:
-        raise not_found(portfolio_id)
+        raise not_found(portfolio_id, langue)
     return row
 
 
@@ -126,11 +129,12 @@ def _write(
     conn: sqlite3.Connection,
     portfolio_id: int,
     submitted: list[SubmittedPosition],
+    langue: Langue,
 ) -> store.PortfolioRow:
     """Valide puis remplace. Ne renvoie qu'une fois l'écriture faite."""
-    retenues, problemes = validate(submitted, load_securities(conn))
+    retenues, problemes = validate(submitted, load_securities(conn), langue=langue)
     if problemes:
-        raise unprocessable(_resume(problemes), problemes)
+        raise unprocessable(_resume(problemes, langue), problemes)
 
     try:
         store.replace_positions(conn, portfolio_id, retenues)
@@ -140,7 +144,7 @@ def _write(
         # la validation a lu, pas une erreur de l'utilisateur.
         raise ApiError(
             status.HTTP_409_CONFLICT,
-            f"Écriture refusée par la base : {exc}",
+            textes(langue).api.ecriture_refusee(str(exc)),
         ) from exc
 
     row = store.get(conn, portfolio_id)
@@ -178,7 +182,7 @@ def read_portfolio(
     conn: sqlite3.Connection = Depends(get_connection),
     langue: Langue = Depends(langue_demandee),
 ) -> PortfolioDetailOut:
-    return _detail(conn, _require(conn, portfolio_id), strict=True, langue=langue)
+    return _detail(conn, _require(conn, portfolio_id, langue), strict=True, langue=langue)
 
 
 @router.put("/{portfolio_id}/positions", response_model=PositionsWrittenOut)
@@ -186,14 +190,16 @@ def replace_positions(
     portfolio_id: int,
     payload: PositionsReplace,
     conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> PositionsWrittenOut:
     """Remplace TOUTES les positions du portefeuille.
 
     `line`, quand le client le fournit, suit la position jusqu'à ses refus :
     c'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une
-    ligne de fichier pour l'import CSV. L'API ne l'interprète pas.
+    ligne de fichier pour l'import CSV. L'API ne l'interprète pas. Les refus
+    sont rédigés dans la langue demandée.
     """
-    _require(conn, portfolio_id)
+    _require(conn, portfolio_id, langue)
     soumises = [
         SubmittedPosition(
             ticker=position.ticker,
@@ -203,7 +209,7 @@ def replace_positions(
         )
         for position in payload.positions
     ]
-    row = _write(conn, portfolio_id, soumises)
+    row = _write(conn, portfolio_id, soumises, langue)
     assert row.updated_at is not None
     return PositionsWrittenOut(
         portfolio_id=portfolio_id,
@@ -219,26 +225,28 @@ def import_positions_csv(
         description="Fichier CSV. En-tête attendu : ticker;quantity[;cost_basis]"
     ),
     conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> CsvImportOut:
     """Importe un CSV de positions, y compris celui d'un Excel français.
 
     Le fichier est lu en OCTETS, jamais décodé implicitement : l'encodage, le
     séparateur de champs et le séparateur décimal sont déduits des octets, puis
-    rendus dans la réponse. Voir `api.csv_import` pour le raisonnement.
+    rendus dans la réponse. Voir `api.csv_import` pour le raisonnement. Les
+    refus sont rédigés dans la langue demandée.
     """
-    _require(conn, portfolio_id)
+    _require(conn, portfolio_id, langue)
 
     try:
         # Lecture BORNÉE : un octet de plus que la limite suffit à savoir que le
         # fichier la dépasse, et le reste n'est jamais chargé.
-        lecture = read_csv(file.file.read(PROBE_BYTES), file.filename)
+        lecture = read_csv(file.file.read(PROBE_BYTES), file.filename, langue=langue)
     except CsvError as exc:
-        raise unprocessable(str(exc)) from exc
+        raise unprocessable(exc.texte(langue)) from exc
 
     if lecture.problems:
-        raise unprocessable(_resume(lecture.problems), lecture.problems)
+        raise unprocessable(_resume(lecture.problems, langue), lecture.problems)
 
-    row = _write(conn, portfolio_id, list(lecture.positions))
+    row = _write(conn, portfolio_id, list(lecture.positions), langue)
     assert row.updated_at is not None
     return CsvImportOut(
         portfolio_id=portfolio_id,
@@ -256,8 +264,11 @@ def import_positions_csv(
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_portfolio(
-    portfolio_id: int, conn: sqlite3.Connection = Depends(get_connection)
+    portfolio_id: int,
+    conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> None:
-    """Supprime le portefeuille et ses positions (cascade du schéma)."""
-    _require(conn, portfolio_id)
+    """Supprime le portefeuille et ses positions (cascade du schéma). Son
+    absence répond 404, dans la langue demandée."""
+    _require(conn, portfolio_id, langue)
     store.delete(conn, portfolio_id)

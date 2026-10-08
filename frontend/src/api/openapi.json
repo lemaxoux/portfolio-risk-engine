@@ -84,8 +84,26 @@
           "méta"
         ],
         "summary": "Read Csv Format",
-        "description": "Le format que lit l'import CSV, EN LECTURE SEULE et sans base.\n\nL'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,\n§13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient\nde la table ou de la constante que le lecteur consulte lui-même, si bien\nqu'un format affiché ne peut pas diverger du format lu.",
+        "description": "Le format que lit l'import CSV, EN LECTURE SEULE et sans base.\n\nL'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,\n§13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient\nde la table ou de la constante que le lecteur consulte lui-même, si bien\nqu'un format affiché ne peut pas diverger du format lu. Seul l'exemple\ndépend de la langue : celui d'un Excel français, ou d'un Excel anglais.",
         "operationId": "read_csv_format_api_csv_format_get",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -93,6 +111,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CsvFormatOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -288,7 +316,7 @@
           "portefeuilles"
         ],
         "summary": "Delete Portfolio",
-        "description": "Supprime le portefeuille et ses positions (cascade du schéma).",
+        "description": "Supprime le portefeuille et ses positions (cascade du schéma). Son\nabsence répond 404, dans la langue demandée.",
         "operationId": "delete_portfolio_api_portfolios__portfolio_id__delete",
         "parameters": [
           {
@@ -299,6 +327,22 @@
               "type": "integer",
               "title": "Portfolio Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
           }
         ],
         "responses": {
@@ -324,7 +368,7 @@
           "portefeuilles"
         ],
         "summary": "Replace Positions",
-        "description": "Remplace TOUTES les positions du portefeuille.\n\n`line`, quand le client le fournit, suit la position jusqu'à ses refus :\nc'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une\nligne de fichier pour l'import CSV. L'API ne l'interprète pas.",
+        "description": "Remplace TOUTES les positions du portefeuille.\n\n`line`, quand le client le fournit, suit la position jusqu'à ses refus :\nc'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une\nligne de fichier pour l'import CSV. L'API ne l'interprète pas. Les refus\nsont rédigés dans la langue demandée.",
         "operationId": "replace_positions_api_portfolios__portfolio_id__positions_put",
         "parameters": [
           {
@@ -335,6 +379,22 @@
               "type": "integer",
               "title": "Portfolio Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
           }
         ],
         "requestBody": {
@@ -377,7 +437,7 @@
           "portefeuilles"
         ],
         "summary": "Import Positions Csv",
-        "description": "Importe un CSV de positions, y compris celui d'un Excel français.\n\nLe fichier est lu en OCTETS, jamais décodé implicitement : l'encodage, le\nséparateur de champs et le séparateur décimal sont déduits des octets, puis\nrendus dans la réponse. Voir `api.csv_import` pour le raisonnement.",
+        "description": "Importe un CSV de positions, y compris celui d'un Excel français.\n\nLe fichier est lu en OCTETS, jamais décodé implicitement : l'encodage, le\nséparateur de champs et le séparateur décimal sont déduits des octets, puis\nrendus dans la réponse. Voir `api.csv_import` pour le raisonnement. Les\nrefus sont rédigés dans la langue demandée.",
         "operationId": "import_positions_csv_api_portfolios__portfolio_id__positions_csv_post",
         "parameters": [
           {
@@ -388,6 +448,22 @@
               "type": "integer",
               "title": "Portfolio Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
           }
         ],
         "requestBody": {

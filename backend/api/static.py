@@ -48,8 +48,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
 from fastapi.responses import FileResponse, JSONResponse
+
+from backend.langue import Langue
+from backend.textes import textes
+
+from .langue import langue_de_la_requete
 
 # `joinpath` plutôt que l'opérateur `/` de pathlib, dans tout ce module : la
 # garde d'arithmétique de `tests/test_api_discipline.py` lit l'arbre syntaxique,
@@ -94,11 +99,11 @@ def _fichier_servi(dist: Path, chemin: str) -> Path | None:
     return candidat if candidat.is_file() else None
 
 
-def _refus_api(chemin: str) -> JSONResponse:
+def _refus_api(chemin: str, langue: Langue) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={
-            "detail": f"Aucune route d'API à ce chemin : /{chemin}",
+            "detail": textes(langue).api.route_inconnue(chemin),
             "problems": [],
         },
     )
@@ -112,11 +117,12 @@ def register_frontend(app: FastAPI) -> bool:
         return False
 
     @app.get("/{chemin_complet:path}", include_in_schema=False)
-    def servir(chemin_complet: str):
-        """Un fichier du bundle, ou `index.html` — sauf sous `/api`."""
+    def servir(chemin_complet: str, request: Request):
+        """Un fichier du bundle, ou `index.html` — sauf sous `/api`, où le
+        refus est rédigé dans la langue de l'adresse (`?lang=en`)."""
         segments = chemin_complet.split("/")
         if segments[0] == PREFIXE_API:
-            return _refus_api(chemin_complet)
+            return _refus_api(chemin_complet, langue_de_la_requete(request))
 
         fichier = _fichier_servi(dist, chemin_complet)
         if fichier is not None:

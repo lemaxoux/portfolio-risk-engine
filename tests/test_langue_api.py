@@ -17,6 +17,8 @@ import re
 
 import pytest
 
+from backend.api.csv_import import read as lire_csv
+from backend.api.static import VARIABLE as DOSSIER_DU_BUNDLE
 from backend.risk_engine.config import DEFAULT_WINDOW
 from backend.rules.disclaimer import acceptance_text
 from backend.typography import NBSP, prose
@@ -351,3 +353,179 @@ def test_chaque_observation_anglaise_traduit_la_francaise_sur_une_fenetre_courte
     comparer_les_observations(
         analyser_en(seances_courtes).json(), analyser_en(seances_courtes, "&lang=en").json()
     )
+
+
+# ═════════════════════════════════════ Saisie, fichier et erreurs (lot 6) ══
+#
+# Les refus d'une saisie, d'un fichier, les 404 et le chemin d'API inconnu.
+# Aucune de ces requêtes n'écrit : un refus est vérifié avant la première
+# écriture, et l'invariant se lit donc sur la même base, requête après requête.
+
+
+def deposer(client, identifiant: int, contenu: bytes, parametres: str = ""):
+    return client.post(
+        f"/api/portfolios/{identifiant}/positions/csv{parametres}",
+        files={"file": ("positions.csv", contenu, "text/csv")},
+    )
+
+
+def refus(identifiant: int) -> list[tuple[str, str, dict]]:
+    """Méthode, chemin et arguments de chaque refus. Les valeurs refusées
+    citées sont des mots : un nombre saisi est une donnée, qui ne se lit pas
+    pareil dans les deux langues."""
+    positions = f"/api/portfolios/{identifiant}/positions"
+    fichier = f"/api/portfolios/{identifiant}/positions/csv"
+
+    def csv(contenu: bytes) -> dict:
+        return {"files": {"file": ("positions.csv", contenu, "text/csv")}}
+
+    return [
+        ("get", "/api/portfolios/999", {}),
+        ("get", "/api/portfolios/999/analysis", {}),
+        ("delete", "/api/portfolios/999", {}),
+        ("put", "/api/portfolios/999/positions", {"json": {"positions": [{"ticker": "ALFA", "quantity": 1}]}}),
+        ("put", positions, {"json": {"positions": []}}),
+        (
+            "put",
+            positions,
+            {
+                "json": {
+                    "positions": [
+                        {"ticker": "XYZ", "quantity": 5, "line": 2},
+                        {"ticker": "ALFA", "quantity": 1, "line": 3},
+                        {"ticker": "ALFA", "quantity": 2, "line": 4},
+                        {"ticker": " ", "quantity": 1, "line": 5},
+                        {"ticker": "MIKE", "quantity": -3, "line": 6},
+                        {"ticker": "ZULU", "quantity": 1, "cost_basis": -2, "line": 7},
+                    ]
+                }
+            },
+        ),
+        ("put", positions, {"json": {"positions": [{"ticker": "MIKE", "quantity": 0}]}}),
+        ("post", fichier, csv(b"ticker;quantity\nALFA;1" + bytes([0x81]) + b"\n")),
+        ("post", fichier, csv(b"symbol;count\nALFA;1\n")),
+        ("post", fichier, csv(b"ticker quantity\nALFA 1\n")),
+        ("post", fichier, csv(b"   \n")),
+        ("post", fichier, csv(b"ticker,quantity,cost_basis\nALFA\nMIKE,dix\nALFA,10,cher\nMIKE,1,5,7,9\n")),
+    ]
+
+
+def test_un_refus_en_francais_est_celui_d_avant_le_chantier(client_synthetique, portefeuille_synthetique):
+    """Sans `lang` et avec `lang=fr`, chaque refus est le même, octet pour
+    octet."""
+    for methode, chemin, arguments in refus(portefeuille_synthetique):
+        sans = getattr(client_synthetique, methode)(chemin, **arguments)
+        francais = getattr(client_synthetique, methode)(_avec(chemin, "lang=fr"), **arguments)
+        assert sans.status_code in (404, 422), (chemin, sans.status_code)
+        assert francais.content == sans.content, (methode, chemin)
+
+
+def test_chaque_refus_anglais_traduit_le_francais(client_synthetique, portefeuille_synthetique):
+    """Le même code, les mêmes champs, les mêmes lignes et les mêmes valeurs
+    refusées ; le détail et chaque problème en anglais, aux gardes anglaises,
+    avec les nombres du français."""
+    for methode, chemin, arguments in refus(portefeuille_synthetique):
+        francais = getattr(client_synthetique, methode)(chemin, **arguments)
+        anglais = getattr(client_synthetique, methode)(_avec(chemin, "lang=en"), **arguments)
+        assert anglais.status_code == francais.status_code, (methode, chemin)
+        fr, en = francais.json(), anglais.json()
+        assert len(en["problems"]) == len(fr["problems"])
+        for p_fr, p_en in zip(fr["problems"], en["problems"]):
+            assert {k: p_en[k] for k in ("line", "field", "value")} == {
+                k: p_fr[k] for k in ("line", "field", "value")
+            }
+        textes = [(fr["detail"], en["detail"])] + [
+            (p_fr["problem"], p_en["problem"]) for p_fr, p_en in zip(fr["problems"], en["problems"])
+        ]
+        for texte_fr, texte_en in textes:
+            assert texte_en != texte_fr, texte_en
+            assert fautes_de_forme(texte_en, "en") == [], texte_en
+            assert fautes_de_francais(texte_en) == [], texte_en
+            assert fautes_de_registre(texte_en, "en") == [], texte_en
+            assert nombres(texte_en, "en") == nombres(texte_fr, "fr"), (texte_fr, texte_en)
+
+
+def test_les_refus_anglais_disent_ce_que_le_glossaire_fixe(client_synthetique, portefeuille_synthetique):
+    absent = client_synthetique.get("/api/portfolios/999?lang=en").json()
+    assert absent["detail"] == "Portfolio 999 not found."
+    saisie = client_synthetique.put(
+        f"/api/portfolios/{portefeuille_synthetique}/positions?lang=en",
+        json={"positions": [{"ticker": "XYZ", "quantity": 5}]},
+    ).json()
+    assert saisie["detail"].startswith("XYZ is not a known security. Available securities: ")
+    fichier = deposer(
+        client_synthetique,
+        portefeuille_synthetique,
+        b"ticker;quantity\nALFA;dix\nMIKE;onze\n",
+        "?lang=en",
+    ).json()
+    assert fichier["detail"] == "2\u00a0lines rejected: no position was written."
+    assert fichier["problems"][0]["problem"] == (
+        "\u201cdix\u201d is not a readable quantity. Accepted decimal separator: `,`."
+    )
+
+
+def test_un_refus_de_validation_de_fastapi_ne_change_pas_de_langue(
+    client_synthetique, portefeuille_synthetique
+):
+    """Le message de pydantic est publié tel quel, en anglais, dans les deux
+    langues (question 14) : `lang` ne le touche pas."""
+    chemin = f"/api/portfolios/{portefeuille_synthetique}/analysis?window=10"
+    francais = client_synthetique.get(chemin)
+    anglais = client_synthetique.get(_avec(chemin, "lang=en"))
+    assert francais.status_code == anglais.status_code == 422
+    assert anglais.content == francais.content
+
+
+@pytest.fixture
+def client_avec_bundle(tmp_path, base_synthetique, client_factory, monkeypatch):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>Mx Risk MGT</title>", encoding="utf-8")
+    monkeypatch.setenv(DOSSIER_DU_BUNDLE, str(dist))
+    with client_factory(base_synthetique) as client:
+        yield client
+
+
+def test_le_chemin_d_api_inconnu_dans_la_langue_de_l_adresse(client_avec_bundle):
+    """Aucune route ne déclare `lang` ici : la langue se lit dans l'adresse,
+    et une langue inconnue n'y est pas refusée, la réponse refuse déjà autre
+    chose."""
+    francais = client_avec_bundle.get("/api/nexiste-pas")
+    assert francais.json()["detail"].startswith("Aucune route d'API à ce chemin")
+    assert client_avec_bundle.get("/api/nexiste-pas?lang=fr").content == francais.content
+    assert client_avec_bundle.get("/api/nexiste-pas?lang=de").content == francais.content
+    anglais = client_avec_bundle.get("/api/nexiste-pas?lang=en")
+    assert anglais.status_code == 404
+    assert anglais.json() == {"detail": "No API route at this path: /api/nexiste-pas", "problems": []}
+    # Une route du client reste une page, quelle que soit la langue demandée.
+    assert client_avec_bundle.get("/methodologie?lang=de").status_code == 200
+
+
+def test_l_exemple_csv_anglais_est_celui_d_un_excel_anglais(client_synthetique):
+    """Seul l'exemple change : le format lu est le même. L'exemple anglais est
+    lu par le vrai lecteur, comme le français : virgule, point décimal, prix
+    de revient laissé vide."""
+    francais = client_synthetique.get("/api/csv-format").json()
+    anglais = client_synthetique.get("/api/csv-format?lang=en").json()
+    assert {k: v for k, v in anglais.items() if k != "example"} == {
+        k: v for k, v in francais.items() if k != "example"
+    }
+    assert anglais["example"] != francais["example"]
+    lecture = lire_csv(anglais["example"].encode("utf-8"))
+    assert lecture.problems == ()
+    assert [(p.ticker, p.quantity, p.cost_basis) for p in lecture.positions] == [
+        ("AAPL", 40.0, 185.2),
+        ("MSFT", 25.0, None),
+    ]
+    assert lecture.source.delimiter == ","
+    assert lecture.source.decimal_separator == "."
+
+
+def test_l_exemple_csv_anglais_s_importe_sur_la_copie_figee(base_figee, client_factory):
+    with client_factory(base_figee) as client:
+        identifiant = client.post("/api/portfolios", json={"name": "Example"}).json()["id"]
+        exemple = client.get("/api/csv-format?lang=en").json()["example"]
+        reponse = deposer(client, identifiant, exemple.encode("utf-8"), "?lang=en")
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["positions_count"] == 2

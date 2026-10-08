@@ -39,6 +39,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from backend import typography
+from backend.langue import Langue
+from backend.textes import textes
+
+from .langue import langue_de_la_requete
 
 
 @dataclass(frozen=True)
@@ -80,10 +84,12 @@ class ApiError(Exception):
         self.problems = problems
 
 
-def not_found(portfolio_id: int) -> ApiError:
+def not_found(portfolio_id: int, langue: Langue = "fr") -> ApiError:
+    """Le message du moteur, le même que celui d'une `PortfolioError` : il
+    n'est écrit qu'une fois (`textes/{fr,en}/moteur.py`)."""
     return ApiError(
         status.HTTP_404_NOT_FOUND,
-        f"Portefeuille {portfolio_id} introuvable.",
+        textes(langue).moteur.portefeuille_introuvable(portfolio_id),
     )
 
 
@@ -113,18 +119,19 @@ def register_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         # Les refus de FastAPI prennent la même forme que les nôtres. `loc` est
         # un chemin (« body », « positions », 0, « quantity ») : on n'en garde
-        # que le dernier segment nommé, qui est le champ fautif.
+        # que le dernier segment nommé, qui est le champ fautif. Le message de
+        # pydantic est publié tel quel, dans les deux langues ; seuls ses
+        # replis sont rédigés ici.
+        t = textes(langue_de_la_requete(request)).api
         problemes = tuple(
             Problem(
-                problem=erreur.get("msg", "valeur refusée"),
+                problem=erreur.get("msg", t.VALEUR_REFUSEE),
                 field=_champ(erreur.get("loc", ())),
                 value=_valeur(erreur.get("input")),
             )
             for erreur in exc.errors()
         )
-        detail = (
-            problemes[0].problem if problemes else "Requête refusée à la validation."
-        )
+        detail = problemes[0].problem if problemes else t.REQUETE_REFUSEE
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=_body(detail, problemes),

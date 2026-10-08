@@ -953,7 +953,7 @@ qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
 | GET | `/api/portfolios/{id}` | un portefeuille ; positions stockées et valorisées |
 | PUT | `/api/portfolios/{id}/positions` | remplace **toutes** les positions ; `line` facultatif par position, renvoyé dans les refus |
 | POST | `/api/portfolios/{id}/positions/csv` | import CSV (multipart) |
-| GET | `/api/csv-format` | format lu par l'import CSV : colonnes, séparateurs, décimales, encodages, limites, exemple |
+| GET | `/api/csv-format` | format lu par l'import CSV : colonnes, séparateurs, décimales, encodages, limites, exemple (celui d'un Excel anglais avec `?lang=en`) |
 | DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
 | GET | `/api/portfolios/{id}/analysis` | rapport, scénarios, régimes, observations, bandeau |
 
@@ -971,7 +971,9 @@ L'anglais s'ajoute à côté, domaine par domaine : l'écran d'acceptation
 (périodes, méthodes et détails de provenance, réserves, refus, raisons d'un
 volet simulé indisponible, crises et leurs descriptions, résumés des scénarios
 et des régimes, nom de l'indice de référence, erreurs du portefeuille), puis
-les observations du moteur de règles et leurs seuils. Les phrases vivent dans
+les observations du moteur de règles et leurs seuils, puis la couche API :
+refus d'une saisie et d'un fichier, 404, chemin d'API inconnu. Les phrases
+vivent dans
 `backend/textes/`, un module par langue et par domaine, mêmes noms et mêmes
 signatures ; le français y a été déplacé tel quel, et les noms qu'on lisait
 ailleurs (`rules.disclaimer.ACCEPTANCE_TITLE`…) le lisent de là. Le moteur et
@@ -1039,14 +1041,29 @@ normale et pour la Student ; série constante) sont des erreurs rédigées
 texte et ses arguments, `str()` rend le français comme avant, et la route ou
 le moteur qui les attrape les rédige dans la langue de la réponse.
 
+**La couche API rédige dans la langue demandée.** `PUT …/positions`, `POST
+…/positions/csv`, `DELETE` et `/csv-format` prennent `lang` comme les routes de
+lecture. `validation.validate` et `csv_import.read` reçoivent la langue et y
+rédigent chaque refus ; `CsvError` est une erreur rédigée, que la route rédige
+dans la langue de la réponse. Le 404 d'un portefeuille inexistant est le
+message du moteur (`moteur.portefeuille_introuvable`), écrit une seule fois.
+Deux réponses ne passent par aucune route qui déclare `lang` : le refus d'une
+validation de FastAPI et le chemin d'API inconnu. Elles lisent `lang` dans
+l'adresse (`api.langue.langue_de_la_requete`), sans refuser une langue
+inconnue, puisqu'elles refusent déjà autre chose. L'exemple de `/csv-format`
+change de format plutôt que de langue : celui d'un Excel anglais (virgule,
+point décimal) avec `?lang=en`, lu et importé par les tests comme le français.
+
 **Ce qui reste en français, déclaré.** Les garde-fous internes du moteur, que
 l'API ne déclenche que sur une base corrompue, gardent leur message français
 dans les deux langues : ceux de `measures`, `covariance` (dont la variance
 nulle d'un titre ou de l'indice, qui aboutit en 422), `stress`, `returns`,
 `regime`, `config`, les autres refus de `var`, les gardes de paramètres de
 `engine` (fenêtre de moins de deux séances, taux sans risque, analyse sans
-indice) et `scenarios.get_scenario`. Les refus de validation de FastAPI
-(pydantic) restent en anglais dans les deux langues, comme avant.
+indice) et `scenarios.get_scenario`. Le lecteur CSV garde de même son
+message interne (« Nombre illisible »), toujours rattrapé et jamais publié.
+Les refus de validation de FastAPI (pydantic) restent en anglais dans les
+deux langues, comme avant.
 
 #### L'analyse est un seul endpoint, et c'est une décision
 
@@ -1576,7 +1593,8 @@ de la table ou de la constante que le lecteur consulte : colonnes requises et
 facultatives, séparateurs de champs et décimales admises pour chacun
 (`DECIMALES_ADMISES`, par laquelle le lecteur tranche lui-même), espaces de
 milliers, encodages, taille et nombre de lignes maximaux, et un exemple — le
-fichier ci-dessus. Les tests ne comparent pas la réponse à des constantes
+fichier ci-dessus, ou, avec `?lang=en`, celui d'un Excel anglais
+(`ticker,quantity,cost_basis`, point décimal). Les tests ne comparent pas la réponse à des constantes
 recopiées : ils font lire au vrai lecteur chaque séparateur, chaque décimale,
 chaque espace et chaque encodage annoncés, et importent l'exemple sur la copie
 figée.

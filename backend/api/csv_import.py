@@ -42,6 +42,8 @@ d'octets sans lever, et le placer plus haut masquerait un vrai UTF-8.
 
 Il ne valide pas les tickers ni les quantités — c'est `validation.validate`, qui
 sert aussi au `PUT` JSON. Il ne touche pas la base. Il ne convertit aucune unité.
+Il ne rédige pas ses refus : `textes/{fr,en}/api.py` les écrit dans la langue
+demandée (chantier 7D).
 """
 
 from __future__ import annotations
@@ -52,6 +54,9 @@ import io
 import re
 from dataclasses import dataclass
 from typing import Literal
+
+from backend.langue import Langue
+from backend.textes import ErreurRedigee, textes
 
 from .errors import Problem
 from .validation import SubmittedPosition
@@ -97,6 +102,15 @@ ENCODAGES_ESSAYES: tuple[str, ...] = ("utf-8", "cp1252")
 # figée : un exemple qui ne s'importerait pas serait pire que pas d'exemple.
 EXEMPLE = "ticker;quantity;cost_basis\nAAPL;40;185,20\nMSFT;25;\n"
 
+# Le même, dans chaque langue de la réponse : à un lecteur anglophone, ce
+# qu'exporte un Excel anglais — virgule, point décimal. Une donnée, pas une
+# phrase : il ne se traduit pas, il change de format.
+# `tests/test_langue_api.py` le fait lire et importer de même.
+EXEMPLES: dict[str, str] = {
+    "fr": EXEMPLE,
+    "en": "ticker,quantity,cost_basis\nAAPL,40,185.20\nMSFT,25,\n",
+}
+
 # Séparateurs décimaux tels qu'ils peuvent être OBSERVÉS dans un fichier.
 # `mixte` et `aucune` ne sont pas des cas d'erreur : le premier signale un
 # fichier assemblé à la main, le second un fichier sans aucune décimale.
@@ -138,12 +152,17 @@ class CsvReading:
     problems: tuple[Problem, ...]
 
 
-class CsvError(Exception):
+class CsvError(ErreurRedigee):
     """Le fichier n'est pas lisible du tout : ni encodage, ni en-tête exploitable.
 
     Distinct d'une liste de problèmes ligne à ligne : ici il n'y a pas de lignes
-    à commenter, seulement un fichier qu'on ne peut pas ouvrir.
+    à commenter, seulement un fichier qu'on ne peut pas ouvrir. Une erreur
+    rédigée : `str()` rend le français, la route la rédige dans la langue de
+    la réponse (`texte(langue)`).
     """
+
+    def __init__(self, redaction: str, *arguments: object) -> None:
+        super().__init__("api", redaction, *arguments)
 
 
 def decode(payload: bytes) -> tuple[str, str]:
@@ -155,10 +174,7 @@ def decode(payload: bytes) -> tuple[str, str]:
             return payload.decode(encodage), encodage
         except UnicodeDecodeError:
             continue
-    raise CsvError(
-        "Fichier illisible : ni UTF-8 ni CP1252. Le réenregistrer depuis le "
-        "tableur en « CSV UTF-8 »."
-    )
+    raise CsvError("FICHIER_ILLISIBLE")
 
 
 def sniff_delimiter(entete: str) -> str:
@@ -171,10 +187,7 @@ def sniff_delimiter(entete: str) -> str:
     occurrences = {separateur: entete.count(separateur) for separateur in DELIMITERS}
     meilleur = max(DELIMITERS, key=lambda separateur: occurrences[separateur])
     if occurrences[meilleur] == 0:
-        raise CsvError(
-            "Aucun séparateur `;` ni `,` dans la première ligne. En-tête "
-            f"attendu : {EN_TETE_ATTENDU}"
-        )
+        raise CsvError("aucun_separateur", EN_TETE_ATTENDU)
     return meilleur
 
 
@@ -248,7 +261,9 @@ def _largeur(champs: list[str]) -> int:
     )
 
 
-def _colonnes_en_trop(ligne: list[str], largeur_entete: int, separateur: str) -> str | None:
+def _colonnes_en_trop(
+    ligne: list[str], largeur_entete: int, separateur: str, langue: Langue
+) -> str | None:
     """Le refus d'une ligne plus large que l'en-tête, ou None.
 
     Sans ce contrôle, le lecteur lisait les colonnes qu'il connaissait et
@@ -266,12 +281,7 @@ def _colonnes_en_trop(ligne: list[str], largeur_entete: int, separateur: str) ->
     decimale_coupee = separateur == "," and all(
         champ.isdigit() for champ in en_trop if champ
     )
-    indice = (
-        " Avec le séparateur `,`, une virgule décimale coupe le nombre en deux."
-        if decimale_coupee
-        else ""
-    )
-    return f"{largeur} colonnes lues, l'en-tête en a {largeur_entete}.{indice}"
+    return textes(langue).api.colonnes_en_trop(largeur, largeur_entete, decimale_coupee)
 
 
 def _colonnes(entete: list[str]) -> dict[str, int]:
@@ -279,31 +289,27 @@ def _colonnes(entete: list[str]) -> dict[str, int]:
     index = {nom: position for position, nom in enumerate(noms)}
     manquantes = [nom for nom in COLONNES_REQUISES if nom not in index]
     if manquantes:
-        raise CsvError(
-            f"Colonnes manquantes dans l'en-tête : {', '.join(manquantes)}. "
-            f"En-tête attendu : {EN_TETE_ATTENDU} "
-            f"(lu : {', '.join(noms) if noms else 'ligne vide'})"
-        )
+        raise CsvError("colonnes_manquantes", manquantes, EN_TETE_ATTENDU, noms)
     return index
 
 
-def read(payload: bytes, filename: str | None = None) -> CsvReading:
+def read(
+    payload: bytes, filename: str | None = None, *, langue: Langue = "fr"
+) -> CsvReading:
     """Lit le fichier et rend les positions soumises, sans rien valider d'autre.
 
     Lève `CsvError` quand le fichier est inexploitable dans son ensemble
     (trop gros, encodage inconnu, en-tête absent) ; rend des `Problem` quand ce
-    sont des lignes précises qui sont en cause.
+    sont des lignes précises qui sont en cause, rédigés dans `langue`.
     """
+    t = textes(langue).api
     if len(payload) > MAX_BYTES:
         # La taille reçue n'est pas annoncée : l'appelant n'a lu que
         # `PROBE_BYTES` octets, et citer ce nombre décrirait la sonde plutôt
         # que le fichier.
-        raise CsvError(
-            f"Fichier trop volumineux : maximum {MAX_BYTES} octets. "
-            "Un portefeuille tient en quelques kilo-octets."
-        )
+        raise CsvError("fichier_trop_volumineux", MAX_BYTES)
     if not payload.strip():
-        raise CsvError("Fichier vide.")
+        raise CsvError("FICHIER_VIDE")
 
     texte, encodage = decode(payload)
     premiere = texte.splitlines()[0] if texte.splitlines() else ""
@@ -315,7 +321,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
     lecteur = csv.reader(io.StringIO(texte), delimiter=separateur)
     lignes = [ligne for ligne in lecteur]
     if not lignes:
-        raise CsvError("Fichier vide.")
+        raise CsvError("FICHIER_VIDE")
 
     index = _colonnes(lignes[0])
     largeur_entete = _largeur(lignes[0])
@@ -329,7 +335,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
         if not any(champ.strip() for champ in ligne):
             continue
 
-        debord = _colonnes_en_trop(ligne, largeur_entete, separateur)
+        debord = _colonnes_en_trop(ligne, largeur_entete, separateur, langue)
         if debord is not None:
             problemes.append(Problem(line=numero, problem=debord))
             continue
@@ -338,11 +344,7 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
             problemes.append(
                 Problem(
                     line=numero,
-                    problem=(
-                        f"Quantité absente, {len(ligne)} colonne(s) lue(s) avec "
-                        f"le séparateur `{separateur}`. En-tête attendu : "
-                        f"{EN_TETE_ATTENDU}"
-                    ),
+                    problem=t.quantite_absente(len(ligne), separateur, EN_TETE_ATTENDU),
                 )
             )
             continue
@@ -359,12 +361,11 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                     line=numero,
                     field=COLONNE_QUANTITE,
                     value=brut_quantite.strip(),
-                    # La valeur est citée entre guillemets français, comme dans
-                    # le tableau de saisie ; `prose` rend leurs espaces
-                    # insécables à la publication.
-                    problem=(
-                        f"« {brut_quantite.strip()} » n'est pas une quantité "
-                        f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
+                    # La valeur est citée entre guillemets, comme dans le
+                    # tableau de saisie ; `prose` rend insécables les espaces
+                    # des guillemets français à la publication.
+                    problem=t.quantite_illisible(
+                        brut_quantite.strip(), _admise(virgule_admise)
                     ),
                 )
             )
@@ -385,9 +386,8 @@ def read(payload: bytes, filename: str | None = None) -> CsvReading:
                             line=numero,
                             field=COLONNE_PRIX_REVIENT,
                             value=brut_prix,
-                            problem=(
-                                f"« {brut_prix} » n'est pas un prix de revient "
-                                f"lisible. Décimale acceptée : `{_admise(virgule_admise)}`."
+                            problem=t.prix_de_revient_illisible(
+                                brut_prix, _admise(virgule_admise)
                             ),
                         )
                     )

@@ -33,6 +33,7 @@ from types import ModuleType
 
 import pytest
 
+from backend.api.csv_import import EN_TETE_ATTENDU
 from backend.risk_engine.scenarios import SCENARIOS
 from backend.rules import thresholds
 from backend.rules.rules import RuleId
@@ -72,6 +73,12 @@ REGISTRE_EXEMPTE = {"bandeau"}
 # écrite avant le chantier, « se réduirait » est le verbe d'une définition (la
 # CVaR se ramène au même minimum), pas le conseil de réduire une ligne.
 NON_PRESCRIPTIFS = ("se réduirait au même minimum",)
+
+# Une écriture française d'avant le chantier, que la garde de l'espace avant le
+# mot compté voit et que le chantier ne corrige pas, le français ne changeant
+# pas d'un octet : « 2 lignes refusées », en-tête d'un refus de plusieurs
+# lignes, avec une espace ordinaire. L'anglais lie le nombre à son mot.
+ESPACES_D_AVANT = {("fr", "api", "lignes_refusees")}
 
 # Le nom et la justification d'un seuil gardent ses formules : celles de sa
 # déclaration française (`test_un_seuil_dit_les_memes_nombres_…`).
@@ -362,6 +369,37 @@ CAS: dict[tuple[str, str], list[Cas]] = {
         )
         for seuil in SEUILS
     ],
+    # ── La couche API : corps d'erreur, refus d'une saisie, refus d'un fichier.
+    # Les valeurs refusées citées sont des mots : un nombre saisi est une
+    # donnée, qui ne se lit pas pareil dans les deux langues.
+    ("api", "lignes_refusees"): [lambda t, l: (2,), lambda t, l: (1234,)],
+    ("api", "ecriture_refusee"): [lambda t, l: ("FOREIGN KEY constraint failed",)],
+    ("api", "route_inconnue"): [lambda t, l: ("api/nexiste-pas",)],
+    ("api", "trop_de_positions"): [lambda t, l: (201, 200), lambda t, l: (1500, 200)],
+    ("api", "doublon"): [lambda t, l: ("ALFA", 6), lambda t, l: ("ALFA", None)],
+    ("api", "titre_inconnu"): [lambda t, l: ("XYZ", "ALFA, NEUF")],
+    ("api", "titre_sans_prix"): [lambda t, l: ("NEUF",)],
+    ("api", "quantite_non_finie"): [lambda t, l: ("ALFA",)],
+    ("api", "quantite_non_positive"): [
+        lambda t, l: ("ALFA", 0.0),
+        lambda t, l: ("ALFA", -3.0),
+        lambda t, l: ("ALFA", -2.5),
+    ],
+    ("api", "prix_de_revient_non_fini"): [lambda t, l: ("ALFA",)],
+    ("api", "prix_de_revient_negatif"): [lambda t, l: ("ALFA",)],
+    ("api", "aucun_separateur"): [lambda t, l: (EN_TETE_ATTENDU,)],
+    ("api", "colonnes_manquantes"): [
+        lambda t, l: (["ticker", "quantity"], EN_TETE_ATTENDU, ["symbol", "count"]),
+        lambda t, l: (["quantity"], EN_TETE_ATTENDU, []),
+    ],
+    ("api", "fichier_trop_volumineux"): [lambda t, l: (1_000_000,)],
+    ("api", "colonnes_en_trop"): [lambda t, l: (3, 2, True), lambda t, l: (5, 3, False)],
+    ("api", "quantite_absente"): [
+        lambda t, l: (1, ",", EN_TETE_ATTENDU),
+        lambda t, l: (2, ";", EN_TETE_ATTENDU),
+    ],
+    ("api", "quantite_illisible"): [lambda t, l: ("ten", ","), lambda t, l: ("abc", ".")],
+    ("api", "prix_de_revient_illisible"): [lambda t, l: ("dear", ".")],
 }
 
 
@@ -408,7 +446,14 @@ def chaines(sortie) -> list[str]:
 def fautes_de_publication(texte: str, langue: str, domaine: str, nom: str) -> list[str]:
     """Les gardes de la langue, sur le texte tel que l'API le publie."""
     publie = prose(texte)
-    fautes = fautes_de_forme(publie, langue, grec_admis=grec_admis(domaine, nom))
+    fautes = [
+        f
+        for f in fautes_de_forme(publie, langue, grec_admis=grec_admis(domaine, nom))
+        if not (
+            (langue, domaine, nom) in ESPACES_D_AVANT
+            and f.startswith("espace avant le mot compté")
+        )
+    ]
     registre = publie
     for expression in NON_PRESCRIPTIFS:
         registre = registre.replace(expression, "")
@@ -571,7 +616,7 @@ def test_le_balayage_lit_bien_les_deux_langues():
     """Témoin : un glob vide passerait au vert."""
     for langue in LANGUES:
         noms = {chemin.name for chemin in sources(langue)}
-        assert {"__init__.py", "bandeau.py", "moteur.py", "regles.py", "seuils.py"} <= noms, langue
+        assert {"__init__.py", "api.py", "bandeau.py", "moteur.py", "regles.py", "seuils.py"} <= noms, langue
 
 
 # ═══════════════════════════════════════════════ Le catalogue des crises ══
@@ -632,3 +677,12 @@ def test_l_exception_prescriptive_est_declaree_mot_pour_mot():
     assert fautes_de_publication("La CVaR se réduirait au même minimum.", "fr", "seuils", "nom") == []
     assert fautes_de_publication("Il faudrait réduire la ligne JPM.", "fr", "seuils", "nom")
     assert fautes_de_publication("Elle se réduirait de moitié.", "fr", "seuils", "nom")
+
+
+def test_l_ecriture_francaise_d_avant_le_chantier_est_declaree_pour_elle_seule():
+    """L'espace ordinaire de « 2 lignes refusées » passe pour cette fonction
+    française ; ailleurs, et en anglais, la garde la voit encore."""
+    francais = "2 lignes refusées : aucune position n'a été écrite."
+    assert fautes_de_publication(francais, "fr", "api", "lignes_refusees") == []
+    assert fautes_de_publication(francais, "fr", "api", "doublon")
+    assert fautes_de_publication("2 holdings rejected.", "en", "api", "lignes_refusees")

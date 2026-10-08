@@ -57,13 +57,14 @@ def read_disclaimer(langue: Langue = Depends(langue_demandee)) -> DisclaimerOut:
 
 
 @router.get("/csv-format", response_model=CsvFormatOut)
-def read_csv_format() -> CsvFormatOut:
+def read_csv_format(langue: Langue = Depends(langue_demandee)) -> CsvFormatOut:
     """Le format que lit l'import CSV, EN LECTURE SEULE et sans base.
 
     L'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,
     §13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient
     de la table ou de la constante que le lecteur consulte lui-même, si bien
-    qu'un format affiché ne peut pas diverger du format lu.
+    qu'un format affiché ne peut pas diverger du format lu. Seul l'exemple
+    dépend de la langue : celui d'un Excel français, ou d'un Excel anglais.
     """
     return CsvFormatOut(
         expected_header=csv_import.EN_TETE_ATTENDU,
@@ -80,5 +81,5 @@ def read_csv_format() -> CsvFormatOut:
         encodings=[csv_import.ENCODAGE_BOM, *csv_import.ENCODAGES_ESSAYES],
         max_bytes=csv_import.MAX_BYTES,
         max_positions=MAX_POSITIONS,
-        example=csv_import.EXEMPLE,
+        example=csv_import.EXEMPLES[langue],
     )

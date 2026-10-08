@@ -76,7 +76,8 @@ export interface paths {
          *     L'écran d'import affiche ce format en clair, sur place (DESIGN.md §8.2,
          *     §13). Il le lit ici plutôt que d'en garder une copie : chaque valeur vient
          *     de la table ou de la constante que le lecteur consulte lui-même, si bien
-         *     qu'un format affiché ne peut pas diverger du format lu.
+         *     qu'un format affiché ne peut pas diverger du format lu. Seul l'exemple
+         *     dépend de la langue : celui d'un Excel français, ou d'un Excel anglais.
          */
         get: operations["read_csv_format_api_csv_format_get"];
         put?: never;
@@ -148,7 +149,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Portfolio
-         * @description Supprime le portefeuille et ses positions (cascade du schéma).
+         * @description Supprime le portefeuille et ses positions (cascade du schéma). Son
+         *     absence répond 404, dans la langue demandée.
          */
         delete: operations["delete_portfolio_api_portfolios__portfolio_id__delete"];
         options?: never;
@@ -170,7 +172,8 @@ export interface paths {
          *
          *     `line`, quand le client le fournit, suit la position jusqu'à ses refus :
          *     c'est le numéro que l'utilisateur voit dans son tableau, comme celui d'une
-         *     ligne de fichier pour l'import CSV. L'API ne l'interprète pas.
+         *     ligne de fichier pour l'import CSV. L'API ne l'interprète pas. Les refus
+         *     sont rédigés dans la langue demandée.
          */
         put: operations["replace_positions_api_portfolios__portfolio_id__positions_put"];
         post?: never;
@@ -195,7 +198,8 @@ export interface paths {
          *
          *     Le fichier est lu en OCTETS, jamais décodé implicitement : l'encodage, le
          *     séparateur de champs et le séparateur décimal sont déduits des octets, puis
-         *     rendus dans la réponse. Voir `api.csv_import` pour le raisonnement.
+         *     rendus dans la réponse. Voir `api.csv_import` pour le raisonnement. Les
+         *     refus sont rédigés dans la langue demandée.
          */
         post: operations["import_positions_csv_api_portfolios__portfolio_id__positions_csv_post"];
         delete?: never;
@@ -1665,7 +1669,10 @@ export interface operations {
     };
     read_csv_format_api_csv_format_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1679,6 +1686,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CsvFormatOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1804,7 +1820,10 @@ export interface operations {
     };
     delete_portfolio_api_portfolios__portfolio_id__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path: {
                 portfolio_id: number;
@@ -1833,7 +1852,10 @@ export interface operations {
     };
     replace_positions_api_portfolios__portfolio_id__positions_put: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path: {
                 portfolio_id: number;
@@ -1868,7 +1890,10 @@ export interface operations {
     };
     import_positions_csv_api_portfolios__portfolio_id__positions_csv_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path: {
                 portfolio_id: number;

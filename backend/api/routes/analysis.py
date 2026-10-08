@@ -149,7 +149,7 @@ def analyse(
     """Rapport de risque, scénarios, régimes, observations et bandeau."""
     row = store.get(conn, portfolio_id)
     if row is None:
-        raise not_found(portfolio_id)
+        raise not_found(portfolio_id, langue)
 
     # Même normalisation que pour les tickers des positions. Sans elle,
     # `?benchmark=spy` répondait 409 « aucun prix en base pour ['spy'] » alors

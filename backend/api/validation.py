@@ -16,7 +16,8 @@ portefeuille à moitié remplacé serait pire que pas remplacé du tout, puisque
 valorisation qui en sortirait serait plausible et fausse.
 
 Ce module ne fait aucun calcul et ne touche pas la base : le catalogue des
-titres lui est passé en argument.
+titres lui est passé en argument. Il décide des refus ; leurs phrases sont
+rédigées dans la langue demandée par `textes/{fr,en}/api.py` (chantier 7D).
 """
 
 from __future__ import annotations
@@ -25,9 +26,10 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from backend import typography
 from backend.db.portfolios import PositionRow
+from backend.langue import Langue
 from backend.risk_engine.portfolio import Security
+from backend.textes import textes
 
 from .errors import Problem
 
@@ -64,38 +66,27 @@ def _connus(catalogue: Sequence[Security]) -> str:
 
 
 def validate(
-    submitted: Sequence[SubmittedPosition], catalogue: Sequence[Security]
+    submitted: Sequence[SubmittedPosition],
+    catalogue: Sequence[Security],
+    *,
+    langue: Langue = "fr",
 ) -> tuple[list[PositionRow], tuple[Problem, ...]]:
-    """Positions prêtes à écrire, et la liste complète des refus.
+    """Positions prêtes à écrire, et la liste complète des refus, rédigés dans
+    `langue`.
 
     Quand la seconde n'est pas vide, la première ne doit pas être utilisée.
     """
+    t = textes(langue).api
     par_ticker = {s.ticker: s for s in catalogue}
     problemes: list[Problem] = []
     retenues: list[PositionRow] = []
     vues: dict[str, int | None] = {}
 
     if not submitted:
-        return [], (
-            Problem(
-                problem=(
-                    "Aucune position soumise. Un portefeuille sans ligne n'a pas "
-                    "de risque à mesurer ; pour vider un portefeuille, le "
-                    "supprimer."
-                ),
-            ),
-        )
+        return [], (Problem(problem=t.AUCUNE_POSITION),)
 
     if len(submitted) > MAX_POSITIONS:
-        return [], (
-            Problem(
-                problem=(
-                    f"{len(submitted)} positions soumises, maximum {MAX_POSITIONS}. "
-                    "Cette limite protège la mémoire du processus ; elle n'a pas "
-                    "de justification méthodologique."
-                ),
-            ),
-        )
+        return [], (Problem(problem=t.trop_de_positions(len(submitted), MAX_POSITIONS)),)
 
     for position in submitted:
         ticker = normalise_ticker(position.ticker)
@@ -107,23 +98,18 @@ def validate(
                     line=ligne,
                     field="ticker",
                     value=position.ticker,
-                    problem="Ticker vide.",
+                    problem=t.TICKER_VIDE,
                 )
             )
             continue
 
         if ticker in vues:
-            precedente = vues[ticker]
-            ou = "" if precedente is None else f" (déjà ligne {precedente})"
             problemes.append(
                 Problem(
                     line=ligne,
                     field="ticker",
                     value=ticker,
-                    problem=(
-                        f"{ticker} apparaît deux fois{ou}. Une ligne par titre : "
-                        "additionner les quantités avant de soumettre."
-                    ),
+                    problem=t.doublon(ticker, vues[ticker]),
                 )
             )
             continue
@@ -136,11 +122,7 @@ def validate(
                     line=ligne,
                     field="ticker",
                     value=ticker,
-                    problem=(
-                        f"{ticker} n'est pas un titre connu. Titres disponibles : "
-                        f"{_connus(catalogue)}. Pour en ajouter un : "
-                        f"python -m backend.ingestion add {ticker}"
-                    ),
+                    problem=t.titre_inconnu(ticker, _connus(catalogue)),
                 )
             )
             continue
@@ -151,11 +133,7 @@ def validate(
                     line=ligne,
                     field="ticker",
                     value=ticker,
-                    problem=(
-                        f"{ticker} est connu mais n'a aucun historique de prix en "
-                        "base. Il ne peut être ni valorisé ni analysé. "
-                        f"Le charger avec : python -m backend.ingestion add {ticker}"
-                    ),
+                    problem=t.titre_sans_prix(ticker),
                 )
             )
             continue
@@ -166,7 +144,7 @@ def validate(
                     line=ligne,
                     field="quantity",
                     value=str(position.quantity),
-                    problem=f"Quantité non finie pour {ticker}.",
+                    problem=t.quantite_non_finie(ticker),
                 )
             )
             continue
@@ -177,13 +155,7 @@ def validate(
                     line=ligne,
                     field="quantity",
                     value=str(position.quantity),
-                    problem=(
-                        f"Quantité nulle ou négative pour {ticker} "
-                        f"({typography.exact(position.quantity)}). Les poids sont "
-                        "calculés en valeur "
-                        "de marché : une position vendue à découvert n'est pas "
-                        "prise en charge en v1."
-                    ),
+                    problem=t.quantite_non_positive(ticker, position.quantity),
                 )
             )
             continue
@@ -195,7 +167,7 @@ def validate(
                         line=ligne,
                         field="cost_basis",
                         value=str(position.cost_basis),
-                        problem=f"Prix de revient non fini pour {ticker}.",
+                        problem=t.prix_de_revient_non_fini(ticker),
                     )
                 )
                 continue
@@ -205,7 +177,7 @@ def validate(
                         line=ligne,
                         field="cost_basis",
                         value=str(position.cost_basis),
-                        problem=f"Prix de revient négatif pour {ticker}.",
+                        problem=t.prix_de_revient_negatif(ticker),
                     )
                 )
                 continue
