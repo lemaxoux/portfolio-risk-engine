@@ -25,6 +25,7 @@ import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
 import { cheminDe } from '../lib/route'
+import { BoutonLangue } from './BoutonLangue'
 import { Lien } from './Lien'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './Bandeau.module.css'
@@ -55,7 +56,7 @@ function Identite({ nom, navigation = true }: { nom: string | null; navigation?:
  * Le bandeau des pages sans analyse — liste, saisie. Ni date de
  * valorisation, ni fenêtre d'estimation : aucun chiffre de ces pages n'en
  * dépend, et les afficher ferait croire le contraire. La marque, le
- * portefeuille en vue, la bascule de thème.
+ * portefeuille en vue, le bouton de langue et la bascule de thème.
  *
  * `navigation` vaut `false` avant l'acceptation : rien ne mène ailleurs tant
  * que le bandeau d'acceptation n'a pas été traversé (§15).
@@ -72,6 +73,7 @@ export function BandeauSimple({
     <header ref={bandeau} className={styles.bandeau}>
       <Identite nom={portefeuille} navigation={navigation} />
       <div className={styles.total}>
+        <BoutonLangue />
         <ThemeToggle />
       </div>
     </header>
@@ -148,11 +150,19 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
         )}
       </div>
 
-      <div className={styles.total}>
+      {/* La valeur, puis les deux réglages. À 390 px, la ligne de la valeur et
+          du thème est pleine : le bouton de langue passe sous la valeur, à
+          côté du thème, et le bandeau ne gagne pas en hauteur (§8.1). */}
+      <div className={`${styles.total} ${styles.avecMontant}`}>
         <span className={styles.montant}>
           {montant(analyse.total_value, analyse.valuation.currency)}
         </span>
-        <ThemeToggle />
+        <span className={styles.langue}>
+          <BoutonLangue />
+        </span>
+        <span className={styles.theme}>
+          <ThemeToggle />
+        </span>
       </div>
     </header>
   )

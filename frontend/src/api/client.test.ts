@@ -10,9 +10,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ApiErreur,
+  createPortfolio,
   deletePortfolio,
+  getAnalysis,
+  getCsvFormat,
   getDisclaimer,
   getMeta,
+  getPortfolios,
+  getSecurities,
   importCsv,
   putPositions,
   segmenter,
@@ -205,7 +210,7 @@ describe('écritures', () => {
     )
     await putPositions(3, [{ ticker: 'AAPL', quantity: 40, cost_basis: 185.2, line: 1 }])
     const [url, init] = espion.mock.calls[0] ?? []
-    expect(url).toBe('/api/portfolios/3/positions')
+    expect(url).toBe('/api/portfolios/3/positions?lang=fr')
     expect(init?.method).toBe('PUT')
     expect(JSON.parse(String(init?.body))).toEqual({
       positions: [{ ticker: 'AAPL', quantity: 40, cost_basis: 185.2, line: 1 }],
@@ -233,11 +238,61 @@ describe('écritures', () => {
     const fichier = new File(['ticker;quantity\nAAPL;40\n'], 'positions.csv', { type: 'text/csv' })
     await importCsv(3, fichier)
     const [url, init] = espion.mock.calls[0] ?? []
-    expect(url).toBe('/api/portfolios/3/positions/csv')
+    expect(url).toBe('/api/portfolios/3/positions/csv?lang=fr')
     expect(init?.method).toBe('POST')
     const corps = init?.body as FormData
     expect((corps.get('file') as File).name).toBe('positions.csv')
     // Pas d'en-tête Content-Type écrit à la main : le navigateur pose la frontière.
     expect(new Headers(init?.headers).has('Content-Type')).toBe(false)
+  })
+})
+
+describe('la langue de chaque appel', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function adresses(corps: string) {
+    const espion = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      text: async () => corps,
+    }))
+    vi.stubGlobal('fetch', espion)
+    return () => espion.mock.calls.map(([url]) => url)
+  }
+
+  it('chaque fonction demande la langue affichée', async () => {
+    const lues = adresses('{}')
+    const fichier = new File(['ticker;quantity\n'], 'p.csv', { type: 'text/csv' })
+    await getMeta('en')
+    await getDisclaimer('en')
+    await getAnalysis(3, 'en')
+    await getPortfolios('en')
+    await getSecurities('en')
+    await getCsvFormat('en')
+    await createPortfolio('Démo', 'en')
+    await deletePortfolio(3, 'en')
+    await putPositions(3, [], 'en')
+    await importCsv(3, fichier, 'en')
+    expect(lues()).toEqual([
+      '/api/meta?lang=en',
+      '/api/disclaimer?lang=en',
+      '/api/portfolios/3/analysis?lang=en',
+      '/api/portfolios?lang=en',
+      '/api/securities?lang=en',
+      '/api/csv-format?lang=en',
+      '/api/portfolios?lang=en',
+      '/api/portfolios/3?lang=en',
+      '/api/portfolios/3/positions?lang=en',
+      '/api/portfolios/3/positions/csv?lang=en',
+    ])
+  })
+
+  it('sans langue, le français, écrit dans l’adresse lui aussi', async () => {
+    const lues = adresses('{}')
+    await getDisclaimer()
+    await getAnalysis(3)
+    expect(lues()).toEqual(['/api/disclaimer?lang=fr', '/api/portfolios/3/analysis?lang=fr'])
   })
 })

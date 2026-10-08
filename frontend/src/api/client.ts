@@ -34,8 +34,20 @@ import type {
   PositionsWritten,
   Security,
 } from './types'
+import type { Langue } from '../lib/langue'
 
 const BASE = '/api'
+
+/**
+ * La langue des textes rédigés de la réponse (chantier 7D) : `?lang=fr` ou
+ * `?lang=en`, sur CHAQUE appel. Le serveur rend la même réponse française avec
+ * ou sans `lang=fr`, octet pour octet ; l'écrire quand même fait voir la
+ * langue demandée dans l'adresse, les journaux et les tests. Les routes qui
+ * ne rédigent rien (`/meta`, `/securities`) l'ignorent.
+ */
+function avecLangue(chemin: string, langue: Langue): string {
+  return `${chemin}${chemin.includes('?') ? '&' : '?'}lang=${langue}`
+}
 
 export interface Probleme {
   line: number | null
@@ -239,16 +251,16 @@ function problemesDe(corps: unknown): Probleme[] {
   return Array.isArray(problems) ? (problems as Probleme[]) : []
 }
 
-export function getMeta(): Promise<Meta> {
-  return lire<Meta>('/meta')
+export function getMeta(langue: Langue = 'fr'): Promise<Meta> {
+  return lire<Meta>(avecLangue('/meta', langue))
 }
 
-export function getDisclaimer(): Promise<Disclaimer> {
-  return lire<Disclaimer>('/disclaimer')
+export function getDisclaimer(langue: Langue = 'fr'): Promise<Disclaimer> {
+  return lire<Disclaimer>(avecLangue('/disclaimer', langue))
 }
 
-export function getAnalysis(portfolioId: number): Promise<Analysis> {
-  return lire<Analysis>(`/portfolios/${portfolioId}/analysis`)
+export function getAnalysis(portfolioId: number, langue: Langue = 'fr'): Promise<Analysis> {
+  return lire<Analysis>(avecLangue(`/portfolios/${portfolioId}/analysis`, langue))
 }
 
 /**
@@ -256,42 +268,50 @@ export function getAnalysis(portfolioId: number): Promise<Analysis> {
  * valorisation quand elle est possible. C'est elle qui dit qu'un portefeuille
  * est vide — par ses positions, jamais par le texte d'une erreur.
  */
-export function getPortfolios(): Promise<PortfolioDetail[]> {
-  return lire<PortfolioDetail[]>('/portfolios')
+export function getPortfolios(langue: Langue = 'fr'): Promise<PortfolioDetail[]> {
+  return lire<PortfolioDetail[]>(avecLangue('/portfolios', langue))
 }
 
 /** L'univers : tickers, noms, et première séance de prix de chacun. */
-export function getSecurities(): Promise<Security[]> {
-  return lire<Security[]>('/securities')
+export function getSecurities(langue: Langue = 'fr'): Promise<Security[]> {
+  return lire<Security[]>(avecLangue('/securities', langue))
 }
 
 /** Le format que lit l'import CSV, publié par le lecteur lui-même. */
-export function getCsvFormat(): Promise<CsvFormat> {
-  return lire<CsvFormat>('/csv-format')
+export function getCsvFormat(langue: Langue = 'fr'): Promise<CsvFormat> {
+  return lire<CsvFormat>(avecLangue('/csv-format', langue))
 }
 
-export function createPortfolio(nom: string): Promise<Portfolio> {
-  return lire<Portfolio>('/portfolios', { methode: 'POST', json: { name: nom } })
+export function createPortfolio(nom: string, langue: Langue = 'fr'): Promise<Portfolio> {
+  return lire<Portfolio>(avecLangue('/portfolios', langue), {
+    methode: 'POST',
+    json: { name: nom },
+  })
 }
 
-export function deletePortfolio(portfolioId: number): Promise<void> {
-  return ecrireSansCorps(`/portfolios/${portfolioId}`, { methode: 'DELETE' })
+export function deletePortfolio(portfolioId: number, langue: Langue = 'fr'): Promise<void> {
+  return ecrireSansCorps(avecLangue(`/portfolios/${portfolioId}`, langue), { methode: 'DELETE' })
 }
 
 /** Remplace TOUTES les positions : le tableau envoyé EST le portefeuille. */
 export function putPositions(
   portfolioId: number,
   positions: readonly PositionIn[],
+  langue: Langue = 'fr',
 ): Promise<PositionsWritten> {
-  return lire<PositionsWritten>(`/portfolios/${portfolioId}/positions`, {
+  return lire<PositionsWritten>(avecLangue(`/portfolios/${portfolioId}/positions`, langue), {
     methode: 'PUT',
     json: { positions },
   })
 }
 
 /** Importe un fichier CSV, qui remplace lui aussi toutes les positions. */
-export function importCsv(portfolioId: number, fichier: File): Promise<CsvImport> {
-  return lire<CsvImport>(`/portfolios/${portfolioId}/positions/csv`, {
+export function importCsv(
+  portfolioId: number,
+  fichier: File,
+  langue: Langue = 'fr',
+): Promise<CsvImport> {
+  return lire<CsvImport>(avecLangue(`/portfolios/${portfolioId}/positions/csv`, langue), {
     methode: 'POST',
     fichier,
   })

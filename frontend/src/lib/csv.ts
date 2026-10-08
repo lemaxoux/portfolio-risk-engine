@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 
 import { ApiErreur, getCsvFormat, versApiErreur } from '../api/client'
 import type { CsvFormat, CsvSource } from '../api/types'
+import type { Langue } from './langue'
 import { cite } from './phrases'
 
 const ENCODAGES: Record<CsvSource['encoding'], string> = {
@@ -53,26 +54,33 @@ export function nomEspace(caractere: string): string {
 
 // ═══════════════════════════════════════════════ Le format, une fois lu ══
 
-let enCours: Promise<CsvFormat> | null = null
+// L'exemple publié dépend de la langue (celui d'un Excel français ou
+// anglais) : une lecture par langue.
+const enCours = new Map<Langue, Promise<CsvFormat>>()
 
-function charger(): Promise<CsvFormat> {
-  if (enCours === null) {
-    enCours = getCsvFormat().catch((cause: unknown) => {
-      enCours = null // un prochain affichage réessaiera
+function charger(langue: Langue): Promise<CsvFormat> {
+  let lecture = enCours.get(langue)
+  if (lecture === undefined) {
+    lecture = getCsvFormat(langue).catch((cause: unknown) => {
+      enCours.delete(langue) // un prochain affichage réessaiera
       throw cause
     })
+    enCours.set(langue, lecture)
   }
-  return enCours
+  return lecture
 }
 
-/** Le format publié par le lecteur, lu une fois par session. */
-export function useFormatCsv(): { format: CsvFormat | null; erreur: ApiErreur | null } {
+/** Le format publié par le lecteur, lu une fois par session et par langue. */
+export function useFormatCsv(langue: Langue = 'fr'): {
+  format: CsvFormat | null
+  erreur: ApiErreur | null
+} {
   const [format, setFormat] = useState<CsvFormat | null>(null)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
 
   useEffect(() => {
     let vivant = true
-    charger().then(
+    charger(langue).then(
       (lu) => {
         if (vivant) setFormat(lu)
       },
@@ -83,7 +91,7 @@ export function useFormatCsv(): { format: CsvFormat | null; erreur: ApiErreur | 
     return () => {
       vivant = false
     }
-  }, [])
+  }, [langue])
 
   return { format, erreur }
 }

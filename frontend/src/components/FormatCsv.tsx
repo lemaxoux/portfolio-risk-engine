@@ -14,11 +14,13 @@ import type { ApiErreur } from '../api/client'
 import type { CsvFormat } from '../api/types'
 import { compte, lignes } from '../lib/format'
 import { nomEncodage, nomEspace, useFormatCsv } from '../lib/csv'
+import { useLangue } from '../lib/langue'
 import { cite } from '../lib/phrases'
 import styles from './FormatCsv.module.css'
 
 export function FormatCsv({ niveau }: { niveau: 2 | 3 }) {
-  const { format, erreur } = useFormatCsv()
+  const { langue } = useLangue()
+  const { format, erreur } = useFormatCsv(langue)
   const Titre = niveau === 2 ? 'h2' : 'h3'
   return (
     <div className={styles.bloc}>

@@ -25,9 +25,24 @@
  * gain nul. FNV-1a est synchrone, tient en six lignes, et la longueur du texte
  * est jointe à l'empreinte : deux textes de longueurs différentes ne peuvent
  * pas se confondre, quoi qu'il arrive aux 32 bits.
+ *
+ * ═══ UNE ACCEPTATION PAR LANGUE (chantier 7D) ═══
+ *
+ * Le texte anglais est un autre texte : qui passe à l'anglais ne l'a pas lu.
+ * Il le traverse une fois, et une fois seulement : chaque langue a sa clé, et
+ * l'aller-retour entre les deux ne redemande rien. La clé française reste
+ * celle d'avant le chantier, et son texte n'a pas changé : personne n'a à
+ * réaccepter en français.
  */
+import type { Langue } from './langue'
 
+/** La clé du français, celle d'avant le chantier 7D. */
 export const CLE_ACCEPTATION = 'mx-risk-acceptation'
+
+/** La clé d'une langue : celle du français, suffixée pour les autres. */
+export function cleAcceptation(langue: Langue = 'fr'): string {
+  return langue === 'fr' ? CLE_ACCEPTATION : `${CLE_ACCEPTATION}-${langue}`
+}
 
 /**
  * Empreinte FNV-1a 32 bits, suffixée de la longueur du texte.
@@ -47,9 +62,9 @@ export function empreinte(texte: string): string {
 }
 
 /** L'empreinte acceptée, ou `null`. Le stockage bloqué se lit « pas accepté ». */
-export function acceptationMemorisee(): string | null {
+export function acceptationMemorisee(langue: Langue = 'fr'): string | null {
   try {
-    return localStorage.getItem(CLE_ACCEPTATION)
+    return localStorage.getItem(cleAcceptation(langue))
   } catch {
     return null
   }
@@ -62,13 +77,13 @@ export function acceptationMemorisee(): string | null {
  * voulu — une acceptation qu'on ne peut pas mémoriser doit être redemandée, pas
  * supposée acquise.
  */
-export function aAccepte(texte: string): boolean {
-  return acceptationMemorisee() === empreinte(texte)
+export function aAccepte(texte: string, langue: Langue = 'fr'): boolean {
+  return acceptationMemorisee(langue) === empreinte(texte)
 }
 
-export function memoriserAcceptation(texte: string): void {
+export function memoriserAcceptation(texte: string, langue: Langue = 'fr'): void {
   try {
-    localStorage.setItem(CLE_ACCEPTATION, empreinte(texte))
+    localStorage.setItem(cleAcceptation(langue), empreinte(texte))
   } catch {
     /* Rien à faire : l'écran reviendra au prochain chargement. */
   }

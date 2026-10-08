@@ -40,6 +40,7 @@ import { MessageErreur } from '../components/MessageErreur'
 import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
 import { SqueletteTableau } from '../components/Squelette'
 import { dateISO, decimal, lignes, montant, TIRET_INDEFINI } from '../lib/format'
+import { useLangue } from '../lib/langue'
 import type { EtatListe } from '../lib/liste'
 import { cite } from '../lib/phrases'
 import { cheminDe, naviguer, oublierPortefeuille } from '../lib/route'
@@ -267,6 +268,7 @@ function ConfirmationSuppression({
   annuler: () => void
   supprime: () => Promise<void>
 }) {
+  const { langue } = useLangue()
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const question = useRef<HTMLParagraphElement>(null)
@@ -282,7 +284,7 @@ function ConfirmationSuppression({
     setEnCours(true)
     setErreur(null)
     try {
-      await deletePortfolio(portefeuille.id)
+      await deletePortfolio(portefeuille.id, langue)
       await supprime()
     } catch (cause) {
       setErreur(versApiErreur(cause))
@@ -327,6 +329,7 @@ function Creation({
   annoncer,
   titre,
 }: Pick<Props, 'recharger' | 'annoncer'> & { titre: string }) {
+  const { langue } = useLangue()
   const [nom, setNom] = useState('')
   const [refus, setRefus] = useState<string | null>(null)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
@@ -342,7 +345,7 @@ function Creation({
     setEnCours(true)
     setErreur(null)
     try {
-      const cree = await createPortfolio(propre)
+      const cree = await createPortfolio(propre, langue)
       // Un portefeuille créé est vide : on arrive là où il se remplit.
       const destination = cheminDe({ vue: 'positions', id: cree.id })
       annoncer(`Portefeuille ${cite(cree.name)} créé.`, destination)

@@ -47,7 +47,7 @@
  * client, à un seul endroit ». Il n'y a ici ni somme, ni écart, ni moyenne :
  * une valeur qui manque s'ajoute au moteur avec son test, jamais ici.
  */
-import type { Langue } from './langues'
+import type { Langue } from './langue'
 
 /** Espace fine insécable — milliers, et avant le signe pourcent. */
 export const ESPACE_FINE = '\u202F'

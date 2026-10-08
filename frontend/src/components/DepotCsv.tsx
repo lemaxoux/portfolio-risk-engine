@@ -28,6 +28,7 @@ import { ApiErreur, importCsv, versApiErreur } from '../api/client'
 import type { CsvImport } from '../api/types'
 import { nomDecimale, nomEncodage } from '../lib/csv'
 import { compte, lignes } from '../lib/format'
+import { useLangue } from '../lib/langue'
 import { cite } from '../lib/phrases'
 import controles from '../styles/controles.module.css'
 import { MessageErreur } from './MessageErreur'
@@ -46,6 +47,7 @@ interface Props {
 }
 
 export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, importe }: Props) {
+  const { langue } = useLangue()
   const champ = useRef<HTMLInputElement>(null)
   const [fichier, setFichier] = useState<File | null>(null)
   const [survol, setSurvol] = useState(false)
@@ -92,7 +94,7 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
     setEnCours(true)
     setErreur(null)
     try {
-      const lu = await importCsv(portefeuilleId, fichier)
+      const lu = await importCsv(portefeuilleId, fichier, langue)
       setResultat(lu)
       setFichier(null)
       if (champ.current !== null) champ.current.value = ''

@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { lireContenu, type Bloc, type EnLigne } from '../lib/contenu'
-import { METHODOLOGIE } from './langue'
+import { METHODOLOGIE } from './methodologie'
 
 /**
  * Les ancres, dans l'ordre : les parties (`##`), puis les entrées (`###`) de

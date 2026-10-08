@@ -14,12 +14,15 @@ import { useEffect, useState } from 'react'
 
 import { ApiErreur, getSecurities, versApiErreur } from '../api/client'
 import type { Security } from '../api/types'
+import type { Langue } from './langue'
 
+// Les titres ne dépendent pas de la langue : une seule lecture, quelle que
+// soit celle de la page qui la demande la première.
 let enCours: Promise<Security[]> | null = null
 
-function charger(): Promise<Security[]> {
+function charger(langue: Langue): Promise<Security[]> {
   if (enCours === null) {
-    enCours = getSecurities().catch((cause: unknown) => {
+    enCours = getSecurities(langue).catch((cause: unknown) => {
       enCours = null // un prochain affichage réessaiera
       throw cause
     })
@@ -27,7 +30,7 @@ function charger(): Promise<Security[]> {
   return enCours
 }
 
-export function useUnivers(): {
+export function useUnivers(langue: Langue = 'fr'): {
   univers: ReadonlyMap<string, Security> | null
   erreur: ApiErreur | null
 } {
@@ -36,7 +39,7 @@ export function useUnivers(): {
 
   useEffect(() => {
     let vivant = true
-    charger().then(
+    charger(langue).then(
       (titres) => {
         if (vivant) setUnivers(new Map(titres.map((titre) => [titre.ticker, titre])))
       },
@@ -47,7 +50,7 @@ export function useUnivers(): {
     return () => {
       vivant = false
     }
-  }, [])
+  }, [langue])
 
   return { univers, erreur }
 }

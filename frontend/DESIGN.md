@@ -347,9 +347,12 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   n'ouvre aucune espace de plus de 2,5 fois la normale, avec ou sans
   dictionnaire de césure** : seule la prose qui tient cette condition est
   justifiée. Mesurée dans Chrome, elle se réduit aux chapeaux, justifiés à
-  partir de 900 px avec `hyphens: auto` (la page déclare `lang="fr"`, sans
-  quoi aucun mot ne se coupe) et la coupure de lignes ordinaire ; leur ligne
-  la plus lâche est à 2,0, avec comme sans dictionnaire. Tout le reste est
+  partir de 900 px avec `hyphens: auto` (la page déclare sa langue, `fr` ou
+  `en-US`, sans quoi aucun mot ne se coupe) et la coupure de lignes
+  ordinaire ; leur ligne la plus lâche est à 2,0, avec comme sans
+  dictionnaire. **En anglais** (chantier 7D), la même règle, remesurée avec
+  le dictionnaire de coupure anglais et sans lui : un chapeau qui la dépasse
+  est aligné à gauche, en anglais seulement. Tout le reste est
   aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`, qui
   évite une dernière ligne d'un seul mot : légendes de tableau et de
   graphique, « Détails du calcul », lignes de seuil, cellules, libellés,
@@ -375,6 +378,14 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   dans les phrases qu'il rédige : une interface qui afficherait `1.38%` à
   côté d'une phrase en `1,38 %` créerait deux conventions dans un même
   produit.
+- **Format anglais en anglais** (chantier 7D), fixé de même des deux côtés
+  (`format.ts`, `backend/typography.py`, README section 10) : point décimal,
+  virgule des milliers à partir de quatre chiffres (« 1,000 », « 504 »),
+  aucune espace avant `%` (« 1.06% »), le même signe moins U+2212, U+00A0
+  entre un nombre et le mot qu'il compte (« 504 sessions ») et dans une date
+  longue (« April 4, 2025 », après le mois et après la virgule). Le
+  singulier est réservé au nombre qui s'écrit « 1 » : « 1.9 points »,
+  « 0 sessions ». Les dates de provenance restent en ISO.
 - **U+00A0 avant « : », « ; », « ? » et « ! », après « « » et avant « » ».**
   Avec une espace ordinaire, le signe ou le guillemet fermant part seul en
   début de ligne : « Colonnes obligatoires » finissait une ligne que
@@ -386,7 +397,11 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   `src/lib/ponctuation.test.ts`, qui lit les chaînes et le JSX avec le
   compilateur TypeScript (une recherche de texte prendrait chaque ternaire
   `a ? b : c` pour de la prose). L'espace est la même, insécable, devant les
-  quatre signes : pas d'espace fine.
+  quatre signes : pas d'espace fine. **En anglais**, aucune espace, ni
+  ordinaire ni insécable, avant ces signes, et des guillemets doubles “ ”
+  sans espace intérieure, jamais « » ; un libellé de l'écran cité garde sa
+  ponctuation hors des guillemets (“The worst days”.). La même garde le
+  vérifie sur les fichiers anglais.
 - **Une paire ne se coupe pas au tiret.** Une coupure de ligne est permise
   juste après un tiret court : « La paire la plus liée est JNJ– » finissait
   une ligne que « KO, à 0,42. » commençait. Le backend pose donc, à la
@@ -490,7 +505,7 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  Mx Risk MGT      Portefeuille principal      84 076,05 USD     [◐]      │
+│  Mx Risk MGT      Portefeuille principal   84 076,05 USD  [English] [◐]  │
 │           Valorisé au 2026-09-25   Fenêtre d'estimation : 504 séances     │
 │                   Positions modifiées le 2026-09-23                       │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -499,7 +514,8 @@ ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
 `as_of`, la fenêtre d'estimation, la valeur du portefeuille et la date de
 modification des positions sont dans le bandeau **parce qu'ils conditionnent
 tout le reste**. C'est la traduction visuelle directe de la discipline du
-backend. `[◐]` = bascule de thème.
+backend. `[English]` = bouton de langue (ci-dessous), `[◐]` = bascule de
+thème.
 
 La valeur s'écrit avec le **code ISO** de la devise publiée par l'API
 (`valuation.currency`), jamais avec un symbole : à Montréal, « $ » sans
@@ -527,6 +543,39 @@ qualificatif se lit dollar canadien.
   sans nommer de ligne — le backend ne nomme que ce qu'il a prouvé.
 - Le bandeau peut passer à deux ou trois lignes : sa hauteur suit son
   contenu, elle n'est pas fixée à 56 px.
+
+**Le bouton de langue** (chantier 7D, décisions du 2026-10-07 et du
+2026-10-08). À côté de la bascule de thème, sur toutes les pages ; sur
+l'écran d'acceptation, qui n'a pas de bandeau, en tête de la colonne, avant
+le texte qu'un visiteur arrivé dans la mauvaise langue ne pourrait pas lire.
+Comme la bascule, il dit ce que le clic fait : « English » sur la page
+française, « Français » sur la page anglaise, chaque nom dans sa langue et
+avec l'attribut `lang` de la langue visée. Son nom accessible commence par ce
+libellé et le complète dans la langue de la page : « English (le site passe
+en anglais) ». Pas d'état sous le libellé : la page dit déjà sa langue. Même
+dessin que la bascule, sur une ligne.
+
+- **Qui choisit.** Le choix est mémorisé dans le navigateur
+  (`mx-risk-langue`). Au premier passage, la première langue du navigateur
+  qui est du français ou de l'anglais décide, sinon le français, et rien
+  n'est mémorisé tant que l'utilisateur n'a pas choisi. `?lang=en` (ou
+  `?lang=fr`) sur n'importe quelle adresse impose la langue et la mémorise
+  comme un choix, puis disparaît de l'adresse ; le bouton n'ajoute rien à
+  l'adresse. Comme le thème, un script en ligne de `index.html` pose
+  l'attribut `lang` de la page (`fr` ou `en-US`) avant le premier rendu : la
+  coupure des mots en dépend (§6.3).
+- **L'acceptation d'abord.** Passer à une langue dont l'écran d'acceptation
+  n'a pas encore été accepté affiche cet écran à la place de la page, comme à
+  l'arrivée (§15) ; la saisie, si elle a des modifications non enregistrées,
+  pose d'abord sa question, comme pour un départ. Une langue déjà acceptée
+  remplace le texte sur place : chaque appel à l'API porte la langue
+  affichée (`?lang=`), et les pages se relisent.
+- **À 390 px, le bandeau ne gagne pas en hauteur** : le bouton partage la
+  ligne du thème. Sur le bandeau d'analyse, cette ligne est déjà pleine (la
+  valeur, puis la bascule dont l'état tient sur deux lignes) : sous 32 rem de
+  large, le bouton passe sous la valeur, à gauche de la bascule, et la
+  valeur et le bouton empilés restent moins hauts qu'elle. Au-dessus, les
+  trois tiennent sur une ligne.
 
 ### 8.2 La page d'analyse
 
@@ -1080,8 +1129,12 @@ bug en attente.
 
 ## 15. Ton de l'interface
 
-- Tout en français, casse phrase, verbes actifs. Un bouton dit ce qu'il fait :
-  « Importer le portefeuille », pas « Valider ».
+- **Deux langues** (chantier 7D) : le français, langue par défaut, et
+  l'anglais américain, ponctuation de Chicago. Dans les deux, casse phrase,
+  titres compris, et verbes actifs. Un bouton dit ce qu'il fait : « Importer
+  le portefeuille », « Import the portfolio », pas « Valider ». Les règles
+  qui suivent sont écrites pour le français ; l'anglais les suit, transposées
+  (dernier point avant l'acceptation).
 - Un même geste garde son nom du bouton au message de confirmation.
 - Nommer les choses comme l'utilisateur les comprend. Sous « VaR 95 % » :
   « Ces deux dernières années, environ un jour de bourse sur vingt, soit à peu
@@ -1114,13 +1167,43 @@ bug en attente.
   pour 17 % du chiffre. » Le backend produit déjà ces phrases — les afficher
   telles quelles. Elles disent « jours de bourse » et « l'outil », comme les
   phrases à côté desquelles elles s'affichent.
+- **En anglais, les mêmes règles, transposées** (chantier 7D ;
+  `anglais-proposition.md` §c.3, document de cadrage hors dépôt, et les
+  décisions de la passation, §10.2 et §11.2).
+  - « You » pour le vouvoiement, aucune contraction (« does not »), et pas de
+    « we » pour l'outil : « the tool », ou le passif.
+  - **« Would have » pour le passé rejoué.** Le prétérit ou le présent
+    seulement dans une phrase qui porte elle-même son cadre (« Over the past
+    two years, … », « In the replayed crises, … »), ou qui suit une phrase
+    de la même observation qui le pose (« Over the same period, … »).
+  - Une VaR se lit « a loss of at least 1.06% » ou « 1.06% or more », jamais
+    « expected loss » ; un montant « represents about 890 USD » « on its
+    value today », jamais « lost 890 USD ».
+  - **« Trading day » dans les phrases**, « session » dans les détails du
+    calcul, les libellés techniques et les unités.
+  - Rien de prescriptif (ni « should », « must », « consider », « reduce »,
+    « avoid », ni « diversify » comme verbe), aucune note globale (« overall
+    rating » pour « note globale », le mot « score » interdit), aucune
+    phrase qui affirme ce que le moteur ne mesure pas, aucun tiret
+    cadratin. Une phrase anglaise ne dit ni plus ni plus fort que la
+    française, et cite les mêmes nombres.
+  - **Les termes sont ceux du glossaire** (`anglais-proposition.md` §c.2,
+    avec « Small-sample estimate » pour « Estimation mince ») : « holding »
+    pour une ligne du portefeuille, « security » pour un titre,
+    « fluctuations » pour les variations, « Calculation details » pour
+    « Détails du calcul », « What carries the risk », « Worst point along
+    the way ». Un terme qui n'y est pas se signale au rapport du lot qui
+    l'emploie.
 - **Acceptation à la première utilisation — décision de la phase 6.** Le
   backend fournit un écran complet (`disclaimer.title`, `sections`,
   `confirmation`) : c'est une **page entière** avant le premier accès, avec la
   phrase `confirmation` comme case à cocher, pas une modale posée sur le
   dashboard. Une modale se clique sans lire ; une page qu'on traverse une fois,
   délibérément, non. Où mémoriser l'acceptation (navigateur ou API) est une
-  décision de la 7B.
+  décision de la 7B. Elle se traverse **une fois par langue** (chantier 7D) :
+  le texte anglais est un autre texte. Son bouton dit la page où il mène,
+  celle de l'adresse d'arrivée (« Ouvrir la méthodologie », « Open the
+  methodology »), et la phrase sous lui le même geste.
 - Ensuite, un **rappel court et permanent** en pied de la section 6, en texte
   courant, sans case ni bouton.
 

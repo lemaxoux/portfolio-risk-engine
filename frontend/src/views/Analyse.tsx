@@ -9,7 +9,9 @@
  * L'analyse est redemandée quand les positions changent — leur CONTENU, et non
  * `updated_at`, daté au jour près : deux enregistrements le même jour
  * laisseraient sinon l'analyse du premier. Une page qui montrerait l'analyse
- * d'avant un enregistrement décrirait un portefeuille qui n'existe plus.
+ * d'avant un enregistrement décrirait un portefeuille qui n'existe plus. Elle
+ * l'est aussi quand la langue change : le serveur rédige ses phrases dans
+ * celle de la page (chantier 7D).
  *
  * ═══ LES QUATRE ÉTATS (§13) ═══
  *
@@ -37,6 +39,7 @@ import {
   RailSections,
 } from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
+import { useLangue } from '../lib/langue'
 import { cite } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille } from '../lib/route'
 import controles from '../styles/controles.module.css'
@@ -60,6 +63,7 @@ interface Props {
 }
 
 export function VueAnalyse({ portefeuille, annonce }: Props) {
+  const { langue } = useLangue()
   const vide = portefeuille.positions.length === 0
   const positionsStockees = JSON.stringify(portefeuille.positions)
   const [etat, setEtat] = useState<Etat>({ phase: 'chargement' })
@@ -73,7 +77,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
     if (vide) return
     let vivant = true
     setEtat({ phase: 'chargement' })
-    getAnalysis(portefeuille.id).then(
+    getAnalysis(portefeuille.id, langue).then(
       (analyse) => {
         if (vivant) setEtat({ phase: 'analyse', analyse })
       },
@@ -92,7 +96,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
     return () => {
       vivant = false
     }
-  }, [portefeuille.id, positionsStockees, vide, essai])
+  }, [portefeuille.id, positionsStockees, vide, essai, langue])
 
   const nom = portefeuille.name
   const pages = pagesApplication('analyse', portefeuille.id)

@@ -78,8 +78,13 @@ export function cheminDe(route: Exclude<Route, { vue: 'inconnue' }>): string {
  * Consultée avant toute navigation interne. Rend `true` pour laisser passer ;
  * `false` pour la retenir — la page qui l'a posée affiche alors sa propre
  * confirmation, avec `cible` comme destination.
+ *
+ * `suite` existe quand le départ n'est pas un changement d'adresse : la page
+ * remplacée sur place par l'écran d'acceptation d'une autre langue
+ * (`remplacerLaPage`). Si l'utilisateur confirme, c'est elle qui s'exécute, à
+ * la place de la navigation vers `cible`.
  */
-export type Garde = (cible: string) => boolean
+export type Garde = (cible: string, suite?: () => void) => boolean
 
 let garde: Garde | null = null
 let cheminCourant: string | null = null
@@ -147,6 +152,18 @@ export function naviguer(
     else window.history.pushState(null, '', chemin)
   }
   prevenir()
+}
+
+/**
+ * Remplace la page affichée sans changer d'adresse : passer à une langue dont
+ * l'écran d'acceptation reste à traverser (chantier 7D). Les modifications non
+ * enregistrées de la page se perdraient comme à un départ : la garde est donc
+ * consultée comme pour un départ, avec l'adresse courante et `action` comme
+ * suite. Sans garde, ou si elle laisse passer, l'action s'exécute aussitôt.
+ */
+export function remplacerLaPage(action: () => void): void {
+  if (garde !== null && !garde(window.location.pathname, action)) return
+  action()
 }
 
 /** Pose une garde ; la fonction rendue la retire. Une seule à la fois. */

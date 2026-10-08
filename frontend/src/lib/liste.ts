@@ -15,23 +15,29 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ApiErreur, getPortfolios, versApiErreur } from '../api/client'
 import type { PortfolioDetail } from '../api/types'
+import type { Langue } from './langue'
 
 export type EtatListe =
   | { readonly phase: 'chargement' }
   | { readonly phase: 'erreur'; readonly erreur: ApiErreur }
   | { readonly phase: 'prete'; readonly portefeuilles: readonly PortfolioDetail[] }
 
-export function useListe(): { etat: EtatListe; recharger: () => Promise<void> } {
+/**
+ * La liste, dans la langue de la page : la raison d'une valorisation
+ * impossible est rédigée par le serveur. Un changement de langue la relit,
+ * en gardant l'ancienne affichée pendant ce temps.
+ */
+export function useListe(langue: Langue = 'fr'): { etat: EtatListe; recharger: () => Promise<void> } {
   const [etat, setEtat] = useState<EtatListe>({ phase: 'chargement' })
 
   const recharger = useCallback(async () => {
     try {
-      const portefeuilles = await getPortfolios()
+      const portefeuilles = await getPortfolios(langue)
       setEtat({ phase: 'prete', portefeuilles })
     } catch (cause) {
       setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
     }
-  }, [])
+  }, [langue])
 
   useEffect(() => {
     void recharger()

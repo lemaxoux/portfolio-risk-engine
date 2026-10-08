@@ -135,6 +135,13 @@
   margin-inline-start: auto;
 }
 
+/* Les deux réglages du bandeau d'analyse, chacun dans sa case : la grille
+ * étroite ci-dessous les place. */
+.langue,
+.theme {
+  display: flex;
+}
+
 .montant {
   color: var(--text-1);
   font-size: var(--text-lg);
@@ -148,6 +155,47 @@
   .total {
     margin-inline-start: 0;
     inline-size: 100%;
+    justify-content: flex-start;
+  }
+
+  /* La valeur à gauche, les réglages à droite. */
+  .avecMontant {
     justify-content: space-between;
+  }
+
+  .avecMontant .langue {
+    margin-inline-start: auto;
+  }
+}
+
+/*
+ * Quand la ligne de la valeur et du thème est pleine (à 390 px, l'état de la
+ * bascule tient déjà sur deux lignes), le bouton de langue passe SOUS la
+ * valeur, dans la même rangée que la bascule : la valeur et le bouton
+ * empilés sont moins hauts que la bascule, et le bandeau ne gagne pas en
+ * hauteur. Au-dessus du seuil, les trois tiennent sur une ligne.
+ */
+@media (width < 32rem) {
+  .avecMontant {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'montant theme'
+      'langue theme';
+    align-items: center;
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .avecMontant .montant {
+    grid-area: montant;
+  }
+
+  .avecMontant .langue {
+    grid-area: langue;
+    margin-inline-start: 0;
+  }
+
+  .avecMontant .theme {
+    grid-area: theme;
   }
 }

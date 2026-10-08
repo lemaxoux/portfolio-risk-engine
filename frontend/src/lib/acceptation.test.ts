@@ -11,6 +11,7 @@ import {
   CLE_ACCEPTATION,
   aAccepte,
   acceptationMemorisee,
+  cleAcceptation,
   empreinte,
   memoriserAcceptation,
 } from './acceptation'
@@ -107,5 +108,38 @@ describe('mémorisation', () => {
     expect(() => memoriserAcceptation(TEXTE)).not.toThrow()
     expect(acceptationMemorisee()).toBeNull()
     expect(aAccepte(TEXTE)).toBe(false)
+  })
+})
+
+describe('une acceptation par langue', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('la clé française est celle d’avant le chantier ; l’anglaise s’y ajoute', () => {
+    expect(cleAcceptation('fr')).toBe('mx-risk-acceptation')
+    expect(cleAcceptation()).toBe(CLE_ACCEPTATION)
+    expect(cleAcceptation('en')).toBe('mx-risk-acceptation-en')
+  })
+
+  it('accepter l’anglais ne vaut pas pour le français, ni l’inverse', () => {
+    const donnees = stockageEnMemoire()
+    const anglais = 'Before using Mx Risk MGT'
+    memoriserAcceptation(anglais, 'en')
+    expect(aAccepte(anglais, 'en')).toBe(true)
+    expect(aAccepte(TEXTE, 'fr')).toBe(false)
+    expect(donnees.has(CLE_ACCEPTATION)).toBe(false)
+    memoriserAcceptation(TEXTE, 'fr')
+    expect(aAccepte(TEXTE)).toBe(true)
+    expect(aAccepte(TEXTE, 'en')).toBe(false)
+  })
+
+  it('l’aller-retour entre les langues ne redemande rien', () => {
+    stockageEnMemoire()
+    memoriserAcceptation(TEXTE, 'fr')
+    memoriserAcceptation('Before using Mx Risk MGT', 'en')
+    expect(aAccepte(TEXTE, 'fr')).toBe(true)
+    expect(aAccepte('Before using Mx Risk MGT', 'en')).toBe(true)
+    expect(acceptationMemorisee('en')).toBe(empreinte('Before using Mx Risk MGT'))
   })
 })

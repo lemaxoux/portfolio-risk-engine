@@ -36,6 +36,7 @@ import { DepotCsv } from '../components/DepotCsv'
 import { FormatCsv } from '../components/FormatCsv'
 import { dateEnToutesLettres, lignes as compteLignes } from '../lib/format'
 import { cite, messageDeLigne } from '../lib/phrases'
+import { useLangue } from '../lib/langue'
 import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
 import {
   empreinteDesLignes,
@@ -61,12 +62,22 @@ interface Props {
 
 type Saisissable = 'ticker' | 'quantite' | 'prixRevient'
 
+/**
+ * Le départ que la garde a retenu : un lien suivi (`cible`), ou la page
+ * remplacée sur place par l'écran d'acceptation d'une autre langue (`suite`).
+ */
+interface Depart {
+  readonly cible: string
+  readonly suite: (() => void) | undefined
+}
+
 export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Props) {
   const nom = portefeuille.name
   const page = cheminDe({ vue: 'positions', id: portefeuille.id })
   const pages = pagesApplication('positions', portefeuille.id)
   const devise = portefeuille.valuation?.currency ?? 'USD'
-  const { univers, erreur: erreurUnivers } = useUnivers()
+  const { langue } = useLangue()
+  const { univers, erreur: erreurUnivers } = useUnivers(langue)
 
   // Les positions stockées, par leur CONTENU : une liste relue à l'identique
   // ne réinitialise pas le tableau.
@@ -81,7 +92,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
   const [generaux, setGeneraux] = useState<string[]>([])
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const [enCours, setEnCours] = useState(false)
-  const [sortie, setSortie] = useState<string | null>(null)
+  const [sortie, setSortie] = useState<Depart | null>(null)
   const resume = useRef<HTMLDivElement>(null)
 
   // Le focus se pose APRÈS le rendu qui fait apparaître sa cible : la liste
@@ -116,8 +127,8 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       evenement.returnValue = ''
     }
     window.addEventListener('beforeunload', avertir)
-    const retirerGarde = poserGarde((cible) => {
-      setSortie(cible)
+    const retirerGarde = poserGarde((cible, suite) => {
+      setSortie({ cible, suite })
       return false
     })
     return () => {
@@ -189,7 +200,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     }
     setEnCours(true)
     try {
-      const ecrit = await putPositions(portefeuille.id, positions)
+      const ecrit = await putPositions(portefeuille.id, positions, langue)
       annoncer(
         `Positions enregistrées le ${dateEnToutesLettres(ecrit.updated_at)}\u00a0: ${compteLignes(ecrit.positions_count)}.`,
         page,
@@ -232,7 +243,9 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
 
       {sortie !== null && (
         <ConfirmationSortie
-          quitter={() => naviguer(sortie, { forcer: true })}
+          quitter={() =>
+            sortie.suite !== undefined ? sortie.suite() : naviguer(sortie.cible, { forcer: true })
+          }
           rester={() => setSortie(null)}
         />
       )}

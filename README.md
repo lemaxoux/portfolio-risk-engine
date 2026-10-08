@@ -1684,7 +1684,7 @@ session 2 (« 2 520 séances », « 2,520 sessions ») : `counted` l'écrivait n
 est lue par `test_typographie_partagee.py` et par `format.test.ts` : chaque
 moitié doit écrire, pour chaque cas et dans chaque langue, exactement la même
 chaîne. Le type des langues est `backend/langue.py` côté serveur,
-`src/lib/langues.ts` côté client.
+`src/lib/langue.ts` côté client.
 
 **L'espace fine avant « % » en Spectral, mesurée et non supposée.** Les
 phrases du moteur, composées en Spectral, affichaient « 50% » alors que l'API
@@ -1787,10 +1787,10 @@ technique. Chaque terme technique y est expliqué à sa première apparition,
 et aucun chiffre d'un portefeuille n'y figure.
 
 - **Un fichier de contenu par langue.**
-  `frontend/src/contenu/methodologie.fr.md`, importé brut (`?raw`). La langue
-  se choisit en un seul endroit, `src/contenu/langue.ts` : le français seul
-  jusqu'au chantier 7D. Les ancres (`{#cvar}`) sont des identifiants, les
-  mêmes dans toutes les langues. Les liens d'une mesure vers sa méthode les
+  `frontend/src/contenu/methodologie.fr.md`, importé brut (`?raw`). Le
+  fichier d'une langue se choisit en un seul endroit,
+  `src/contenu/methodologie.ts`. Les ancres (`{#cvar}`) sont des
+  identifiants, les mêmes dans toutes les langues. Les liens d'une mesure vers sa méthode les
   viseront, et `src/contenu/methodologie.test.ts` en fixe la liste.
 - **Un Markdown restreint, lu par un lecteur maison** (`src/lib/contenu.ts`) :
   titres à ancre fixe, paragraphes, étiquettes en tête, listes, formules en
@@ -2008,6 +2008,14 @@ bandeau changerait. L'acceptation est mémorisée dans le navigateur sous
 l'**empreinte du texte** : on ne mémorise pas « a accepté » mais « a accepté ce
 texte-là », et une limite reformulée fait revenir l'écran.
 
+Depuis le chantier 7D, elle se traverse **une fois par langue**, sous une clé
+par langue (`mx-risk-acceptation`, celle d'avant le chantier, pour le
+français ; `mx-risk-acceptation-en` pour l'anglais) : le texte anglais est un
+autre texte, et l'aller-retour entre les deux ne redemande rien. Le bouton dit
+la page où il mène, celle de l'adresse d'arrivée (« Ouvrir la méthodologie »,
+« Open the methodology » ; `/` rouvre une analyse), et la phrase sous lui le
+même geste. Le bouton de langue est en tête de la colonne.
+
 #### Les pages et leurs adresses
 
 Cinq adresses, lues par `src/lib/route.ts` sans bibliothèque de routage :
@@ -2207,9 +2215,32 @@ seulement pour « 1 ».
 replayed crises, … », « Over the past two years, … », « Over the same
 period, … » ; une phrase sans ce cadre dirait « would have ».
 
-**Ce qui reste à faire, en session 2** : le client. Le choix de la langue
-dans le bandeau, les libellés et les phrases de l'interface, la méthodologie
-anglaise, les relevés aux captures.
+**Le client : le choix de la langue** (session 2, DESIGN.md §8.1).
+`frontend/src/lib/langue.ts` tient la langue : son type, le choix (`?lang=`
+dans l'adresse, puis le choix mémorisé `mx-risk-langue`, puis la première
+langue du navigateur qui est du français ou de l'anglais, puis le français),
+l'attribut `lang` de la page (`fr`, `en-US`) et le contexte React
+(`useLangue()` : la langue, `changerLangue`, les libellés). Un script en ligne
+de `index.html` fait ce choix avant le premier rendu, mémorise une langue
+venue de l'adresse et retire `lang` de l'adresse ; `langue.test.ts` le fait
+tourner sur les mêmes cas que `choisirLangue`.
+
+- **Chaque appel à l'API porte la langue affichée** (`?lang=fr` ou
+  `?lang=en`, `src/api/client.ts`) ; la liste, l'analyse et le format CSV se
+  relisent quand elle change.
+- **Le bouton de langue**, dans le bandeau à côté de la bascule de thème et
+  en tête de l'écran d'acceptation, dit l'autre langue dans cette langue
+  (« English », « Français »).
+- **L'acceptation d'abord** (`App.tsx`) : changer de langue demande l'écran
+  d'acceptation de l'autre langue. Déjà accepté, les pages restent en place ;
+  sinon, il remplace la page, après la garde des modifications non
+  enregistrées (`route.remplacerLaPage`). La langue ne change qu'une fois
+  cette réponse connue.
+- **Les libellés** vivent dans `src/contenu/libelles.ts` (l'interface),
+  `libelles.fr.ts` et `libelles.en.ts`.
+
+**Ce qui reste à faire, en session 2** : les libellés et les phrases de
+l'interface, la méthodologie anglaise, les relevés aux captures.
 
 ## Schéma de données
 

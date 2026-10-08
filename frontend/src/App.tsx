@@ -20,8 +20,19 @@
  * « Portefeuille « Démo » créé. » est adressé à la page où l'on arrive, et ne
  * s'affiche que là : l'annonce d'une action ne suit pas l'utilisateur de page
  * en page.
+ *
+ * ═══ LA LANGUE (chantier 7D) ═══
+ *
+ * L'application tient la langue affichée et la fournit à toutes les pages
+ * (`lib/langue.ts`). Changer de langue demande d'abord l'écran d'acceptation
+ * de l'autre langue : s'il a déjà été accepté, les pages restent en place et
+ * se relisent dans la nouvelle langue ; sinon, il remplace la page, comme à
+ * l'arrivée, et la garde des modifications non enregistrées est consultée
+ * avant (`remplacerLaPage`). La langue ne change qu'une fois cette réponse
+ * connue : aucune page ne s'affiche dans une langue dont le texte n'a pas
+ * été accepté.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiErreur, getDisclaimer, versApiErreur } from './api/client'
 import type { Disclaimer } from './api/types'
@@ -30,12 +41,21 @@ import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
 import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
 import { aAccepte } from './lib/acceptation'
+import {
+  appliquerLangue,
+  ContexteDeLangue,
+  langueDeLaPage,
+  langueDuSite,
+  useLangue,
+  type Langue,
+} from './lib/langue'
 import { useListe, type EtatListe } from './lib/liste'
 import {
   cheminDe,
   dernierPortefeuille,
   naviguer,
   portefeuilleDAccueil,
+  remplacerLaPage,
   useRoute,
 } from './lib/route'
 import controles from './styles/controles.module.css'
@@ -53,14 +73,21 @@ type EtatAcceptation =
   | { phase: 'acceptee' }
 
 export function App() {
+  const [langue, setLangue] = useState<Langue>(langueDeLaPage)
   const [etat, setEtat] = useState<EtatAcceptation>({ phase: 'verification' })
+  const langueDuDemarrage = useRef(langue)
 
   useEffect(() => {
     let vivant = true
-    getDisclaimer().then(
+    const premiere = langueDuDemarrage.current
+    getDisclaimer(premiere).then(
       (bandeau) => {
         if (!vivant) return
-        setEtat(aAccepte(bandeau.text) ? { phase: 'acceptee' } : { phase: 'acceptation', bandeau })
+        setEtat(
+          aAccepte(bandeau.text, premiere)
+            ? { phase: 'acceptee' }
+            : { phase: 'acceptation', bandeau },
+        )
       },
       (cause: unknown) => {
         if (vivant) setEtat({ phase: 'erreur', erreur: versApiErreur(cause) })
@@ -71,8 +98,44 @@ export function App() {
     }
   }, [])
 
+  const changerLangue = useCallback(
+    (nouvelle: Langue) => {
+      if (nouvelle === langue) return
+      const passer = (suivant: EtatAcceptation) => {
+        appliquerLangue(nouvelle)
+        setLangue(nouvelle)
+        setEtat(suivant)
+      }
+      getDisclaimer(nouvelle).then(
+        (bandeau) => {
+          if (aAccepte(bandeau.text, nouvelle)) passer({ phase: 'acceptee' })
+          else remplacerLaPage(() => passer({ phase: 'acceptation', bandeau }))
+        },
+        (cause: unknown) => {
+          remplacerLaPage(() => passer({ phase: 'erreur', erreur: versApiErreur(cause) }))
+        },
+      )
+    },
+    [langue],
+  )
+
+  const contexte = useMemo(() => langueDuSite(langue, changerLangue), [langue, changerLangue])
+
+  return (
+    <ContexteDeLangue.Provider value={contexte}>
+      <Ecran etat={etat} accepter={() => setEtat({ phase: 'acceptee' })} />
+    </ContexteDeLangue.Provider>
+  )
+}
+
+/** L'écran que demande l'état de l'acceptation, dans la langue affichée. */
+function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void }) {
+  const { langue } = useLangue()
+
   if (etat.phase === 'acceptation') {
-    return <Acceptation bandeau={etat.bandeau} onAccepte={() => setEtat({ phase: 'acceptee' })} />
+    // Une clé par langue : la case cochée sous un texte ne l'est pas sous
+    // l'autre.
+    return <Acceptation key={langue} bandeau={etat.bandeau} onAccepte={accepter} />
   }
   if (etat.phase === 'acceptee') return <Application />
 
@@ -110,7 +173,8 @@ interface Annonce {
 
 function Application() {
   const route = useRoute()
-  const { etat: liste, recharger } = useListe()
+  const { langue } = useLangue()
+  const { etat: liste, recharger } = useListe(langue)
   const [annonce, setAnnonce] = useState<Annonce | null>(null)
 
   const annoncer = useCallback((texte: string, page: string) => {

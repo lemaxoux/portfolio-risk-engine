@@ -54,6 +54,67 @@
         }
       })()
     </script>
+
+    <!--
+      Langue de la page (chantier 7D) — SCRIPT EN LIGNE ET BLOQUANT, comme le
+      thème, et pour la même raison : l'attribut `lang` doit être juste avant
+      le premier rendu. Il conditionne la coupure des mots des chapeaux
+      (`hyphens: auto`), la voix des lecteurs d'écran et le dictionnaire du
+      navigateur.
+
+      Dans l'ordre : `?lang=fr` ou `?lang=en` dans l'adresse, qui vaut un
+      choix (mémorisé, puis retiré de l'adresse : recharger après un
+      changement au bouton ne doit pas rétablir l'ancienne langue) ; sinon le
+      choix mémorisé ; sinon la première langue du navigateur qui est du
+      français ou de l'anglais ; sinon le français. React lit ensuite
+      l'attribut (`src/lib/langue.ts`, où ce choix est écrit et testé, et où
+      `langue.test.ts` fait tourner ce script sur les mêmes cas).
+    -->
+    <script id="choix-de-la-langue">
+      (function () {
+        var langue = null
+        try {
+          var adresse = new URLSearchParams(location.search)
+          var demandee = adresse.get('lang')
+          if (demandee === 'fr' || demandee === 'en') {
+            langue = demandee
+            try {
+              localStorage.setItem('mx-risk-langue', demandee)
+            } catch (erreur) {
+              /* Stockage bloqué : la langue vaut pour ce chargement. */
+            }
+            adresse.delete('lang')
+            var reste = adresse.toString()
+            history.replaceState(
+              history.state,
+              '',
+              location.pathname + (reste ? '?' + reste : '') + location.hash
+            )
+          }
+        } catch (erreur) {
+          /* Adresse illisible : on passe au choix suivant. */
+        }
+        if (langue === null) {
+          try {
+            var memorisee = localStorage.getItem('mx-risk-langue')
+            if (memorisee === 'fr' || memorisee === 'en') langue = memorisee
+          } catch (erreur) {
+            /* Stockage bloqué : la langue du navigateur décide. */
+          }
+        }
+        if (langue === null) {
+          var langues =
+            navigator.languages && navigator.languages.length > 0
+              ? navigator.languages
+              : [navigator.language || '']
+          for (var rang = 0; rang < langues.length && langue === null; rang += 1) {
+            var principale = String(langues[rang]).toLowerCase().split('-')[0]
+            if (principale === 'fr' || principale === 'en') langue = principale
+          }
+        }
+        document.documentElement.setAttribute('lang', langue === 'en' ? 'en-US' : 'fr')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -10,12 +10,38 @@
  * les sections, ni la phrase de confirmation. Ce texte a une portée
  * quasi juridique, et une copie dans le bundle serait le texte réellement lu
  * le jour où le serveur change le sien.
+ *
+ * LE BOUTON DIT LA PAGE OÙ IL MÈNE (chantier 7D) : celle de l'adresse
+ * d'arrivée, « Ouvrir la méthodologie » pour un lien partagé vers elle, et
+ * son message dit le même geste. Le bouton de langue est en tête : un
+ * visiteur arrivé dans la mauvaise langue peut changer avant de lire.
  */
 import { useEffect, useState } from 'react'
 
 import type { Disclaimer } from '../api/types'
+import { BoutonLangue } from '../components/BoutonLangue'
+import type { Destination } from '../contenu/libelles'
 import { memoriserAcceptation } from '../lib/acceptation'
+import { useLangue } from '../lib/langue'
+import { useRoute, type Route } from '../lib/route'
 import styles from './Acceptation.module.css'
+
+/** La page où mène l'adresse d'arrivée ; `/` rouvre une analyse. */
+export function destinationDe(route: Route): Destination {
+  switch (route.vue) {
+    case 'accueil':
+    case 'analyse':
+      return 'analyse'
+    case 'positions':
+      return 'positions'
+    case 'portefeuilles':
+      return 'portefeuilles'
+    case 'methodologie':
+      return 'methodologie'
+    case 'inconnue':
+      return 'page'
+  }
+}
 
 interface Props {
   bandeau: Disclaimer
@@ -23,6 +49,8 @@ interface Props {
 }
 
 export function Acceptation({ bandeau, onAccepte }: Props) {
+  const { langue, libelles } = useLangue()
+  const destination = destinationDe(useRoute())
   const [coche, setCoche] = useState(false)
 
   // L'onglet dit où l'on est, comme sur toute autre page.
@@ -32,6 +60,9 @@ export function Acceptation({ bandeau, onAccepte }: Props) {
 
   return (
     <main className={styles.page} id="contenu">
+      <div className={styles.langue}>
+        <BoutonLangue />
+      </div>
       <article className={styles.colonne}>
         <h1 className={styles.titre}>{bandeau.title}</h1>
 
@@ -65,18 +96,16 @@ export function Acceptation({ bandeau, onAccepte }: Props) {
               // L'empreinte est prise sur le texte À PLAT tel qu'il a été servi,
               // celui-là même que l'utilisateur vient de lire. Si le serveur le
               // change, l'écran reviendra.
-              memoriserAcceptation(bandeau.text)
+              memoriserAcceptation(bandeau.text, langue)
               onAccepte()
             }}
           >
-            Ouvrir l'analyse
+            {libelles.acceptation.ouvrir[destination]}
           </button>
 
           {/* Un bouton désactivé ne dit pas POURQUOI il l'est. La phrase est
               toujours là, elle ne surgit pas après coup comme un reproche. */}
-          <p className={styles.condition}>
-            La case doit être cochée pour ouvrir l'analyse.
-          </p>
+          <p className={styles.condition}>{libelles.acceptation.condition[destination]}</p>
         </div>
       </article>
     </main>

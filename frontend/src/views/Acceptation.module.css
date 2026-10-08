@@ -105,3 +105,14 @@
   color: var(--text-2);
   font-size: var(--text-sm);
 }
+
+/* Le bouton de langue, en tête de la colonne et à sa droite : il se trouve
+ * avant le texte, qu'un visiteur arrivé dans la mauvaise langue ne pourrait
+ * pas lire (chantier 7D). */
+.langue {
+  display: flex;
+  justify-content: flex-end;
+  max-inline-size: var(--prose-width);
+  margin-inline: auto;
+  margin-block-end: var(--space-5);
+}

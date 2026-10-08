@@ -38,7 +38,7 @@ import {
   RailSections,
   type SectionDeNavigation,
 } from '../components/Navigation'
-import { LANGUE, METHODOLOGIE } from '../contenu/langue'
+import { METHODOLOGIE } from '../contenu/methodologie'
 import { lireContenu, type Bloc, type Corps, type EnLigne, type Morceau } from '../lib/contenu'
 import { cheminDe } from '../lib/route'
 import communs from './Pages.module.css'
@@ -176,7 +176,7 @@ interface Props {
 
 export function VueMethodologie({ portefeuille }: Props) {
   const { contenu, tete, parties, sections } = useMemo(() => {
-    const lu = lireContenu(METHODOLOGIE[LANGUE])
+    const lu = lireContenu(METHODOLOGIE.fr)
     const sections: SectionDeNavigation[] = lu.parties.map((partie) => ({
       ancre: partie.ancre,
       libelle: partie.titre,
