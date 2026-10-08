@@ -350,9 +350,11 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   partir de 900 px avec `hyphens: auto` (la page déclare sa langue, `fr` ou
   `en-US`, sans quoi aucun mot ne se coupe) et la coupure de lignes
   ordinaire ; leur ligne la plus lâche est à 2,0, avec comme sans
-  dictionnaire. **En anglais** (chantier 7D), la même règle, remesurée avec
-  le dictionnaire de coupure anglais et sans lui : un chapeau qui la dépasse
-  est aligné à gauche, en anglais seulement. Tout le reste est
+  dictionnaire. **En anglais** (chantier 7D), la même règle, remesurée le
+  2026-10-08 sur les six chapeaux des quatre analyses de la copie, à 1280 px :
+  leur ligne la plus lâche est à 1,27 avec le dictionnaire de coupure anglais
+  et à 1,78 sans lui. Ils restent justifiés ; un chapeau anglais qui
+  dépasserait 2,5 serait aligné à gauche, en anglais seulement. Tout le reste est
   aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`, qui
   évite une dernière ligne d'un seul mot : légendes de tableau et de
   graphique, « Détails du calcul », lignes de seuil, cellules, libellés,

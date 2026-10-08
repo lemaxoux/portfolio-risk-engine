@@ -29,7 +29,7 @@ import type {
   Window,
   WorstDay,
 } from '../api/types'
-import { ESPACE_INSECABLE } from './format'
+import { ESPACE_INSECABLE, LIAISON } from './format'
 import type { Langue } from './langue'
 import type { Phrases } from './phrases'
 import { PHRASES_EN } from './phrases.en'
@@ -503,7 +503,7 @@ describe('les phrases anglaises de référence', () => {
     expect(p.phraseFraicheurPositions(null)).toBe('Positions never changed in the app')
     expect(p.phraseFenetreReduite(REDUITE, [{ ticker: 'NEWCO', first_available: '2026-07-14' }])).toBe(
       `Window reduced to 40${NB}sessions of the 2,520 requested: NEWCO is listed only since ` +
-        '2026-07-14.',
+        `2026-${LIAISON}07-${LIAISON}14.`,
     )
   })
 })

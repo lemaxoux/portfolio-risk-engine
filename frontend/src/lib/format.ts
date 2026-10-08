@@ -249,6 +249,19 @@ export function dateISO(iso: string): string {
   return iso
 }
 
+/** Le caractère de liaison (U+2060), invisible : rien ne se coupe là où il est. */
+export const LIAISON = '\u2060'
+
+/**
+ * Une date ISO dans une phrase anglaise (chantier 7D), liée après ses tirets
+ * comme `typography.prose` la lie côté serveur : « 2026-09-16 » ne se coupe
+ * pas en fin de ligne (DESIGN.md §6.3). Le français écrit encore `dateISO`,
+ * son interface ne changeant pas pendant le chantier.
+ */
+export function dateISOLiee(iso: string): string {
+  return dateISO(iso).split('-').join('-' + LIAISON)
+}
+
 /**
  * Date en toutes lettres, pour la prose : « 9 septembre 2026 ».
  *

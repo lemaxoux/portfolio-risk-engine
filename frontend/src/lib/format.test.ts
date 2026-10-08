@@ -16,12 +16,14 @@ import type { Langue } from './langue'
 import {
   ESPACE_FINE,
   ESPACE_INSECABLE,
+  LIAISON,
   SIGNE_MOINS,
   TIRET_INDEFINI,
   compte,
   dateDepuisISO,
   dateEnToutesLettres,
   dateISO,
+  dateISOLiee,
   decimal,
   decimalesDeColonne,
   decimalOuTiret,
@@ -179,6 +181,11 @@ describe('valeur de portefeuille', () => {
 describe('dates', () => {
   it('laisse la date de provenance telle que l’API l’écrit', () => {
     expect(dateISO('2026-09-09')).toBe('2026-09-09')
+  })
+
+  it('lie la date ISO d’une phrase anglaise après ses tirets (7D), sans rien changer d’autre', () => {
+    expect(dateISOLiee('2026-09-16')).toBe('2026-\u206009-\u206016')
+    expect(dateISOLiee('2026-09-16').split(LIAISON).join('')).toBe(dateISO('2026-09-16'))
   })
 
   it('écrit la prose sans décaler la date d’un fuseau', () => {

@@ -11,7 +11,7 @@
 import {
   compte,
   dateEnToutesLettres,
-  dateISO,
+  dateISOLiee,
   decimal,
   lignes,
   points,
@@ -181,12 +181,12 @@ export const LIBELLES_EN: Libelles = {
     titreSansDepart: 'Value of one unit invested',
     titre: (devise, depart) =>
       `Value of 1\u00a0${devise} invested on ${dateEnToutesLettres(depart, EN)}`,
-    unite: (depart) => `base 1${depart === null ? '' : ` on ${dateISO(depart)}`}, current weights`,
+    unite: (depart) => `base 1${depart === null ? '' : ` on ${dateISOLiee(depart)}`}, current weights`,
     descriptionVide: 'Empty value curve.',
     description: (depart, valeurFinale, arrivee, creux, pic, fond) =>
-      `One unit invested on ${dateISO(depart)} would be worth ${decimal(valeurFinale, 2, EN)} ` +
-      `on ${dateISO(arrivee)}; maximum drawdown of ${pourcentage(creux, 1, EN)} ` +
-      `between the peak of ${dateISO(pic)} and the trough of ${dateISO(fond)}.`,
+      `One unit invested on ${dateISOLiee(depart)} would be worth ${decimal(valeurFinale, 2, EN)} ` +
+      `on ${dateISOLiee(arrivee)}; maximum drawdown of ${pourcentage(creux, 1, EN)} ` +
+      `between the peak of ${dateISOLiee(pic)} and the trough of ${dateISOLiee(fond)}.`,
   },
   risque: {
     introduction:
@@ -253,7 +253,7 @@ export const LIBELLES_EN: Libelles = {
     exclue: (poids) => `${pourcentage(poids, 1, EN)} of the value: `,
     seances: 'Sessions',
     poids: 'Weights',
-    poidsFiges: (date) => `those of ${dateISO(date)}, quantities frozen afterward`,
+    poidsFiges: (date) => `those of ${dateISOLiee(date)}, quantities frozen afterward`,
     reference: 'Benchmark',
   },
   moteur: {
