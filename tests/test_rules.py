@@ -58,19 +58,9 @@ from backend.rules import (
     variance_contribution,
 )
 
+from .gardes_texte import PRESCRIPTIF, SCORE_SUR_100
+
 RACINE = Path(__file__).resolve().parents[1]
-
-# Garde lexicale : formes qui transformeraient une observation en consigne.
-PRESCRIPTIF = re.compile(
-    r"\b(devr\w*|doi(s|t|vent)|il faut|faudr\w*|recommand\w*|conseill\w*|"
-    r"rédui\w*|allég\w*|allège\w*|vend(s|ez|re)|achèt\w*|achet(er|ez)|"
-    r"renforc\w*|privilégi\w*|évit(e|ez|er)|envisag\w*|rééquilibr\w*|"
-    r"diversifi(e|es|ez|er))\b",
-    re.IGNORECASE,
-)
-
-# Motif d'un score ramené sur 100 (« 72/100 », « 7,5 / 100 »).
-SCORE_SUR_100 = re.compile(r"\b\d+(,\d+)?\s*/\s*100\b")
 
 FENETRE = Window(requested=504, observations=504, start=date(2024, 9, 5), end=date(2026, 9, 9))
 

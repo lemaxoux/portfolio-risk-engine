@@ -64,75 +64,32 @@ il reste nu, comme les faits et le sujet d'une observation.
 
 from __future__ import annotations
 
-import ast
-import re
 from pathlib import Path
 
 import pytest
 
 from backend.typography import NBSP, WORD_JOINER, prose
 
+from .gardes_texte import (
+    CADRATIN,
+    DATE_NUE,
+    ESPACE_ORDINAIRE,
+    GENERALITES,
+    GREC,
+    HORS_PROSE,
+    LIEN_SECABLE,
+    PAIRE_SECABLE,
+    PROVENANCE,
+    TIRET_COURT,
+    chaines_publiables,
+    dates_secables,
+    toutes_les_chaines,
+)
+
 RACINE = Path(__file__).resolve().parents[1]
 
-# Une espace ORDINAIRE (U+0020) avant « : », « ; », « ? » ou « ! » suivi d'un
-# blanc ou de la fin, après « « », avant « » ». Le motif est celui de
-# `typography.prose`.
-ESPACE_ORDINAIRE = re.compile(r".{0,30}(?: [:;?!](?=\s|$)|« | »).{0,10}")
-
-GREC = re.compile(f"[{chr(0x370)}-{chr(0x3FF)}]")
-
-# Écrit par son point de code : ce fichier ne doit pas contenir, dans une
-# chaîne, le caractère qu'il interdit.
-CADRATIN = chr(0x2014)
-
-# La provenance d'une mesure : écrite en Plex Sans, qui a le grec.
-PROVENANCE = re.compile(r"\.risk\..*\.(method|detail)$")
-
-# Un tiret court entre deux caractères qui ne sont pas des blancs, sans le
-# caractère de liaison qui interdit la coupure après lui.
-TIRET_COURT = chr(0x2013)
-PAIRE_SECABLE = re.compile(rf"\S{TIRET_COURT}(?=[^\s{WORD_JOINER}])")
-
-# Des données ou un identifiant, pas de la prose : la paire d'un fait, le
-# sujet d'une observation.
-HORS_PROSE = re.compile(r"\.facts\.|\.subject$")
-
-# Une date ISO citée dans un texte : chacun de ses deux traits d'union porte
-# le caractère de liaison. Un champ qui n'est qu'une date (`as_of`, `start`,
-# `end`, la date d'une séance) est une donnée, pas de la prose : il reste nu.
-DATE_ISO = re.compile(rf"[0-9]{{4}}-{WORD_JOINER}?[0-9]{{2}}-{WORD_JOINER}?[0-9]{{2}}")
-DATE_NUE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 # Une période telle que `prose` la publie.
 PERIODE_LIEE = f"2024-{WORD_JOINER}09-{WORD_JOINER}05 → 2026-{WORD_JOINER}09-{WORD_JOINER}09"
-
-
-def dates_secables(texte: str) -> list[str]:
-    """Les dates ISO d'un texte dont un trait d'union au moins est sans liaison."""
-    return [d.group(0) for d in DATE_ISO.finditer(texte) if d.group(0).count(WORD_JOINER) < 2]
-
-# Un nombre, une espace ORDINAIRE, puis l'unité de durée qu'il compte ou le
-# mois dont il est le jour ; un mois, une espace ordinaire, puis son année.
-MOIS = (
-    "janvier", "février", "mars", "avril", "mai", "juin",
-    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
-)
-DUREES = ("ans", "an", "mois", "semaines", "semaine", "jours", "jour")
-LIEN_SECABLE = re.compile(
-    rf".{{0,30}}(?:\d (?:{'|'.join(DUREES + MOIS)})\b"
-    rf"|\b(?:{'|'.join(MOIS)}) \d{{4}}\b).{{0,10}}"
-)
-
-
-def toutes_les_chaines(noeud, chemin=""):
-    """Chaque chaîne d'une réponse, avec son chemin — pour nommer la fautive."""
-    if isinstance(noeud, str):
-        yield chemin, noeud
-    elif isinstance(noeud, dict):
-        for cle, valeur in noeud.items():
-            yield from toutes_les_chaines(valeur, f"{chemin}.{cle}")
-    elif isinstance(noeud, list):
-        for rang, valeur in enumerate(noeud):
-            yield from toutes_les_chaines(valeur, f"{chemin}[{rang}]")
 
 
 def fautes_dans(corps) -> list[tuple[str, str]]:
@@ -419,31 +376,6 @@ def test_la_garde_mord_sur_de_vraies_reponses(
 HORS_INTERFACE = ("backend/ingestion/__main__.py", "backend/ingestion/prices.py")
 
 
-def chaines_publiables(source: str) -> list[tuple[int, str]]:
-    """Chaque chaîne d'un module, avec sa ligne, hors docstrings et hors
-    documentation OpenAPI."""
-    arbre = ast.parse(source)
-    ecartees: set[int] = set()
-    for noeud in ast.walk(arbre):
-        if isinstance(noeud, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-            corps = noeud.body
-            if corps and isinstance(corps[0], ast.Expr) and isinstance(corps[0].value, ast.Constant):
-                ecartees.add(id(corps[0].value))
-        elif isinstance(noeud, ast.keyword) and noeud.arg == "description":
-            ecartees.update(id(n) for n in ast.walk(noeud.value))
-        elif isinstance(noeud, ast.Assign) and any(
-            isinstance(cible, ast.Name) and cible.id == "DESCRIPTION" for cible in noeud.targets
-        ):
-            ecartees.update(id(n) for n in ast.walk(noeud.value))
-    return [
-        (noeud.lineno, noeud.value)
-        for noeud in ast.walk(arbre)
-        if isinstance(noeud, ast.Constant)
-        and isinstance(noeud.value, str)
-        and id(noeud) not in ecartees
-    ]
-
-
 def test_le_balayage_du_code_voit_une_chaine_et_ecarte_ce_qui_n_est_pas_publie():
     temoin = (
         f'"""Docstring {CADRATIN} jamais publiée."""\n'
@@ -472,7 +404,7 @@ def test_aucune_chaine_publiee_n_affirme_le_sens_d_une_couverture_partielle():
     moteur ne mesure ni l'un ni l'autre. Une couverture partielle dit
     seulement que la perte de l'ensemble a pu être différente (textes de
     lecture, 2026-10-05)."""
-    interdits = ("spéculati", "sous-estimée", "plus jeune")
+    interdits = GENERALITES
     fautes = []
     for chemin in sorted((RACINE / "backend").rglob("*.py")):
         relatif = chemin.relative_to(RACINE).as_posix()

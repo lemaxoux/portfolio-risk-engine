@@ -21,6 +21,7 @@ from backend.db.init_db import connect
 from backend.risk_engine.engine import analyse_portfolio
 
 from .conftest import construire_base
+from .gardes_texte import ESPACE_AVANT_MOT, ESPACE_AVANT_POURCENT, toutes_les_chaines
 
 
 def interdit(constante: str):
@@ -1579,25 +1580,7 @@ def test_a_fenetre_pleine_les_contributions_sont_completes(analyse_reelle):
 # Ces phrases sont affichées telles quelles, et une espace ordinaire y laisse le
 # « % » partir seul à la ligne suivante. Voir `backend/typography.py`.
 
-MOTS_COMPTES = ("points", "point", "pts", "séances", "séance", "lignes", "ligne")
-
-ESPACE_AVANT_POURCENT = re.compile(r".{0,45}\u0020%")
-ESPACE_AVANT_MOT = re.compile(
-    rf".{{0,45}}\d\u0020(?:{'|'.join(MOTS_COMPTES)})\b"
-)
-
-
-def toutes_les_chaines(noeud, chemin=""):
-    """Chaque chaîne de la réponse, avec son chemin — pour nommer la fautive."""
-    if isinstance(noeud, str):
-        yield chemin, noeud
-    elif isinstance(noeud, dict):
-        for cle, valeur in noeud.items():
-            yield from toutes_les_chaines(valeur, f"{chemin}.{cle}")
-    elif isinstance(noeud, list):
-        for rang, valeur in enumerate(noeud):
-            yield from toutes_les_chaines(valeur, f"{chemin}[{rang}]")
-
+# Les expressions de ces sondes vivent dans `gardes_texte.py`.
 
 def test_aucune_espace_secable_avant_un_pourcent(analyse_reelle):
     """U+202F, espace FINE insécable, sinon le « % » se retrouve seul en tête

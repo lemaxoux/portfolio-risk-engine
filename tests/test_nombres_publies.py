@@ -47,31 +47,13 @@ import pytest
 from backend import typography
 from backend.risk_engine import var
 
-# Un chiffre, un point, un chiffre : « 4.07 », « -43.9 ». Ni une date ISO
-# (tirets), ni « BRK.B » (lettres), ni « backend.ingestion » (lettres).
-POINT_DECIMAL = re.compile(r".{0,40}\d\.\d.{0,10}")
+from .gardes_texte import POINT_DECIMAL, TRAIT_D_UNION_SIGNE, toutes_les_chaines
 
-# Un trait d'union qui sert de signe moins : précédé d'un blanc, d'une
-# parenthèse ou du début de chaîne, suivi d'un chiffre. Le tiret d'une date
-# (« 2024-09-05 ») suit un chiffre et n'est pas pris.
-TRAIT_D_UNION_SIGNE = re.compile(r".{0,40}(?<![\w−-])-\d.{0,10}")
 
 
 def fautes_de(texte: str) -> list[str]:
     """Extraits fautifs d'un texte. Liste vide s'il suit la convention."""
     return POINT_DECIMAL.findall(texte) + TRAIT_D_UNION_SIGNE.findall(texte)
-
-
-def toutes_les_chaines(noeud, chemin=""):
-    """Chaque chaîne d'une réponse, avec son chemin — pour nommer la fautive."""
-    if isinstance(noeud, str):
-        yield chemin, noeud
-    elif isinstance(noeud, dict):
-        for cle, valeur in noeud.items():
-            yield from toutes_les_chaines(valeur, f"{chemin}.{cle}")
-    elif isinstance(noeud, list):
-        for rang, valeur in enumerate(noeud):
-            yield from toutes_les_chaines(valeur, f"{chemin}[{rang}]")
 
 
 def fautes_dans(corps) -> list[tuple[str, str]]:

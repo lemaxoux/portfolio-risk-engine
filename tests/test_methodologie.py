@@ -8,14 +8,12 @@ contrôle.
 ═══ 1. LES GARDES EXISTANTES, PAR LEURS PROPRES EXPRESSIONS ═══
 
 Chaque garde des textes publiés s'applique au fichier, par l'expression même
-qui la porte, importée de son module sans le modifier : espace ordinaire
-avant « : », « ; », « ? », « ! » et dans les guillemets, tiret cadratin,
-lettre grecque (hors formules : Spectral n'en a pas), paire sécable, durée ou
-mois sécable, date ISO sécable (`test_textes_publies.py`) ; espace sécable
-avant « % » et entre un nombre et ce qu'il compte (`test_api_analysis.py`) ;
-formulation prescriptive et score global (`test_rules.py`). La liste des
-généralités sur une couverture partielle est reprise telle quelle de
-`test_textes_publies.py`, où elle vit dans un test.
+qui la porte, importée de `gardes_texte.py`, le module commun des gardes
+(chantier 7D) : espace ordinaire avant « : », « ; », « ? », « ! » et dans les
+guillemets, tiret cadratin, lettre grecque (hors formules : Spectral n'en a
+pas), paire sécable, durée ou mois sécable, date ISO sécable ; espace sécable
+avant « % » et entre un nombre et ce qu'il compte ; formulation prescriptive
+et score global ; généralités sur une couverture partielle.
 
 ═══ 2. DEUX GARDES PROPRES À CE FICHIER ═══
 
@@ -37,7 +35,12 @@ Aucune valeur citée ne peut s'écarter du moteur sans qu'un test échoue :
    mathématique déclaré ou un numéro de section : un nombre ajouté ou
    retouché à la main échoue, même s'il vaut une autre constante ;
 3. un nombre tiré de la justification d'un seuil figure dans son `rationale`
-   publié.
+   publié ;
+4. un nombre écrit en lettres et suivi de ce qu'il compte (« deux ans »,
+   « trois mois », « ces deux dernières années ») se vérifie comme un
+   chiffre : « environ trois ans » à la place de « environ deux ans » passait.
+   « Un » et « une » n'entrent pas dans cette garde : ce sont aussi des
+   articles (« le rendement d'un jour », « un jour de bourse sur vingt »).
 
 CE TEST LIT UN FICHIER DU CLIENT, comme `test_typographie_partagee.py` : les
 constantes qu'il cite vivent dans le moteur, et c'est le moteur qui bouge.
@@ -60,14 +63,18 @@ from backend.risk_engine.scenarios import SCENARIOS
 from backend.rules import thresholds
 from backend.rules.rules import RuleId
 
-from .test_api_analysis import ESPACE_AVANT_MOT, ESPACE_AVANT_POURCENT
-from .test_rules import PRESCRIPTIF, SCORE_SUR_100
-from .test_textes_publies import (
+from .gardes_texte import (
     CADRATIN,
+    ESPACE_AVANT_MOT,
+    ESPACE_AVANT_POURCENT,
     ESPACE_ORDINAIRE,
+    GENERALITES,
     GREC,
     LIEN_SECABLE,
+    NOMBRE_EN_LETTRES,
     PAIRE_SECABLE,
+    PRESCRIPTIF,
+    SCORE_SUR_100,
     dates_secables,
 )
 
@@ -80,11 +87,6 @@ NNBSP = typography.NARROW_NBSP
 
 # Les trois entités que le lecteur du client admet (`src/lib/contenu.ts`).
 ENTITES = {"&nbsp;": NBSP, "&#x202F;": NNBSP, "&#x2060;": typography.WORD_JOINER}
-
-# Reprise telle quelle de `test_textes_publies.py`
-# (`test_aucune_chaine_publiee_n_affirme_le_sens_d_une_couverture_partielle`) :
-# le moteur ne mesure ni l'un ni l'autre.
-GENERALITES = ("spéculati", "sous-estimée", "plus jeune")
 
 FORMULE = re.compile(r"\$\$(.+?)\$\$|\$(.+?)\$")
 INDICE = re.compile(r"[_^]\{([^}]*)\}")
@@ -368,6 +370,15 @@ FRAGMENTS_MATHEMATIQUES = (
     "part de 1 ",  # la base de la courbe de valeur
     "2" + NBSP + "degrés de liberté",  # une variance finie demande plus de deux
     "μ = 0",
+    "entre deux jours",  # le quantile tombe entre deux jours observés
+    "avec deux jours",  # une corrélation y vaut +1 ou −1, quelles que soient les lignes
+)
+
+# Des nombres écrits en lettres qui ne sont ni des constantes ni des données :
+# des exemples, cités comme tels (chantier 7D, garde des nombres en lettres).
+EXEMPLES_EN_LETTRES = (
+    "sept jours",  # une volatilité « estimée sur deux ans ou sur sept jours »
+    "un ou deux jours",  # une loi de Student « reposerait sur un ou deux jours extrêmes »
 )
 
 STRUCTURE = tuple(f"section {n}" for n in range(1, 7))
@@ -383,12 +394,17 @@ def fautes_de_nombres(lecture: Lecture, citations: dict[str, str]) -> list[str]:
             fautes.append(f"citation absente, le moteur a-t-il changé ? {nom} : {attendu!r}")
         for m in trouvees:
             couvert[m.start():m.end()] = [True] * (m.end() - m.start())
-    for fragment in FRAGMENTS_MATHEMATIQUES + STRUCTURE:
+    for fragment in FRAGMENTS_MATHEMATIQUES + STRUCTURE + EXEMPLES_EN_LETTRES + tuple(EXEMPLES):
         for m in re.finditer(re.escape(fragment), t):
             couvert[m.start():m.end()] = [True] * (m.end() - m.start())
     for m in re.finditer(r"[0-9]+", t):
         if not all(couvert[m.start():m.end()]):
             fautes.append(f"nombre non déclaré : {t[max(0, m.start() - 25):m.end() + 15]!r}")
+    # Le nombre lui-même, groupe 1 de l'expression : « trois » dans « environ
+    # trois ans ». « Un » et « une » n'y entrent pas (voir `gardes_texte.py`).
+    for m in NOMBRE_EN_LETTRES.finditer(t):
+        if not all(couvert[m.start(1):m.end(1)]):
+            fautes.append(f"nombre en lettres non déclaré : {t[max(0, m.start() - 25):m.end() + 15]!r}")
     return fautes
 
 
@@ -416,6 +432,7 @@ TEMOINS = (
     ("$ν$ (la lettre grecque nu)", "ν (la lettre grecque nu)", "lettre grecque hors formule"),
     ("«&nbsp;Séances dans la queue&nbsp;»", "les séances dans la queue", "séance hors citation"),
     ("252&nbsp;jours de bourse", "252 jours de bourse", "lien sécable"),
+    ("environ deux ans", "environ trois ans", "nombre en lettres non déclaré"),
 )
 
 

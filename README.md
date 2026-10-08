@@ -906,6 +906,20 @@ doivent pas l'être. Une garde qu'on n'a jamais vue échouer ne prouve rien — 
 `CALCULS` vidé par mégarde passerait au vert sur toute la couche et la
 déclarerait propre.
 
+**Les gardes des textes vivent dans un module commun, `tests/gardes_texte.py`**
+(chantier 7D). Les expressions qui vérifient les textes publiés — ponctuation
+haute et guillemets, tiret cadratin, lettre grecque, paire et date sécables,
+durée séparée de son unité, espaces avant « % » et avant le mot compté, point
+décimal, trait d'union pris pour un signe moins, formulation prescriptive,
+score, généralités sur une couverture partielle — vivaient dans cinq fichiers
+de test ; elles y sont déplacées sans qu'un caractère change, et chaque
+fichier les importe. Chacune a sa version anglaise (aucune espace avant la
+ponctuation haute, guillemets doubles, « 1.06% », virgule des milliers,
+« April 4, 2025 », liste prescriptive anglaise), et une garde s'ajoute dans
+les deux langues : un nombre écrit en lettres et suivi d'une unité. Une garde
+enfin repère du français dans un texte anglais. `tests/test_gardes_texte.py`
+les éprouve sur des témoins, fautifs et légitimes, dans chaque langue.
+
 ### 9. API
 
 ```powershell
@@ -1656,15 +1670,14 @@ et aucun chiffre d'un portefeuille n'y figure.
   `&#x202F;`), comme le JSX écrit `&nbsp;`. Le lecteur les décode ; il ne pose
   aucune espace lui-même.
 - **Les gardes des textes publiés s'appliquent au fichier.**
-  `tests/test_methodologie.py` importe leurs expressions de
-  `test_textes_publies.py`, `test_api_analysis.py` et `test_rules.py`, sans
-  les modifier : ponctuation haute et guillemets, tiret cadratin, lettre
-  grecque hors d'une formule, paire, durée et date sécables, espaces des
-  nombres, formulation prescriptive, score global, généralités sur une
-  couverture partielle. Deux gardes s'y ajoutent : « séance » n'apparaît que
-  dans une citation de l'écran ou une formule, et chaque citation « … » est un
-  libellé que la page affiche, lu dans le code qui l'écrit ou dans la réponse
-  de l'API.
+  `tests/test_methodologie.py` importe leurs expressions du module commun
+  des gardes, `tests/gardes_texte.py` (section 8), sans les modifier :
+  ponctuation haute et guillemets, tiret cadratin, lettre grecque hors d'une
+  formule, paire, durée et date sécables, espaces des nombres, formulation
+  prescriptive, score global, généralités sur une couverture partielle. Deux
+  gardes s'y ajoutent : « séance » n'apparaît que dans une citation de l'écran
+  ou une formule, et chaque citation « … » est un libellé que la page affiche,
+  lu dans le code qui l'écrit ou dans la réponse de l'API.
 - **Une liste fermée des nombres.** Chaque valeur citée (0,70, 80 %, 504, 60,
   30, 3, 20 et 100 jours de bourse, le 1er janvier 2005, 100 000 tirages…) est
   recalculée depuis le moteur et écrite par `backend/typography.py`. Chaque
@@ -1672,9 +1685,14 @@ et aucun chiffre d'un portefeuille n'y figure.
   mathématique déclaré ou dans un numéro de section : une constante qui
   change, ou un nombre écrit à la main, fait échouer le test. L'exemple des
   lignes effectives (deux lignes de 90 % et 10 % pèsent comme 1,2 ligne) est
-  calculé par le test, pas recopié. Le test lit un fichier du client depuis la
-  suite Python, comme `test_typographie_partagee.py` : c'est le moteur qui
-  bouge.
+  calculé par le test, pas recopié. Un nombre écrit en lettres et suivi de ce
+  qu'il compte (« deux ans », « ces deux dernières années », « trois mois »)
+  se vérifie comme un chiffre : « environ trois ans » à la place de « environ
+  deux ans » passait. Quatre exemples et fragments en lettres sont déclarés
+  (« sept jours », « un ou deux jours », « entre deux jours », « avec deux
+  jours ») ; « un » et « une » n'entrent pas dans la garde, parce qu'ils sont
+  aussi des articles. Le test lit un fichier du client depuis la suite Python,
+  comme `test_typographie_partagee.py` : c'est le moteur qui bouge.
 - **Les glyphes.** Spectral n'a pas de grec : toute formule, même d'une
   lettre, s'écrit en IBM Plex Sans. Ni Plex Sans, ni Spectral, ni Plex Mono,
   tels que @fontsource les livre, ne dessinent √, ≤, ≥, →, ᵀ ni ᵢ. Indices et
