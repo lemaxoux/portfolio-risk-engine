@@ -127,29 +127,6 @@
       }
     },
     "/api/portfolios": {
-      "get": {
-        "tags": [
-          "portefeuilles"
-        ],
-        "summary": "List Portfolios",
-        "operationId": "list_portfolios_api_portfolios_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PortfolioDetailOut"
-                  },
-                  "type": "array",
-                  "title": "Response List Portfolios Api Portfolios Get"
-                }
-              }
-            }
-          }
-        }
-      },
       "post": {
         "tags": [
           "portefeuilles"
@@ -196,6 +173,57 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "portefeuilles"
+        ],
+        "summary": "List Portfolios",
+        "operationId": "list_portfolios_api_portfolios_get",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortfolioDetailOut"
+                  },
+                  "title": "Response List Portfolios Api Portfolios Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/portfolios/{portfolio_id}": {
@@ -214,6 +242,22 @@
               "type": "integer",
               "title": "Portfolio Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "type": "string",
+              "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français.",
+              "default": "fr",
+              "title": "Lang"
+            },
+            "description": "Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français."
           }
         ],
         "responses": {

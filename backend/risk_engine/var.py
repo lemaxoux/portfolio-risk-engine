@@ -29,6 +29,7 @@ from scipy.stats import norm
 from scipy.stats import t as student_t
 
 from backend import typography
+from backend.textes import ValeurRefusee
 
 from .config import (
     DDOF,
@@ -227,25 +228,17 @@ def monte_carlo_var(
     vecteur, sous_matrice = _aligned_weights(weights, cov)
     matrice = sous_matrice.to_numpy()
 
-    _SINGULIERE = (
-        "Matrice de covariance non définie positive : la décomposition de "
-        "Cholesky ne donnerait pas un facteur exploitable. Causes habituelles : "
-        "deux titres parfaitement corrélés (une ligne en double dans le "
-        "portefeuille), un titre à variance nulle, ou moins de séances que de "
-        "titres dans la fenêtre. Vérifier le panel avant de simuler."
-    )
-
     # Vérification AVANT le Cholesky, et non par capture de son exception : sur
     # une matrice exactement singulière, numpy ne lève pas. Il rend un facteur
     # dégénéré (zéro sur la diagonale) avec lequel la simulation tournerait en
     # silence sur une distribution de rang déficient.
     if not is_positive_definite(sous_matrice):
-        raise ValueError(_SINGULIERE)
+        raise ValeurRefusee("COVARIANCE_NON_DEFINIE_POSITIVE")
 
     try:
         cholesky = np.linalg.cholesky(matrice)
     except np.linalg.LinAlgError as exc:
-        raise ValueError(_SINGULIERE) from exc
+        raise ValeurRefusee("COVARIANCE_NON_DEFINIE_POSITIVE") from exc
 
     generateur = np.random.default_rng(seed)
     tirages = generateur.standard_normal((simulations, matrice.shape[0]))
@@ -338,7 +331,7 @@ def fit_student_t(returns) -> StudentFit:
     if echelle <= 0.0:
         echelle = float(np.std(donnees, ddof=DDOF))
     if echelle <= 0.0:
-        raise ValueError("Série constante : aucune loi de Student n'est ajustable.")
+        raise ValeurRefusee("SERIE_CONSTANTE")
 
     z = (donnees - centre) / echelle
 
@@ -446,10 +439,7 @@ def simulate_student_returns(
         raise ValueError(f"Au moins 2 simulations (reçu : {simulations}).")
     echelle = student_scale_matrix(cov, nu)
     if not is_positive_definite(echelle):
-        raise ValueError(
-            "Matrice de covariance non définie positive : simulation Student "
-            "impossible. Voir monte_carlo_var pour les causes habituelles."
-        )
+        raise ValeurRefusee("SIMULATION_STUDENT_IMPOSSIBLE")
     facteur = np.linalg.cholesky(echelle.to_numpy())
     generateur = np.random.default_rng(seed)
     normaux = generateur.standard_normal((simulations, facteur.shape[0])) @ facteur.T

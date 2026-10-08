@@ -32,3 +32,39 @@ PAR_LANGUE: dict[str, ModuleType] = {"fr": fr, "en": en}
 def textes(langue: Langue) -> ModuleType:
     """Les textes d'une langue, par domaine : `textes("en").bandeau.TITRE`."""
     return PAR_LANGUE[langue]
+
+
+class ErreurRedigee(Exception):
+    """Une erreur dont le message est rédigé par un module de texte.
+
+    Elle garde le domaine, le nom de la fonction ou de la constante qui rédige
+    son message, et ses arguments : `str()` rend le français, comme avant le
+    chantier, et `texte(langue)` la langue demandée. Celui qui l'attrape — une
+    route, le moteur qui range la raison d'un volet indisponible — la rédige
+    dans la langue de la réponse, sans que celui qui la lève ait à la connaître.
+    """
+
+    def __init__(self, domaine: str, redaction: str, *arguments: object) -> None:
+        self.domaine = domaine
+        self.redaction = redaction
+        self.arguments = arguments
+        super().__init__(self.texte("fr"))
+
+    def texte(self, langue: Langue = "fr") -> str:
+        source = getattr(getattr(textes(langue), self.domaine), self.redaction)
+        return source(*self.arguments) if callable(source) else source
+
+
+class ValeurRefusee(ErreurRedigee, ValueError):
+    """Un refus du moteur, une `ValueError` comme avant le chantier, dont le
+    message est rédigé dans `moteur` : ceux qu'une réponse peut publier comme
+    raison d'un volet simulé indisponible."""
+
+    def __init__(self, redaction: str, *arguments: object) -> None:
+        super().__init__("moteur", redaction, *arguments)
+
+
+def texte_d_erreur(erreur: Exception, langue: Langue = "fr") -> str:
+    """Le message d'une erreur dans la langue demandée : celui d'une erreur
+    rédigée, le message tel quel sinon (un garde-fou interne, en français)."""
+    return erreur.texte(langue) if isinstance(erreur, ErreurRedigee) else str(erreur)

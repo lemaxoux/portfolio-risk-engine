@@ -49,6 +49,7 @@ from backend.risk_engine.engine import (
 )
 from backend.risk_engine.portfolio import PortfolioError, load_securities
 from backend.rules.rules import evaluate
+from backend.textes import texte_d_erreur
 
 from ..dependencies import get_connection
 from ..errors import ApiError, not_found, unprocessable
@@ -83,6 +84,7 @@ def _analyse(
     portfolio_id: int,
     window: int,
     benchmark: str | None,
+    langue: Langue,
 ) -> RiskReport:
     """Rapport avec ses simulations, chacune présente ou accompagnée de sa raison.
 
@@ -96,16 +98,18 @@ def _analyse(
     erreur de paramètres (fenêtre trop courte) sans avoir à lire le message :
     si elle disparaît, elle venait des simulations, et les deux volets sortent
     à `null` avec ce message pour raison — jamais un blanc sans raison. Si
-    elle persiste, elle remonte à la route qui la traduira en 422.
+    elle persiste, elle remonte à la route qui la traduira en 422. Le message
+    est rédigé dans la langue demandée quand le moteur l'a rédigé ; un
+    garde-fou interne reste en français.
     """
-    arguments = {"window": window, "benchmark": benchmark}
+    arguments = {"window": window, "benchmark": benchmark, "langue": langue}
     try:
         return analyse_portfolio(conn, portfolio_id, monte_carlo=True, **arguments)
     except ValueError as exc:
         return replace(
             analyse_portfolio(conn, portfolio_id, monte_carlo=False, **arguments),
-            monte_carlo_unavailable_reason=str(exc),
-            student_unavailable_reason=str(exc),
+            monte_carlo_unavailable_reason=texte_d_erreur(exc, langue),
+            student_unavailable_reason=texte_d_erreur(exc, langue),
         )
 
 
@@ -154,16 +158,16 @@ def analyse(
     indice = normalise_ticker(benchmark) if benchmark else None
 
     try:
-        report = _analyse(conn, portfolio_id, window, indice)
-        scenarios = run_all_scenarios(conn, portfolio_id)
-        regimes = compare_all_regimes(conn, portfolio_id, window=window)
+        report = _analyse(conn, portfolio_id, window, indice, langue)
+        scenarios = run_all_scenarios(conn, portfolio_id, langue=langue)
+        regimes = compare_all_regimes(conn, portfolio_id, window=window, langue=langue)
     except PortfolioError as exc:
         # Le portefeuille existe mais n'est pas analysable en l'état. Le message
         # du moteur dit quoi faire — « Lancer : python -m backend.ingestion add
-        # SPY » — et il est relayé tel quel.
-        raise ApiError(status.HTTP_409_CONFLICT, str(exc)) from exc
+        # SPY » — et il est relayé tel quel, rédigé dans la langue demandée.
+        raise ApiError(status.HTTP_409_CONFLICT, exc.texte(langue)) from exc
     except ValueError as exc:
-        raise unprocessable(str(exc)) from exc
+        raise unprocessable(texte_d_erreur(exc, langue)) from exc
 
     rules_report = evaluate(report, scenarios, regimes, langue=langue)
 
@@ -178,7 +182,7 @@ def analyse(
     # réponse d'une matrice qui peut manquer priverait le client de son ordre
     # de référence précisément quand il en a le plus besoin.
     tickers = [str(colonne) for colonne in report.matrices.covariance.columns]
-    nom_indice = benchmark_name(indice)
+    nom_indice = benchmark_name(indice, langue)
 
     return AnalysisOut(
         portfolio_id=portfolio_id,
@@ -202,7 +206,7 @@ def analyse(
         # donnerait aujourd'hui le même nombre et inventerait une convention
         # que rien ne garantirait demain.
         estimation_window=WindowOut.of(report.window),
-        estimation_period_label=report.window.period_label,
+        estimation_period_label=report.window.periode(langue),
         limiting_positions=[
             LimitingPositionOut.of(position)
             for position in report.limiting_positions
@@ -214,11 +218,11 @@ def analyse(
             benchmark_label=None if nom_indice is None else nom_indice.label,
             benchmark_description=None if nom_indice is None else nom_indice.description,
         ),
-        risk=RiskOut.of(report, tickers),
+        risk=RiskOut.of(report, tickers, langue),
         series=PortfolioSeriesOut.of(report),
         histogram=ReturnHistogramOut.of(report),
-        scenarios=[ScenarioOut.of(s) for s in scenarios],
-        regimes=[RegimeOut.of(r) for r in regimes],
+        scenarios=[ScenarioOut.of(s, langue) for s in scenarios],
+        regimes=[RegimeOut.of(r, langue) for r in regimes],
         observations=[ObservationOut.of(o) for o in rules_report.observations],
         disclaimer=DisclaimerOut.of(rules_report, report.window.requested, langue),
     )

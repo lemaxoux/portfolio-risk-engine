@@ -962,8 +962,12 @@ octet** ; une autre valeur est refusée en 422. Pas d'en-tête
 `Accept-Language` : le navigateur l'envoie tout seul, et une réponse passerait
 en anglais sans que personne l'ait demandé.
 
-L'anglais s'ajoute à côté, domaine par domaine : l'écran d'acceptation d'abord
-(`/api/disclaimer`, et le `disclaimer` de l'analyse). Les phrases vivent dans
+L'anglais s'ajoute à côté, domaine par domaine : l'écran d'acceptation
+(`/api/disclaimer`, et le `disclaimer` de l'analyse), puis les textes du moteur
+(périodes, méthodes et détails de provenance, réserves, refus, raisons d'un
+volet simulé indisponible, crises et leurs descriptions, résumés des scénarios
+et des régimes, nom de l'indice de référence, erreurs du portefeuille). Les
+phrases vivent dans
 `backend/textes/`, un module par langue et par domaine, mêmes noms et mêmes
 signatures ; le français y a été déplacé tel quel, et les noms qu'on lisait
 ailleurs (`rules.disclaimer.ACCEPTANCE_TITLE`…) le lisent de là. Le moteur et
@@ -976,6 +980,34 @@ français n'a pas bougé.
 Le texte anglais de l'écran d'acceptation a sa propre empreinte : un visiteur
 qui passe à l'anglais l'accepte une fois. Le texte français n'a pas changé
 d'un octet, et l'acceptation française reste valable.
+
+**Le moteur rédige dans la langue demandée.** `analyse_portfolio`,
+`run_all_scenarios`, `compare_all_regimes` et les fonctions qui construisent
+une mesure prennent `langue` (« fr » par défaut) : la méthode, le détail, la
+réserve et la raison d'un refus sont rédigés à la construction. Les propriétés
+qui rédigeaient (`Window.period_label`, `ExpectedShortfallResult.caveat`,
+`RegimeComparison.calm_period_label` et `benchmark_label`, `summary()`,
+`__str__` d'une fenêtre, d'une couverture, d'un bêta régressé) gardent leur
+forme française et appellent la fonction qui prend la langue. Les crises du
+catalogue déclarent leur nom et leur description en anglais (`name_en`,
+`description_en`).
+
+**Une erreur se rédige où on l'attrape.** `PortfolioError` (409) et les trois
+refus de `var.py` qu'une réponse 200 peut publier comme raison d'un volet
+simulé (matrice de covariance non définie positive, pour la simulation
+normale et pour la Student ; série constante) sont des erreurs rédigées
+(`backend.textes.ErreurRedigee`) : elles gardent le nom de la fonction de
+texte et ses arguments, `str()` rend le français comme avant, et la route ou
+le moteur qui les attrape les rédige dans la langue de la réponse.
+
+**Ce qui reste en français, déclaré.** Les garde-fous internes du moteur, que
+l'API ne déclenche que sur une base corrompue, gardent leur message français
+dans les deux langues : ceux de `measures`, `covariance` (dont la variance
+nulle d'un titre ou de l'indice, qui aboutit en 422), `stress`, `returns`,
+`regime`, `config`, les autres refus de `var`, les gardes de paramètres de
+`engine` (fenêtre de moins de deux séances, taux sans risque, analyse sans
+indice) et `scenarios.get_scenario`. Les refus de validation de FastAPI
+(pydantic) restent en anglais dans les deux langues, comme avant.
 
 #### L'analyse est un seul endpoint, et c'est une décision
 

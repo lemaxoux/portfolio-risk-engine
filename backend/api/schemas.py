@@ -502,19 +502,21 @@ class VolatilityOut(Schema):
     period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
-    def of(cls, result: VolatilityResult) -> VolatilityOut:
+    def of(cls, result: VolatilityResult, langue: Langue = "fr") -> VolatilityOut:
         return cls(
             annualised=result.annualised,
             daily=result.daily,
             method=result.method,
             caveat=result.caveat,
             window=WindowOut.of(result.window),
-            period_label=result.window.period_label,
+            period_label=result.window.periode(langue),
         )
 
     @classmethod
-    def optional(cls, result: VolatilityResult | None) -> VolatilityOut | None:
-        return None if result is None else cls.of(result)
+    def optional(
+        cls, result: VolatilityResult | None, langue: Langue = "fr"
+    ) -> VolatilityOut | None:
+        return None if result is None else cls.of(result, langue)
 
 
 class DrawdownOut(Schema):
@@ -542,7 +544,7 @@ class DrawdownOut(Schema):
     period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
-    def of(cls, result: DrawdownResult) -> DrawdownOut:
+    def of(cls, result: DrawdownResult, langue: Langue = "fr") -> DrawdownOut:
         return cls(
             value=result.value,
             peak_date=result.peak_date,
@@ -551,7 +553,7 @@ class DrawdownOut(Schema):
             amount=result.amount,
             recovery_date=result.recovery_date,
             recovery_sessions=result.recovery_sessions,
-            period_label=result.window.period_label,
+            period_label=result.window.periode(langue),
         )
 
 
@@ -803,7 +805,7 @@ class VarOut(Schema):
     period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
-    def of(cls, result: VarResult) -> VarOut:
+    def of(cls, result: VarResult, langue: Langue = "fr") -> VarOut:
         return cls(
             value=result.value,
             confidence=result.confidence,
@@ -813,12 +815,12 @@ class VarOut(Schema):
             caveat=result.caveat,
             window=WindowOut.of(result.window),
             amount=result.amount,
-            period_label=result.window.period_label,
+            period_label=result.window.periode(langue),
         )
 
     @classmethod
-    def optional(cls, result: VarResult | None) -> VarOut | None:
-        return None if result is None else cls.of(result)
+    def optional(cls, result: VarResult | None, langue: Langue = "fr") -> VarOut | None:
+        return None if result is None else cls.of(result, langue)
 
 
 class HistoricalVarOut(Schema):
@@ -845,7 +847,7 @@ class HistoricalVarOut(Schema):
     period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
-    def of(cls, result: VarResult) -> HistoricalVarOut:
+    def of(cls, result: VarResult, langue: Langue = "fr") -> HistoricalVarOut:
         return cls(
             value=result.value,
             confidence=result.confidence,
@@ -856,7 +858,7 @@ class HistoricalVarOut(Schema):
             undefined_reason=result.undefined_reason,
             window=WindowOut.of(result.window),
             amount=result.amount,
-            period_label=result.window.period_label,
+            period_label=result.window.periode(langue),
         )
 
 
@@ -915,17 +917,19 @@ class ExpectedShortfallOut(Schema):
     period_label: Texte = Field(description=DESCRIPTION_PERIODE)
 
     @classmethod
-    def of(cls, result: ExpectedShortfallResult) -> ExpectedShortfallOut:
+    def of(
+        cls, result: ExpectedShortfallResult, langue: Langue = "fr"
+    ) -> ExpectedShortfallOut:
         return cls(
             value=result.value,
             confidence=result.confidence,
             tail_observations=result.tail_observations,
             threshold=result.threshold,
-            caveat=result.caveat,
+            caveat=result.reserve(langue),
             undefined_reason=result.undefined_reason,
             window=WindowOut.of(result.window),
             amount=result.amount,
-            period_label=result.window.period_label,
+            period_label=result.window.periode(langue),
         )
 
 
@@ -986,7 +990,7 @@ class TailRiskOut(Schema):
     monte_carlo_unavailable_reason: Texte | None
 
     @classmethod
-    def of(cls, report: RiskReport) -> TailRiskOut:
+    def of(cls, report: RiskReport, langue: Langue = "fr") -> TailRiskOut:
         def _niveau(confiance: float, source: dict | None) -> VarResult | None:
             return None if source is None else source.get(confiance)
 
@@ -995,20 +999,20 @@ class TailRiskOut(Schema):
                 TailRiskLevelOut(
                     confidence=confiance,
                     historical_var=HistoricalVarOut.of(
-                        report.historical_var[confiance]
+                        report.historical_var[confiance], langue
                     ),
-                    parametric_var=VarOut.of(report.parametric_var[confiance]),
+                    parametric_var=VarOut.of(report.parametric_var[confiance], langue),
                     monte_carlo_var=VarOut.optional(
-                        _niveau(confiance, report.monte_carlo_var)
+                        _niveau(confiance, report.monte_carlo_var), langue
                     ),
                     student_parametric_var=VarOut.optional(
-                        _niveau(confiance, report.student_parametric_var)
+                        _niveau(confiance, report.student_parametric_var), langue
                     ),
                     student_monte_carlo_var=VarOut.optional(
-                        _niveau(confiance, report.student_monte_carlo_var)
+                        _niveau(confiance, report.student_monte_carlo_var), langue
                     ),
                     expected_shortfall=ExpectedShortfallOut.of(
-                        report.expected_shortfall[confiance]
+                        report.expected_shortfall[confiance], langue
                     ),
                 )
                 for confiance in sorted(report.historical_var)
@@ -1100,12 +1104,12 @@ class RiskOut(Schema):
     worst_day: WorstDayOut
 
     @classmethod
-    def of(cls, report: RiskReport, tickers: list[str]) -> RiskOut:
+    def of(cls, report: RiskReport, tickers: list[str], langue: Langue = "fr") -> RiskOut:
         return cls(
-            volatility=VolatilityOut.of(report.volatility),
-            ewma_volatility=VolatilityOut.of(report.ewma_volatility),
-            parametric_volatility=VolatilityOut.of(report.parametric_volatility),
-            drawdown=DrawdownOut.of(report.drawdown),
+            volatility=VolatilityOut.of(report.volatility, langue),
+            ewma_volatility=VolatilityOut.of(report.ewma_volatility, langue),
+            parametric_volatility=VolatilityOut.of(report.parametric_volatility, langue),
+            drawdown=DrawdownOut.of(report.drawdown, langue),
             sharpe=SharpeOut.of(report.sharpe),
             sortino=SortinoOut.of(report.sortino),
             concentration=ConcentrationOut.of(report.concentration),
@@ -1114,8 +1118,8 @@ class RiskOut(Schema):
                 report.variance_contributions, tickers
             ),
             beta=None if report.beta is None else BetaOut.of(report.beta),
-            tail_risk=TailRiskOut.of(report),
-            benchmark_volatility=VolatilityOut.optional(report.benchmark_volatility),
+            tail_risk=TailRiskOut.of(report, langue),
+            benchmark_volatility=VolatilityOut.optional(report.benchmark_volatility, langue),
             worst_day=WorstDayOut.of(report.worst_day),
         )
 
@@ -1234,14 +1238,14 @@ class ScenarioDefOut(Schema):
     calendar_days: int
 
     @classmethod
-    def of(cls, scenario: Scenario) -> ScenarioDefOut:
+    def of(cls, scenario: Scenario, langue: Langue = "fr") -> ScenarioDefOut:
         return cls(
             key=scenario.key,
-            name=scenario.name,
+            name=scenario.nom(langue),
             start=scenario.start,
             end=scenario.end,
             benchmark=scenario.benchmark,
-            description=scenario.description,
+            description=scenario.description_ecrite(langue),
             calendar_days=scenario.calendar_days,
         )
 
@@ -1360,9 +1364,9 @@ class ScenarioOut(Schema):
     )
 
     @classmethod
-    def of(cls, result: ScenarioResult) -> ScenarioOut:
+    def of(cls, result: ScenarioResult, langue: Langue = "fr") -> ScenarioOut:
         return cls(
-            scenario=ScenarioDefOut.of(result.scenario),
+            scenario=ScenarioDefOut.of(result.scenario, langue),
             coverage=CoverageOut.of(result.coverage),
             end_to_end_return=result.end_to_end_return,
             max_drawdown=(
@@ -1375,7 +1379,7 @@ class ScenarioOut(Schema):
             ],
             observations=result.observations,
             unavailable_reason=result.unavailable_reason,
-            summary=result.summary(),
+            summary=result.summary(langue),
             end_to_end_amount=result.end_to_end_amount,
             coverage_sufficient=result.coverage.sufficient,
         )
@@ -1457,9 +1461,9 @@ class RegimeOut(Schema):
     )
 
     @classmethod
-    def of(cls, result: RegimeComparison) -> RegimeOut:
+    def of(cls, result: RegimeComparison, langue: Langue = "fr") -> RegimeOut:
         return cls(
-            scenario=ScenarioDefOut.of(result.scenario),
+            scenario=ScenarioDefOut.of(result.scenario, langue),
             coverage=CoverageOut.of(result.coverage),
             benchmark=result.benchmark,
             portfolio_return=result.portfolio_return,
@@ -1472,9 +1476,9 @@ class RegimeOut(Schema):
             ratio_beta_divergence=result.ratio_beta_divergence,
             systematic_share_change=result.systematic_share_change,
             unavailable_reason=result.unavailable_reason,
-            summary=result.summary(),
-            benchmark_label=result.benchmark_label,
-            calm_period_label=result.calm_period_label,
+            summary=result.summary(langue),
+            benchmark_label=result.nom_de_l_indice(langue),
+            calm_period_label=result.periode_calme(langue),
         )
 
 

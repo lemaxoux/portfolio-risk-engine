@@ -13,6 +13,8 @@ anglaises de `gardes_texte.py`.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from backend.risk_engine.config import DEFAULT_WINDOW
@@ -118,3 +120,133 @@ def test_l_ecran_anglais_passe_les_gardes_anglaises(client_synthetique):
             (chemin, f) for f in fautes_de_registre(texte, "en") if not f.startswith("prescriptif")
         ]
     assert fautes == []
+
+
+# ═════════════════════════════════════════════════════ Les textes du moteur ══
+#
+# Lot 4 : méthodes, détails, réserves, refus, périodes, crises, régimes,
+# indice de référence, erreurs du portefeuille. Les observations du moteur de
+# règles suivent au lot 5 : elles sont lues ici à part.
+
+
+CHAMPS_DE_PROSE = (
+    "statement", "provenance", "rendered", "rule_label", "name", "rationale",
+    "title", "body", "confirmation", "text", "summary", "description", "method",
+    "detail", "caveat", "undefined_reason", "unavailable_reason",
+    "student_unavailable_reason", "monte_carlo_unavailable_reason", "period_label",
+    "estimation_period_label", "calm_period_label", "benchmark_label",
+    "benchmark_description", "basis", "reason", "valuation_error",
+    "correlation_undefined_reason", "problem",
+)
+
+# Des données, écrites comme on les a saisies ou reçues : le nom d'un
+# portefeuille, celui d'un titre.
+DONNEES = re.compile(r"\.portfolio\.|\.valuation\.|^\[\d+\]\.name$|^\.name$")
+
+# La provenance d'une mesure, écrite en IBM Plex Sans : le grec y est admis.
+PROVENANCE = re.compile(r"\.risk\..*\.(method|detail)$")
+
+
+def prose_publiee(corps, sauf: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+    return [
+        (chemin, texte)
+        for chemin, texte in toutes_les_chaines(corps)
+        if chemin.endswith(tuple(f".{champ}" for champ in CHAMPS_DE_PROSE))
+        and not DONNEES.search(chemin)
+        and not any(chemin.startswith(prefixe) for prefixe in sauf)
+    ]
+
+
+def fautes_anglaises(corps, sauf: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+    fautes = []
+    for chemin, texte in prose_publiee(corps, sauf):
+        fautes += [(chemin, f) for f in fautes_de_forme(texte, "en", grec_admis=bool(PROVENANCE.search(chemin)))]
+        fautes += [(chemin, f) for f in fautes_de_francais(texte)]
+    return fautes
+
+
+@pytest.fixture
+def analyser_en(base_historique_court, client_factory):
+    """Analyse d'un portefeuille dont une ligne a `seances_courtes` cotations,
+    dans la langue demandée."""
+
+    bases: dict[int, tuple[object, int]] = {}
+
+    def _analyser(seances_courtes: int, parametres: str = "") -> object:
+        if seances_courtes not in bases:
+            chemin = base_historique_court(seances_courtes)
+            with client_factory(chemin) as client:
+                identifiant = client.post("/api/portfolios", json={}).json()["id"]
+                client.put(
+                    f"/api/portfolios/{identifiant}/positions",
+                    json={"positions": [{"ticker": "LONG", "quantity": 10}, {"ticker": "COURT", "quantity": 20}]},
+                )
+            bases[seances_courtes] = (chemin, identifiant)
+        chemin, identifiant = bases[seances_courtes]
+        with client_factory(chemin) as client:
+            return client.get(f"/api/portfolios/{identifiant}/analysis?window=504{parametres}")
+
+    return _analyser
+
+
+@pytest.mark.parametrize("fenetre", [250, 60])
+def test_l_analyse_anglaise_du_moteur_n_a_plus_de_francais(
+    client_synthetique, portefeuille_synthetique, fenetre
+):
+    """Hors des observations (lot 5) : chaque texte rédigé par le moteur est
+    en anglais et passe les gardes anglaises."""
+    corps = client_synthetique.get(
+        f"/api/portfolios/{portefeuille_synthetique}/analysis?window={fenetre}&lang=en"
+    ).json()
+    assert prose_publiee(corps, sauf=(".observations",)), "rien à lire"
+    assert fautes_anglaises(corps, sauf=(".observations",)) == []
+    assert corps["estimation_period_label"].startswith("the past ")
+    assert corps["parameters"]["benchmark_label"] == "the S&P 500"
+    assert corps["scenarios"][0]["scenario"]["name"] == "2008 Financial Crisis"
+
+
+@pytest.mark.parametrize("seances_courtes", [3, 8, 40])
+def test_les_refus_et_les_reserves_du_moteur_en_anglais(analyser_en, seances_courtes):
+    """Refus sous trois séances, réserves sous trente, refus de la Student :
+    les phrases que la démonstration ne déclenche jamais."""
+    francais = analyser_en(seances_courtes)
+    assert analyser_en(seances_courtes, "&lang=fr").content == francais.content
+    anglais = analyser_en(seances_courtes, "&lang=en")
+    assert anglais.status_code == 200, anglais.text
+    assert fautes_anglaises(anglais.json(), sauf=(".observations",)) == []
+    risque = anglais.json()["risk"]
+    if seances_courtes == 3:
+        assert risque["matrices"]["correlation_undefined_reason"].startswith("Over 2")
+        assert "is meaningless" in risque["beta"]["undefined_reason"]
+    if seances_courtes == 8:
+        assert risque["volatility"]["caveat"].startswith("Small-sample estimate:")
+    raison_student = risque["tail_risk"]["student_unavailable_reason"]
+    if seances_courtes < 30:
+        assert raison_student.startswith("Not enough days to fit Student's t-distribution")
+    else:
+        # 39 séances : la Student s'ajuste, mais ne se distingue pas de la normale.
+        assert raison_student.startswith("Over these 39")
+
+
+def test_les_erreurs_du_portefeuille_en_anglais(client_synthetique):
+    """Un portefeuille vide : la liste dit pourquoi il n'est pas valorisé, sa
+    page et son analyse répondent 409, dans la langue demandée."""
+    identifiant = client_synthetique.post("/api/portfolios", json={"name": "Vide"}).json()["id"]
+    for chemin in (f"/api/portfolios/{identifiant}", f"/api/portfolios/{identifiant}/analysis"):
+        francais = client_synthetique.get(chemin)
+        assert francais.status_code == 409
+        assert client_synthetique.get(_avec(chemin, "lang=fr")).content == francais.content
+        anglais = client_synthetique.get(_avec(chemin, "lang=en"))
+        assert anglais.status_code == 409
+        assert anglais.json()["detail"] == f"Portfolio {identifiant} has no positions."
+    liste = client_synthetique.get("/api/portfolios?lang=en").json()
+    vide = next(p for p in liste if p["id"] == identifiant)
+    assert vide["valuation_error"] == f"Portfolio {identifiant} has no positions."
+
+
+def test_l_indice_absent_en_anglais(client_synthetique, portefeuille_synthetique):
+    chemin = f"/api/portfolios/{portefeuille_synthetique}/analysis?benchmark=absent"
+    anglais = client_synthetique.get(_avec(chemin, "lang=en"))
+    assert anglais.status_code == 409
+    assert anglais.json()["detail"].startswith("No price in the database for ['ABSENT']. Load it with")
+    assert client_synthetique.get(_avec(chemin, "lang=fr")).content == client_synthetique.get(chemin).content

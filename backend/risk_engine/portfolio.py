@@ -13,11 +13,19 @@ from datetime import date
 
 import pandas as pd
 
-from backend import typography
+from backend.textes import ErreurRedigee
 
 
-class PortfolioError(Exception):
-    """Portefeuille introuvable, vide, ou sans prix exploitables."""
+class PortfolioError(ErreurRedigee):
+    """Portefeuille introuvable, vide, ou sans prix exploitables.
+
+    Son message est rédigé par `backend/textes/<langue>/moteur.py` : l'erreur
+    garde le nom de la fonction qui le rédige et ses arguments, `str()` rend
+    le français, et l'API le rédige dans la langue demandée (chantier 7D).
+    """
+
+    def __init__(self, redaction: str, *arguments: object) -> None:
+        super().__init__("moteur", redaction, *arguments)
 
 
 @dataclass(frozen=True)
@@ -135,8 +143,8 @@ def load_positions(conn: sqlite3.Connection, portfolio_id: int) -> list[Position
             "SELECT 1 FROM portfolios WHERE id = ?", (portfolio_id,)
         ).fetchone()
         raise PortfolioError(
-            f"Portefeuille {portfolio_id} "
-            + ("sans position." if existe else "introuvable.")
+            "portefeuille_sans_position" if existe else "portefeuille_introuvable",
+            portfolio_id,
         )
 
     return [
@@ -190,19 +198,12 @@ def market_value_weights(
 
     sans_prix = [t for t in tickers if t not in closes]
     if sans_prix:
-        raise PortfolioError(
-            f"Aucun prix en base pour {sorted(sans_prix)}. "
-            "Lancer : python -m backend.ingestion add <TICKER>"
-        )
+        raise PortfolioError("prix_absents", sorted(sans_prix))
 
     valeurs = {p.ticker: p.quantity * closes[p.ticker][1] for p in positions}
     total = sum(valeurs.values())
     if total <= 0:
-        raise PortfolioError(
-            f"Valeur de marché totale nulle ou négative "
-            f"({typography.number(total, 2)}) : "
-            "les poids ne sont pas définis."
-        )
+        raise PortfolioError("valeur_totale_non_positive", total)
 
     return PortfolioWeights(
         weights={t: v / total for t, v in valeurs.items()},
@@ -259,7 +260,7 @@ def load_price_panel(
     avec des NaN, que `returns.align_panel` retire ensuite explicitement.
     """
     if not tickers:
-        raise PortfolioError("Aucun titre demandé.")
+        raise PortfolioError("AUCUN_TITRE_DEMANDE")
 
     marques = ",".join("?" * len(tickers))
     clauses, params = [f"ticker IN ({marques})"], list(tickers)
@@ -277,9 +278,7 @@ def load_price_panel(
     ).fetchall()
 
     if not lignes:
-        raise PortfolioError(
-            f"Aucun prix en base pour {sorted(tickers)} sur la période demandée."
-        )
+        raise PortfolioError("prix_absents_sur_la_periode", sorted(tickers))
 
     brut = pd.DataFrame(
         [(r["date"], r["ticker"], r["adj_close"]) for r in lignes],

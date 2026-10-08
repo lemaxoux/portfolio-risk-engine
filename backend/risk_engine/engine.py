@@ -16,9 +16,8 @@ from datetime import date
 
 import pandas as pd
 
-from backend import typography
-from backend.ingestion.universe import BENCHMARK_NAMES
-from backend.typography import MINUS, NARROW_NBSP, NBSP
+from backend.langue import Langue
+from backend.textes import ValeurRefusee, texte_d_erreur, textes
 
 from . import covariance, measures, regime, stress, var
 from .config import (
@@ -51,9 +50,10 @@ from .scenarios import SCENARIOS, Scenario
 from .returns import align_panel, portfolio_returns, simple_returns, wealth_curve
 
 
-def period_label(observations: int) -> str:
+def period_label(observations: int, langue: Langue = "fr") -> str:
     """La période couverte par `observations` séances, dite pour un lecteur :
-    « ces deux dernières années », « ces trois derniers mois ».
+    « ces deux dernières années », « ces trois derniers mois », « the past two
+    years ».
 
     Convertir des séances en années est un calcul : il vit ici, et le client ne
     fait que citer le libellé. La règle, validée avec les textes de lecture :
@@ -66,23 +66,20 @@ def period_label(observations: int) -> str:
     C'est la règle de `rules.disclaimer._duree`, sauf en deçà d'un mois, où
     celle-ci écrirait « environ 0 mois ». Les nombres s'écrivent en lettres
     jusqu'à dix (`typography.cardinal`), suivis d'une espace insécable.
+
+    La décision — années, mois ou jours, et combien — est ici ; l'écriture est
+    dans le module de la langue (`backend/textes/<langue>/moteur.py`).
     """
     if observations < 1:
         raise ValueError(f"Au moins une séance (reçu : {observations}).")
+    moteur = textes(langue).moteur
     annees = observations / TRADING_DAYS_PER_YEAR
     entieres = round(annees)
     if observations >= TRADING_DAYS_PER_YEAR and abs(annees - entieres) < 0.05:
-        if entieres == 1:
-            return "cette dernière année"
-        return f"ces {typography.cardinal(entieres)}{NBSP}dernières années"
+        return moteur.periode_en_annees(entieres)
     if observations >= TRADING_DAYS_PER_MONTH:
-        mois = round(observations / TRADING_DAYS_PER_MONTH)
-        if mois == 1:
-            return "ce dernier mois"
-        return f"ces {typography.cardinal(mois)}{NBSP}derniers mois"
-    if observations == 1:
-        return "ce dernier jour de bourse"
-    return f"ces {typography.cardinal(observations)}{NBSP}derniers jours de bourse"
+        return moteur.periode_en_mois(round(observations / TRADING_DAYS_PER_MONTH))
+    return moteur.periode_en_jours(observations)
 
 
 @dataclass(frozen=True)
@@ -115,14 +112,21 @@ class Window:
         demandée : une ligne cotée depuis peu ramène « ces deux dernières
         années » à « ces sept derniers jours de bourse ».
         """
-        return period_label(self.observations)
+        return self.periode("fr")
+
+    def periode(self, langue: Langue = "fr") -> str:
+        """La période obtenue, dans la langue demandée."""
+        return period_label(self.observations, langue)
+
+    def ecrite(self, langue: Langue = "fr") -> str:
+        """La fenêtre d'une provenance : « 504 séances, 2024-09-23 → 2026-09-25 »,
+        et le nombre demandé quand elle n'a pas pu être remplie."""
+        return textes(langue).moteur.fenetre(
+            self.observations, self.start, self.end, None if self.complete else self.requested
+        )
 
     def __str__(self) -> str:
-        etat = "" if self.complete else f" (demandé : {self.requested})"
-        return (
-            f"{typography.sessions(self.observations)}, "
-            f"{self.start} → {self.end}{etat}"
-        )
+        return self.ecrite("fr")
 
 
 @dataclass(frozen=True)
@@ -389,14 +393,16 @@ class ExpectedShortfallResult:
 
     @property
     def caveat(self) -> str | None:
+        return self.reserve("fr")
+
+    def reserve(self, langue: Langue = "fr") -> str | None:
+        """La réserve permanente à 99 % et au-delà, dans la langue demandée.
+        « Jours de bourse » : elle s'affiche sous une phrase de lecture qui dit
+        ce mot (textes de lecture, D6 b)."""
         if self.confidence < 0.99 or self.tail_observations is None:
             return None
-        # « Jours de bourse » : la réserve s'affiche sous une phrase de lecture
-        # qui dit ce mot (textes de lecture, D6 b).
-        return (
-            f"Moyenne de {_jours_de_bourse(self.tail_observations)} seulement, "
-            f"sur {typography.thousands(self.window.observations)} : chacun pèse "
-            f"pour {typography.percent(1 / self.tail_observations, 0)} du chiffre."
+        return textes(langue).moteur.moyenne_de_la_queue(
+            self.tail_observations, self.window.observations, 1 / self.tail_observations
         )
 
 @dataclass(frozen=True)
@@ -427,15 +433,17 @@ class BenchmarkName:
     description: str
 
 
-def benchmark_name(ticker: str | None) -> BenchmarkName | None:
-    """Le nom lisible d'un indice de référence connu, ou None.
+def benchmark_name(ticker: str | None, langue: Langue = "fr") -> BenchmarkName | None:
+    """Le nom lisible d'un indice de référence connu, dans la langue demandée,
+    ou None.
 
     Un ticker absent de `universe.BENCHMARK_NAMES` n'a pas de nom inventé : la
     phrase le cite par son ticker.
     """
-    if ticker is None or ticker not in BENCHMARK_NAMES:
+    noms = textes(langue).moteur.NOMS_D_INDICE
+    if ticker is None or ticker not in noms:
         return None
-    label, description = BENCHMARK_NAMES[ticker]
+    label, description = noms[ticker]
     return BenchmarkName(label=label, description=description)
 
 
@@ -563,9 +571,8 @@ def build_portfolio_series(
     le beta comparérait des intervalles différents sans que rien ne le signale.
     """
     if window < 2:
-        raise ValueError(
-            f"Fenêtre trop courte : {window} (minimum {typography.sessions(2)})."
-        )
+        # Un garde-fou interne : l'API ne demande jamais moins de 60 séances.
+        raise ValueError(f"Fenêtre trop courte : {window} (minimum 2\u00a0séances).")
 
     poids = market_value_weights(conn, portfolio_id)
     tickers = poids.tickers
@@ -580,21 +587,13 @@ def build_portfolio_series(
     # ressortirait bien plus loin en KeyError sur une colonne manquante.
     absents = [t for t in colonnes if t not in panel.columns]
     if absents:
-        aide = (
-            f" Le charger avec `python -m backend.ingestion add {benchmark}`, "
-            "ou demander l'analyse sans benchmark (benchmark=None)."
-            if benchmark in absents
-            else ""
+        raise PortfolioError(
+            "prix_absents_du_panel", absents, benchmark if benchmark in absents else None
         )
-        raise PortfolioError(f"Aucun prix en base pour {absents}.{aide}")
 
     aligne = align_panel(panel)
     if len(aligne) < 2:
-        raise PortfolioError(
-            f"Moins de deux séances communes à tous les titres : impossible de "
-            "calculer un rendement. Vérifier la couverture avec "
-            "`python -m backend.ingestion status`."
-        )
+        raise PortfolioError("MOINS_DE_DEUX_SEANCES_COMMUNES")
 
     rendements = simple_returns(aligne)
     rendements_titres = rendements[tickers]
@@ -657,7 +656,7 @@ def _limiting_positions(
 # ---------------------------------------------------------------- Mesures --
 
 
-def _estimation_mince(window: Window) -> str | None:
+def _estimation_mince(window: Window, langue: Langue = "fr") -> str | None:
     """Réserve d'une volatilité ou d'une VaR paramétrique sur trop peu de
     séances, ou None.
 
@@ -671,39 +670,38 @@ def _estimation_mince(window: Window) -> str | None:
     # « Jours de bourse », « courbe », « l'outil » : la réserve s'affiche à côté
     # d'une phrase de lecture, devant un lecteur qui ne connaît ni la loi
     # normale ni le moteur de règles (textes de lecture, D6 b).
-    return (
-        f"Estimation mince : {_jours_de_bourse(window.observations)} seulement, "
-        f"moins que les {MIN_DISTRIBUTION_OBSERVATIONS} retenus pour estimer une "
-        "courbe (seuil choisi à la main). Quelques jours suffisent à déplacer ce "
-        "chiffre, et l'outil n'en tire aucune conclusion."
+    return textes(langue).moteur.estimation_mince(
+        window.observations, MIN_DISTRIBUTION_OBSERVATIONS
     )
 
 
-def volatility(serie: PortfolioSeries) -> VolatilityResult:
+def volatility(serie: PortfolioSeries, *, langue: Langue = "fr") -> VolatilityResult:
     annualisee = measures.annualised_volatility(serie.returns)
     return VolatilityResult(
         annualised=annualisee,
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
-        method="écart-type (√252)",
+        method=textes(langue).moteur.METHODE_ECART_TYPE,
         window=serie.window,
-        caveat=_estimation_mince(serie.window),
+        caveat=_estimation_mince(serie.window, langue),
     )
 
 
 def ewma_volatility(
-    serie: PortfolioSeries, lam: float = EWMA_LAMBDA
+    serie: PortfolioSeries, lam: float = EWMA_LAMBDA, *, langue: Langue = "fr"
 ) -> VolatilityResult:
     annualisee = measures.ewma_volatility(serie.returns, lam=lam)
     return VolatilityResult(
         annualised=annualisee,
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
-        method=f"EWMA (λ={typography.compact(lam)})",
+        method=textes(langue).moteur.methode_ewma(lam),
         window=serie.window,
-        caveat=_estimation_mince(serie.window),
+        caveat=_estimation_mince(serie.window, langue),
     )
 
 
-def benchmark_volatility(serie: PortfolioSeries) -> VolatilityResult | None:
+def benchmark_volatility(
+    serie: PortfolioSeries, *, langue: Langue = "fr"
+) -> VolatilityResult | None:
     """Volatilité de l'indice de référence, sur les séances du portefeuille.
 
     Même méthode, même fenêtre, même réserve sous 30 séances que
@@ -716,9 +714,9 @@ def benchmark_volatility(serie: PortfolioSeries) -> VolatilityResult | None:
     return VolatilityResult(
         annualised=annualisee,
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
-        method="écart-type (√252)",
+        method=textes(langue).moteur.METHODE_ECART_TYPE,
         window=serie.window,
-        caveat=_estimation_mince(serie.window),
+        caveat=_estimation_mince(serie.window, langue),
     )
 
 
@@ -784,7 +782,9 @@ def sharpe(
     )
 
 
-def sortino(serie: PortfolioSeries, target_daily: float = 0.0) -> SortinoResult:
+def sortino(
+    serie: PortfolioSeries, target_daily: float = 0.0, *, langue: Langue = "fr"
+) -> SortinoResult:
     deviation = measures.downside_deviation(serie.returns, target_daily)
     ratio = measures.sortino_ratio(serie.returns, target_daily)
     return SortinoResult(
@@ -793,10 +793,7 @@ def sortino(serie: PortfolioSeries, target_daily: float = 0.0) -> SortinoResult:
         target_daily=target_daily,
         window=serie.window,
         undefined_reason=(
-            None
-            if ratio is not None
-            else "aucun rendement sous la cible sur la fenêtre : "
-            "la déviation à la baisse est nulle et le ratio indéfini"
+            None if ratio is not None else textes(langue).moteur.SORTINO_INDEFINI
         ),
     )
 
@@ -816,25 +813,6 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # ------------------------------------------------------- Mesures multi-titres --
 
 
-def _ensemble_non_rejoue(rendement: float) -> str:
-    """Ce qu'un résultat en couverture partielle ne dit pas : la perte du
-    portefeuille entier. Les lignes exclues n'ont pas été rejouées, et le
-    moteur ne mesure pas dans quel sens l'ensemble aurait différé."""
-    if rendement < 0:
-        return "la perte de l'ensemble a pu être différente"
-    return "le résultat de l'ensemble a pu être différent"
-
-
-def _jours_de_bourse(nombre: int) -> str:
-    """« 7 jours de bourse », insécable : le mot d'une raison publiée.
-
-    Les raisons de refus s'affichent à la place d'une phrase de lecture, où
-    l'interface dit « jour de bourse ». « Séance » reste le mot des détails
-    techniques (fenêtre, provenance).
-    """
-    return typography.counted(nombre, "jour de bourse", "jours de bourse")
-
-
 # Ce que chaque mesure devient sous `MIN_ESTIMABLE_OBSERVATIONS`, dit pour un
 # lecteur : la raison s'affiche à la place du chiffre.
 #
@@ -848,28 +826,15 @@ def _jours_de_bourse(nombre: int) -> str:
 #
 # La raison publiée nomme donc SA mesure et le seuil, et seule la corrélation
 # garde une conséquence, parce qu'elle se dit sans formule et qu'elle est
-# vraie d'elle seule. La démonstration — à deux observations, le centrage ne
-# laisse qu'une seule direction — et ses conséquences propres à chaque mesure
-# (colinéarité, absence de résidu, covariance de rang 1) sont dans le README.
-SUJETS_NON_ESTIMABLES: dict[str, str] = {
-    "correlation": "une corrélation",
-    "beta": "la sensibilité au marché",
-    "contributions": "la part de chaque ligne dans les variations",
-}
-
-CONSEQUENCES_NON_ESTIMABLE: dict[str, str] = {
-    "correlation": (
-        f" Avec deux jours, elle vaudrait +1 ou {MINUS}1 quels que soient les "
-        "titres."
-    ),
-    # Rien sur ±1, pas même pour le nier : ce serait répondre à une objection
-    # que le lecteur d'un beta ne se pose pas.
-    "beta": "",
-    "contributions": "",
-}
+# vraie d'elle seule ; rien sur ±1 pour un beta, pas même pour le nier : ce
+# serait répondre à une objection que son lecteur ne se pose pas. Les phrases
+# sont dans `backend/textes/<langue>/moteur.py` (`refus_non_estimable`). La
+# démonstration — à deux observations, le centrage ne laisse qu'une seule
+# direction — et ses conséquences propres à chaque mesure (colinéarité,
+# absence de résidu, covariance de rang 1) sont dans le README.
 
 
-def _non_estimable(window: Window, mesure: str) -> str | None:
+def _non_estimable(window: Window, mesure: str, langue: Langue = "fr") -> str | None:
     """Raison du refus d'estimer, ou None si la fenêtre le permet.
 
     Ce qui a été reçu, ce que la mesure n'est pas, et ce qu'il faut — puis la
@@ -877,16 +842,14 @@ def _non_estimable(window: Window, mesure: str) -> str | None:
     """
     if window.observations >= MIN_ESTIMABLE_OBSERVATIONS:
         return None
-    return (
-        f"Sur {_jours_de_bourse(window.observations)}, "
-        f"{SUJETS_NON_ESTIMABLES[mesure]} n'a pas de sens : il en faut au moins "
-        f"{MIN_ESTIMABLE_OBSERVATIONS}.{CONSEQUENCES_NON_ESTIMABLE[mesure]}"
+    return textes(langue).moteur.refus_non_estimable(
+        window.observations, mesure, MIN_ESTIMABLE_OBSERVATIONS
     )
 
 
-def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
+def covariance_matrices(serie: PortfolioSeries, *, langue: Langue = "fr") -> CovarianceResult:
     """Covariance et corrélation des titres détenus, sur la fenêtre."""
-    refus = _non_estimable(serie.window, "correlation")
+    refus = _non_estimable(serie.window, "correlation", langue)
     return CovarianceResult(
         covariance=covariance.covariance_matrix(serie.asset_returns),
         correlation=(
@@ -897,9 +860,11 @@ def covariance_matrices(serie: PortfolioSeries) -> CovarianceResult:
     )
 
 
-def variance_contributions(serie: PortfolioSeries) -> VarianceContributionResult:
+def variance_contributions(
+    serie: PortfolioSeries, *, langue: Langue = "fr"
+) -> VarianceContributionResult:
     """Contribution de chaque ligne à la variance, sur la fenêtre d'estimation."""
-    refus = _non_estimable(serie.window, "contributions")
+    refus = _non_estimable(serie.window, "contributions", langue)
     if refus:
         return VarianceContributionResult(
             contributions=None,
@@ -916,7 +881,7 @@ def variance_contributions(serie: PortfolioSeries) -> VarianceContributionResult
     )
 
 
-def parametric_volatility(serie: PortfolioSeries) -> VolatilityResult:
+def parametric_volatility(serie: PortfolioSeries, *, langue: Langue = "fr") -> VolatilityResult:
     """Volatilité annualisée par la matrice : `√(wᵀΣw) × √252`.
 
     Égale à `volatility(serie)` à la tolérance flottante près — identité
@@ -927,21 +892,21 @@ def parametric_volatility(serie: PortfolioSeries) -> VolatilityResult:
     return VolatilityResult(
         annualised=annualisee,
         daily=annualisee / TRADING_DAYS_PER_YEAR**0.5,
-        method="matrice de covariance (√(wᵀΣw))",
+        method=textes(langue).moteur.METHODE_MATRICE,
         window=serie.window,
-        caveat=_estimation_mince(serie.window),
+        caveat=_estimation_mince(serie.window, langue),
     )
 
 
-def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
+def beta_vs_benchmark(serie: PortfolioSeries, *, langue: Langue = "fr") -> BetaResult:
     """Beta et R² contre le benchmark chargé avec la série."""
     if serie.benchmark is None or serie.benchmark_returns is None:
         raise ValueError(
             "Aucun benchmark dans cette série. La construire avec "
             "`build_portfolio_series(..., benchmark=\"SPY\")`."
         )
-    base = "rendements bruts (non excédentaires)"
-    refus = _non_estimable(serie.window, "beta")
+    base = textes(langue).moteur.BASE_DU_BETA
+    refus = _non_estimable(serie.window, "beta", langue)
     if refus:
         return BetaResult(
             beta=None,
@@ -965,7 +930,7 @@ def beta_vs_benchmark(serie: PortfolioSeries) -> BetaResult:
 # ------------------------------------------------------------------- VaR --
 
 
-def _queue_vide(window: Window, confidence: float) -> str | None:
+def _queue_vide(window: Window, confidence: float, langue: Langue = "fr") -> str | None:
     """Raison du refus d'une mesure de queue historique, ou None.
 
     Sous 1/(1 − α) séances, aucune ne tombe dans la queue : le quantile n'est
@@ -978,31 +943,23 @@ def _queue_vide(window: Window, confidence: float) -> str | None:
     minimum = historical_var_min_observations(confidence)
     if window.observations >= minimum:
         return None
-    part = 1.0 - confidence
-    # « dans le 1 % le plus mauvais », « parmi les 5 % les plus mauvais » : le
-    # singulier en deçà de deux, comme `typography.counted`.
-    queue = (
-        f"dans le {typography.percent(part, 0)} le plus mauvais"
-        if part * 100.0 < 2.0
-        else f"parmi les {typography.percent(part, 0)} les plus mauvais"
-    )
-    return (
-        f"Sur {_jours_de_bourse(window.observations)}, aucun ne tombe {queue} : "
-        f"il en faut au moins {minimum} pour ce calcul."
+    return textes(langue).moteur.refus_queue_vide(
+        window.observations, 1.0 - confidence, minimum
     )
 
 
 def historical_var(
-    serie: PortfolioSeries, confidence: float = 0.95
+    serie: PortfolioSeries, confidence: float = 0.95, *, langue: Langue = "fr"
 ) -> VarResult:
     """Quantile empirique, ou refus sous 1/(1 − α) séances."""
-    detail = f"quantile empirique, interpolation {var.QUANTILE_METHOD!r}"
-    refus = _queue_vide(serie.window, confidence)
+    moteur = textes(langue).moteur
+    detail = moteur.detail_historique(var.QUANTILE_METHOD)
+    refus = _queue_vide(serie.window, confidence, langue)
     if refus:
         return VarResult(
             value=None,
             confidence=confidence,
-            method="historique",
+            method=moteur.METHODE_HISTORIQUE,
             window=serie.window,
             detail=detail,
             undefined_reason=refus,
@@ -1011,7 +968,7 @@ def historical_var(
     return VarResult(
         value=valeur,
         confidence=confidence,
-        method="historique",
+        method=moteur.METHODE_HISTORIQUE,
         window=serie.window,
         detail=detail,
         amount=measures.amount(valeur, serie.weights.total_value),
@@ -1022,6 +979,8 @@ def parametric_var(
     serie: PortfolioSeries,
     confidence: float = 0.95,
     include_mean: bool = False,
+    *,
+    langue: Langue = "fr",
 ) -> VarResult:
     """VaR sous hypothèse de normalité, à partir de `√(wᵀΣw)`.
 
@@ -1037,22 +996,20 @@ def parametric_var(
     return VarResult(
         value=valeur,
         confidence=confidence,
-        method="paramétrique",
+        method=textes(langue).moteur.METHODE_PARAMETRIQUE,
         window=serie.window,
-        detail=(
-            "normalité, μ estimée" if include_mean else "normalité, μ = 0"
-        ),
-        caveat=_estimation_mince(serie.window),
+        detail=textes(langue).moteur.detail_normale(include_mean),
+        caveat=_estimation_mince(serie.window, langue),
         amount=measures.amount(valeur, serie.weights.total_value),
     )
 
 
 def expected_shortfall(
-    serie: PortfolioSeries, confidence: float = 0.95
+    serie: PortfolioSeries, confidence: float = 0.95, *, langue: Langue = "fr"
 ) -> ExpectedShortfallResult:
     """Perte moyenne de la queue, refusée avec la VaR historique du même
     niveau : elle moyenne la queue que ce quantile borne."""
-    refus = _queue_vide(serie.window, confidence)
+    refus = _queue_vide(serie.window, confidence, langue)
     if refus:
         return ExpectedShortfallResult(
             value=None,
@@ -1078,6 +1035,8 @@ def monte_carlo_var(
     confidence: float = 0.95,
     simulations: int = MONTE_CARLO_SIMULATIONS,
     seed: int = MONTE_CARLO_SEED,
+    *,
+    langue: Langue = "fr",
 ) -> VarResult:
     matrice = covariance.covariance_matrix(serie.asset_returns)
     brut = var.monte_carlo_var(
@@ -1090,12 +1049,9 @@ def monte_carlo_var(
     return VarResult(
         value=brut.value,
         confidence=confidence,
-        method="Monte Carlo",
+        method=textes(langue).moteur.METHODE_MONTE_CARLO,
         window=serie.window,
-        detail=(
-            f"{typography.grouped(brut.simulations, 'tirage')} "
-            f"normaux corrélés, graine {brut.seed}"
-        ),
+        detail=textes(langue).moteur.detail_monte_carlo(brut.simulations, brut.seed),
         amount=measures.amount(brut.value, serie.weights.total_value),
     )
 
@@ -1120,12 +1076,9 @@ def student_fit(serie: PortfolioSeries) -> var.StudentFit:
     """
     ajustement = var.fit_student_t(serie.returns)
     if ajustement.nu > MAX_STUDENT_NU:
-        raise ValueError(
-            f"Sur ces {_jours_de_bourse(ajustement.observations)}, vos variations "
-            "ne s'écartent pas de la loi normale : la loi de Student donnerait le "
-            "même chiffre (seuil choisi à la main). Sur une période courte, cela "
-            "peut aussi vouloir dire qu'aucun jour extrême n'y figure."
-        )
+        # Une `ValueError` comme avant, dont le message est rédigé dans
+        # `moteur` : `_raison_student` le rédige dans la langue de la réponse.
+        raise ValeurRefusee("student_proche_de_la_normale", ajustement.observations)
     return ajustement
 
 
@@ -1133,6 +1086,8 @@ def student_parametric_var(
     serie: PortfolioSeries,
     confidence: float = 0.95,
     fit: var.StudentFit | None = None,
+    *,
+    langue: Langue = "fr",
 ) -> VarResult:
     """VaR Student à variance ajustée, forme fermée : la cible du Monte Carlo."""
     ajustement = fit or student_fit(serie)
@@ -1144,12 +1099,9 @@ def student_parametric_var(
     return VarResult(
         value=valeur,
         confidence=confidence,
-        method="Student paramétrique",
+        method=textes(langue).moteur.METHODE_STUDENT,
         window=serie.window,
-        detail=(
-            f"ν = {typography.number(ajustement.nu, 2)} (MLE sur "
-            f"{typography.sessions(ajustement.observations)}), variance ajustée sur Σ"
-        ),
+        detail=textes(langue).moteur.detail_student(ajustement.nu, ajustement.observations),
         nu=ajustement.nu,
         amount=measures.amount(valeur, serie.weights.total_value),
     )
@@ -1161,6 +1113,8 @@ def student_monte_carlo_var(
     fit: var.StudentFit | None = None,
     simulations: int = MONTE_CARLO_SIMULATIONS,
     seed: int = MONTE_CARLO_SEED,
+    *,
+    langue: Langue = "fr",
 ) -> VarResult:
     """VaR par simulation Student multivariée, covariance simulée égale à Σ."""
     ajustement = fit or student_fit(serie)
@@ -1176,13 +1130,10 @@ def student_monte_carlo_var(
     return VarResult(
         value=brut.value,
         confidence=confidence,
-        method="Monte Carlo Student",
+        method=textes(langue).moteur.METHODE_STUDENT_MONTE_CARLO,
         window=serie.window,
-        detail=(
-            f"ν = {typography.number(ajustement.nu, 2)} (MLE sur "
-            f"{typography.sessions(ajustement.observations)}), échelle S = Σ·(ν−2)/ν, "
-            f"{typography.grouped(brut.simulations, 'tirage')}, "
-            f"graine {brut.seed}"
+        detail=textes(langue).moteur.detail_student_monte_carlo(
+            ajustement.nu, ajustement.observations, brut.simulations, brut.seed
         ),
         nu=ajustement.nu,
         amount=measures.amount(brut.value, serie.weights.total_value),
@@ -1255,14 +1206,17 @@ class ScenarioCoverage:
     def total_count(self) -> int:
         return len(self.covered) + len(self.excluded)
 
-    def __str__(self) -> str:
-        if self.is_complete:
-            return f"{typography.lines(self.covered_count)}, 100{NARROW_NBSP}% de la valeur"
-        return (
-            f"{self.covered_count}/{typography.lines(self.total_count)}, "
-            f"{typography.percent(self.value_share, 1)} de la valeur "
-            f"(exclues : {', '.join(e.ticker for e in self.excluded)})"
+    def ecrite(self, langue: Langue = "fr") -> str:
+        """La portée en une ligne, dans la langue demandée."""
+        return textes(langue).moteur.couverture(
+            self.covered_count,
+            self.total_count,
+            None if self.is_complete else self.value_share,
+            tuple(e.ticker for e in self.excluded),
         )
+
+    def __str__(self) -> str:
+        return self.ecrite("fr")
 
 
 @dataclass(frozen=True)
@@ -1322,29 +1276,24 @@ class ScenarioResult:
     # ne donnerait aucune perte réelle.
     end_to_end_amount: float | None = None
 
-    def summary(self) -> str:
+    def summary(self, langue: Langue = "fr") -> str:
         """Une ligne qui ne peut pas laisser croire à une couverture totale."""
+        moteur = textes(langue).moteur
+        nom = self.scenario.nom(langue)
         if self.end_to_end_return is None:
-            return f"{self.scenario.name} : non calculable. {self.unavailable_reason}"
-        portee = (
-            "portefeuille complet"
-            if self.coverage.is_complete
-            else (
-                f"{typography.percent(self.coverage.value_share, 1)} de la valeur "
-                f"seulement, {_ensemble_non_rejoue(self.end_to_end_return)}"
-            )
-        )
-        return (
-            f"{self.scenario.name} : "
-            f"{typography.percent(self.end_to_end_return, 1, signed=True)} "
-            f"de bout en bout, pire moment "
-            f"{typography.percent(self.max_drawdown.value, 1, signed=True)} "
-            f"({typography.sessions(self.observations)}, {portee})"
+            return moteur.resume_scenario_non_calculable(nom, self.unavailable_reason)
+        return moteur.resume_scenario(
+            nom,
+            self.end_to_end_return,
+            self.max_drawdown.value,
+            self.observations,
+            None if self.coverage.is_complete else self.coverage.value_share,
+            self.end_to_end_return < 0,
         )
 
 
 def assess_scenario_coverage(
-    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario
+    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario, *, langue: Langue = "fr"
 ) -> ScenarioCoverage:
     """Quelles lignes ont un historique couvrant toute la fenêtre.
 
@@ -1354,13 +1303,17 @@ def assess_scenario_coverage(
     traversé l'épisode, et lui prêter une trajectoire partielle reviendrait à
     inventer la partie manquante.
     """
-    return _coverage_for(conn, market_value_weights(conn, portfolio_id), scenario)
+    return _coverage_for(conn, market_value_weights(conn, portfolio_id), scenario, langue)
 
 
 def _coverage_for(
-    conn: sqlite3.Connection, poids: PortfolioWeights, scenario: Scenario
+    conn: sqlite3.Connection,
+    poids: PortfolioWeights,
+    scenario: Scenario,
+    langue: Langue = "fr",
 ) -> ScenarioCoverage:
     disponible = price_coverage(conn, poids.tickers)
+    moteur = textes(langue).moteur
 
     couverts: list[str] = []
     exclus: list[ExcludedPosition] = []
@@ -1371,7 +1324,7 @@ def _coverage_for(
             exclus.append(
                 ExcludedPosition(
                     ticker=ticker,
-                    reason="aucun cours en base",
+                    reason=moteur.EXCLUSION_SANS_COURS,
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
                 )
@@ -1383,10 +1336,7 @@ def _coverage_for(
             exclus.append(
                 ExcludedPosition(
                     ticker=ticker,
-                    reason=(
-                        f"cotée depuis le {typography.long_date(debut)} "
-                        "seulement, après le début de la crise"
-                    ),
+                    reason=moteur.exclusion_cotee_depuis(debut),
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
                     first_available=debut,
@@ -1396,10 +1346,7 @@ def _coverage_for(
             exclus.append(
                 ExcludedPosition(
                     ticker=ticker,
-                    reason=(
-                        f"plus cotée après le {typography.long_date(fin)}, "
-                        "avant la fin de la crise"
-                    ),
+                    reason=moteur.exclusion_plus_cotee(fin),
                     value=poids.values[ticker],
                     weight=poids.weights[ticker],
                     first_available=debut,
@@ -1416,16 +1363,8 @@ def _coverage_for(
     )
 
 
-# Aucune ligne n'a traversé l'épisode : la même raison pour le scénario et
-# pour la comparaison de régimes, qui s'affichent dans le même bloc.
-_AUCUNE_LIGNE_COTEE = (
-    "Aucune de vos lignes n'était cotée pendant toute cette crise : elle ne "
-    "peut pas être rejouée."
-)
-
-
 def run_scenario(
-    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario
+    conn: sqlite3.Connection, portfolio_id: int, scenario: Scenario, *, langue: Langue = "fr"
 ) -> ScenarioResult:
     """Rejoue un épisode sur le portefeuille actuel.
 
@@ -1435,7 +1374,8 @@ def run_scenario(
     `risk_engine.stress` pour la rupture assumée avec la Phase 4.
     """
     poids = market_value_weights(conn, portfolio_id)
-    couverture = _coverage_for(conn, poids, scenario)
+    couverture = _coverage_for(conn, poids, scenario, langue)
+    moteur = textes(langue).moteur
     vide = ScenarioResult(
         scenario=scenario,
         coverage=couverture,
@@ -1445,8 +1385,10 @@ def run_scenario(
         observations=0,
     )
 
+    # Aucune ligne n'a traversé l'épisode : la même raison pour le scénario
+    # et pour la comparaison de régimes, qui s'affichent dans le même bloc.
     if not couverture.has_any:
-        return replace(vide, unavailable_reason=_AUCUNE_LIGNE_COTEE)
+        return replace(vide, unavailable_reason=moteur.AUCUNE_LIGNE_COTEE)
 
     # Poids actuels des seules lignes couvertes ; `stress` les renormalise à 1.
     poids_couverts = {t: poids.weights[t] for t in couverture.covered}
@@ -1455,13 +1397,7 @@ def run_scenario(
     )
 
     if len(panel) < 2:
-        return replace(
-            vide,
-            unavailable_reason=(
-                "Moins de deux jours de bourse communs à vos lignes pendant "
-                "cette crise : elle ne peut pas être rejouée."
-            ),
-        )
+        return replace(vide, unavailable_reason=moteur.MOINS_DE_DEUX_JOURS_COMMUNS)
 
     trajectoire = stress.buy_and_hold_value(panel, poids_couverts)
     rendement = stress.end_to_end_return(trajectoire)
@@ -1480,9 +1416,11 @@ def run_all_scenarios(
     conn: sqlite3.Connection,
     portfolio_id: int,
     scenarios: tuple[Scenario, ...] = SCENARIOS,
+    *,
+    langue: Langue = "fr",
 ) -> list[ScenarioResult]:
     """Rejoue tous les scénarios du catalogue, du plus ancien au plus récent."""
-    return [run_scenario(conn, portfolio_id, s) for s in scenarios]
+    return [run_scenario(conn, portfolio_id, s, langue=langue) for s in scenarios]
 
 
 # ------------------------------------------ Régime calme / régime de crise --
@@ -1511,24 +1449,18 @@ class RegressedBeta:
     def sample_too_thin(self) -> bool:
         return self.observations < self.min_observations
 
+    def ecrit(self, langue: Langue = "fr") -> str:
+        """« 0,96 ± 0,02, R² 0,86 (355 séances) », dans la langue demandée."""
+        return textes(langue).moteur.beta_regresse(
+            self.beta,
+            self.standard_error,
+            self.r_squared,
+            self.observations,
+            self.min_observations if self.sample_too_thin else None,
+        )
+
     def __str__(self) -> str:
-        incertitude = (
-            ""
-            if self.standard_error is None
-            else f" ± {typography.number(self.standard_error, 2)}"
-        )
-        texte = (
-            f"{typography.number(self.beta, 2)}{incertitude}, "
-            f"R² {typography.number(self.r_squared, 2)} "
-            f"({typography.sessions(self.observations)})"
-        )
-        if self.sample_too_thin:
-            texte += (
-                f". ÉCHANTILLON TROP MINCE (< "
-                f"{typography.sessions(self.min_observations)}), "
-                "non fiable"
-            )
-        return texte
+        return self.ecrit("fr")
 
 
 @dataclass(frozen=True)
@@ -1575,11 +1507,17 @@ class RegimeComparison:
     @property
     def benchmark_label(self) -> str | None:
         """« le S&P 500 » pour SPY ; None pour un indice sans nom connu."""
-        nom = benchmark_name(self.benchmark)
+        return self.nom_de_l_indice("fr")
+
+    def nom_de_l_indice(self, langue: Langue = "fr") -> str | None:
+        nom = benchmark_name(self.benchmark, langue)
         return None if nom is None else nom.label
 
     @property
     def calm_period_label(self) -> str | None:
+        return self.periode_calme("fr")
+
+    def periode_calme(self, langue: Langue = "fr") -> str | None:
         """La période du régime calme, dite pour un lecteur (`period_label`).
 
         Seulement celle du régime CALME : elle se termine à la dernière séance
@@ -1591,7 +1529,11 @@ class RegimeComparison:
         couverture partielle, le régime calme porte sur les seules lignes
         couvertes, sur leur propre historique.
         """
-        return None if self.calm_beta is None else period_label(self.calm_beta.observations)
+        return (
+            None
+            if self.calm_beta is None
+            else period_label(self.calm_beta.observations, langue)
+        )
 
     @property
     def prediction_gap(self) -> float | None:
@@ -1619,43 +1561,28 @@ class RegimeComparison:
             return None
         return self.crisis_beta.r_squared - self.calm_beta.r_squared
 
-    def summary(self) -> str:
+    def summary(self, langue: Langue = "fr") -> str:
+        moteur = textes(langue).moteur
+        nom = self.scenario.nom(langue)
         if self.unavailable_reason is not None:
-            return (
-                f"{self.scenario.name} : comparaison impossible. "
-                f"{self.unavailable_reason}"
-            )
-        ratio = (
-            "indéfini (benchmark quasi immobile)"
-            if self.amplification_ratio is None
-            else typography.number(self.amplification_ratio, 2)
+            return moteur.resume_regime_impossible(nom, self.unavailable_reason)
+        return moteur.resume_regime(
+            nom,
+            self.portfolio_return,
+            self.benchmark,
+            self.benchmark_return,
+            self.amplification_ratio,
+            self.crisis_beta.ecrit(langue),
+            self.calm_beta.ecrit(langue),
+            self.calm_beta.r_squared,
+            self.crisis_beta.r_squared,
+            self.systematic_share_change,
+            self.crisis_beta.sample_too_thin,
+            self.predicted_return,
+            self.prediction_gap,
+            None if self.coverage.is_complete else self.coverage.value_share,
+            self.portfolio_return < 0,
         )
-        lignes = [
-            f"{self.scenario.name} : portefeuille "
-            f"{typography.percent(self.portfolio_return, 1, signed=True)}, "
-            f"{self.benchmark} "
-            f"{typography.percent(self.benchmark_return, 1, signed=True)}",
-            f"  ratio d'amplification réalisé : {ratio} "
-            "(rapport de rendements log, pas un beta)",
-            f"  beta régressé dans la fenêtre : {self.crisis_beta}",
-            f"  beta de régime calme : {self.calm_beta}",
-            f"  part de risque systématique (R²) : "
-            f"{typography.number(self.calm_beta.r_squared, 2)} en régime calme → "
-            f"{typography.number(self.crisis_beta.r_squared, 2)} en crise "
-            f"({typography.number(self.systematic_share_change, 2, signed=True)})"
-            + (", échantillon de crise trop mince" if self.crisis_beta.sample_too_thin else ""),
-            f"  le beta calme prédisait "
-            f"{typography.percent(self.predicted_return, 1, signed=True)}, "
-            f"perte réelle "
-            f"{typography.percent(self.portfolio_return, 1, signed=True)} : écart "
-            f"{typography.signed_points(self.prediction_gap)}",
-        ]
-        if not self.coverage.is_complete:
-            lignes.append(
-                f"  portée : {typography.percent(self.coverage.value_share, 1)} "
-                f"de la valeur seulement, {_ensemble_non_rejoue(self.portfolio_return)}"
-            )
-        return "\n".join(lignes)
 
 
 def _regressed(
@@ -1671,33 +1598,23 @@ def _regressed(
     )
 
 
-def _de_l_indice(ticker: str) -> str:
-    """« du S&P 500 » pour SPY, « de QQQ » pour un indice sans nom connu."""
-    nom = benchmark_name(ticker)
-    if nom is None:
-        return f"de {ticker}"
-    if nom.label.startswith("le "):
-        return f"du {nom.label[3:]}"
-    if nom.label.startswith("les "):
-        return f"des {nom.label[4:]}"
-    return f"de {nom.label}"
-
-
 def compare_regimes(
     conn: sqlite3.Connection,
     portfolio_id: int,
     scenario: Scenario,
     *,
     window: int = DEFAULT_WINDOW,
+    langue: Langue = "fr",
 ) -> RegimeComparison:
     """Confronte le beta de régime calme à la perte réellement subie en crise."""
     poids = market_value_weights(conn, portfolio_id)
-    couverture = _coverage_for(conn, poids, scenario)
+    couverture = _coverage_for(conn, poids, scenario, langue)
     benchmark = scenario.benchmark
     base = RegimeComparison(scenario=scenario, coverage=couverture, benchmark=benchmark)
+    moteur = textes(langue).moteur
 
     if not couverture.has_any:
-        return replace(base, unavailable_reason=_AUCUNE_LIGNE_COTEE)
+        return replace(base, unavailable_reason=moteur.AUCUNE_LIGNE_COTEE)
 
     # Poids renormalisés sur les lignes couvertes. Indispensable pour le beta :
     # une série construite avec des poids sommant à 0,5 aurait une pente deux
@@ -1710,22 +1627,16 @@ def compare_regimes(
     # ---- Crise : benchmark aligné dans le MÊME panel que les lignes détenues.
     brut_crise = load_price_panel(conn, colonnes, scenario.start, scenario.end)
     if benchmark not in brut_crise.columns:
+        nom = benchmark_name(benchmark, langue)
         return replace(
             base,
-            unavailable_reason=(
-                f"Pas de cours {_de_l_indice(benchmark)} sur cette période : "
-                "comparaison impossible."
+            unavailable_reason=moteur.pas_de_cours_de_l_indice(
+                benchmark, None if nom is None else nom.label
             ),
         )
     crise = align_panel(brut_crise)
     if len(crise) < 4:
-        return replace(
-            base,
-            unavailable_reason=(
-                f"{typography.counted(len(crise), 'jour de bourse commun', 'jours de bourse communs')}"
-                " seulement : trop peu pour mesurer la sensibilité au marché."
-            ),
-        )
+        return replace(base, unavailable_reason=moteur.jours_communs_seulement(len(crise)))
 
     trajectoire = stress.buy_and_hold_value(crise[tickers], poids_couverts)
     rendement_portefeuille = stress.end_to_end_return(trajectoire)
@@ -1765,17 +1676,21 @@ def compare_all_regimes(
     scenarios: tuple[Scenario, ...] = SCENARIOS,
     *,
     window: int = DEFAULT_WINDOW,
+    langue: Langue = "fr",
 ) -> list[RegimeComparison]:
     """Comparaison calme / crise pour chaque scénario du catalogue."""
     return [
-        compare_regimes(conn, portfolio_id, s, window=window) for s in scenarios
+        compare_regimes(conn, portfolio_id, s, window=window, langue=langue)
+        for s in scenarios
     ]
 
 
 # ----------------------------------------------------------------- Rapport --
 
 
-def _raison_monte_carlo(serie: PortfolioSeries, exc: ValueError) -> str:
+def _raison_monte_carlo(
+    serie: PortfolioSeries, exc: ValueError, langue: Langue = "fr"
+) -> str:
     """Pourquoi le Monte Carlo normal manque, dans les mots d'un particulier.
 
     La cause la plus fréquente est une fenêtre trop courte : n séances pour k
@@ -1788,16 +1703,15 @@ def _raison_monte_carlo(serie: PortfolioSeries, exc: ValueError) -> str:
     seances = serie.window.observations
     lignes = len(serie.weights.weights)
     if seances <= lignes:
-        return (
-            f"La fenêtre compte {typography.sessions(seances)} pour "
-            f"{typography.lines(lignes)} : il en faut davantage que de lignes "
-            "pour simuler le portefeuille."
-        )
-    return str(exc)
+        return textes(langue).moteur.monte_carlo_fenetre_trop_courte(seances, lignes)
+    return texte_d_erreur(exc, langue)
 
 
 def _raison_student(
-    serie: PortfolioSeries, ajustement: var.StudentFit | None, exc: ValueError
+    serie: PortfolioSeries,
+    ajustement: var.StudentFit | None,
+    exc: ValueError,
+    langue: Langue = "fr",
 ) -> str:
     """Pourquoi le volet Student manque, en clair et sans écrire ν.
 
@@ -1815,21 +1729,13 @@ def _raison_student(
     constante, covariance d'échelle non définie positive — garde le message du
     moteur, qui n'écrit pas ν.
     """
+    moteur = textes(langue).moteur
     seances = serie.window.observations
     if seances < var.STUDENT_MIN_OBSERVATIONS:
-        return (
-            "Pas assez de jours pour ajuster la loi de Student : il en faut au "
-            f"moins {var.STUDENT_MIN_OBSERVATIONS}, la période en compte "
-            f"{seances}."
-        )
+        return moteur.student_trop_peu_de_jours(var.STUDENT_MIN_OBSERVATIONS, seances)
     if ajustement is not None and ajustement.nu <= 2.0:
-        return (
-            f"Sur ces {_jours_de_bourse(seances)}, la loi de Student ne "
-            "s'ajuste pas à vos variations (degrés de liberté estimés à "
-            f"{typography.number(ajustement.nu, 2)}, il en faut plus de 2) : "
-            "aucun chiffre n'en sort."
-        )
-    return str(exc)
+        return moteur.student_sans_variance_finie(seances, ajustement.nu)
+    return texte_d_erreur(exc, langue)
 
 
 def analyse_portfolio(
@@ -1843,6 +1749,7 @@ def analyse_portfolio(
     benchmark: str | None = DEFAULT_BENCHMARK,
     confidence_levels: tuple[float, ...] = (0.95, 0.99),
     monte_carlo: bool = False,
+    langue: Langue = "fr",
 ) -> RiskReport:
     """Toutes les mesures des blocs 4A et 4B sur un portefeuille.
 
@@ -1860,6 +1767,9 @@ def analyse_portfolio(
     indisponible porte sa propre raison (`monte_carlo_unavailable_reason`,
     `student_unavailable_reason`) : une covariance singulière et une série
     trop courte sont deux faits, et l'un ne masque pas l'autre.
+
+    `langue` est celle des textes que le rapport porte : méthodes, détails,
+    réserves, raisons de refus (chantier 7D).
     """
     serie = build_portfolio_series(
         conn, portfolio_id, window=window, benchmark=benchmark
@@ -1878,12 +1788,10 @@ def analyse_portfolio(
     rendements_minimaux = DDOF + 1
     if serie.window.observations < rendements_minimaux:
         raise PortfolioError(
-            "Les titres n'ont que "
-            f"{typography.sessions(serie.window.observations + 1)} en commun, "
-            f"il en faut au moins {rendements_minimaux + 1} : une dispersion "
-            "d'échantillon demande "
-            f"{typography.counted(rendements_minimaux, 'rendement')}. Vérifier "
-            "la couverture avec `python -m backend.ingestion status`."
+            "seances_communes_insuffisantes",
+            serie.window.observations + 1,
+            rendements_minimaux + 1,
+            rendements_minimaux,
         )
 
     simulation_normale: dict[float, VarResult] | None = None
@@ -1902,24 +1810,24 @@ def analyse_portfolio(
         # change aucun chiffre.
         try:
             simulation_normale = {
-                c: monte_carlo_var(serie, c) for c in confidence_levels
+                c: monte_carlo_var(serie, c, langue=langue) for c in confidence_levels
             }
         except ValueError as exc:
-            raison_normale = _raison_monte_carlo(serie, exc)
+            raison_normale = _raison_monte_carlo(serie, exc, langue)
         try:
             ajustement = student_fit(serie)
             student_forme_fermee = {
-                c: student_parametric_var(serie, c, ajustement)
+                c: student_parametric_var(serie, c, ajustement, langue=langue)
                 for c in confidence_levels
             }
             student_simulee = {
-                c: student_monte_carlo_var(serie, c, ajustement)
+                c: student_monte_carlo_var(serie, c, ajustement, langue=langue)
                 for c in confidence_levels
             }
         except ValueError as exc:
             # La raison se lit AVANT d'effacer l'ajustement : c'est lui qui dit
             # si ν ≤ 2. Tout le volet ou rien : un ν ≤ 2 n'est pas publié seul.
-            raison_student = _raison_student(serie, ajustement, exc)
+            raison_student = _raison_student(serie, ajustement, exc, langue)
             ajustement = student_forme_fermee = student_simulee = None
 
     return RiskReport(
@@ -1928,32 +1836,36 @@ def analyse_portfolio(
         total_value=serie.weights.total_value,
         weights=serie.weights.weights,
         window=serie.window,
-        volatility=volatility(serie),
-        ewma_volatility=ewma_volatility(serie),
+        volatility=volatility(serie, langue=langue),
+        ewma_volatility=ewma_volatility(serie, langue=langue),
         drawdown=drawdown(serie),
         sharpe=sharpe(serie, annual_risk_free, risk_free_observed_on),
-        sortino=sortino(serie, sortino_target_daily),
+        sortino=sortino(serie, sortino_target_daily, langue=langue),
         concentration=concentration(serie.weights),
-        parametric_volatility=parametric_volatility(serie),
-        matrices=covariance_matrices(serie),
-        historical_var={c: historical_var(serie, c) for c in confidence_levels},
-        parametric_var={c: parametric_var(serie, c) for c in confidence_levels},
-        expected_shortfall={
-            c: expected_shortfall(serie, c) for c in confidence_levels
+        parametric_volatility=parametric_volatility(serie, langue=langue),
+        matrices=covariance_matrices(serie, langue=langue),
+        historical_var={
+            c: historical_var(serie, c, langue=langue) for c in confidence_levels
         },
-        variance_contributions=variance_contributions(serie),
+        parametric_var={
+            c: parametric_var(serie, c, langue=langue) for c in confidence_levels
+        },
+        expected_shortfall={
+            c: expected_shortfall(serie, c, langue=langue) for c in confidence_levels
+        },
+        variance_contributions=variance_contributions(serie, langue=langue),
         returns=serie.returns,
         wealth=serie.wealth,
         histogram=measures.return_histogram(serie.returns),
         valuation=serie.weights,
         limiting_positions=serie.limiting_positions,
-        beta=beta_vs_benchmark(serie) if benchmark else None,
+        beta=beta_vs_benchmark(serie, langue=langue) if benchmark else None,
         monte_carlo_var=simulation_normale,
         student_fit=ajustement,
         student_parametric_var=student_forme_fermee,
         student_monte_carlo_var=student_simulee,
         monte_carlo_unavailable_reason=raison_normale,
         student_unavailable_reason=raison_student,
-        benchmark_volatility=benchmark_volatility(serie),
+        benchmark_volatility=benchmark_volatility(serie, langue=langue),
         worst_day=worst_day(serie),
     )

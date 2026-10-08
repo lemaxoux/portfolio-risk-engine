@@ -10,6 +10,12 @@ marché et manquerait le premier quart de la baisse ; il mesurerait un épisode
 plus court et moins profond que celui qu'il prétend décrire. Les bornes retenues
 sont les extrema de clôture du S&P 500, et un test les vérifie contre les
 données en base plutôt que de leur faire confiance.
+
+DEUX LANGUES (chantier 7D). Chaque entrée déclare son nom et sa description
+dans les deux langues ; les phrases qui les écrivent — la description à partir
+des dates, l'article d'un nom — sont dans `backend/textes/<langue>/moteur.py`.
+Les gardes anglaises lisent les noms et les descriptions anglaises de ce
+catalogue comme elles lisent `backend/textes/en/`.
 """
 
 from __future__ import annotations
@@ -17,7 +23,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from backend.typography import long_date
+from backend.langue import Langue
+from backend.textes import textes
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,10 @@ class Scenario:
     « l' ») : les phrases de lecture disent « pendant la Crise financière
     2008 », et le genre d'un nom ne se devine pas. Sans article déclaré, elles
     disent « l'épisode Choc bref », correct quel que soit le nom.
+
+    `name_en` et `description_en` sont le nom et la description en anglais. Un
+    épisode qui n'en déclare pas garde en anglais son nom français, précédé de
+    « the episode ».
     """
 
     key: str
@@ -41,31 +52,48 @@ class Scenario:
     end: date
     benchmark: str
     description: str
-    article: str = "l'épisode"
+    article: str | None = None
+    name_en: str | None = None
+    description_en: str | None = None
 
     @property
     def calendar_days(self) -> int:
         return (self.end - self.start).days
 
+    def nom(self, langue: Langue = "fr") -> str:
+        """Le nom dans la langue demandée, le français à défaut d'anglais."""
+        if langue == "en" and self.name_en is not None:
+            return self.name_en
+        return self.name
+
+    def avec_article(self, langue: Langue = "fr") -> str:
+        """« la Crise financière 2008 », « the 2008 Financial Crisis »,
+        « l'épisode Choc bref »."""
+        if langue == "en":
+            article = None if self.name_en is None else "the"
+        else:
+            article = self.article
+        return textes(langue).moteur.crise_avec_article(self.nom(langue), article)
+
     @property
     def with_article(self) -> str:
         """« la Crise financière 2008 », « l'épisode Choc bref »."""
-        if self.article.endswith("'"):
-            return f"{self.article}{self.name}"
-        return f"{self.article} {self.name}"
+        return self.avec_article("fr")
+
+    def description_ecrite(self, langue: Langue = "fr") -> str:
+        if langue == "en" and self.description_en is not None:
+            return self.description_en
+        return self.description
 
     def __str__(self) -> str:
         return f"{self.name} ({self.start} → {self.end})"
 
 
-def _du_sommet_au_point_bas(sommet: date, point_bas: date) -> str:
-    """La phrase qui borne une crise. Ses dates passent par `long_date` : le
-    jour, le mois et l'année ne se séparent pas. Écrites à la main, « (3 »
-    finissait une ligne que « janvier 2022) » commençait."""
-    return (
-        f"Du sommet de clôture du S&P 500 ({long_date(sommet)}) à son point bas "
-        f"de clôture ({long_date(point_bas)})."
-    )
+def _du_sommet_au_point_bas(
+    sommet: date, point_bas: date, langue: Langue = "fr"
+) -> str:
+    """La phrase qui borne une crise, dans la langue demandée."""
+    return textes(langue).moteur.du_sommet_au_point_bas(sommet, point_bas)
 
 
 SCENARIOS: tuple[Scenario, ...] = (
@@ -77,6 +105,8 @@ SCENARIOS: tuple[Scenario, ...] = (
         end=date(2009, 3, 9),
         benchmark="SPY",
         description=_du_sommet_au_point_bas(date(2007, 10, 9), date(2009, 3, 9)),
+        name_en="2008 Financial Crisis",
+        description_en=_du_sommet_au_point_bas(date(2007, 10, 9), date(2009, 3, 9), "en"),
     ),
     Scenario(
         key="covid_2020",
@@ -86,6 +116,8 @@ SCENARIOS: tuple[Scenario, ...] = (
         end=date(2020, 3, 23),
         benchmark="SPY",
         description=_du_sommet_au_point_bas(date(2020, 2, 19), date(2020, 3, 23)),
+        name_en="COVID Crash",
+        description_en=_du_sommet_au_point_bas(date(2020, 2, 19), date(2020, 3, 23), "en"),
     ),
     Scenario(
         key="tightening_2022",
@@ -95,6 +127,8 @@ SCENARIOS: tuple[Scenario, ...] = (
         end=date(2022, 10, 12),
         benchmark="SPY",
         description=_du_sommet_au_point_bas(date(2022, 1, 3), date(2022, 10, 12)),
+        name_en="2022 Monetary Tightening",
+        description_en=_du_sommet_au_point_bas(date(2022, 1, 3), date(2022, 10, 12), "en"),
     ),
 )
 

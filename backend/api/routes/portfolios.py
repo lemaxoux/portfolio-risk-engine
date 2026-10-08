@@ -19,6 +19,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from backend.db import portfolios as store
+from backend.langue import Langue
 from backend.risk_engine.portfolio import (
     PortfolioError,
     load_securities,
@@ -28,6 +29,7 @@ from backend.risk_engine.portfolio import (
 from ..csv_import import PROBE_BYTES, CsvError, read as read_csv
 from ..dependencies import get_connection
 from ..errors import ApiError, Problem, not_found, unprocessable
+from ..langue import langue_demandee
 from ..schemas import (
     CsvImportOut,
     CsvSourceOut,
@@ -45,7 +47,7 @@ router = APIRouter(prefix="/portfolios", tags=["portefeuilles"])
 
 
 def _detail(
-    conn: sqlite3.Connection, row: store.PortfolioRow, strict: bool
+    conn: sqlite3.Connection, row: store.PortfolioRow, strict: bool, langue: Langue = "fr"
 ) -> PortfolioDetailOut:
     """Portefeuille et sa valorisation, ou la raison pour laquelle elle manque.
 
@@ -59,6 +61,9 @@ def _detail(
     Les positions stockées sont lues UNE fois et servent aux deux usages : la
     liste brute (`positions`), publiée même sans valorisation, et la
     valorisation elle-même. Deux lectures pourraient décrire deux états.
+
+    La raison, quand la valorisation manque, est rédigée dans la langue
+    demandée (chantier 7D).
     """
     stockees = store.load_positions(conn, row.id)
     positions = [PositionOut.of(ligne) for ligne in stockees]
@@ -66,7 +71,7 @@ def _detail(
         poids = market_value_weights(conn, row.id)
     except PortfolioError as exc:
         if strict:
-            raise ApiError(status.HTTP_409_CONFLICT, str(exc)) from exc
+            raise ApiError(status.HTTP_409_CONFLICT, exc.texte(langue)) from exc
         return PortfolioDetailOut(
             id=row.id,
             name=row.name,
@@ -74,7 +79,7 @@ def _detail(
             updated_at=row.updated_at,
             positions=positions,
             valuation=None,
-            valuation_error=str(exc),
+            valuation_error=exc.texte(langue),
         )
 
     return PortfolioDetailOut(
@@ -162,15 +167,18 @@ def create_portfolio(
 @router.get("", response_model=list[PortfolioDetailOut])
 def list_portfolios(
     conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> list[PortfolioDetailOut]:
-    return [_detail(conn, row, strict=False) for row in store.list_all(conn)]
+    return [_detail(conn, row, strict=False, langue=langue) for row in store.list_all(conn)]
 
 
 @router.get("/{portfolio_id}", response_model=PortfolioDetailOut)
 def read_portfolio(
-    portfolio_id: int, conn: sqlite3.Connection = Depends(get_connection)
+    portfolio_id: int,
+    conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> PortfolioDetailOut:
-    return _detail(conn, _require(conn, portfolio_id), strict=True)
+    return _detail(conn, _require(conn, portfolio_id), strict=True, langue=langue)
 
 
 @router.put("/{portfolio_id}/positions", response_model=PositionsWrittenOut)

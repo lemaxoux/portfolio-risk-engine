@@ -1703,7 +1703,10 @@ export interface operations {
     };
     list_portfolios_api_portfolios_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1717,6 +1720,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioDetailOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1756,7 +1768,10 @@ export interface operations {
     };
     read_portfolio_api_portfolios__portfolio_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path: {
                 portfolio_id: number;
