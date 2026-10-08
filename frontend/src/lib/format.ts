@@ -27,6 +27,18 @@
  *     U+2212  SIGNE MOINS             jamais le trait d'union U+002D
  *     U+2013  TIRET DEMI-CADRATIN     une valeur absente, par `<Absent>`
  *
+ * ═══ L'ANGLAIS (chantier 7D) ═══
+ *
+ * Chaque fonction prend la langue en dernier argument, « fr » par défaut : un
+ * appel sans langue écrit exactement ce qu'il écrivait. En anglais (américain,
+ * ponctuation de Chicago) : point décimal, virgule des milliers à partir de
+ * quatre chiffres (« 1,000 », « 504 »), aucune espace avant « % » (« 1.06% »),
+ * le même signe moins, U+00A0 entre un nombre et ce qu'il compte et dans une
+ * date (« April 4, 2025 »). Le singulier y est réservé au nombre qui s'écrit
+ * exactement « 1 ». `backend/typography.py` écrit les mêmes caractères, et
+ * `typographie-partagee.json` liste les cas que les deux côtés écrivent à
+ * l'identique.
+ *
  * ═══ CE MODULE NE CALCULE AUCUNE MESURE ═══
  *
  * Multiplier une fraction par cent et arrondir est du FORMATAGE, et l'API le
@@ -35,6 +47,7 @@
  * client, à un seul endroit ». Il n'y a ici ni somme, ni écart, ni moyenne :
  * une valeur qui manque s'ajoute au moteur avec son test, jamais ici.
  */
+import type { Langue } from './langues'
 
 /** Espace fine insécable — milliers, et avant le signe pourcent. */
 export const ESPACE_FINE = '\u202F'
@@ -61,6 +74,11 @@ function grouper(entier: string): string {
   return entier.replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_FINE)
 }
 
+/** En anglais, au même seuil, à la virgule : « 1,000 », « 504 ». */
+function grouperEnAnglais(entier: string): string {
+  return entier.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
 /**
  * Un nombre, en écriture française.
  *
@@ -75,13 +93,20 @@ function grouper(entier: string): string {
  * mieux sans arithmétique décimale, et les mesures publiées portent assez de
  * décimales pour que ce demi-ulp ne déplace jamais un chiffre affiché.
  */
-export function decimal(valeur: number, decimales: number): string {
+export function decimal(valeur: number, decimales: number, langue: Langue = 'fr'): string {
   if (!Number.isFinite(valeur)) {
     throw new Error(`Valeur non finie à formater\u00a0: ${valeur}`)
   }
   const negatif = valeur < 0
   const [entier = '0', fraction] = Math.abs(valeur).toFixed(decimales).split('.')
-  const corps = fraction === undefined ? grouper(entier) : `${grouper(entier)},${fraction}`
+  const corps =
+    langue === 'en'
+      ? fraction === undefined
+        ? grouperEnAnglais(entier)
+        : `${grouperEnAnglais(entier)}.${fraction}`
+      : fraction === undefined
+        ? grouper(entier)
+        : `${grouper(entier)},${fraction}`
   // Une valeur négative qui s'arrondit à zéro ne porte pas de signe : « −0,0 % »
   // se lit comme une perte alors que le chiffre dit qu'il n'y en a pas.
   const nul = Number(Math.abs(valeur).toFixed(decimales)) === 0
@@ -94,7 +119,8 @@ export function decimal(valeur: number, decimales: number): string {
  * L'espace avant le signe est FINE et INSÉCABLE : avec une espace ordinaire, le
  * « % » part seul à la ligne suivante.
  */
-export function pourcentage(fraction: number, decimales: number): string {
+export function pourcentage(fraction: number, decimales: number, langue: Langue = 'fr'): string {
+  if (langue === 'en') return `${decimal(fraction * 100, decimales, 'en')}%`
   return `${decimal(fraction * 100, decimales)}${ESPACE_FINE}%`
 }
 
@@ -104,19 +130,30 @@ export function pourcentage(fraction: number, decimales: number): string {
  * Copie exacte de `backend.typography.counted`, accord compris : pluriel au-delà
  * de deux exclu, singulier en deçà — « 0 séance », « 1 séance », « 2 séances ».
  * C'est la règle française, où zéro et un prennent le singulier.
+ *
+ * En anglais, comme `counted(..., langue="en")` : le singulier est réservé au
+ * nombre qui s'écrit exactement « 1 », signe à part. « 0 sessions ».
  */
-export function compte(nombre: number, singulier: string, pluriel?: string): string {
-  const mot = Math.abs(nombre) < 2 ? singulier : (pluriel ?? `${singulier}s`)
-  return `${decimal(nombre, 0)}${ESPACE_INSECABLE}${mot}`
+export function compte(
+  nombre: number,
+  singulier: string,
+  pluriel?: string,
+  langue: Langue = 'fr',
+): string {
+  const ecrit = decimal(nombre, 0, langue)
+  const auSingulier =
+    langue === 'en' ? ecrit.replace(SIGNE_MOINS, '') === '1' : Math.abs(nombre) < 2
+  const mot = auSingulier ? singulier : (pluriel ?? `${singulier}s`)
+  return `${ecrit}${ESPACE_INSECABLE}${mot}`
 }
 
 /** Les deux usages les plus fréquents, nommés pour ne pas être réécrits. */
-export function seances(nombre: number): string {
-  return compte(nombre, 'séance')
+export function seances(nombre: number, langue: Langue = 'fr'): string {
+  return langue === 'en' ? compte(nombre, 'session', undefined, 'en') : compte(nombre, 'séance')
 }
 
-export function lignes(nombre: number): string {
-  return compte(nombre, 'ligne')
+export function lignes(nombre: number, langue: Langue = 'fr'): string {
+  return langue === 'en' ? compte(nombre, 'holding', undefined, 'en') : compte(nombre, 'ligne')
 }
 
 /**
@@ -127,8 +164,8 @@ export function lignes(nombre: number): string {
  * colonne de tableau, dont l'en-tête porte déjà la devise, n'a besoin que du
  * nombre.
  */
-export function valeurDePortefeuille(valeur: number): string {
-  return decimal(valeur, 2)
+export function valeurDePortefeuille(valeur: number, langue: Langue = 'fr'): string {
+  return decimal(valeur, 2, langue)
 }
 
 /**
@@ -143,9 +180,9 @@ export function valeurDePortefeuille(valeur: number): string {
  * U+00A0 entre le nombre et le code : c'est l'unité que le nombre compte, et
  * « USD » ne doit pas partir seul à la ligne.
  */
-export function montant(valeur: number, devise: string): string {
+export function montant(valeur: number, devise: string, langue: Langue = 'fr'): string {
   verifierDevise(devise)
-  return `${valeurDePortefeuille(valeur)}${ESPACE_INSECABLE}${devise}`
+  return `${valeurDePortefeuille(valeur, langue)}${ESPACE_INSECABLE}${devise}`
 }
 
 function verifierDevise(devise: string): void {
@@ -165,10 +202,10 @@ function verifierDevise(devise: string): void {
  * lui-même vient du moteur ; l'arrondir est du formatage, comme choisir un
  * nombre de décimales.
  */
-export function montantArrondi(valeur: number, devise: string): string {
+export function montantArrondi(valeur: number, devise: string, langue: Langue = 'fr'): string {
   verifierDevise(devise)
   const dizaines = Math.round(Math.abs(valeur) / 10) * 10
-  return `${decimal(dizaines, 0)}${ESPACE_INSECABLE}${devise}`
+  return `${decimal(dizaines, 0, langue)}${ESPACE_INSECABLE}${devise}`
 }
 
 const MOIS = [
@@ -184,6 +221,21 @@ const MOIS = [
   'octobre',
   'novembre',
   'décembre',
+] as const
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ] as const
 
 /**
@@ -205,12 +257,21 @@ export function dateISO(iso: string): string {
  * ce qui recule la date d'un jour à l'ouest de Greenwich. Une date de
  * valorisation fausse d'un jour est une faute, pas un détail d'affichage.
  */
-export function dateEnToutesLettres(iso: string): string {
+export function dateEnToutesLettres(iso: string, langue: Langue = 'fr'): string {
   const [annee, mois, jour] = iso.split('\u002D')
   if (annee === undefined || mois === undefined || jour === undefined) return iso
+  if (langue === 'en') {
+    // « April 4, 2025 » : la liaison suit le mois et la virgule, comme
+    // `typography.long_date(..., langue="en")`.
+    const month = MONTHS[Number(mois) - 1]
+    if (month === undefined) return iso
+    return `${month}${ESPACE_INSECABLE}${Number(jour)},${ESPACE_INSECABLE}${annee}`
+  }
   const nom = MOIS[Number(mois) - 1]
   if (nom === undefined) return iso
-  return `${Number(jour)}${ESPACE_INSECABLE}${nom}${ESPACE_INSECABLE}${annee}`
+  // Le premier du mois s'écrit « 1er » (chantier 7D), comme `long_date`.
+  const quantieme = Number(jour) === 1 ? '1er' : String(Number(jour))
+  return `${quantieme}${ESPACE_INSECABLE}${nom}${ESPACE_INSECABLE}${annee}`
 }
 
 /**
@@ -225,19 +286,21 @@ export function dateEnToutesLettres(iso: string): string {
 export function pourcentageOuTiret(
   fraction: number | null | undefined,
   decimales: number,
+  langue: Langue = 'fr',
 ): string {
   return fraction === null || fraction === undefined
     ? TIRET_INDEFINI
-    : pourcentage(fraction, decimales)
+    : pourcentage(fraction, decimales, langue)
 }
 
 export function decimalOuTiret(
   valeur: number | null | undefined,
   decimales: number,
+  langue: Langue = 'fr',
 ): string {
   return valeur === null || valeur === undefined
     ? TIRET_INDEFINI
-    : decimal(valeur, decimales)
+    : decimal(valeur, decimales, langue)
 }
 
 /**
@@ -277,9 +340,15 @@ export function decimalesDeColonne(valeurs: readonly number[], plafond: number):
  * Une fraction écrite en POINTS de pourcentage : `0.0025` → « 0,25 point ».
  *
  * L'accord suit le nombre AFFICHÉ, comme dans le moteur de règles
- * (`rules._points`) : « 1,9 point », « 2,0 points ».
+ * (`rules._points`) : « 1,9 point », « 2,0 points ». En anglais, le singulier
+ * est réservé à « 1 » : « 1.9 points », « 0.25 points ».
  */
-export function points(fraction: number, decimales: number): string {
+export function points(fraction: number, decimales: number, langue: Langue = 'fr'): string {
+  if (langue === 'en') {
+    const written = decimal(fraction * 100, decimales, 'en')
+    const singulier = written.replace(SIGNE_MOINS, '') === '1'
+    return `${written}${ESPACE_INSECABLE}${singulier ? 'point' : 'points'}`
+  }
   const ecrit = decimal(fraction * 100, decimales)
   const affiche = Number(Math.abs(fraction * 100).toFixed(decimales))
   return `${ecrit}${ESPACE_INSECABLE}${affiche >= 2 ? 'points' : 'point'}`
@@ -292,8 +361,8 @@ export function points(fraction: number, decimales: number): string {
  * positif est écrit, parce qu'un écart se lit par son signe ; une valeur qui
  * s'arrondit à zéro n'en porte aucun.
  */
-export function pointsSignes(fraction: number, decimales: number): string {
-  const ecrit = decimal(fraction * 100, decimales)
+export function pointsSignes(fraction: number, decimales: number, langue: Langue = 'fr'): string {
+  const ecrit = decimal(fraction * 100, decimales, langue)
   const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
   const signe = fraction > 0 && !nul ? '+' : ''
   return `${signe}${ecrit}${ESPACE_INSECABLE}pts`
@@ -327,10 +396,10 @@ export function moisISO(date: Date): string {
  * `backend.typography.percent(..., signed=True)` ; une valeur qui s'arrondit
  * à zéro ne porte aucun signe.
  */
-export function pourcentageSigne(fraction: number, decimales: number): string {
+export function pourcentageSigne(fraction: number, decimales: number, langue: Langue = 'fr'): string {
   const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
   const signe = fraction > 0 && !nul ? '+' : ''
-  return `${signe}${pourcentage(fraction, decimales)}`
+  return `${signe}${pourcentage(fraction, decimales, langue)}`
 }
 
 /**
@@ -341,14 +410,14 @@ export function pourcentageSigne(fraction: number, decimales: number): string {
  * publié ; écrire « perdre −44,0 % » doublerait le signe, « perdre +44,0 % »
  * le contredirait. Le chiffre affiché au-dessus de la phrase garde le sien.
  */
-export function pourcentageAbsolu(fraction: number, decimales: number): string {
-  return pourcentage(Math.abs(fraction), decimales)
+export function pourcentageAbsolu(fraction: number, decimales: number, langue: Langue = 'fr'): string {
+  return pourcentage(Math.abs(fraction), decimales, langue)
 }
 
 /**
  * L'ampleur d'un écart en points, sans signe : `-0.0727` → « 7,3 points ».
  * Même usage que `pourcentageAbsolu` : « soit 7,3 points de plus ».
  */
-export function pointsAbsolus(fraction: number, decimales: number): string {
-  return points(Math.abs(fraction), decimales)
+export function pointsAbsolus(fraction: number, decimales: number, langue: Langue = 'fr'): string {
+  return points(Math.abs(fraction), decimales, langue)
 }

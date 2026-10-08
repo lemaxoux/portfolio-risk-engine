@@ -8,8 +8,11 @@
  * échappements, jamais les caractères — un test qui contiendrait l'espace
  * littérale ne dirait pas laquelle il attend.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import type { Langue } from './langues'
 import {
   ESPACE_FINE,
   ESPACE_INSECABLE,
@@ -188,7 +191,7 @@ describe('dates', () => {
       `9${ESPACE_INSECABLE}octobre${ESPACE_INSECABLE}2007`,
     )
     expect(dateEnToutesLettres('2020-01-01')).toBe(
-      `1${ESPACE_INSECABLE}janvier${ESPACE_INSECABLE}2020`,
+      `1er${ESPACE_INSECABLE}janvier${ESPACE_INSECABLE}2020`,
     )
   })
 
@@ -318,5 +321,99 @@ describe('les formats des phrases de lecture : l’ampleur, le sens porté par l
     expect(pourcentageAbsolu(0.597, 1)).toBe(`59,7${ESPACE_FINE}%`)
     expect(pointsAbsolus(-0.0727, 1)).toBe(`7,3${ESPACE_INSECABLE}points`)
     expect(pointsAbsolus(0.013, 1)).toBe(`1,3${ESPACE_INSECABLE}point`)
+  })
+})
+
+describe('les cas partagés avec backend/typography.py, dans les deux langues (7D)', () => {
+  // Une seule table, lue aussi par tests/test_typographie_partagee.py : chaque
+  // moitié du produit doit écrire, pour chaque cas, exactement la même chaîne.
+  const table = JSON.parse(
+    readFileSync(join(import.meta.dirname, 'typographie-partagee.json'), 'utf-8'),
+  ) as { cas: { fonction: string; arguments: (number | string)[]; fr: string; en: string }[] }
+
+  type Ecriture = (langue: Langue, args: readonly (number | string)[]) => string
+  const ECRITURES: Record<string, Ecriture> = {
+    nombre: (langue, [valeur, decimales]) => decimal(Number(valeur), Number(decimales), langue),
+    pourcentage: (langue, [fraction, decimales]) =>
+      pourcentage(Number(fraction), Number(decimales), langue),
+    'pourcentage signé': (langue, [fraction, decimales]) =>
+      pourcentageSigne(Number(fraction), Number(decimales), langue),
+    'écart signé': (langue, [ecart, decimales]) =>
+      pointsSignes(Number(ecart), Number(decimales), langue),
+    séances: (langue, [nombre]) => seances(Number(nombre), langue),
+    lignes: (langue, [nombre]) => lignes(Number(nombre), langue),
+    'date longue': (langue, [iso]) => dateEnToutesLettres(String(iso), langue),
+  }
+
+  it('couvre chaque écriture', () => {
+    expect(new Set(table.cas.map((cas) => cas.fonction))).toEqual(new Set(Object.keys(ECRITURES)))
+  })
+
+  for (const langue of ['fr', 'en'] as const) {
+    it(`écrit chaque cas comme le backend, en ${langue}`, () => {
+      for (const cas of table.cas) {
+        const ecrire = ECRITURES[cas.fonction]
+        expect(ecrire, cas.fonction).toBeDefined()
+        expect(ecrire?.(langue, cas.arguments), `${cas.fonction} ${JSON.stringify(cas.arguments)}`).toBe(
+          cas[langue],
+        )
+      }
+    })
+  }
+})
+
+describe('l’écriture anglaise (7D)', () => {
+  it('pose le point décimal et groupe les milliers à la virgule, au même seuil', () => {
+    expect(decimal(83185.85, 2, 'en')).toBe('83,185.85')
+    expect(decimal(504, 0, 'en')).toBe('504')
+    expect(valeurDePortefeuille(83185.85, 'en')).toBe('83,185.85')
+  })
+
+  it('n’écrit aucune espace avant « % »', () => {
+    expect(pourcentage(0.0138, 2, 'en')).toBe('1.38%')
+    expect(pourcentageOuTiret(0, 2, 'en')).toBe('0.00%')
+  })
+
+  it('réserve le singulier au nombre qui s’écrit « 1 »', () => {
+    expect(seances(0, 'en')).toBe(`0${ESPACE_INSECABLE}sessions`)
+    expect(seances(1, 'en')).toBe(`1${ESPACE_INSECABLE}session`)
+    expect(compte(3, 'day', undefined, 'en')).toBe(`3${ESPACE_INSECABLE}days`)
+    expect(compte(100000, 'draw', undefined, 'en')).toBe(`100,000${ESPACE_INSECABLE}draws`)
+    expect(points(0.0025, 2, 'en')).toBe(`0.25${ESPACE_INSECABLE}points`)
+    expect(points(0.01, 0, 'en')).toBe(`1${ESPACE_INSECABLE}point`)
+    expect(points(0.0196, 1, 'en')).toBe(`2.0${ESPACE_INSECABLE}points`)
+    expect(pointsAbsolus(-0.013, 1, 'en')).toBe(`1.3${ESPACE_INSECABLE}points`)
+  })
+
+  it('écrit un montant avec son code ISO', () => {
+    expect(montant(83185.85, 'USD', 'en')).toBe(`83,185.85${ESPACE_INSECABLE}USD`)
+    expect(montantArrondi(-12483.03, 'USD', 'en')).toBe(`12,480${ESPACE_INSECABLE}USD`)
+    expect(() => montant(1, '$', 'en')).toThrow()
+  })
+
+  it('écrit « April 4, 2025 », lié après le mois et après la virgule', () => {
+    expect(dateEnToutesLettres('2025-04-04', 'en')).toBe(
+      `April${ESPACE_INSECABLE}4,${ESPACE_INSECABLE}2025`,
+    )
+    expect(dateEnToutesLettres('2026-13-01', 'en')).toBe('2026-13-01')
+  })
+
+  it('garde le tiret d’indéfini et le vrai signe moins', () => {
+    expect(pourcentageOuTiret(null, 2, 'en')).toBe(TIRET_INDEFINI)
+    expect(decimalOuTiret(4.071, 2, 'en')).toBe('4.07')
+    expect(pourcentageSigne(-0.44, 1, 'en')).toBe(`${SIGNE_MOINS}44.0%`)
+    expect(pourcentageAbsolu(-0.4397, 1, 'en')).toBe('44.0%')
+    expect(pointsSignes(-0.081, 1, 'en')).toBe(`${SIGNE_MOINS}8.1${ESPACE_INSECABLE}pts`)
+  })
+
+  it('n’écrit aucune espace ordinaire', () => {
+    for (const texte of [
+      pourcentage(0.0138, 2, 'en'),
+      seances(504, 'en'),
+      montant(83185.85, 'USD', 'en'),
+      dateEnToutesLettres('2026-09-09', 'en'),
+    ]) {
+      expect(texte).not.toContain('\u0020')
+    }
   })
 })

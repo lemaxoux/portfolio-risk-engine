@@ -272,14 +272,6 @@ def test_les_libelles_cites_sont_ceux_de_l_ecran(source, analyse_reelle):
 EXEMPLE_POIDS = (0.9, 0.1)
 
 
-def _premier_du_mois(jour) -> str:
-    """« 1er janvier 2005 ». `typography.long_date` écrit « 1 janvier » : le
-    test calcule lui-même « 1er » jusqu'au chantier 7D, qui reprendra les
-    formateurs."""
-    ecrit = typography.long_date(jour)
-    return ecrit.replace("1" + NBSP, "1er" + NBSP, 1) if jour.day == 1 else ecrit
-
-
 def citations_du_moteur() -> dict[str, str]:
     """Chaque valeur que le texte cite, écrite comme le moteur l'écrirait."""
 
@@ -292,7 +284,7 @@ def citations_du_moteur() -> dict[str, str]:
     assert abs(sum(EXEMPLE_POIDS) - 1.0) < 1e-12
     effectives = 1.0 / sum(w * w for w in EXEMPLE_POIDS)
     citations = {
-        "profondeur": _premier_du_mois(BACKFILL_START),
+        "profondeur": typography.long_date(BACKFILL_START),
         "indice": f"{indice}, {description}",
         "nom de l'indice": indice,
         "fenêtre": jours(config.DEFAULT_WINDOW),

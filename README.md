@@ -66,7 +66,8 @@ app/
 │   │   ├── portfolio.py #   chargement SQLite, poids en valeur
 │   │   ├── engine.py    #   composition + fenêtre d'estimation
 │   │   └── config.py    #   taux sans risque, fenêtre, ddof, λ EWMA
-│   ├── typography.py    # Espaces insécables du texte rédigé côté serveur
+│   ├── typography.py    # Écriture des nombres et dates, français et anglais
+│   ├── langue.py        # Les langues du site : « fr » par défaut, « en »
 │   ├── rules/           # Moteur de règles — décrit, ne prescrit pas
 │   │   ├── rules.py     #   les six règles et leurs observations
 │   │   ├── thresholds.py#   seuils et provenance
@@ -97,6 +98,7 @@ app/
 │   ├── openapi_schema.py#   écrit le schéma OpenAPI que le frontend compile
 │   └── espace_fine.py   #   engendre la police de l'espace fine (U+202F)
 ├── tests/               # Tests unitaires
+│   └── gardes_texte.py  #   les gardes des textes, dans les deux langues
 ├── .env.example
 ├── CLAUDE.md            # conventions et commandes, en une page, pour Claude Code
 ├── requirements.txt         # exécution
@@ -1544,6 +1546,28 @@ de différents : un test écrit contre `Intl` passerait sans rien prouver.
 `tests/test_typographie_partagee.py` tient les deux moitiés ensemble depuis la
 suite Python, parce que c'est le backend qui bouge.
 
+**Deux langues, les mêmes caractères des deux côtés** (chantier 7D). Chaque
+fonction de `format.ts` et de `backend/typography.py` prend la langue en
+dernier argument, « fr » par défaut : un appel sans langue écrit exactement ce
+qu'il écrivait. L'anglais est l'anglais américain, ponctuation de Chicago :
+
+| | Français | Anglais |
+|---|---|---|
+| Décimale, milliers | « 83 185,85 » (U+202F) | « 83,185.85 », groupé au même seuil (« 504 », « 1,000 ») |
+| Pourcentage | « 1,06 % » (U+202F) | « 1.06% », sans espace |
+| Signe moins | U+2212 | U+2212 |
+| Nombre et mot compté | « 504 séances » (U+00A0) | « 504 sessions » (U+00A0) |
+| Accord | singulier sous 2 : « 1,9 point », « 0 séance » | singulier si le nombre s'écrit exactement « 1 » : « 1.9 points », « 0 sessions » |
+| Date longue | « 4 avril 2025 », « 1er janvier 2005 » | « April 4, 2025 » (U+00A0 après le mois et après la virgule) |
+| Nombre en lettres | zéro à dix | zero à ten |
+
+Le premier du mois s'écrit « 1er » en français, des deux côtés, depuis ce
+chantier. Une seule table de cas, `frontend/src/lib/typographie-partagee.json`,
+est lue par `test_typographie_partagee.py` et par `format.test.ts` : chaque
+moitié doit écrire, pour chaque cas et dans chaque langue, exactement la même
+chaîne. Le type des langues est `backend/langue.py` côté serveur,
+`src/lib/langues.ts` côté client.
+
 **L'espace fine avant « % » en Spectral, mesurée et non supposée.** Les
 phrases du moteur, composées en Spectral, affichaient « 50% » alors que l'API
 envoie bien U+202F. La cause, mesurée dans Chrome et dans les fichiers de
@@ -1680,7 +1704,8 @@ et aucun chiffre d'un portefeuille n'y figure.
   lu dans le code qui l'écrit ou dans la réponse de l'API.
 - **Une liste fermée des nombres.** Chaque valeur citée (0,70, 80 %, 504, 60,
   30, 3, 20 et 100 jours de bourse, le 1er janvier 2005, 100 000 tirages…) est
-  recalculée depuis le moteur et écrite par `backend/typography.py`. Chaque
+  recalculée depuis le moteur et écrite par `backend/typography.py`, qui écrit
+  « 1er » pour le premier du mois depuis le chantier 7D. Chaque
   nombre du fichier doit tomber dans une de ces citations, dans un fragment
   mathématique déclaré ou dans un numéro de section : une constante qui
   change, ou un nombre écrit à la main, fait échouer le test. L'exemple des

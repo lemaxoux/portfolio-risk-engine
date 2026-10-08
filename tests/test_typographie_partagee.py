@@ -19,7 +19,9 @@ qu'en touchant au frontend, c'est-à-dire pas au moment où la divergence naît.
 
 from __future__ import annotations
 
+import json
 import re
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -126,3 +128,87 @@ def test_l_arrondi_est_le_meme(source_frontend):
 def test_un_zero_arrondi_ne_porte_de_signe_d_aucun_cote(source_frontend):
     assert typography.number(-0.004, 2) == "0,00"
     assert "negatif && !nul" in source_frontend
+
+
+# ═══════════════════════════════════ Les deux langues, cas par cas (chantier 7D) ══
+#
+# Les tests ci-dessus lisent le VOCABULAIRE déclaré dans format.ts. Ceux-ci
+# fixent l'ÉCRITURE elle-même, dans les deux langues : une seule table de cas,
+# `frontend/src/lib/typographie-partagee.json`, que `format.test.ts` lit aussi.
+# Chaque moitié du produit doit écrire, pour chaque cas, exactement la chaîne
+# attendue : la même des deux côtés, caractère pour caractère.
+
+CAS_PARTAGES = RACINE / "frontend" / "src" / "lib" / "typographie-partagee.json"
+
+ECRITURES = {
+    "nombre": lambda langue, valeur, decimales: typography.number(valeur, decimales, langue=langue),
+    "pourcentage": lambda langue, fraction, decimales: typography.percent(fraction, decimales, langue=langue),
+    "pourcentage signé": lambda langue, fraction, decimales: typography.percent(
+        fraction, decimales, signed=True, langue=langue
+    ),
+    "écart signé": lambda langue, ecart, decimales: typography.signed_points(ecart, decimales, langue=langue),
+    "séances": lambda langue, nombre: typography.sessions(nombre, langue=langue),
+    "lignes": lambda langue, nombre: typography.lines(nombre, langue=langue),
+    "date longue": lambda langue, iso: typography.long_date(date.fromisoformat(iso), langue=langue),
+}
+
+
+def _cas_partages() -> list[dict]:
+    return json.loads(CAS_PARTAGES.read_text(encoding="utf-8"))["cas"]
+
+
+def test_la_table_des_cas_couvre_chaque_ecriture_dans_les_deux_langues():
+    cas = _cas_partages()
+    assert {c["fonction"] for c in cas} == set(ECRITURES)
+    assert all(set(c) == {"fonction", "arguments", "fr", "en"} for c in cas)
+
+
+@pytest.mark.parametrize("langue", ["fr", "en"])
+def test_le_backend_ecrit_chaque_cas_partage(langue):
+    fautes = [
+        (c["fonction"], c["arguments"], ecrit, c[langue])
+        for c in _cas_partages()
+        if (ecrit := ECRITURES[c["fonction"]](langue, *c["arguments"])) != c[langue]
+    ]
+    assert fautes == []
+
+
+def test_les_cas_partages_ecrivent_bien_les_espaces_et_le_signe_attendus():
+    """Témoin : la table porte des espaces fines, insécables et des signes
+    moins, et l'anglais n'en met aucune avant « % »."""
+    cas = _cas_partages()
+    francais = "".join(c["fr"] for c in cas)
+    anglais = "".join(c["en"] for c in cas)
+    assert typography.NARROW_NBSP in francais and typography.NBSP in francais
+    assert typography.MINUS in francais and typography.MINUS in anglais
+    assert typography.NARROW_NBSP not in anglais
+    assert f"1er{typography.NBSP}janvier" in francais
+
+
+def _liste_de_mots(source: str, nom: str) -> list[str]:
+    """Les mots d'une constante `const NOM = [ ... ] as const` de format.ts."""
+    trouve = re.search(rf"const {nom} = \[(.*?)\] as const", source, re.S)
+    assert trouve is not None, f"{nom} introuvable dans format.ts"
+    return re.findall(r"'([^']+)'", trouve.group(1))
+
+
+def test_les_mois_sont_les_memes_dans_les_deux_langues(source_frontend):
+    assert _liste_de_mots(source_frontend, "MOIS") == list(typography._MOIS)
+    assert _liste_de_mots(source_frontend, "MONTHS") == list(typography._MONTHS)
+
+
+def test_l_anglais_groupe_a_la_virgule_au_meme_seuil(source_frontend):
+    """« 504 » ne se groupe pas, « 1,000 » se groupe, des deux côtés ; la
+    même expression régulière, à la virgule."""
+    assert typography.thousands(504, langue="en") == "504"
+    assert typography.thousands(1000, langue="en") == "1,000"
+    assert r"replace(/\B(?=(\d{3})+(?!\d))/g, ',')" in source_frontend
+    assert "`${grouperEnAnglais(entier)}.${fraction}`" in source_frontend
+
+
+def test_le_singulier_anglais_est_reserve_a_un_des_deux_cotes(source_frontend):
+    """« 1 session », « 0 sessions », « 1.9 points » : en anglais, l'écriture
+    décide, pas la valeur."""
+    assert typography.sessions(1, langue="en") == f"1{typography.NBSP}session"
+    assert typography.sessions(0, langue="en") == f"0{typography.NBSP}sessions"
+    assert "ecrit.replace(SIGNE_MOINS, '') === '1'" in source_frontend

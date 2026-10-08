@@ -44,6 +44,25 @@ il ferait écrire 12 % d'un côté et 13 % de l'autre pour une part de 12,5 %.
 Seul le texte en PROSE est concerné. Un message d'erreur qui montre une
 commande ou un littéral Python à recopier (« MX_RISK_FREE_RATE=0.035 ») garde
 le point : c'est du code, et une virgule le rendrait faux.
+
+═══ L'ANGLAIS (chantier 7D) ═══
+
+Chaque fonction prend `langue`, « fr » par défaut : un appel sans langue écrit
+exactement ce qu'il écrivait. En anglais (américain, ponctuation de Chicago) :
+
+    .       POINT DÉCIMAL           « 1.06 »
+    ,       SÉPARATEUR DE MILLIERS  à partir de quatre chiffres : « 1,000 », « 504 »
+            AUCUNE ESPACE           avant « % » : « 1.06% »
+    U+2212  SIGNE MOINS             comme en français
+    U+00A0  ESPACE INSÉCABLE        entre un nombre et le mot qu'il compte, et
+                                    dans une date : « April 4, 2025 »
+
+Le singulier y est réservé au nombre qui s'écrit exactement « 1 » : « 1 point »,
+« 1.9 points », « 0 sessions ». `prose` ne change pas : sur un anglais correct,
+il ne pose que les caractères de liaison des paires et des dates ISO.
+`frontend/src/lib/format.ts` écrit les mêmes caractères, et
+`frontend/src/lib/typographie-partagee.json` liste les cas que les deux côtés
+doivent écrire à l'identique.
 """
 
 from __future__ import annotations
@@ -52,6 +71,8 @@ import math
 import re
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, localcontext
+
+from backend.langue import Langue
 
 NARROW_NBSP = " "
 NBSP = " "
@@ -117,6 +138,8 @@ def counted(
     singulier: str,
     pluriel: str | None = None,
     affiche: str | None = None,
+    *,
+    langue: Langue = "fr",
 ) -> str:
     """Un nombre et le mot qu'il compte, liés par une espace insécable.
 
@@ -127,33 +150,51 @@ def counted(
     `affiche` remplace l'écriture du nombre sans toucher à l'accord : c'est
     `nombre` qui décide du pluriel, pas la chaîne rendue. Un « 100 000 » groupé
     ne doit pas avoir à être réinterprété pour savoir s'il prend un « s ».
+
+    En anglais, le singulier est réservé au nombre qui s'écrit exactement
+    « 1 » : « 1 session », mais « 0 sessions » et « 1.0 holdings ». C'est
+    alors l'écriture qui décide, signe à part.
     """
-    mot = singulier if abs(nombre) < 2 else (pluriel or f"{singulier}s")
-    return f"{nombre if affiche is None else affiche}{NBSP}{mot}"
+    ecrit = nombre if affiche is None else affiche
+    if langue == "en":
+        au_singulier = str(ecrit).lstrip("+-" + MINUS) == "1"
+    else:
+        au_singulier = abs(nombre) < 2
+    mot = singulier if au_singulier else (pluriel or f"{singulier}s")
+    return f"{ecrit}{NBSP}{mot}"
 
 
-def sessions(nombre: int) -> str:
-    """« 504 séances », insécable."""
-    return counted(nombre, "séance")
+def sessions(nombre: int, *, langue: Langue = "fr") -> str:
+    """« 504 séances », « 504 sessions », insécable."""
+    return counted(nombre, "session" if langue == "en" else "séance", langue=langue)
 
 
-def lines(nombre: int) -> str:
-    """« 6 lignes », insécable."""
-    return counted(nombre, "ligne")
+def lines(nombre: int, *, langue: Langue = "fr") -> str:
+    """« 6 lignes », « 6 holdings », insécable."""
+    return counted(nombre, "holding" if langue == "en" else "ligne", langue=langue)
 
 
-def thousands(nombre: int) -> str:
-    """Entier groupé par milliers à l'espace fine insécable : « 100 000 »."""
-    return f"{nombre:,}".replace(",", NARROW_NBSP)
+def thousands(nombre: int, *, langue: Langue = "fr") -> str:
+    """Entier groupé par milliers : « 100 000 » à l'espace fine insécable,
+    « 100,000 » à la virgule en anglais."""
+    return f"{nombre:,}".replace(",", "," if langue == "en" else NARROW_NBSP)
 
 
-def grouped(nombre: int, singulier: str, pluriel: str | None = None) -> str:
+def grouped(
+    nombre: int, singulier: str, pluriel: str | None = None, *, langue: Langue = "fr"
+) -> str:
     """Un grand nombre groupé, et le mot qu'il compte : « 100 000 tirages »."""
-    return counted(nombre, singulier, pluriel, affiche=thousands(nombre))
+    return counted(
+        nombre, singulier, pluriel, affiche=thousands(nombre, langue=langue), langue=langue
+    )
 
 
 _EN_LETTRES = (
     "zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
+)
+
+_IN_WORDS = (
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 )
 
 
@@ -162,36 +203,55 @@ _MOIS = (
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 )
 
+_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
 
-def long_date(jour: date) -> str:
-    """Une date en toutes lettres, pour la prose : « 4 janvier 2010 ».
+
+def long_date(jour: date, *, langue: Langue = "fr") -> str:
+    """Une date en toutes lettres, pour la prose : « 4 janvier 2010 »,
+    « 1er janvier 2005 » ; en anglais, « January 4, 2010 ».
 
     Insécable entre le jour, le mois et l'année, comme `dateEnToutesLettres`
     côté client : les deux moitiés du produit écrivent une date de la même
-    façon. Les dates de provenance, elles, restent en ISO (DESIGN.md §6.3).
+    façon. En anglais, l'espace insécable suit le mois et la virgule :
+    « April 4, » ne finit pas une ligne que « 2025 » commencerait. Le premier
+    du mois s'écrit « 1er » en français (chantier 7D), « 1 » en anglais. Les
+    dates de provenance, elles, restent en ISO (DESIGN.md §6.3).
     """
-    return f"{jour.day}{NBSP}{_MOIS[jour.month - 1]}{NBSP}{jour.year}"
+    if langue == "en":
+        return f"{_MONTHS[jour.month - 1]}{NBSP}{jour.day},{NBSP}{jour.year}"
+    quantieme = "1er" if jour.day == 1 else jour.day
+    return f"{quantieme}{NBSP}{_MOIS[jour.month - 1]}{NBSP}{jour.year}"
 
 
-def cardinal(nombre: int) -> str:
+def cardinal(nombre: int, *, langue: Langue = "fr") -> str:
     """Un entier dans une phrase de lecture : en lettres jusqu'à dix, en
-    chiffres au-delà — « ces deux dernières années », « ces 14 derniers mois ».
+    chiffres au-delà — « ces deux dernières années », « ces 14 derniers mois »,
+    « the past two years ».
 
     Seulement là où une phrase se lit comme de la prose. Un chiffre de mesure,
     un nombre de séances dans une provenance, restent en chiffres.
     """
     if 0 <= nombre <= 10:
-        return _EN_LETTRES[nombre]
-    return thousands(nombre)
+        return (_IN_WORDS if langue == "en" else _EN_LETTRES)[nombre]
+    return thousands(nombre, langue=langue)
 
 
 MINUS = "\u2212"
 
 
 def number(
-    valeur: float, decimales: int, *, signed: bool = False, trim: bool = False
+    valeur: float,
+    decimales: int,
+    *,
+    signed: bool = False,
+    trim: bool = False,
+    langue: Langue = "fr",
 ) -> str:
-    """Un nombre en écriture française : « 4,07 », « −0,36 », « 83 185,85 ».
+    """Un nombre en écriture française : « 4,07 », « −0,36 », « 83 185,85 » ;
+    en anglais : « 4.07 », « −0.36 », « 83,185.85 ».
 
     `decimales` n'a pas de défaut, comme dans `format.ts` : c'est l'appelant
     qui sait combien de décimales porte le nombre qu'il écrit.
@@ -223,7 +283,8 @@ def number(
     entier, _, fraction = f"{arrondi:f}".partition(".")
     if trim and not fraction.strip("0"):
         fraction = ""
-    corps = thousands(int(entier)) + (f",{fraction}" if fraction else "")
+    decimale = "." if langue == "en" else ","
+    corps = thousands(int(entier), langue=langue) + (f"{decimale}{fraction}" if fraction else "")
     if arrondi == 0:
         return corps
     if valeur < 0:
@@ -232,21 +293,28 @@ def number(
 
 
 def percent(
-    fraction: float, decimales: int, *, signed: bool = False, trim: bool = False
+    fraction: float,
+    decimales: int,
+    *,
+    signed: bool = False,
+    trim: bool = False,
+    langue: Langue = "fr",
 ) -> str:
-    """Une fraction en pourcentage : `0.439` → « 43,9 % », espace FINE avant « % »."""
-    return (
-        f"{number(fraction * 100.0, decimales, signed=signed, trim=trim)}"
-        f"{NARROW_NBSP}%"
-    )
+    """Une fraction en pourcentage : `0.439` → « 43,9 % », espace FINE avant
+    « % » ; en anglais, « 43.9% », sans espace."""
+    ecrit = number(fraction * 100.0, decimales, signed=signed, trim=trim, langue=langue)
+    if langue == "en":
+        return f"{ecrit}%"
+    return f"{ecrit}{NARROW_NBSP}%"
 
 
-def signed_points(ecart: float, decimales: int = 1) -> str:
-    """Un écart entre deux parts, signé, en points : `0.098` → « +9,8 pts »."""
-    return f"{number(ecart * 100.0, decimales, signed=True)}{NBSP}pts"
+def signed_points(ecart: float, decimales: int = 1, *, langue: Langue = "fr") -> str:
+    """Un écart entre deux parts, signé, en points : `0.098` → « +9,8 pts »,
+    « +9.8 pts » en anglais."""
+    return f"{number(ecart * 100.0, decimales, signed=True, langue=langue)}{NBSP}pts"
 
 
-def exact(valeur: float) -> str:
+def exact(valeur: float, *, langue: Langue = "fr") -> str:
     """Un nombre SAISI, cité dans un refus : « −3 », « 2,5 », « 0,1 ».
 
     La plus courte écriture décimale qui relit le même flottant — celle de
@@ -258,15 +326,19 @@ def exact(valeur: float) -> str:
     if not math.isfinite(valeur):
         raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
     exposant = Decimal(repr(float(valeur))).as_tuple().exponent
-    return number(valeur, max(-exposant, 0), trim=True)
+    return number(valeur, max(-exposant, 0), trim=True, langue=langue)
 
 
-def compact(valeur: float) -> str:
-    """L'écriture la plus courte d'un paramètre : `0.94` → « 0,94 », `60.0` → « 60 ».
+def compact(valeur: float, *, langue: Langue = "fr") -> str:
+    """L'écriture la plus courte d'un paramètre : `0.94` → « 0,94 », `60.0` → « 60 » ;
+    « 0.94 » en anglais.
 
     Pour une constante que l'on CITE (λ de l'EWMA, valeur d'un seuil), dont le
     nombre de décimales n'est pas choisi mais celui de la constante elle-même.
     """
     if not math.isfinite(valeur):
         raise ValueError(f"Valeur non finie à écrire : {valeur!r}")
-    return f"{valeur:g}".replace(".", ",").replace("-", MINUS)
+    ecrit = f"{valeur:g}"
+    if langue != "en":
+        ecrit = ecrit.replace(".", ",")
+    return ecrit.replace("-", MINUS)
