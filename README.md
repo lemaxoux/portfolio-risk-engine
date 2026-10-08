@@ -648,16 +648,17 @@ s'affichent telles quelles en section 6, à côté des phrases de lecture
 (section 10). Depuis le chantier « Textes de lecture » (2026-10-05), elles
 vouvoient et parlent en mots courants. Les noms ci-dessus restent ceux des
 règles dans le code (`RuleId`, champ `rule`) ; le libellé affiché
-(`rule_label`) est une question ou un constat :
+(`rule_label`) est une question ou un constat, dans la langue de la réponse
+(section 9, « La langue des réponses ») :
 
-| Règle (`rule`) | Libellé affiché (`rule_label`) |
-|---|---|
-| `effective_concentration` | Combien de lignes, en réalité |
-| `variance_contribution` | Poids dans les variations |
-| `apparent_diversification` | Lignes qui bougent ensemble |
-| `systematic_share` | Part qui suit le marché |
-| `crisis_degradation` | Le portefeuille en crise |
-| `scenario_coverage` | Crise rejouée en partie |
+| Règle (`rule`) | Libellé affiché (`rule_label`) | `?lang=en` |
+|---|---|---|
+| `effective_concentration` | Combien de lignes, en réalité | How many holdings, really |
+| `variance_contribution` | Poids dans les variations | Weight in the fluctuations |
+| `apparent_diversification` | Lignes qui bougent ensemble | Holdings that move together |
+| `systematic_share` | Part qui suit le marché | Share that follows the market |
+| `crisis_degradation` | Le portefeuille en crise | The portfolio in a crisis |
+| `scenario_coverage` | Crise rejouée en partie | Crisis partly replayed |
 
 - Le vocabulaire : « variations » pour la variance, « la part qui suit le
   marché » pour la part systématique, « jours de bourse » pour les séances,
@@ -806,7 +807,8 @@ référence choisie à la main et un seuil relatif au portefeuille.
 
 **Un même nombre a la même forme dans un même bloc.** Chaque seuil déclare la
 précision de son écriture (`decimals`), et la phrase comme la ligne de seuil
-écrivent `Threshold.displayed`. Le seuil choisi s'écrivait « 0,70 » dans la
+écrivent `Threshold.affiche(langue)` (`displayed` en français). Le seuil
+choisi s'écrivait « 0,70 » dans la
 phrase et « 0,7 » dessous. Désormais, c'est « 0,70 » aux deux endroits. La
 valeur n'est plus arrondie avant d'être écrite : `round()` tranche les
 égalités au pair et `typography` comme `toFixed`. Une corrélation de 0,125
@@ -922,8 +924,10 @@ fichier les importe. Chacune a sa version anglaise (aucune espace avant la
 ponctuation haute, guillemets doubles, « 1.06% », virgule des milliers,
 « April 4, 2025 », liste prescriptive anglaise), et une garde s'ajoute dans
 les deux langues : un nombre écrit en lettres et suivi d'une unité. Une garde
-enfin repère du français dans un texte anglais. `tests/test_gardes_texte.py`
-les éprouve sur des témoins, fautifs et légitimes, dans chaque langue.
+repère du français dans un texte anglais, et `nombres` ramène les nombres
+d'un texte à une écriture commune aux deux langues, pour vérifier qu'une
+traduction les garde tous. `tests/test_gardes_texte.py` les éprouve sur des
+témoins, fautifs et légitimes, dans chaque langue.
 
 ### 9. API
 
@@ -966,8 +970,8 @@ L'anglais s'ajoute à côté, domaine par domaine : l'écran d'acceptation
 (`/api/disclaimer`, et le `disclaimer` de l'analyse), puis les textes du moteur
 (périodes, méthodes et détails de provenance, réserves, refus, raisons d'un
 volet simulé indisponible, crises et leurs descriptions, résumés des scénarios
-et des régimes, nom de l'indice de référence, erreurs du portefeuille). Les
-phrases vivent dans
+et des régimes, nom de l'indice de référence, erreurs du portefeuille), puis
+les observations du moteur de règles et leurs seuils. Les phrases vivent dans
 `backend/textes/`, un module par langue et par domaine, mêmes noms et mêmes
 signatures ; le français y a été déplacé tel quel, et les noms qu'on lisait
 ailleurs (`rules.disclaimer.ACCEPTANCE_TITLE`…) le lisent de là. Le moteur et
@@ -976,6 +980,14 @@ rédigent. `tests/test_textes_symetriques.py` vérifie les deux langues nom par
 nom, exerce chaque fonction dans les deux et passe chaque sortie aux gardes de
 sa langue ; `tests/test_langue_api.py` vérifie, route par route, que le
 français n'a pas bougé.
+
+**Une traduction ne perd, n'ajoute ni ne change aucun nombre.** Chaque
+fonction de texte, chaque constante, chaque ligne de seuil et chaque
+observation de l'analyse disent les mêmes nombres dans les deux langues, une
+fois ramenés à une même écriture (`tests/gardes_texte.nombres` : « 9,8 » et
+« 9.8 », « 100 000 » et « 100,000 », les mêmes dates). Les nombres écrits en
+lettres (« deux », « two ») se relisent dans le tableau français-anglais de
+chaque lot.
 
 Le texte anglais de l'écran d'acceptation a sa propre empreinte : un visiteur
 qui passe à l'anglais l'accepte une fois. Le texte français n'a pas changé
@@ -991,6 +1003,33 @@ qui rédigeaient (`Window.period_label`, `ExpectedShortfallResult.caveat`,
 forme française et appellent la fonction qui prend la langue. Les crises du
 catalogue déclarent leur nom et leur description en anglais (`name_en`,
 `description_en`).
+
+**Les règles aussi.** `evaluate` et `evaluate_portfolio` prennent `langue`, et
+chaque règle passe ses décisions (quelle variante, quel signe, quelles crises
+sont assez longues pour conclure) à `textes/{fr,en}/regles.py`. Une
+`Observation` porte sa langue : son énoncé, son sujet (« portefeuille »,
+« portfolio »), sa provenance, son libellé (`rule_label`), `render()` et les
+lignes de ses seuils sont dans celle-là. Les faits (`facts`) sont les mêmes
+dans les deux langues : des identifiants et des nombres.
+
+**Le français d'un seuil n'est écrit qu'une fois**, dans
+`rules/thresholds.py`, où des tests le lisent : `name`, `rationale`, et
+l'étiquette « Seuil » ou « Référence » (valeur de `ThresholdRole`) ;
+`textes/fr/seuils.py` les lit de là. Un seuil porte une clé (`key`, le nom de
+la déclaration qui le pose) et ses paramètres (`params` : le ticker d'une
+part de capital, la paire, le niveau d'une VaR), à partir desquels
+`textes/en/seuils.py` rédige l'anglais. Les propriétés françaises
+(`displayed`, `origin`, `__str__`) appellent la méthode qui prend la langue
+(`affiche`, `origine`, `ligne`), avec « fr ».
+
+**En anglais, le passé rejoué porte son cadre.** Une phrase au prétérit ou au
+présent sur ce que le portefeuille d'aujourd'hui a fait dans le passé rejoué
+dit elle-même ce cadre : « In the replayed crises, … », « Over the past two
+years, … ». Là où le français chiffre la fenêtre sans la nommer (« font
+bouger le portefeuille comme 4,4 »), l'anglais la nomme (« over the past two
+years they moved the portfolio like only 4.4 ») ; une phrase qui en suit une
+autre dit « Over the same period ». Une phrase sans ce cadre dirait « would
+have ». Le français ne change pas.
 
 **Une erreur se rédige où on l'attrape.** `PortfolioError` (409) et les trois
 refus de `var.py` qu'une réponse 200 peut publier comme raison d'un volet

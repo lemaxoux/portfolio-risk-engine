@@ -23,7 +23,7 @@ from __future__ import annotations
 import ast
 import re
 
-from backend.typography import WORD_JOINER
+from backend.typography import MINUS, NARROW_NBSP, NBSP, WORD_JOINER
 
 
 def toutes_les_chaines(noeud, chemin=""):
@@ -320,3 +320,35 @@ def fautes_de_francais(texte: str) -> list[str]:
         f"français : {texte[max(0, m.start() - 25):m.end() + 10]!r}"
         for m in FRANCAIS.finditer(texte)
     ]
+
+
+# ═════════════════════════════════════════════ Les nombres d'une traduction ══
+#
+# Une phrase anglaise ne dit ni plus ni moins que la française : pour ses
+# nombres, cela se vérifie. `nombres` ramène ceux d'un texte à une écriture
+# commune aux deux langues : « 1 234,5 % » et « 1,234.5% » donnent « 1234.5 »,
+# « −5,0 » et « −5.0 » donnent « -5.0 ». Une date ISO compte pour un nombre,
+# « 1er » pour 1. Un nombre écrit en lettres n'en est pas un ici : « deux » et
+# « two » se relisent dans le tableau du rapport de chaque lot.
+
+DATE_EN_CHIFFRES = re.compile(r"\d{4}-\d{2}-\d{2}")
+NOMBRES_ECRITS = {
+    "fr": re.compile(
+        rf"[{MINUS}-]?\d{{1,3}}(?:[{NARROW_NBSP}{NBSP}]\d{{3}})+(?:,\d+)?|[{MINUS}-]?\d+(?:,\d+)?"
+    ),
+    "en": re.compile(rf"[{MINUS}-]?\d{{1,3}}(?:,\d{{3}})+(?:\.\d+)?|[{MINUS}-]?\d+(?:\.\d+)?"),
+}
+
+
+def nombres(texte: str, langue: str) -> list[str]:
+    """Les nombres d'un texte, triés, dans l'écriture commune aux deux langues."""
+    texte = texte.replace(WORD_JOINER, "")
+    trouves = DATE_EN_CHIFFRES.findall(texte)
+    for ecrit in NOMBRES_ECRITS[langue].findall(DATE_EN_CHIFFRES.sub(" ", texte)):
+        ecrit = ecrit.replace(MINUS, "-")
+        if langue == "fr":
+            ecrit = ecrit.replace(NARROW_NBSP, "").replace(NBSP, "").replace(",", ".")
+        else:
+            ecrit = ecrit.replace(",", "")
+        trouves.append(ecrit)
+    return sorted(trouves)

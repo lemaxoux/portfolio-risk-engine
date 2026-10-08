@@ -804,8 +804,10 @@ export interface components {
          * ObservationOut
          * @description Une propriété chiffrée du portefeuille. Elle décrit, elle ne prescrit pas.
          *
-         *     `rule` est l'identifiant machine, `rule_label` le libellé français.
-         *     `facts` porte les mêmes chiffres que `statement`, sous forme exploitable.
+         *     `rule` est l'identifiant machine, `rule_label` le libellé de la règle,
+         *     dans la langue de la réponse comme toutes les phrases de l'observation.
+         *     `facts` porte les mêmes chiffres que `statement`, sous forme exploitable ;
+         *     ses clés sont des identifiants, les mêmes dans les deux langues.
          *     `thresholds` est vide quand la mesure parle d'elle-même — ce n'est pas un
          *     oubli, c'est une absence de seuil assumée par le moteur de règles.
          */

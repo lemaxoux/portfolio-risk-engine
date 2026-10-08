@@ -22,10 +22,11 @@ par ordre de préférence :
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from enum import Enum
 
 from backend import typography
+from backend.langue import Langue
 from backend.risk_engine.config import (
     MAX_STUDENT_NU,
     MIN_DISTRIBUTION_OBSERVATIONS,
@@ -34,6 +35,7 @@ from backend.risk_engine.config import (
     MIN_SCENARIO_COVERAGE_SHARE,
     historical_var_min_observations,
 )
+from backend.textes import textes
 
 
 class ThresholdKind(Enum):
@@ -62,7 +64,9 @@ class ThresholdRole(Enum):
     frontière choisie, ce qu'elle n'est pas (DESIGN.md §9.2).
 
     `kind` ne suffit pas à trancher : DERIVED couvre les deux cas. La valeur
-    de l'énumération est l'étiquette affichée devant la ligne.
+    de l'énumération est l'étiquette française affichée devant la ligne, que
+    `textes/fr/seuils.py` lit ici ; l'anglaise est rédigée par
+    `textes/en/seuils.py`.
     """
 
     THRESHOLD = "Seuil"
@@ -87,6 +91,18 @@ class Threshold:
     portefeuille », mais « nombre minimal de séances estimables = 3,
     démontré ». « Choisi à la main » ne s'accorde pas : c'est la formule
     validée telle quelle, « corrélation forte = 0,70, choisi à la main ».
+
+    ═══ DEUX LANGUES, UN SEUL FRANÇAIS ═══
+
+    `name` et `rationale` sont le français, écrit ici et nulle part ailleurs :
+    des tests les lisent, et `textes/fr/seuils.py` les lit de là (chantier
+    7D). `key` nomme la déclaration de ce module qui pose le seuil, la
+    constante ou la fonction qui le fabrique, et `params` ce qu'elle a reçu
+    qui s'écrit dans le nom : le ticker d'une part de capital, la paire, le
+    niveau d'une VaR. `textes/en/seuils.py` rédige l'anglais à partir des
+    deux. Les propriétés françaises (`displayed`, `origin`, `__str__`)
+    appellent la méthode qui prend la langue, avec « fr » : elles n'écrivent
+    plus rien elles-mêmes.
     """
 
     name: str
@@ -97,6 +113,9 @@ class Threshold:
     percent: bool = False
     role: ThresholdRole = ThresholdRole.THRESHOLD
     feminine: bool = False
+    _: KW_ONLY
+    key: str
+    params: tuple[str | float, ...] = ()
 
     def __post_init__(self) -> None:
         # Deux combinaisons n'ont pas de sens : une convention choisie à la
@@ -114,57 +133,62 @@ class Threshold:
     def chosen(self) -> bool:
         return self.kind is ThresholdKind.CHOSEN
 
-    @property
-    def displayed(self) -> str:
+    def nom(self, langue: Langue = "fr") -> str:
+        """« corrélation forte », « strong correlation »."""
+        return textes(langue).seuils.nom(self)
+
+    def justification(self, langue: Langue = "fr") -> str:
+        """En minuscule et sans point final, telle que publiée (`rationale`)."""
+        return textes(langue).seuils.justification(self)
+
+    def affiche(self, langue: Langue = "fr") -> str:
         """La valeur écrite, celle que la phrase de l'observation cite aussi."""
         if self.percent:
-            return typography.percent(self.value, self.decimals)
-        return typography.number(self.value, self.decimals)
+            return typography.percent(self.value, self.decimals, langue=langue)
+        return typography.number(self.value, self.decimals, langue=langue)
+
+    @property
+    def displayed(self) -> str:
+        return self.affiche("fr")
+
+    def origine(self, langue: Langue = "fr") -> str:
+        """D'où vient la valeur, dit au lecteur après la virgule de la ligne :
+        choisi à la main ; calculé sur ce portefeuille, pour une RÉFÉRENCE ;
+        ou démontré, le même pour tout portefeuille, pour un seuil dérivé posé
+        d'avance (voir `textes/fr/seuils.origine`)."""
+        return textes(langue).seuils.origine(
+            self.chosen, self.role is ThresholdRole.REFERENCE, self.feminine
+        )
 
     @property
     def origin(self) -> str:
-        """D'où vient la valeur, dit au lecteur après la virgule de la ligne.
+        return self.origine("fr")
 
-        - Choisi à la main : « choisi à la main (non dérivé des données) », la
-          formule validée le 2026-10-05.
-        - Une RÉFÉRENCE, dérivée ou relative au portefeuille, est calculée sur
-          CE portefeuille : « calculée sur ce portefeuille », accordé avec le
-          nom (décision du 2026-10-06). Elle disait « référence calculée » ou
-          « relatif au portefeuille », et la ligne, qui commence par
-          « Référence : », répétait le mot.
-        - Un seuil DÉMONTRÉ, dérivé mais posé d'avance, n'est calculé sur
-          aucun portefeuille : « démontré (le même pour tout portefeuille) ».
-          « Calculé sur ce portefeuille » dirait faux au lecteur d'un refus
-          sous trois séances.
-        """
-        if self.chosen:
-            return "choisi à la main (non dérivé des données)"
-        accord = "e" if self.feminine else ""
-        if self.role is ThresholdRole.REFERENCE:
-            return f"calculé{accord} sur ce portefeuille"
-        meme = "la même" if self.feminine else "le même"
-        return f"démontré{accord} ({meme} pour tout portefeuille)"
+    def etiquette(self, langue: Langue = "fr") -> str:
+        """« Seuil » ou « Référence », devant la ligne."""
+        return textes(langue).seuils.etiquette(self.role)
 
-    def __str__(self) -> str:
+    def ligne(self, langue: Langue = "fr") -> str:
         """La ligne de seuil : « corrélation forte = 0,70, choisi à la main
         (non dérivé des données). Convention usuelle… ». La valeur, puis sa
-        provenance (`origin`) après une virgule, puis la justification en
-        phrase. Casse phrase, sans mot en capitales (DESIGN.md §6.3, décision
-        du 2026-10-05) : c'est le champ machine `kind`, pas un mot du texte,
-        qui dit au client qu'un seuil est choisi."""
-        return f"{self.name} = {self.displayed}, {self.origin}. {_phrase(self.rationale)}"
+        provenance après une virgule, puis la justification en phrase. C'est
+        le champ machine `kind`, pas un mot du texte, qui dit au client qu'un
+        seuil est choisi."""
+        return textes(langue).seuils.ligne(
+            self.nom(langue),
+            self.affiche(langue),
+            self.origine(langue),
+            self.justification(langue),
+        )
 
-
-def _phrase(justification: str) -> str:
-    """La justification d'un seuil, déclarée en minuscule et sans point final
-    (elle est aussi publiée telle quelle, `rationale`), écrite en phrase :
-    capitale initiale, point final."""
-    return justification[0].upper() + justification[1:] + "."
+    def __str__(self) -> str:
+        return self.ligne("fr")
 
 
 # ------------------------------------------------ Seuils choisis à la main --
 
 STRONG_CORRELATION = Threshold(
+    key="STRONG_CORRELATION",
     name="corrélation forte",
     kind=ThresholdKind.CHOSEN,
     value=0.70,
@@ -179,6 +203,7 @@ STRONG_CORRELATION = Threshold(
 # (`ScenarioCoverage.sufficient`) ; le seuil — le nombre plus sa provenance —
 # vit ici, comme `MIN_REGRESSION_SAMPLE`.
 MIN_SCENARIO_COVERAGE = Threshold(
+    key="MIN_SCENARIO_COVERAGE",
     name="couverture minimale d'un scénario",
     kind=ThresholdKind.CHOSEN,
     value=MIN_SCENARIO_COVERAGE_SHARE,
@@ -196,6 +221,7 @@ MIN_SCENARIO_COVERAGE = Threshold(
 )
 
 MIN_REGRESSION_SAMPLE = Threshold(
+    key="MIN_REGRESSION_SAMPLE",
     name="nombre minimal de séances d'une régression",
     kind=ThresholdKind.CHOSEN,
     value=float(MIN_REGRESSION_OBSERVATIONS),
@@ -213,6 +239,7 @@ MIN_REGRESSION_SAMPLE = Threshold(
 # complète au même endroit. La constante vit dans le moteur, le seuil — le
 # nombre plus sa provenance — ici, comme pour `MIN_REGRESSION_SAMPLE`.
 STUDENT_NU_CEILING = Threshold(
+    key="STUDENT_NU_CEILING",
     name="ν maximal d'une loi de Student",
     kind=ThresholdKind.CHOSEN,
     value=MAX_STUDENT_NU,
@@ -235,6 +262,7 @@ STUDENT_NU_CEILING = Threshold(
 # (`engine._estimation_mince`). Une estimation marquée mince n'entre dans
 # aucune observation : les règles ne lisent ni l'une ni l'autre.
 MIN_DISTRIBUTION_SAMPLE = Threshold(
+    key="MIN_DISTRIBUTION_SAMPLE",
     name="nombre minimal de séances pour estimer une loi",
     kind=ThresholdKind.CHOSEN,
     value=float(MIN_DISTRIBUTION_OBSERVATIONS),
@@ -277,6 +305,7 @@ MIN_DISTRIBUTION_SAMPLE = Threshold(
 # Nommé comme `MIN_REGRESSION_SAMPLE` : la CONSTANTE vit dans le moteur, le
 # SEUIL — le nombre plus sa provenance — vit ici. Deux objets, deux noms.
 MIN_ESTIMABLE_SAMPLE = Threshold(
+    key="MIN_ESTIMABLE_SAMPLE",
     name="nombre minimal de séances estimables",
     kind=ThresholdKind.DERIVED,
     value=float(MIN_ESTIMABLE_OBSERVATIONS),
@@ -300,6 +329,8 @@ def historical_var_sample(confidence: float) -> Threshold:
     définition du quantile. Appliqué par le moteur, déclaré ici.
     """
     return Threshold(
+        key="historical_var_sample",
+        params=(confidence,),
         name=(
             "nombre minimal de séances d'une VaR historique à "
             f"{typography.percent(confidence, 0)}"
@@ -319,6 +350,8 @@ def historical_var_sample(confidence: float) -> Threshold:
 def capital_share(ticker: str, weight: float) -> Threshold:
     """La part de capital d'une ligne, référence de sa part de risque."""
     return Threshold(
+        key="capital_share",
+        params=(ticker,),
         name=f"part de {ticker} dans la valeur",
         kind=ThresholdKind.DERIVED,
         value=weight,
@@ -336,6 +369,8 @@ def capital_share(ticker: str, weight: float) -> Threshold:
 def most_correlated_pair(first: str, second: str, correlation: float) -> Threshold:
     """La corrélation de la paire la plus corrélée, propre à ce portefeuille."""
     return Threshold(
+        key="most_correlated_pair",
+        params=(first, second),
         name=f"corrélation {first}–{second}",
         kind=ThresholdKind.PORTFOLIO_RELATIVE,
         value=correlation,

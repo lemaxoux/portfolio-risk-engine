@@ -21,7 +21,13 @@ from backend.risk_engine.config import DEFAULT_WINDOW
 from backend.rules.disclaimer import acceptance_text
 from backend.typography import NBSP, prose
 
-from .gardes_texte import fautes_de_forme, fautes_de_francais, fautes_de_registre, toutes_les_chaines
+from .gardes_texte import (
+    fautes_de_forme,
+    fautes_de_francais,
+    fautes_de_registre,
+    nombres,
+    toutes_les_chaines,
+)
 
 
 def _avec(chemin: str, parametre: str) -> str:
@@ -122,11 +128,11 @@ def test_l_ecran_anglais_passe_les_gardes_anglaises(client_synthetique):
     assert fautes == []
 
 
-# ═════════════════════════════════════════════════════ Les textes du moteur ══
+# ═════════════════════════════════════════ Les textes du moteur et des règles ══
 #
 # Lot 4 : méthodes, détails, réserves, refus, périodes, crises, régimes,
-# indice de référence, erreurs du portefeuille. Les observations du moteur de
-# règles suivent au lot 5 : elles sont lues ici à part.
+# indice de référence, erreurs du portefeuille. Lot 5 : les observations du
+# moteur de règles et leurs seuils. Toute la réponse d'analyse est lue.
 
 
 CHAMPS_DE_PROSE = (
@@ -147,21 +153,32 @@ DONNEES = re.compile(r"\.portfolio\.|\.valuation\.|^\[\d+\]\.name$|^\.name$")
 PROVENANCE = re.compile(r"\.risk\..*\.(method|detail)$")
 
 
-def prose_publiee(corps, sauf: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+def prose_publiee(corps) -> list[tuple[str, str]]:
     return [
         (chemin, texte)
         for chemin, texte in toutes_les_chaines(corps)
         if chemin.endswith(tuple(f".{champ}" for champ in CHAMPS_DE_PROSE))
         and not DONNEES.search(chemin)
-        and not any(chemin.startswith(prefixe) for prefixe in sauf)
     ]
 
 
-def fautes_anglaises(corps, sauf: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+# L'écran d'acceptation dit à bon droit ce que l'outil n'est pas (« not
+# advice », « buy, sell, or hold ») : la garde prescriptive ne le lit pas.
+ECRAN_D_ACCEPTATION = re.compile(r"^\.disclaimer\.")
+
+
+def fautes_anglaises(corps) -> list[tuple[str, str]]:
+    """Forme, français oublié et registre : rien de prescriptif, aucune note
+    globale, aucune généralité que le moteur ne mesure pas."""
     fautes = []
-    for chemin, texte in prose_publiee(corps, sauf):
+    for chemin, texte in prose_publiee(corps):
         fautes += [(chemin, f) for f in fautes_de_forme(texte, "en", grec_admis=bool(PROVENANCE.search(chemin)))]
         fautes += [(chemin, f) for f in fautes_de_francais(texte)]
+        fautes += [
+            (chemin, f)
+            for f in fautes_de_registre(texte, "en")
+            if not (ECRAN_D_ACCEPTATION.search(chemin) and f.startswith("prescriptif"))
+        ]
     return fautes
 
 
@@ -190,16 +207,17 @@ def analyser_en(base_historique_court, client_factory):
 
 
 @pytest.mark.parametrize("fenetre", [250, 60])
-def test_l_analyse_anglaise_du_moteur_n_a_plus_de_francais(
+def test_l_analyse_anglaise_n_a_plus_de_francais(
     client_synthetique, portefeuille_synthetique, fenetre
 ):
-    """Hors des observations (lot 5) : chaque texte rédigé par le moteur est
-    en anglais et passe les gardes anglaises."""
+    """Chaque texte rédigé par le moteur et par les règles est en anglais et
+    passe les gardes anglaises, observations comprises."""
     corps = client_synthetique.get(
         f"/api/portfolios/{portefeuille_synthetique}/analysis?window={fenetre}&lang=en"
     ).json()
-    assert prose_publiee(corps, sauf=(".observations",)), "rien à lire"
-    assert fautes_anglaises(corps, sauf=(".observations",)) == []
+    assert prose_publiee(corps), "rien à lire"
+    assert any(chemin.startswith(".observations") for chemin, _ in prose_publiee(corps))
+    assert fautes_anglaises(corps) == []
     assert corps["estimation_period_label"].startswith("the past ")
     assert corps["parameters"]["benchmark_label"] == "the S&P 500"
     assert corps["scenarios"][0]["scenario"]["name"] == "2008 Financial Crisis"
@@ -207,13 +225,14 @@ def test_l_analyse_anglaise_du_moteur_n_a_plus_de_francais(
 
 @pytest.mark.parametrize("seances_courtes", [3, 8, 40])
 def test_les_refus_et_les_reserves_du_moteur_en_anglais(analyser_en, seances_courtes):
-    """Refus sous trois séances, réserves sous trente, refus de la Student :
-    les phrases que la démonstration ne déclenche jamais."""
+    """Refus sous trois séances, réserves sous trente, refus de la Student,
+    observations refusées ou minces : les phrases que la démonstration ne
+    déclenche jamais."""
     francais = analyser_en(seances_courtes)
     assert analyser_en(seances_courtes, "&lang=fr").content == francais.content
     anglais = analyser_en(seances_courtes, "&lang=en")
     assert anglais.status_code == 200, anglais.text
-    assert fautes_anglaises(anglais.json(), sauf=(".observations",)) == []
+    assert fautes_anglaises(anglais.json()) == []
     risque = anglais.json()["risk"]
     if seances_courtes == 3:
         assert risque["matrices"]["correlation_undefined_reason"].startswith("Over 2")
@@ -226,6 +245,12 @@ def test_les_refus_et_les_reserves_du_moteur_en_anglais(analyser_en, seances_cou
     else:
         # 39 séances : la Student s'ajuste, mais ne se distingue pas de la normale.
         assert raison_student.startswith("Over these 39")
+    enonces = " ".join(o["statement"] for o in anglais.json()["observations"])
+    if seances_courtes == 3:
+        # Deux séances communes : les règles refusent de chiffrer.
+        assert "is meaningless: it takes at least 3." in enonces
+    else:
+        assert "Small-sample estimate: over " in enonces
 
 
 def test_les_erreurs_du_portefeuille_en_anglais(client_synthetique):
@@ -250,3 +275,79 @@ def test_l_indice_absent_en_anglais(client_synthetique, portefeuille_synthetique
     assert anglais.status_code == 409
     assert anglais.json()["detail"].startswith("No price in the database for ['ABSENT']. Load it with")
     assert client_synthetique.get(_avec(chemin, "lang=fr")).content == client_synthetique.get(chemin).content
+
+
+# ═════════════════════════════════════════ Les observations, langue à langue ══
+
+LIBELLES_ANGLAIS = {
+    "effective_concentration": "How many holdings, really",
+    "variance_contribution": "Weight in the fluctuations",
+    "apparent_diversification": "Holdings that move together",
+    "systematic_share": "Share that follows the market",
+    "crisis_degradation": "The portfolio in a crisis",
+    "scenario_coverage": "Crisis partly replayed",
+}
+
+
+def periodes(corps: dict) -> list[str]:
+    """Les périodes que dit une réponse (« ces 11 derniers mois », « the past
+    two years »), aussi en tête de phrase, les plus longues d'abord."""
+    dites = {texte for chemin, texte in toutes_les_chaines(corps) if chemin.endswith("period_label")}
+    return sorted(dites | {d[:1].upper() + d[1:] for d in dites}, key=len, reverse=True)
+
+
+def nombres_hors_periodes(texte: str, langue: str, retirees: list[str]) -> list[str]:
+    for periode in retirees:
+        texte = texte.replace(periode, "")
+    return nombres(texte, langue)
+
+
+def comparer_les_observations(francais: dict, anglais: dict) -> None:
+    """Une observation anglaise est la française, traduite : la même règle,
+    les mêmes faits (des identifiants et des nombres, les mêmes dans les deux
+    langues), les mêmes seuils, et les mêmes nombres dans chaque phrase.
+
+    L'anglais nomme la période de la fenêtre là où le français ne la dit pas
+    (question 9 : une phrase au présent ou au prétérit porte son cadre de
+    rejeu). Les périodes sont donc retirées des deux textes avant d'en
+    compter les nombres : « the past 11 months » ajouterait un 11.
+    """
+    retirees = {"fr": periodes(francais), "en": periodes(anglais)}
+    assert retirees["fr"] and retirees["en"], "aucune période : le retrait ne vérifierait rien"
+    assert len(anglais["observations"]) == len(francais["observations"])
+    for fr, en in zip(francais["observations"], anglais["observations"]):
+        assert en["rule"] == fr["rule"]
+        assert en["rule_label"] == LIBELLES_ANGLAIS[en["rule"]]
+        assert en["facts"] == fr["facts"]
+        assert en["uses_chosen_threshold"] == fr["uses_chosen_threshold"]
+        if fr["subject"] == "portefeuille":
+            assert en["subject"] == "portfolio"
+        for champ in ("statement", "provenance"):
+            assert nombres_hors_periodes(en[champ], "en", retirees["en"]) == nombres_hors_periodes(
+                fr[champ], "fr", retirees["fr"]
+            ), (fr[champ], en[champ])
+        assert len(en["thresholds"]) == len(fr["thresholds"])
+        for seuil_fr, seuil_en in zip(fr["thresholds"], en["thresholds"]):
+            for champ in ("kind", "role", "value", "percent", "chosen"):
+                assert seuil_en[champ] == seuil_fr[champ], champ
+            assert nombres(seuil_en["rendered"], "en") == nombres(seuil_fr["rendered"], "fr")
+
+
+@pytest.mark.parametrize("fenetre", [250, 60])
+def test_chaque_observation_anglaise_traduit_la_francaise(
+    client_synthetique, portefeuille_synthetique, fenetre
+):
+    chemin = f"/api/portfolios/{portefeuille_synthetique}/analysis?window={fenetre}"
+    francais = client_synthetique.get(chemin).json()
+    anglais = client_synthetique.get(_avec(chemin, "lang=en")).json()
+    assert anglais["observations"], "aucune observation à comparer"
+    comparer_les_observations(francais, anglais)
+
+
+@pytest.mark.parametrize("seances_courtes", [3, 8, 40])
+def test_chaque_observation_anglaise_traduit_la_francaise_sur_une_fenetre_courte(
+    analyser_en, seances_courtes
+):
+    comparer_les_observations(
+        analyser_en(seances_courtes).json(), analyser_en(seances_courtes, "&lang=en").json()
+    )

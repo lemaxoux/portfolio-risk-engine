@@ -1,6 +1,7 @@
 """Les témoins des gardes de `gardes_texte.py` que leurs fichiers n'éprouvent
 pas encore : toutes les gardes anglaises, la garde des nombres en lettres
-dans les deux langues, et les deux assemblages par langue.
+dans les deux langues, les deux assemblages par langue, et la lecture des
+nombres d'une traduction.
 
 Une garde qu'on n'a jamais vue échouer ne prouve rien : chacune reçoit des
 textes fautifs, qu'elle doit voir, et des textes légitimes, qu'elle doit
@@ -30,6 +31,7 @@ from .gardes_texte import (
     fautes_de_forme,
     fautes_de_francais,
     fautes_de_registre,
+    nombres,
 )
 
 TIRET_COURT = chr(0x2013)
@@ -316,3 +318,30 @@ def test_les_gardes_de_registre_mordent_dans_chaque_langue():
     assert fautes_de_registre("Risk: 72/100", "en")
     assert fautes_de_registre("Dans les crises rejouées, JPM a coûté au portefeuille.", "fr") == []
     assert fautes_de_registre("In the replayed crises, JPM cost the portfolio.", "en") == []
+
+
+# ═════════════════════════════════════════════ Les nombres d'une traduction ══
+
+
+def test_les_nombres_se_lisent_pareil_dans_les_deux_langues():
+    """Groupement, virgule ou point décimal, signe moins, date ISO liée ou
+    nue, « 1er » : une même écriture commune. Une liste n'est pas un millier."""
+    francais = (
+        f"Vos 6{NBSP}lignes pèsent comme 5,7{NBSP}lignes ; 100{NARROW_NBSP}000 tirages, "
+        f"{MOINS}5,0{NARROW_NBSP}%, le 2024-{WORD_JOINER}09-{WORD_JOINER}05, le 1er avril, "
+        "(λ=0,94), A, 123 et 4"
+    )
+    anglais = (
+        f"Your 6{NBSP}holdings weigh like 5.7; 100,000 draws, {MOINS}5.0%, on "
+        "2024-09-05, on April 1, (λ=0.94), A, 123, and 4"
+    )
+    attendus = sorted(["6", "5.7", "100000", "-5.0", "2024-09-05", "1", "0.94", "123", "4"])
+    assert nombres(francais, "fr") == attendus
+    assert nombres(anglais, "en") == attendus
+
+
+def test_un_nombre_change_perdu_ou_ajoute_se_voit():
+    assert nombres(f"35,4{NARROW_NBSP}%", "fr") != nombres("35.5%", "en")
+    assert nombres(f"9,8{NBSP}points de plus", "fr") != nombres("more", "en")
+    assert nombres("de plus", "fr") != nombres(f"9.8{NBSP}points more", "en")
+    assert nombres(f"{MOINS}5,0{NARROW_NBSP}%", "fr") != nombres("5.0%", "en")

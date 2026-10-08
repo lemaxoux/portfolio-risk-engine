@@ -1510,24 +1510,26 @@ class ThresholdOut(Schema):
     rendered: Texte
 
     @classmethod
-    def of(cls, threshold: Threshold) -> ThresholdOut:
+    def of(cls, threshold: Threshold, langue: Langue = "fr") -> ThresholdOut:
         return cls(
-            name=threshold.name,
+            name=threshold.nom(langue),
             kind=threshold.kind.name.lower(),
             role=threshold.role.name.lower(),
             value=threshold.value,
-            rationale=threshold.rationale,
+            rationale=threshold.justification(langue),
             percent=threshold.percent,
             chosen=threshold.chosen,
-            rendered=str(threshold),
+            rendered=threshold.ligne(langue),
         )
 
 
 class ObservationOut(Schema):
     """Une propriété chiffrée du portefeuille. Elle décrit, elle ne prescrit pas.
 
-    `rule` est l'identifiant machine, `rule_label` le libellé français.
-    `facts` porte les mêmes chiffres que `statement`, sous forme exploitable.
+    `rule` est l'identifiant machine, `rule_label` le libellé de la règle,
+    dans la langue de la réponse comme toutes les phrases de l'observation.
+    `facts` porte les mêmes chiffres que `statement`, sous forme exploitable ;
+    ses clés sont des identifiants, les mêmes dans les deux langues.
     `thresholds` est vide quand la mesure parle d'elle-même — ce n'est pas un
     oubli, c'est une absence de seuil assumée par le moteur de règles.
     """
@@ -1546,12 +1548,12 @@ class ObservationOut(Schema):
     def of(cls, observation: Observation) -> ObservationOut:
         return cls(
             rule=observation.rule.name.lower(),
-            rule_label=observation.rule.value,
+            rule_label=observation.rule_label,
             subject=observation.subject,
             statement=observation.statement,
             facts=dict(observation.facts),
             provenance=observation.provenance,
-            thresholds=[ThresholdOut.of(s) for s in observation.thresholds],
+            thresholds=[ThresholdOut.of(s, observation.langue) for s in observation.thresholds],
             uses_chosen_threshold=observation.uses_chosen_threshold,
             rendered=observation.render(),
         )
