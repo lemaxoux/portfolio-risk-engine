@@ -27,12 +27,11 @@ import type {
   WorstDay,
 } from '../api/types'
 import { ESPACE_FINE, ESPACE_INSECABLE } from './format'
+import { apresDeuxPoints, cite, majuscule, messageDeLigne } from './phrases'
 import {
   NE_DIT_PAS_GAIN,
   NE_DIT_PAS_REFUS,
-  apresDeuxPoints,
   chapeauLignesEffectives,
-  cite,
   frequenceLue,
   introAuPire,
   introJourOrdinaire,
@@ -49,15 +48,13 @@ import {
   lectureVarParametrique,
   lectureVolatilite,
   legendeHistogramme,
-  majuscule,
-  messageDeLigne,
   neDitPasCreux,
   neDitPasCVaR,
   neDitPasVarHistorique,
   phraseEchantillonMince,
   phraseFenetreReduite,
   phraseFraicheurPositions,
-} from './phrases'
+} from './phrases.fr'
 
 const NB = ESPACE_INSECABLE
 const NF = ESPACE_FINE

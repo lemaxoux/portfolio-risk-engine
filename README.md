@@ -1738,14 +1738,17 @@ Chaque section s'ouvre en outre sur la question à laquelle elle répond. Les
 textes validés, avec leurs variantes et leurs garde-fous, sont dans
 `textes-lecture.md`, hors dépôt.
 
-**Composer n'est pas calculer.** Les phrases vivent dans `src/lib/phrases.ts`
-et ne citent que des champs publiés (section 9, « Ce que citent les phrases
-de lecture ») :
+**Composer n'est pas calculer.** Les phrases vivent dans
+`src/lib/phrases.fr.ts` et `src/lib/phrases.en.ts`, un module par langue
+(chantier 7D) ; `src/lib/phrases.ts` garde ce que les deux partagent : citer
+un nom, et les décisions (ce qu'un niveau de confiance oppose à son seuil, le
+comparatif du rejeu d'une crise). Elles ne citent que des champs publiés
+(section 9, « Ce que citent les phrases de lecture ») :
 
-- La fréquence d'un niveau de confiance vient d'une table
-  (`LECTURE_CONFIANCE`). « Un jour de bourse sur vingt, soit à peu près une
-  fois par mois » est associé à 0,95, il n'en est pas dérivé. Un niveau absent
-  de la table garde son nom technique.
+- La fréquence d'un niveau de confiance vient d'une table (`MOTS`, une par
+  langue, et `DECISIONS_DE_NIVEAU`, commune). « Un jour de bourse sur vingt,
+  soit à peu près une fois par mois » est associé à 0,95, il n'en est pas
+  dérivé. Un niveau absent de la table garde son nom technique.
 - Le montant vient du moteur. L'arrondir à la dizaine de dollars est du
   formatage (`format.montantArrondi`), comme choisir des décimales.
 - Une tournure ne dépend que du signe d'un champ publié : perte ou gain,
@@ -2252,8 +2255,17 @@ tourner sur les mêmes cas que `choisirLangue`.
   haute, aucune contraction, aucun mot français, rien de prescriptif) ;
   `ponctuation.test.ts` lit en plus chaque fichier `.en.ts`.
 
-**Ce qui reste à faire, en session 2** : les phrases de l'interface, la
-méthodologie anglaise, les relevés aux captures.
+- **Les phrases** de lecture des mesures : `src/lib/phrases.fr.ts` (le
+  français d'avant, déplacé tel quel) et `src/lib/phrases.en.ts`, mêmes noms
+  et mêmes signatures (l'interface `Phrases` de `phrases.ts`), les mêmes
+  décisions. En anglais, le passé rejoué porte son cadre (« Over the past two
+  years, … ») ou dit « would have ». `phrases.en.test.ts` exerce chaque phrase
+  dans les deux langues sur un catalogue de cas : aucune traduction oubliée,
+  les règles de l'anglais, les mêmes nombres, et les phrases de référence de
+  l'échantillon validé, mot pour mot.
+
+**Ce qui reste à faire, en session 2** : la méthodologie anglaise, les relevés
+aux captures.
 
 ## Schéma de données
 

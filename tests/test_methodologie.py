@@ -214,7 +214,7 @@ LIBELLES_DU_CLIENT = {
     "Valorisé au": "contenu/libelles.fr.ts",
     "non disponible": "contenu/libelles.fr.ts",
     "±": "views/SectionCrise.tsx",
-    "aurait perdu": "lib/phrases.ts",
+    "aurait perdu": "lib/phrases.fr.ts",
 }
 
 # Pas des libellés : des exemples, cités comme tels.

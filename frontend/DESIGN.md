@@ -1156,8 +1156,9 @@ bug en attente.
   niveau, d'où « 1,06 % ou plus ». Ce qu'elle vaut en moyenne ces jours-là est
   la CVaR (« la perte moyenne des pires jours »). Écrire « perte attendue »
   sous une VaR ferait lire le seuil comme cette moyenne, et sous-estimer la
-  queue. La formulation de référence est dans `src/lib/phrases.ts` ; la
-  convention de signe est fixée dans `risk_engine/var.py`.
+  queue. La formulation de référence est dans `src/lib/phrases.fr.ts`, et
+  `phrases.en.ts` en anglais ; la convention de signe est fixée dans
+  `risk_engine/var.py`.
 - **Une fréquence vient d'une table, jamais d'une division.** « Un jour de
   bourse sur vingt » est associé à 0,95, il n'en est pas dérivé : un niveau
   absent de la table garde son nom technique (« au niveau de confiance

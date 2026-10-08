@@ -36,16 +36,7 @@ import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { TIRET_INDEFINI, dateISO, decimal, pourcentage, pourcentageSigne, seances } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
-import {
-  NE_DIT_PAS_REGIME,
-  NE_DIT_PAS_SCENARIO,
-  lecturePrediction,
-  lectureRegime,
-  lectureScenario,
-  majuscule,
-  phraseCouverturePartielle,
-  phraseEchantillonMince,
-} from '../lib/phrases'
+import { majuscule } from '../lib/phrases'
 import styles from './SectionCrise.module.css'
 
 /**
@@ -98,7 +89,7 @@ function avecErreur(valeur: number, erreur: number | null, langue: Langue): stri
 }
 
 function BlocRegime({ regime }: { regime: Regime }) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.crise
   const { calm_beta: calme, crisis_beta: crise } = regime
   if (regime.unavailable_reason !== null || calme === null || crise === null) {
@@ -132,14 +123,14 @@ function BlocRegime({ regime }: { regime: Regime }) {
       crise: `${dateISO(crise.start)} → ${dateISO(crise.end)}`,
     },
   ]
-  const lecture = lectureRegime(regime)
-  const prediction = lecturePrediction(regime)
+  const lecture = phrases.lectureRegime(regime)
+  const prediction = phrases.lecturePrediction(regime)
 
   return (
     <div className={styles.regime}>
       {lecture !== null && <p className={commun.lecture}>{lecture}</p>}
       {prediction !== null && <p className={commun.lecture}>{prediction}</p>}
-      <p className={commun.neDitPas}>{NE_DIT_PAS_REGIME}</p>
+      <p className={commun.neDitPas}>{phrases.NE_DIT_PAS_REGIME}</p>
       <DataTable
         legende={l.legendeRegime(regime.benchmark)}
         colonnes={colonnesRegime(
@@ -152,7 +143,7 @@ function BlocRegime({ regime }: { regime: Regime }) {
       {crise.sample_too_thin && (
         <p className={styles.reserve}>
           <span className={styles.point} aria-hidden="true" />
-          {phraseEchantillonMince(crise.observations, crise.min_observations)}
+          {phrases.phraseEchantillonMince(crise.observations, crise.min_observations)}
         </p>
       )}
     </div>
@@ -170,12 +161,12 @@ export function BlocScenario({
   asOf: string
   devise: string
 }) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.crise
   const definition = scenario.scenario
   const couverture = scenario.coverage
   const partielle = !couverture.is_complete
-  const lecture = lectureScenario(scenario, regime, devise)
+  const lecture = phrases.lectureScenario(scenario, regime, devise)
 
   return (
     <article className={styles.bloc} aria-labelledby={`scenario-${definition.key}`}>
@@ -222,7 +213,7 @@ export function BlocScenario({
       {lecture !== null && (
         <>
           <p className={commun.lecture}>{lecture}</p>
-          <p className={commun.neDitPas}>{NE_DIT_PAS_SCENARIO}</p>
+          <p className={commun.neDitPas}>{phrases.NE_DIT_PAS_SCENARIO}</p>
         </>
       )}
 
@@ -231,7 +222,7 @@ export function BlocScenario({
           <span className={styles.point} aria-hidden="true" />
           <div>
             <p>
-              {phraseCouverturePartielle(
+              {phrases.phraseCouverturePartielle(
                 couverture.excluded.length,
                 couverture.covered_count,
                 couverture.total_count,

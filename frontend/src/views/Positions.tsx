@@ -161,7 +161,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     if (ligne === undefined) return
     const texte = ligne[champ].trim()
     if (texte === '' || lireNombreSaisi(texte) !== null) return
-    const refusLocal = preparerEnvoi([ligne]).refus.find((r) => r.champ === CHAMP_DE[champ])
+    const refusLocal = preparerEnvoi([ligne], langue).refus.find((r) => r.champ === CHAMP_DE[champ])
     if (refusLocal === undefined) return
     setRefusLocaux((liste) => [
       ...liste.filter((r) => !(r.ligne === rang + 1 && r.champ === refusLocal.champ)),

@@ -48,18 +48,6 @@ import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { dateISO, decimal, decimalOuTiret, lignes as compteLignes, pointsSignes, pourcentage } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
-import {
-  NE_DIT_PAS_CAPITAL,
-  NE_DIT_PAS_CONTRIBUTIONS,
-  NE_DIT_PAS_CORRELATION,
-  NE_DIT_PAS_REFUS,
-  NE_DIT_PAS_RISQUE,
-  PHRASE_CONTRIBUTION_NEGATIVE,
-  chapeauLignesEffectives,
-  lectureContribution,
-  lectureLignesEnCapital,
-  lectureLignesEnRisque,
-} from '../lib/phrases'
 import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
 
@@ -195,7 +183,7 @@ interface Props {
 }
 
 export function SectionRisque({ variance, concentration, matrices, scenarios, asOf }: Props) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.risque
   const contributions = variance.contributions
   const correlation = matrices.correlation
@@ -226,16 +214,16 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
   return (
     <Section ancre="qui-porte" numero={4} titre={libelles.sections[3]} introduction={introduction}>
       <h3 className={commun.sousTitre}>{l.combien}</h3>
-      <p className={commun.chapeau}>{chapeauLignesEffectives(concentration.n_positions)}</p>
+      <p className={commun.chapeau}>{phrases.chapeauLignesEffectives(concentration.n_positions)}</p>
       <div className={commun.rangee}>
         <Measure
           libelle={l.enCapital}
           valeur={decimal(concentration.effective_positions, 1, langue)}
-          lecture={lectureLignesEnCapital(
+          lecture={phrases.lectureLignesEnCapital(
             concentration.n_positions,
             concentration.effective_positions,
           )}
-          neDitPas={NE_DIT_PAS_CAPITAL}
+          neDitPas={phrases.NE_DIT_PAS_CAPITAL}
           provenance={[
             { libelle: l.lignes, valeur: compteLignes(concentration.n_positions, langue) },
             { libelle: libelles.provenance.valoriseAu, valeur: dateISO(concentration.as_of) },
@@ -247,9 +235,11 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           lecture={
             variance.effective_positions === null
               ? (variance.undefined_reason ?? l.nonEstimable)
-              : lectureLignesEnRisque(concentration.n_positions, variance.effective_positions)
+              : phrases.lectureLignesEnRisque(concentration.n_positions, variance.effective_positions)
           }
-          neDitPas={variance.effective_positions === null ? NE_DIT_PAS_REFUS : NE_DIT_PAS_RISQUE}
+          neDitPas={
+            variance.effective_positions === null ? phrases.NE_DIT_PAS_REFUS : phrases.NE_DIT_PAS_RISQUE
+          }
           provenance={lignesDeFenetre(variance.window, langue)}
         />
       </div>
@@ -264,9 +254,9 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
         <>
           <p className={commun.chapeau}>{l.chapeauPoids}</p>
           {premiere !== undefined && (
-            <p className={commun.lecture}>{lectureContribution(premiere)}</p>
+            <p className={commun.lecture}>{phrases.lectureContribution(premiere)}</p>
           )}
-          <p className={commun.neDitPas}>{NE_DIT_PAS_CONTRIBUTIONS}</p>
+          <p className={commun.neDitPas}>{phrases.NE_DIT_PAS_CONTRIBUTIONS}</p>
           <Graphique
             titre={l.titreBarres}
             unite={l.uniteBarres}
@@ -289,7 +279,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             </p>
           </Graphique>
           {variance.has_negative_contribution === true && (
-            <p className={styles.negative}>{PHRASE_CONTRIBUTION_NEGATIVE}</p>
+            <p className={styles.negative}>{phrases.PHRASE_CONTRIBUTION_NEGATIVE}</p>
           )}
           <div className={styles.tableau}>
             <DataTable
@@ -324,7 +314,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           </Graphique>
         </div>
       )}
-      {correlation !== null && <p className={commun.neDitPas}>{NE_DIT_PAS_CORRELATION}</p>}
+      {correlation !== null && <p className={commun.neDitPas}>{phrases.NE_DIT_PAS_CORRELATION}</p>}
     </Section>
   )
 }

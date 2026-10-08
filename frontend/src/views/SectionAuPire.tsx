@@ -24,7 +24,6 @@ import commun from '../components/Section.module.css'
 import { LIBELLES } from '../contenu/libelles'
 import { dateISO, decimal, pourcentage } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
-import { introAuPire, lectureCreux, neDitPasCreux } from '../lib/phrases'
 import { lignesDeFenetre } from '../lib/provenance'
 
 /** Ce que lit un lecteur d'écran à la place de la courbe (§13). */
@@ -56,7 +55,7 @@ interface Props {
 }
 
 export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.auPire
   const options = useCallback(
     (contexte: ContexteGraphique) =>
@@ -64,7 +63,7 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
     [serie, creux],
   )
   const depart = serie.wealth[0]
-  const introduction = introAuPire(creux.period_label)
+  const introduction = phrases.introAuPire(creux.period_label)
   // Le retour au pic n'a de ligne que s'il a eu lieu : `null` se dit dans la
   // phrase de lecture (« il n'avait pas encore retrouvé ce plus haut »).
   const retour: LigneProvenance[] =
@@ -78,8 +77,8 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
         <Measure
           libelle={l.perteMaximale}
           valeur={pourcentage(creux.value, 1, langue)}
-          lecture={lectureCreux(creux, devise)}
-          neDitPas={neDitPasCreux(creux)}
+          lecture={phrases.lectureCreux(creux, devise)}
+          neDitPas={phrases.neDitPasCreux(creux)}
           provenance={[
             { libelle: l.pic, valeur: dateISO(creux.peak_date) },
             { libelle: l.creux, valeur: dateISO(creux.trough_date) },

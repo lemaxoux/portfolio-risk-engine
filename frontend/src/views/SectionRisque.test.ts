@@ -18,7 +18,7 @@ import type {
   Window,
 } from '../api/types'
 import { MARGE_HAUTE_CARTE, largeurMaxCarte } from '../components/charts/correlation'
-import { PHRASE_CONTRIBUTION_NEGATIVE } from '../lib/phrases'
+import { PHRASE_CONTRIBUTION_NEGATIVE } from '../lib/phrases.fr'
 import { LEGENDE_CONTRIBUTIONS, SectionRisque } from './SectionRisque'
 import styles from './SectionRisque.module.css'
 

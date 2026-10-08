@@ -40,7 +40,6 @@ import commun from '../components/Section.module.css'
 import { dateISO, decimal, decimalesDeColonne, pourcentage } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { useEtroit } from '../lib/largeur'
-import { introPortefeuille } from '../lib/phrases'
 import styles from './SectionPortefeuille.module.css'
 
 /** Plafond des décimales d'une quantité : des fractions d'action, au plus. */
@@ -131,10 +130,10 @@ function piedDu(colonnes: Colonne<ValuedPosition>[], valorisation: Valuation, la
 }
 
 export function SectionPortefeuille({ valorisation }: { valorisation: Valuation }) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.portefeuille
   const colonnes = colonnesDuPortefeuille(valorisation, useEtroit(), langue)
-  const introduction = introPortefeuille(valorisation.as_of)
+  const introduction = phrases.introPortefeuille(valorisation.as_of)
   return (
     <Section ancre="portefeuille" numero={1} titre={libelles.sections[0]} introduction={introduction}>
       <div className={commun.conditions}>

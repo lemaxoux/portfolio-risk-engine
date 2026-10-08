@@ -35,6 +35,9 @@
 import { createContext, useContext } from 'react'
 
 import { LIBELLES, type Libelles } from '../contenu/libelles'
+import type { Phrases } from './phrases'
+import { PHRASES_EN } from './phrases.en'
+import { PHRASES_FR } from './phrases.fr'
 
 export type Langue = 'fr' | 'en'
 
@@ -118,11 +121,16 @@ export interface LangueDuSite {
   readonly changerLangue: (langue: Langue) => void
   /** Les libellés de l'interface, dans cette langue. */
   readonly libelles: Libelles
+  /** Les phrases de lecture des mesures, dans cette langue. */
+  readonly phrases: Phrases
 }
+
+/** Les phrases de chaque langue (`phrases.fr.ts`, `phrases.en.ts`). */
+export const PHRASES: Readonly<Record<Langue, Phrases>> = { fr: PHRASES_FR, en: PHRASES_EN }
 
 /** Ce que le contexte fournit pour une langue. */
 export function langueDuSite(langue: Langue, changerLangue: (langue: Langue) => void): LangueDuSite {
-  return { langue, changerLangue, libelles: LIBELLES[langue] }
+  return { langue, changerLangue, libelles: LIBELLES[langue], phrases: PHRASES[langue] }
 }
 
 /**

@@ -24,7 +24,6 @@ import { useEffect, useRef } from 'react'
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { useLangue } from '../lib/langue'
-import { phraseFenetreReduite, phraseFraicheurPositions } from '../lib/phrases'
 import { cheminDe } from '../lib/route'
 import { BoutonLangue } from './BoutonLangue'
 import { Lien } from './Lien'
@@ -112,8 +111,8 @@ export function useHauteurPubliee() {
 }
 
 export function Bandeau({ analyse }: { analyse: Analysis }) {
-  const { langue, libelles } = useLangue()
-  const reduite = phraseFenetreReduite(
+  const { langue, libelles, phrases } = useLangue()
+  const reduite = phrases.phraseFenetreReduite(
     analyse.estimation_window,
     analyse.limiting_positions,
   )
@@ -141,7 +140,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
           </span>
         </p>
         <p className={styles.ligne}>
-          {phraseFraicheurPositions(analyse.portfolio.updated_at)}
+          {phrases.phraseFraicheurPositions(analyse.portfolio.updated_at)}
         </p>
         {reduite !== null && (
           <p className={styles.reduite}>

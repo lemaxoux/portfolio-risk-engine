@@ -54,21 +54,8 @@ import { optionsHistogramme } from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import { ESPACE_INSECABLE, compte, points, pourcentage, TIRET_INDEFINI } from '../lib/format'
-import { useLangue, type Langue } from '../lib/langue'
-import {
-  NE_DIT_PAS_COURBES,
-  NE_DIT_PAS_VOLATILITE,
-  introJourOrdinaire,
-  lectureCVaR,
-  lectureDuNiveau,
-  lectureVarHistorique,
-  lectureVarParametrique,
-  lectureVolatilite,
-  legendeHistogramme,
-  neDitPasCVaR,
-  neDitPasVarHistorique,
-} from '../lib/phrases'
+import { pourcentage, TIRET_INDEFINI } from '../lib/format'
+import { PHRASES, useLangue, type Langue } from '../lib/langue'
 import {
   provenanceDeCVaR,
   provenanceDeVar,
@@ -98,7 +85,7 @@ function CoupleParametrique({
   raisonMonteCarlo: string | null
   devise: string
 }) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.jourOrdinaire
   const confiance = niveauLu(niveau.confidence, langue)
   const student = niveau.student_parametric_var
@@ -109,7 +96,7 @@ function CoupleParametrique({
         niveau="secondaire"
         libelle={l.varNormale(confiance)}
         valeur={pourcentage(niveau.parametric_var.value, 2, langue)}
-        lecture={lectureVarParametrique(niveau.parametric_var, 'normale', devise)}
+        lecture={phrases.lectureVarParametrique(niveau.parametric_var, 'normale', devise)}
         provenance={provenanceDeVar(
           niveau.parametric_var,
           niveau.monte_carlo_var,
@@ -124,7 +111,7 @@ function CoupleParametrique({
           niveau="secondaire"
           libelle={l.varStudent(confiance)}
           valeur={pourcentage(student.value, 2, langue)}
-          lecture={lectureVarParametrique(student, 'de Student', devise)}
+          lecture={phrases.lectureVarParametrique(student, 'de Student', devise)}
           provenance={provenanceDeVar(student, niveau.student_monte_carlo_var, null, langue)}
         />
       ) : (
@@ -139,24 +126,14 @@ function CoupleParametrique({
 
 /**
  * La phrase que lit un lecteur d'écran à la place de l'histogramme (§13) : la
- * conclusion, pas la forme. Chaque nombre est un champ publié ; la fréquence
- * vient de la table de `lib/phrases`.
+ * conclusion, pas la forme. Elle est rédigée dans `lib/phrases.*`.
  */
 export function descriptionHistogramme(
   histogramme: ReturnHistogram,
   niveaux: readonly TailRiskLevel[],
+  langue: Langue = 'fr',
 ): string {
-  const seuils = niveaux.flatMap((niveau) => {
-    const seuil = niveau.expected_shortfall.threshold
-    const jour =
-      lectureDuNiveau(niveau.confidence)?.jour ?? `au niveau ${pourcentage(niveau.confidence, 0)}`
-    return seuil === null ? [] : [`${jour} à ${pourcentage(seuil, 2)} ou moins`]
-  })
-  const debut =
-    `Variations de ${compte(histogramme.window.observations, 'jour de bourse', 'jours de bourse')}, ` +
-    `par tranches de ${points(histogramme.bin_width, 2)}`
-  // Aucun niveau calculable : la phrase s'arrête aux tranches, sans seuil.
-  return seuils.length === 0 ? `${debut}.` : `${debut}${ESPACE_INSECABLE}: ${seuils.join(', ')}.`
+  return PHRASES[langue].descriptionHistogramme(histogramme, niveaux)
 }
 
 interface Props {
@@ -179,7 +156,7 @@ export function SectionJourOrdinaire({
   devise,
   periode,
 }: Props) {
-  const { langue, libelles } = useLangue()
+  const { langue, libelles, phrases } = useLangue()
   const l = libelles.jourOrdinaire
   const niveaux = risque.tail_risk.levels
   const raisonStudent = risque.tail_risk.student_unavailable_reason
@@ -188,7 +165,7 @@ export function SectionJourOrdinaire({
     (contexte: ContexteGraphique) => optionsHistogramme({ histogramme, niveaux }, contexte),
     [histogramme, niveaux],
   )
-  const introduction = introJourOrdinaire(periode)
+  const introduction = phrases.introJourOrdinaire(periode)
 
   return (
     <Section ancre="jour-ordinaire" numero={2} titre={libelles.sections[1]} introduction={introduction}>
@@ -202,8 +179,8 @@ export function SectionJourOrdinaire({
               key={niveau.confidence}
               libelle={l.varHistorique(niveauLu(niveau.confidence, langue))}
               valeur={valeur === null ? TIRET_INDEFINI : pourcentage(valeur, 2, langue)}
-              lecture={lectureVarHistorique(niveau.historical_var, 2, devise)}
-              neDitPas={neDitPasVarHistorique(
+              lecture={phrases.lectureVarHistorique(niveau.historical_var, 2, devise)}
+              neDitPas={phrases.neDitPasVarHistorique(
                 niveau.historical_var,
                 risque.worst_day,
                 niveau.expected_shortfall.tail_observations,
@@ -220,11 +197,11 @@ export function SectionJourOrdinaire({
           unite={l.uniteHistogramme(histogramme.bin_width)}
           fenetre={histogramme.window}
           asOf={asOf}
-          description={descriptionHistogramme(histogramme, niveaux)}
+          description={descriptionHistogramme(histogramme, niveaux, langue)}
           options={options}
         >
           <p className={styles.legende}>
-            {legendeHistogramme(
+            {phrases.legendeHistogramme(
               niveaux
                 .filter((niveau) => niveau.expected_shortfall.threshold !== null)
                 .map((niveau) => niveau.confidence),
@@ -248,15 +225,15 @@ export function SectionJourOrdinaire({
           devise={devise}
         />
       ))}
-      <p className={commun.neDitPas}>{NE_DIT_PAS_COURBES}</p>
+      <p className={commun.neDitPas}>{phrases.NE_DIT_PAS_COURBES}</p>
 
       <h3 className={commun.sousTitre}>{l.ampleur}</h3>
       <div className={commun.rangee}>
         <Measure
           libelle={l.volatilite}
           valeur={pourcentage(risque.volatility.annualised, 1, langue)}
-          lecture={lectureVolatilite(risque.benchmark_volatility, parametres)}
-          neDitPas={NE_DIT_PAS_VOLATILITE}
+          lecture={phrases.lectureVolatilite(risque.benchmark_volatility, parametres)}
+          neDitPas={phrases.NE_DIT_PAS_VOLATILITE}
           provenance={provenanceDeVolatilite(risque.volatility, langue)}
           caveat={risque.volatility.caveat}
         />
@@ -272,8 +249,8 @@ export function SectionJourOrdinaire({
               key={niveau.confidence}
               libelle={l.cvar(niveauLu(niveau.confidence, langue))}
               valeur={cvar.value === null ? TIRET_INDEFINI : pourcentage(cvar.value, 2, langue)}
-              lecture={lectureCVaR(cvar, devise)}
-              neDitPas={neDitPasCVaR(cvar)}
+              lecture={phrases.lectureCVaR(cvar, devise)}
+              neDitPas={phrases.neDitPasCVaR(cvar)}
               provenance={provenanceDeCVaR(cvar, langue)}
               caveat={cvar.caveat}
             />
