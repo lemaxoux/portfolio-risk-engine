@@ -830,7 +830,10 @@ la copie figée que lisent les tests) :
 Seulement le texte ; l'écran qui le portera relève de la Phase 7. Sa source est
 `backend/rules/disclaimer.py`, qui tire la taille de la fenêtre de la configuration
 du moteur : le texte ne peut pas annoncer 504 séances le jour où le calcul en
-utiliserait un autre nombre. Le bandeau **vouvoie**, comme les observations et
+utiliserait un autre nombre. Depuis le chantier 7D, ce module décide (la durée
+en années ou en mois) et lit le texte de la langue demandée dans
+`backend/textes/fr/bandeau.py` ou `backend/textes/en/bandeau.py`. Le français y
+a été déplacé sans qu'un octet change : son empreinte est la même. Le bandeau **vouvoie**, comme les observations et
 toute la page depuis les textes de lecture du 2026-10-05 : les observations
 tutoyaient, et un seul registre vaut désormais partout. C'est le seul texte du
 projet à portée quasi juridique. Ce texte n'a pas été relu par un juriste.
@@ -949,6 +952,30 @@ qu'on peut contredire d'un argument est un défaut qu'on finit par contredire.
 | GET | `/api/csv-format` | format lu par l'import CSV : colonnes, séparateurs, décimales, encodages, limites, exemple |
 | DELETE | `/api/portfolios/{id}` | supprime le portefeuille et ses positions |
 | GET | `/api/portfolios/{id}/analysis` | rapport, scénarios, régimes, observations, bandeau |
+
+#### La langue des réponses : `?lang=fr` ou `?lang=en`
+
+Chantier 7D. Les routes qui publient du texte rédigé prennent un paramètre de
+requête `lang`, `fr` par défaut, `en` pour l'anglais américain. **Sans lui, ou
+avec `lang=fr`, chaque réponse est celle d'avant le chantier, octet pour
+octet** ; une autre valeur est refusée en 422. Pas d'en-tête
+`Accept-Language` : le navigateur l'envoie tout seul, et une réponse passerait
+en anglais sans que personne l'ait demandé.
+
+L'anglais s'ajoute à côté, domaine par domaine : l'écran d'acceptation d'abord
+(`/api/disclaimer`, et le `disclaimer` de l'analyse). Les phrases vivent dans
+`backend/textes/`, un module par langue et par domaine, mêmes noms et mêmes
+signatures ; le français y a été déplacé tel quel, et les noms qu'on lisait
+ailleurs (`rules.disclaimer.ACCEPTANCE_TITLE`…) le lisent de là. Le moteur et
+les règles décident (quelle variante, quel signe), les modules de texte
+rédigent. `tests/test_textes_symetriques.py` vérifie les deux langues nom par
+nom, exerce chaque fonction dans les deux et passe chaque sortie aux gardes de
+sa langue ; `tests/test_langue_api.py` vérifie, route par route, que le
+français n'a pas bougé.
+
+Le texte anglais de l'écran d'acceptation a sa propre empreinte : un visiteur
+qui passe à l'anglais l'accepte une fois. Le texte français n'a pas changé
+d'un octet, et l'acceptation française reste valable.
 
 #### L'analyse est un seul endpoint, et c'est une décision
 

@@ -88,12 +88,13 @@ from backend.risk_engine.scenarios import Scenario
 from backend.risk_engine.stress import PositionContribution
 from backend.risk_engine.var import StudentFit
 from backend.risk_engine.config import DEFAULT_WINDOW, PRICE_CURRENCY
+from backend.langue import Langue
 from backend.rules.disclaimer import (
-    ACCEPTANCE_CONFIRMATION,
-    ACCEPTANCE_TITLE,
     DisclaimerSection,
+    acceptance_confirmation,
     acceptance_sections,
     acceptance_text,
+    acceptance_title,
 )
 from backend.rules.rules import Observation, RulesReport
 from backend.rules.thresholds import Threshold
@@ -1576,18 +1577,21 @@ class DisclaimerOut(Schema):
     text: Texte
 
     @classmethod
-    def of(cls, rules_report: RulesReport, window: int) -> DisclaimerOut:
+    def of(
+        cls, rules_report: RulesReport, window: int, langue: Langue = "fr"
+    ) -> DisclaimerOut:
         return cls(
-            title=ACCEPTANCE_TITLE,
+            title=acceptance_title(langue),
             sections=[
-                DisclaimerSectionOut.of(s) for s in acceptance_sections(window)
+                DisclaimerSectionOut.of(s)
+                for s in acceptance_sections(window, langue=langue)
             ],
-            confirmation=ACCEPTANCE_CONFIRMATION,
+            confirmation=acceptance_confirmation(langue),
             text=rules_report.disclaimer,
         )
 
     @classmethod
-    def seul(cls, window: int = DEFAULT_WINDOW) -> DisclaimerOut:
+    def seul(cls, window: int = DEFAULT_WINDOW, langue: Langue = "fr") -> DisclaimerOut:
         """Le même bandeau, sans rapport d'analyse — pour `GET /api/disclaimer`.
 
         L'écran d'acceptation est traversé AVANT le premier accès, donc avant
@@ -1602,12 +1606,13 @@ class DisclaimerOut(Schema):
         que de le supposer.
         """
         return cls(
-            title=ACCEPTANCE_TITLE,
+            title=acceptance_title(langue),
             sections=[
-                DisclaimerSectionOut.of(s) for s in acceptance_sections(window)
+                DisclaimerSectionOut.of(s)
+                for s in acceptance_sections(window, langue=langue)
             ],
-            confirmation=ACCEPTANCE_CONFIRMATION,
-            text=acceptance_text(window),
+            confirmation=acceptance_confirmation(langue),
+            text=acceptance_text(window, langue=langue),
         )
 
 

@@ -7,11 +7,13 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
+from backend.langue import Langue
 from backend.risk_engine.config import PRICE_CURRENCY
 from backend.risk_engine.portfolio import latest_price_date, load_securities
 
 from .. import csv_import
 from ..dependencies import get_connection
+from ..langue import langue_demandee
 from ..schemas import CsvDelimiterOut, CsvFormatOut, DisclaimerOut, MetaOut
 from ..validation import MAX_POSITIONS
 
@@ -34,7 +36,7 @@ def read_meta(conn: sqlite3.Connection = Depends(get_connection)) -> MetaOut:
 
 
 @router.get("/disclaimer", response_model=DisclaimerOut)
-def read_disclaimer() -> DisclaimerOut:
+def read_disclaimer(langue: Langue = Depends(langue_demandee)) -> DisclaimerOut:
     """Le bandeau d'acceptation, EN LECTURE SEULE et sans portefeuille.
 
     L'écran d'acceptation est une page entière que l'on traverse avant le
@@ -44,13 +46,14 @@ def read_disclaimer() -> DisclaimerOut:
     réellement affiché le jour où le bandeau changerait — un texte à portée
     quasi juridique figé dans un bundle, sans que personne s'en aperçoive.
 
-    Cette route ne prend AUCUN paramètre et ne touche pas à la base. La fenêtre
-    citée est celle de la configuration du moteur (`DEFAULT_WINDOW`), la même
-    que celle qu'une analyse demande par défaut. Une analyse lancée sur une
-    autre fenêtre publie son propre texte dans sa réponse, où la fenêtre citée
-    est celle qui a réellement servi.
+    Cette route ne prend qu'un paramètre, la langue du texte (`lang`, « fr »
+    par défaut, chantier 7D), et ne touche pas à la base. La fenêtre citée est
+    celle de la configuration du moteur (`DEFAULT_WINDOW`), la même que celle
+    qu'une analyse demande par défaut. Une analyse lancée sur une autre fenêtre
+    publie son propre texte dans sa réponse, où la fenêtre citée est celle qui
+    a réellement servi.
     """
-    return DisclaimerOut.seul()
+    return DisclaimerOut.seul(langue=langue)
 
 
 @router.get("/csv-format", response_model=CsvFormatOut)

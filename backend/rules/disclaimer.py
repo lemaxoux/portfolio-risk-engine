@@ -8,25 +8,32 @@ La taille de la fenêtre d'estimation n'est pas écrite en dur : elle vient de l
 configuration du moteur, pour que le texte ne puisse pas dire « 504 séances » le
 jour où le calcul en utiliserait un autre nombre.
 
-Ce texte VOUVOIE, comme toute la page depuis les textes de lecture du
-2026-10-05 : les observations tutoyaient, et un seul registre vaut désormais
-partout. C'est le seul endroit du projet à portée quasi juridique.
-Ce texte n'a pas été relu par un juriste.
+DEUX LANGUES (chantier 7D). Ce module décide — la durée de la fenêtre se dit en
+années ou en mois, et combien — et lit le texte de la langue demandée dans
+`backend/textes/<langue>/bandeau.py`, « fr » par défaut. Le texte français y a
+été déplacé tel quel : son empreinte n'a pas changé, personne n'a à réaccepter.
+Le texte anglais a la sienne. Ni l'un ni l'autre n'a été relu par un juriste.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend import typography
+from backend.langue import Langue
 from backend.risk_engine.config import DEFAULT_WINDOW, TRADING_DAYS_PER_YEAR
+from backend.textes import textes
 
-ACCEPTANCE_TITLE = "Avant d'utiliser Mx Risk MGT"
+ACCEPTANCE_TITLE = textes("fr").bandeau.TITRE
 
-ACCEPTANCE_CONFIRMATION = (
-    "J'ai lu ces limites, je les comprends, et j'utilise cet outil en connaissance "
-    "de cause."
-)
+ACCEPTANCE_CONFIRMATION = textes("fr").bandeau.CONFIRMATION
+
+
+def acceptance_title(langue: Langue = "fr") -> str:
+    return textes(langue).bandeau.TITRE
+
+
+def acceptance_confirmation(langue: Langue = "fr") -> str:
+    return textes(langue).bandeau.CONFIRMATION
 
 
 @dataclass(frozen=True)
@@ -35,78 +42,34 @@ class DisclaimerSection:
     body: str
 
 
-def _duree(seances: int) -> str:
-    """« environ 2 ans », « environ 6 mois » : le nombre et son unité liés par
-    une espace insécable (`typography.counted`). Avec une espace ordinaire,
-    « soit environ 2 » finissait une ligne que « ans. » commençait."""
+def _duree(seances: int, langue: Langue = "fr") -> str:
+    """« environ 2 ans », « environ 6 mois », « about 2 years » : en années
+    quand la fenêtre en tombe à moins d'un vingtième près, en mois sinon. La
+    décision est ici ; l'écriture, nombre et unité liés par une espace
+    insécable, est dans le module de la langue."""
+    bandeau = textes(langue).bandeau
     annees = seances / TRADING_DAYS_PER_YEAR
     if abs(annees - round(annees)) < 0.05 and round(annees) >= 1:
-        return f"environ {typography.counted(round(annees), 'an')}"
-    return f"environ {typography.counted(round(seances / 21), 'mois', 'mois')}"
+        return bandeau.duree_en_annees(round(annees))
+    return bandeau.duree_en_mois(round(seances / 21))
 
 
-def acceptance_sections(window: int = DEFAULT_WINDOW) -> tuple[DisclaimerSection, ...]:
-    return (
-        DisclaimerSection(
-            title="Un outil informatif, pas un conseil",
-            body=(
-                "Mx Risk MGT décrit des propriétés statistiques de votre portefeuille. "
-                "Il ne constitue pas un conseil en investissement réglementé, ni une "
-                "recommandation d'acheter, de vendre ou de conserver un titre. Il ne "
-                "connaît ni votre horizon de placement, ni vos objectifs, ni votre "
-                "situation fiscale, ni le reste de votre patrimoine : aucune de ses "
-                "observations ne peut en tenir compte."
-            ),
-        ),
-        DisclaimerSection(
-            title="Aucune garantie d'exactitude",
-            body=(
-                "Les données de marché proviennent d'un fournisseur tiers et peuvent "
-                "comporter des erreurs, des retards ou des omissions. Les calculs "
-                "reposent sur des hypothèses statistiques et peuvent eux-mêmes être "
-                "erronés. Aucune garantie n'est donnée sur l'exactitude, "
-                "l'exhaustivité ou l'actualité des données ni des calculs."
-            ),
-        ),
-        DisclaimerSection(
-            title="Les mesures décrivent un régime, pas un avenir",
-            body=(
-                "Les mesures de risque courantes (volatilité, VaR, CVaR, beta, "
-                f"corrélations) sont estimées sur les {window} dernières "
-                "séances de "
-                f"bourse, soit {_duree(window)}. Elles décrivent le comportement du "
-                "portefeuille pendant cette période. Elles ne prédisent pas son "
-                "comportement futur, qui peut s'en écarter fortement, en particulier "
-                "lors d'une crise."
-            ),
-        ),
-        DisclaimerSection(
-            title="Les scénarios rejouent des crises passées, ils ne prédisent pas les prochaines",
-            body=(
-                "Les scénarios de stress appliquent à votre portefeuille actuel les "
-                "mouvements réellement observés pendant des crises passées. Ils ne "
-                "prédisent ni la survenue, ni l'ampleur, ni la forme d'une prochaine "
-                "crise, qui ne ressemblera pas nécessairement à celles-ci."
-            ),
-        ),
-        DisclaimerSection(
-            title="Utilisation à vos risques",
-            body=(
-                "Vous utilisez cet outil à vos propres risques, et les décisions que "
-                "vous prenez relèvent de votre seule responsabilité. La responsabilité "
-                "de l'auteur de l'outil ne peut être engagée pour les conséquences "
-                "de décisions fondées sur les informations qu'il affiche."
-            ),
-        ),
+def acceptance_sections(
+    window: int = DEFAULT_WINDOW, *, langue: Langue = "fr"
+) -> tuple[DisclaimerSection, ...]:
+    return tuple(
+        DisclaimerSection(title=titre, body=corps)
+        for titre, corps in textes(langue).bandeau.sections(window, _duree(window, langue))
     )
 
 
-def acceptance_text(window: int = DEFAULT_WINDOW) -> str:
+def acceptance_text(window: int = DEFAULT_WINDOW, *, langue: Langue = "fr") -> str:
     """Texte complet du bandeau, prêt à afficher."""
     sections = "\n\n".join(
-        f"{section.title}\n{section.body}" for section in acceptance_sections(window)
+        f"{section.title}\n{section.body}"
+        for section in acceptance_sections(window, langue=langue)
     )
-    return f"{ACCEPTANCE_TITLE}\n\n{sections}\n\n{ACCEPTANCE_CONFIRMATION}"
+    return f"{acceptance_title(langue)}\n\n{sections}\n\n{acceptance_confirmation(langue)}"
 
 
 ACCEPTANCE_TEXT = acceptance_text()

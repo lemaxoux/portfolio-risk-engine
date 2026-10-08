@@ -34,6 +34,7 @@ from dataclasses import replace
 from fastapi import APIRouter, Depends, Query, status
 
 from backend.db import portfolios as store
+from backend.langue import Langue
 from backend.risk_engine.config import (
     DEFAULT_BENCHMARK,
     DEFAULT_WINDOW,
@@ -51,6 +52,7 @@ from backend.rules.rules import evaluate
 
 from ..dependencies import get_connection
 from ..errors import ApiError, not_found, unprocessable
+from ..langue import langue_demandee
 from ..validation import normalise_ticker
 from ..schemas import (
     AnalysisOut,
@@ -138,6 +140,7 @@ def analyse(
         ),
     ),
     conn: sqlite3.Connection = Depends(get_connection),
+    langue: Langue = Depends(langue_demandee),
 ) -> AnalysisOut:
     """Rapport de risque, scénarios, régimes, observations et bandeau."""
     row = store.get(conn, portfolio_id)
@@ -162,7 +165,7 @@ def analyse(
     except ValueError as exc:
         raise unprocessable(str(exc)) from exc
 
-    rules_report = evaluate(report, scenarios, regimes)
+    rules_report = evaluate(report, scenarios, regimes, langue=langue)
 
     # Ordre canonique de toute la réponse : celui des colonnes de la matrice de
     # COVARIANCE. Les poids sont relus par ce même ordre plutôt que publiés dans
@@ -217,5 +220,5 @@ def analyse(
         scenarios=[ScenarioOut.of(s) for s in scenarios],
         regimes=[RegimeOut.of(r) for r in regimes],
         observations=[ObservationOut.of(o) for o in rules_report.observations],
-        disclaimer=DisclaimerOut.of(rules_report, report.window.requested),
+        disclaimer=DisclaimerOut.of(rules_report, report.window.requested, langue),
     )

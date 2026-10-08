@@ -46,11 +46,12 @@ export interface paths {
          *     réellement affiché le jour où le bandeau changerait — un texte à portée
          *     quasi juridique figé dans un bundle, sans que personne s'en aperçoive.
          *
-         *     Cette route ne prend AUCUN paramètre et ne touche pas à la base. La fenêtre
-         *     citée est celle de la configuration du moteur (`DEFAULT_WINDOW`), la même
-         *     que celle qu'une analyse demande par défaut. Une analyse lancée sur une
-         *     autre fenêtre publie son propre texte dans sa réponse, où la fenêtre citée
-         *     est celle qui a réellement servi.
+         *     Cette route ne prend qu'un paramètre, la langue du texte (`lang`, « fr »
+         *     par défaut, chantier 7D), et ne touche pas à la base. La fenêtre citée est
+         *     celle de la configuration du moteur (`DEFAULT_WINDOW`), la même que celle
+         *     qu'une analyse demande par défaut. Une analyse lancée sur une autre fenêtre
+         *     publie son propre texte dans sa réponse, où la fenêtre citée est celle qui
+         *     a réellement servi.
          */
         get: operations["read_disclaimer_api_disclaimer_get"];
         put?: never;
@@ -1630,7 +1631,10 @@ export interface operations {
     };
     read_disclaimer_api_disclaimer_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1644,6 +1648,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DisclaimerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1878,6 +1891,8 @@ export interface operations {
                 window?: number;
                 /** @description Indice de référence du beta, insensible à la casse. Chaîne vide pour désactiver le beta, lorsque l'indice n'est pas en base. */
                 benchmark?: string | null;
+                /** @description Langue des textes rédigés de la réponse : `fr` (défaut) ou `en`. Sans elle, la réponse est en français. */
+                lang?: "fr" | "en";
             };
             header?: never;
             path: {

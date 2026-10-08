@@ -55,6 +55,7 @@ from datetime import date
 from enum import Enum
 
 from backend import typography
+from backend.langue import Langue
 from backend.risk_engine.config import DEFAULT_WINDOW
 from backend.risk_engine.engine import (
     RegimeComparison,
@@ -989,8 +990,13 @@ def evaluate(
     report: RiskReport,
     scenarios: Sequence[ScenarioResult] = (),
     regimes: Sequence[RegimeComparison] = (),
+    *,
+    langue: Langue = "fr",
 ) -> RulesReport:
-    """Applique les six règles aux résultats déjà produits. Fonction pure."""
+    """Applique les six règles aux résultats déjà produits. Fonction pure.
+
+    `langue` choisit la langue du texte d'acceptation qui borne le rapport.
+    """
     observations = [
         effective_concentration(report),
         *variance_contribution(report, scenarios),
@@ -1003,7 +1009,7 @@ def evaluate(
         portfolio_id=report.portfolio_id,
         as_of=report.as_of,
         observations=tuple(observations),
-        disclaimer=acceptance_text(report.window.requested),
+        disclaimer=acceptance_text(report.window.requested, langue=langue),
     )
 
 
