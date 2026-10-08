@@ -31,6 +31,11 @@ et ne se versionnent pas.
   `tokens.test.ts`).
 - **Types de l'API engendrés, jamais écrits à la main** :
   `python -m tools.openapi_schema`, puis `cd frontend; npm run api:types`.
+- **Deux langues, un seul texte par langue.** Une phrase que publie le
+  serveur vit dans `backend/textes/fr/` et `backend/textes/en/`, mêmes noms
+  et mêmes signatures : elle s'ajoute dans les deux, avec ses cas dans
+  `tests/test_textes_symetriques.py`. Sans `?lang`, chaque réponse reste la
+  française d'avant le chantier 7D, octet pour octet (README, section 11).
 
 ## Tests
 

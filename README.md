@@ -2157,6 +2157,58 @@ L'analyse est redemandée quand le CONTENU des positions change, et non leur
 `updated_at`, daté au jour près : deux enregistrements le même jour auraient
 sinon laissé l'analyse du premier.
 
+### 11. Deux langues
+
+Chantier 7D. Le français reste la langue par défaut ; l'anglais est l'anglais
+américain, ponctuation de Chicago. Ce qui suit rassemble ce qui est décrit
+plus haut, à sa place, pour qui ajoute une phrase.
+
+**Le paramètre.** Chaque route qui publie du texte prend `?lang=fr` ou
+`?lang=en`, `fr` par défaut (section 9, « La langue des réponses »). Sans
+lui, ou avec `lang=fr`, chaque réponse est celle d'avant le chantier, octet
+pour octet ; seul `openapi.json` a changé, et c'est voulu.
+
+**Les modules.** Les phrases du serveur vivent dans `backend/textes/fr/` et
+`backend/textes/en/`, un module par domaine (`bandeau`, `moteur`, `regles`,
+`seuils`, `api`), mêmes noms et mêmes signatures. Le moteur, les règles et la
+couche API décident ; ces modules rédigent. Le français n'existe qu'à un
+endroit : là, ou, quand des tests le lisent ailleurs (`RuleId`, le nom et la
+justification d'un seuil, le catalogue des crises), à cet endroit-là, que le
+module français lit. Une phrase ajoutée l'est dans les deux langues, avec ses
+cas dans `tests/test_textes_symetriques.py`.
+
+**La typographie.** `backend/typography.py` et `src/lib/format.ts` prennent la
+langue en dernier argument (section 10, « Deux langues, les mêmes caractères
+des deux côtés ») : « 1.06% », « 83,185.85 », « April 4, 2025 », U+2212 pour
+le signe moins, U+00A0 entre un nombre et ce qu'il compte, singulier
+seulement pour « 1 ».
+
+**Les gardes.** `tests/gardes_texte.py` tient les gardes des deux langues, et
+`tests/test_gardes_texte.py` les éprouve sur leurs témoins (section 8).
+
+- `tests/test_textes_symetriques.py` : les deux langues nom par nom ; chaque
+  fonction exercée dans les deux, chaque sortie aux gardes de sa langue ;
+  aucune traduction oubliée ; les mêmes nombres des deux côtés ; chaque chaîne
+  du code de `textes/en/` lue, aucune trace de français.
+- `tests/test_langue_api.py` : le français octet pour octet, route par route
+  et refus par refus ; chaque observation et chaque refus anglais comparés au
+  français (même règle, mêmes faits, mêmes champs, mêmes nombres).
+- `tests/test_reponses_anglaises.py` : **aucune phrase française dans une
+  réponse anglaise**, sur toutes les routes et tous les jeux de test
+  (démonstration à 504 et 60 séances, portefeuille synthétique, fenêtres de
+  2 à 40 cotations, portefeuille vide, corps d'erreur, chemin inconnu, saisie
+  et import réussis). Toute chaîne est lue, hors données saisies ou reçues,
+  identifiants (`decimal_separator`) et garde-fous internes déclarés, que la
+  garde reconnaît par leur début, lu dans le code des modules déclarés.
+
+**En anglais, le passé rejoué porte son cadre** (section 9) : « In the
+replayed crises, … », « Over the past two years, … », « Over the same
+period, … » ; une phrase sans ce cadre dirait « would have ».
+
+**Ce qui reste à faire, en session 2** : le client. Le choix de la langue
+dans le bandeau, les libellés et les phrases de l'interface, la méthodologie
+anglaise, les relevés aux captures.
+
 ## Schéma de données
 
 Quatre tables (`backend/db/schema.sql`) :
@@ -2314,6 +2366,13 @@ l'ordre chronologique.
     - « Méthodologie » dans la navigation de toutes les pages, la page
       Portefeuilles comprise ; focus sur le titre que vise une adresse
   - [ ] 7D — L'interface en anglais
+    - [x] Session 1, le serveur (2026-10-08) : `?lang=en` sur chaque route
+      qui publie du texte, le français inchangé octet pour octet ; textes du
+      serveur en deux langues (`backend/textes/`) ; typographie anglaise des
+      deux côtés ; gardes doublées, aucune phrase française dans une réponse
+      anglaise
+    - [ ] Session 2, le client : choix de la langue, libellés, phrases,
+      méthodologie anglaise, relevés
   - [ ] 7E — Lien de chaque mesure vers sa méthode, tableaux équivalents aux
     graphiques, clavier, checklist §17
 - [ ] **Phase 8 — Documentation** : README méthodologie
