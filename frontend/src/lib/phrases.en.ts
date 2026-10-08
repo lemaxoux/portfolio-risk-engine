@@ -420,7 +420,7 @@ export const PHRASE_CONTRIBUTION_NEGATIVE =
   `${cite('by risk', EN)} is only an approximation.`
 
 export const NE_DIT_PAS_CORRELATION =
-  'A link measured in ordinary times can strengthen in a crisis (see section 5).'
+  'A link measured in ordinary times can become stronger in a crisis (see section 5).'
 
 // ═══════════════════════════════════════════════ Section 5 — in a crisis ══
 

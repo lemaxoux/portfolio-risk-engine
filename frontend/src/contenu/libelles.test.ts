@@ -170,7 +170,7 @@ const MOT_FRANCAIS =
   /\b(le|la|les|des|du|une|est|sont|sur|pour|avec|sans|aucun|aucune|séances?|portefeuilles?|jours? de bourse)\b/i
 const CONTRACTION = /\b\w+n't\b|\b(it|that|there|what|here)'s\b|'(re|ll|ve|d)\b/i
 const PRESCRIPTIF =
-  /\b(should|shall|must|ought|needs? to|recommend\w*|advis\w*|suggest\w*|consider(s|ed|ing)?|reduc\w*|trim\w*|sell(s|ing)?|buy(s|ing)?|avoid\w*|rebalanc\w*|diversif(y|ies|ying))\b/i
+  /\b(should|shall|must|ought|needs? to|needed to|ha(ve|s|d) to|recommend\w*|advis\w*|suggest\w*|consider(s|ed|ing)?|reduc\w*|trim\w*|lighten\w*|sell(s|ing)?|buy(s|ing)?|purchas\w*|strengthen\w*|favou?r\w*|prefer\w*|avoid\w*|rebalanc\w*|diversif(y|ies|ying))\b/i
 
 /**
  * Ce que la garde prescriptive lit comme une consigne et qui n'en est pas

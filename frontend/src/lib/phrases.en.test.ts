@@ -321,7 +321,7 @@ const CONTRACTION = /\b\w+n't\b|\b(it|that|there|what|here)'s\b|'(re|ll|ve|d)\b/
 const NON_PRESCRIPTIFS = ['Window reduced']
 
 const PRESCRIPTIF =
-  /\b(should|shall|must|ought|needs? to|recommend\w*|advis\w*|suggest\w*|consider(s|ed|ing)?|reduc\w*|trim\w*|sell(s|ing)?|buy(s|ing)?|avoid\w*|rebalanc\w*|diversif(y|ies|ying))\b/i
+  /\b(should|shall|must|ought|needs? to|needed to|ha(ve|s|d) to|recommend\w*|advis\w*|suggest\w*|consider(s|ed|ing)?|reduc\w*|trim\w*|lighten\w*|sell(s|ing)?|buy(s|ing)?|purchas\w*|strengthen\w*|favou?r\w*|prefer\w*|avoid\w*|rebalanc\w*|diversif(y|ies|ying))\b/i
 
 function fautesAnglaises(texte: string): string[] {
   const fautes: string[] = []
