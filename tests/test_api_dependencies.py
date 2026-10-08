@@ -41,19 +41,19 @@ def test_ouverte_dans_un_fil_utilisee_dans_un_autre_fermee_dans_un_troisieme(bas
     fils = []
 
     def ouvrir():
-        fils.append(threading.get_ident())
+        fils.append(threading.get_native_id())
         return next(dependance)
 
     conn = _dans_un_fil_neuf(ouvrir)
 
     def router():
-        fils.append(threading.get_ident())
+        fils.append(threading.get_native_id())
         return conn.execute("SELECT count(*) FROM portfolios").fetchone()[0]
 
     assert _dans_un_fil_neuf(router) == 0
 
     def fermer():
-        fils.append(threading.get_ident())
+        fils.append(threading.get_native_id())
         next(dependance, None)
 
     _dans_un_fil_neuf(fermer)
