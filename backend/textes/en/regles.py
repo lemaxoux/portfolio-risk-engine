@@ -297,7 +297,7 @@ def paire_forte(periode: str, premier: str, second: str, correlation: float) -> 
         f"Over {periode}, {premier} and {second} largely moved together "
         f"(correlation of {typography.number(correlation, 2, langue='en')}): "
         "between them, they provide less diversification than their number "
-        "would lead one to think."
+        "implies."
     )
 
 

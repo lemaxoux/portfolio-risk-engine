@@ -147,6 +147,11 @@ def counted(
     « 1 séance », « 2 séances ». C'est la règle française, où zéro et un
     prennent le singulier.
 
+    Sans `affiche`, le nombre s'écrit comme `compte` côté client : entier,
+    groupé par milliers à partir de quatre chiffres (« 2 520 séances »,
+    « 2,520 sessions »). Il s'écrivait nu (« 2520 séances »), à côté d'un
+    « 2 520 » du client pour le même nombre (chantier 7D, session 2).
+
     `affiche` remplace l'écriture du nombre sans toucher à l'accord : c'est
     `nombre` qui décide du pluriel, pas la chaîne rendue. Un « 100 000 » groupé
     ne doit pas avoir à être réinterprété pour savoir s'il prend un « s ».
@@ -155,7 +160,7 @@ def counted(
     « 1 » : « 1 session », mais « 0 sessions » et « 1.0 holdings ». C'est
     alors l'écriture qui décide, signe à part.
     """
-    ecrit = nombre if affiche is None else affiche
+    ecrit = number(nombre, 0, langue=langue) if affiche is None else affiche
     if langue == "en":
         au_singulier = str(ecrit).lstrip("+-" + MINUS) == "1"
     else:

@@ -23,8 +23,12 @@ from backend import typography
 
 def lignes_refusees(nombre: int) -> str:
     """L'en-tête d'un refus de plusieurs lignes ; un refus unique est repris
-    tel quel, sans décompte."""
-    return f"{nombre} lignes refusées : aucune position n'a été écrite."
+    tel quel, sans décompte. Le nombre est lié à son mot (« 2 lignes
+    refusées », insécable) depuis la session 2 du chantier 7D."""
+    return (
+        f"{typography.counted(nombre, 'ligne refusée', 'lignes refusées')} : "
+        "aucune position n'a été écrite."
+    )
 
 
 def ecriture_refusee(raison: str) -> str:
@@ -54,7 +58,8 @@ AUCUNE_POSITION = (
 
 def trop_de_positions(soumises: int, maximum: int) -> str:
     return (
-        f"{soumises} positions soumises, maximum {maximum}. "
+        f"{typography.counted(soumises, 'position soumise', 'positions soumises')}, "
+        f"maximum {typography.thousands(maximum)}. "
         "Cette limite protège la mémoire du processus ; elle n'a pas "
         "de justification méthodologique."
     )
@@ -135,7 +140,7 @@ def colonnes_manquantes(manquantes: Sequence[str], en_tete: str, lues: Sequence[
 
 def fichier_trop_volumineux(maximum: int) -> str:
     return (
-        f"Fichier trop volumineux : maximum {maximum} octets. "
+        f"Fichier trop volumineux : maximum {typography.counted(maximum, 'octet')}. "
         "Un portefeuille tient en quelques kilo-octets."
     )
 

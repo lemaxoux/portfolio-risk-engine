@@ -38,6 +38,7 @@
     {"fonction": "séances", "arguments": [1], "fr": "1\u00a0séance", "en": "1\u00a0session"},
     {"fonction": "séances", "arguments": [2], "fr": "2\u00a0séances", "en": "2\u00a0sessions"},
     {"fonction": "séances", "arguments": [504], "fr": "504\u00a0séances", "en": "504\u00a0sessions"},
+    {"fonction": "séances", "arguments": [2520], "fr": "2\u202f520\u00a0séances", "en": "2,520\u00a0sessions"},
     {"fonction": "lignes", "arguments": [1], "fr": "1\u00a0ligne", "en": "1\u00a0holding"},
     {"fonction": "lignes", "arguments": [6], "fr": "6\u00a0lignes", "en": "6\u00a0holdings"},
     {"fonction": "date longue", "arguments": ["2026-09-09"], "fr": "9\u00a0septembre\u00a02026", "en": "September\u00a09,\u00a02026"},

@@ -1678,7 +1678,9 @@ qu'il écrivait. L'anglais est l'anglais américain, ponctuation de Chicago :
 | Nombre en lettres | zéro à dix | zero à ten |
 
 Le premier du mois s'écrit « 1er » en français, des deux côtés, depuis ce
-chantier. Une seule table de cas, `frontend/src/lib/typographie-partagee.json`,
+chantier. Un nombre compté se groupe par milliers des deux côtés depuis sa
+session 2 (« 2 520 séances », « 2,520 sessions ») : `counted` l'écrivait nu,
+à côté du « 2 520 » de `compte`. Une seule table de cas, `frontend/src/lib/typographie-partagee.json`,
 est lue par `test_typographie_partagee.py` et par `format.test.ts` : chaque
 moitié doit écrire, pour chaque cas et dans chaque langue, exactement la même
 chaîne. Le type des langues est `backend/langue.py` côté serveur,

@@ -74,12 +74,6 @@ REGISTRE_EXEMPTE = {"bandeau"}
 # CVaR se ramène au même minimum), pas le conseil de réduire une ligne.
 NON_PRESCRIPTIFS = ("se réduirait au même minimum",)
 
-# Une écriture française d'avant le chantier, que la garde de l'espace avant le
-# mot compté voit et que le chantier ne corrige pas, le français ne changeant
-# pas d'un octet : « 2 lignes refusées », en-tête d'un refus de plusieurs
-# lignes, avec une espace ordinaire. L'anglais lie le nombre à son mot.
-ESPACES_D_AVANT = {("fr", "api", "lignes_refusees")}
-
 # Le nom et la justification d'un seuil gardent ses formules : celles de sa
 # déclaration française (`test_un_seuil_dit_les_memes_nombres_…`).
 FORMULES_DES_SEUILS = {("seuils", "nom"), ("seuils", "justification"), ("seuils", "ligne")}
@@ -446,14 +440,7 @@ def chaines(sortie) -> list[str]:
 def fautes_de_publication(texte: str, langue: str, domaine: str, nom: str) -> list[str]:
     """Les gardes de la langue, sur le texte tel que l'API le publie."""
     publie = prose(texte)
-    fautes = [
-        f
-        for f in fautes_de_forme(publie, langue, grec_admis=grec_admis(domaine, nom))
-        if not (
-            (langue, domaine, nom) in ESPACES_D_AVANT
-            and f.startswith("espace avant le mot compté")
-        )
-    ]
+    fautes = fautes_de_forme(publie, langue, grec_admis=grec_admis(domaine, nom))
     registre = publie
     for expression in NON_PRESCRIPTIFS:
         registre = registre.replace(expression, "")
@@ -679,10 +666,11 @@ def test_l_exception_prescriptive_est_declaree_mot_pour_mot():
     assert fautes_de_publication("Elle se réduirait de moitié.", "fr", "seuils", "nom")
 
 
-def test_l_ecriture_francaise_d_avant_le_chantier_est_declaree_pour_elle_seule():
-    """L'espace ordinaire de « 2 lignes refusées » passe pour cette fonction
-    française ; ailleurs, et en anglais, la garde la voit encore."""
+def test_l_ecriture_francaise_d_avant_le_chantier_n_a_plus_d_exception():
+    """« 2 lignes refusées », avec une espace ordinaire, était déclaré à la
+    garde de l'espace avant le mot compté ; corrigé en session 2, il n'a plus
+    d'exception : l'ancienne écriture est vue, dans les deux langues."""
     francais = "2 lignes refusées : aucune position n'a été écrite."
-    assert fautes_de_publication(francais, "fr", "api", "lignes_refusees") == []
-    assert fautes_de_publication(francais, "fr", "api", "doublon")
+    assert fautes_de_publication(francais, "fr", "api", "lignes_refusees")
     assert fautes_de_publication("2 holdings rejected.", "en", "api", "lignes_refusees")
+    assert fautes_de_publication(fr.api.lignes_refusees(2), "fr", "api", "lignes_refusees") == []

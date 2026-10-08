@@ -9,9 +9,8 @@ intérieure ; un libellé d'un autre logiciel cité garde sa ponctuation dehors
 deux-points, comme en français.
 
 Chaque nombre passe par `typography`, groupé à l'anglaise à partir de quatre
-chiffres et lié au mot qu'il compte (« 1,000,000 bytes », « 2 lines ») ;
-quelques messages français, écrits avant le chantier, écrivent encore le
-leur tel quel, avec une espace ordinaire.
+chiffres et lié au mot qu'il compte (« 1,000,000 bytes », « 2 lines »), comme
+le français depuis la session 2 du chantier.
 """
 
 from __future__ import annotations
