@@ -36,7 +36,7 @@ Versions are pinned on both sides (`requirements.txt`, `requirements-dev.txt`,
 | `backend/ingestion` | backfill, refresh, single additions, status, rebuild; writes prices and computes no risk | `tests/test_ingestion.py`, on doubles of the provider |
 | `backend/risk_engine` | pure functions in `measures`, `covariance`, `var`, `returns`, `stress`, `regime`; `portfolio` reads SQLite; `engine` composes and attaches its window to every result | tests on synthetic data with known results, and identities held to floating-point tolerance |
 | `backend/rules` | reads the results of the engine and turns them into findings; imports no calculation module | `test_le_moteur_de_regles_n_importe_aucun_module_de_calcul` |
-| `backend/textes` | writes every published sentence, one module per language and per domain; the engine and the rules decide which sentence | `tests/test_textes_symetriques.py` |
+| `backend/textes` | writes every published sentence, one module per language and per domain; the engine and the rules decide which sentence; may read the constants and pure helpers of `risk_engine.config`, nothing else from the engine | `tests/test_textes_symetriques.py` |
 | `backend/api` | HTTP only: no arithmetic, no SQL, no `asdict`, no `exclude_none`; imports only types from the calculation modules | `tests/test_api_discipline.py` |
 | `backend/db` | schema, initialization, explicit migrations, writes of user data | `tests/test_db_schema.py`, `tests/test_db_migration.py` |
 | `backend/typography.py`, `frontend/src/lib/format.ts` | the only places that write a number | `tests/test_nombres_publies.py`, `tests/test_typographie_partagee.py` |

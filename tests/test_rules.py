@@ -8,6 +8,7 @@ chaque règle, ses seuils et leur provenance, et le texte du bandeau.
 from __future__ import annotations
 
 import ast
+import math
 import re
 from contextlib import closing
 from dataclasses import fields, replace
@@ -18,7 +19,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from backend import typography
 from backend.db.init_db import connect, init_db
+from backend.risk_engine.config import sample_std_relative_error
 from backend.risk_engine.covariance import effective_risk_positions, variance_contributions
 from backend.risk_engine.engine import (
     ConcentrationResult,
@@ -553,6 +556,76 @@ def test_le_minimum_de_seances_d_une_loi_est_le_cinquieme_seuil_choisi():
         if seuil.chosen
     ]
     assert len(choisis) == 5
+
+
+# ─────────────────────────────────── 1/√(2n) : la formule, pas la main ──
+#
+# Deux justifications citent l'erreur type relative d'un écart-type
+# d'échantillon, environ 1/√(2n), sur quelques fenêtres. Chaque pourcentage
+# cité doit être la formule, écrite par `typography` à la précision qu'il
+# affiche : écrit à la main, l'un d'eux s'en était écarté (phase 8, E2). Le
+# test lit le texte publié, pas le code qui l'écrit.
+
+PAIRE_ERREUR_TYPE = {
+    "fr": re.compile(
+        rf"(?P<ecrit>[0-9]+(?:,(?P<decimales>[0-9]+))?{typography.NARROW_NBSP}%)"
+        rf" sur (?P<seances>[0-9]+){typography.NBSP}séances"
+    ),
+    "en": re.compile(
+        r"(?P<ecrit>[0-9]+(?:\.(?P<decimales>[0-9]+))?%)"
+        rf" over (?P<seances>[0-9]+){typography.NBSP}sessions"
+    ),
+}
+
+
+def ecarts_a_la_formule(texte: str, langue: str) -> tuple[int, list[str]]:
+    """Le nombre de paires « x % sur n séances » d'un texte, et celles dont x
+    n'est pas 1/√(2n) écrit à la précision affichée."""
+    paires = list(PAIRE_ERREUR_TYPE[langue].finditer(texte))
+    fautes = []
+    for paire in paires:
+        seances = int(paire["seances"])
+        attendu = typography.percent(
+            1.0 / math.sqrt(2 * seances), len(paire["decimales"] or ""), langue=langue
+        )
+        if paire["ecrit"] != attendu:
+            fautes.append(f"{paire['ecrit']} sur {seances} : la formule donne {attendu}")
+    return len(paires), fautes
+
+
+def test_l_erreur_type_relative_d_un_ecart_type_vaut_un_sur_racine_de_2n():
+    for seances in (1, 7, 30, 60, 504):
+        assert sample_std_relative_error(seances) == pytest.approx(
+            1.0 / math.sqrt(2 * seances), rel=1e-15
+        )
+    with pytest.raises(ValueError):
+        sample_std_relative_error(0)
+
+
+@pytest.mark.parametrize("langue", ("fr", "en"))
+@pytest.mark.parametrize(
+    "seuil", (STUDENT_NU_CEILING, MIN_DISTRIBUTION_SAMPLE), ids=lambda seuil: seuil.key
+)
+def test_les_pourcentages_de_1_sur_racine_de_2n_sont_ceux_de_la_formule(seuil, langue):
+    paires, fautes = ecarts_a_la_formule(seuil.justification(langue), langue)
+    assert paires == 2, "chaque justification cite deux fenêtres : le test ne passe pas à vide"
+    assert fautes == []
+
+
+@pytest.mark.parametrize(
+    "langue, juste, fautif",
+    (
+        ("fr", f"3,1{typography.NARROW_NBSP}%", f"3,2{typography.NARROW_NBSP}%"),
+        ("en", "3.1%", "3.2%"),
+    ),
+)
+def test_un_pourcentage_ecrit_a_la_main_s_ecarte_de_la_formule(langue, juste, fautif):
+    """Témoin : la justification d'avant, « 3,2 % sur 504 séances », échoue."""
+    texte = STUDENT_NU_CEILING.justification(langue)
+    assert texte.count(juste) == 1
+    paires, fautes = ecarts_a_la_formule(texte.replace(juste, fautif), langue)
+    assert paires == 2
+    assert len(fautes) == 1, fautes
 
 
 class _Piege:

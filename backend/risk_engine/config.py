@@ -190,6 +190,22 @@ def historical_var_min_observations(confidence: float) -> int:
     # 1/(1 − 0,9) dépasse 10 d'un rien, que le plafond porterait à 11.
     return math.ceil(round(1.0 / (1.0 - confidence), 9))
 
+# -------------------- Erreur type relative d'un écart-type d'échantillon --
+#
+# Sous normalité, l'écart-type d'échantillon de n séances varie d'une fenêtre à
+# l'autre d'environ 1/√(2n) de sa valeur. Les justifications de
+# `MAX_STUDENT_NU` et de `MIN_DISTRIBUTION_OBSERVATIONS` (`rules.thresholds`,
+# et leur anglais dans `textes/en/seuils.py`) en citent la valeur sur quelques
+# fenêtres : elles l'écrivent par cette fonction, pour qu'aucun pourcentage
+# publié ne s'écarte de la formule qu'il accompagne. `tests/test_rules.py` le
+# vérifie sur le texte publié, dans les deux langues.
+def sample_std_relative_error(observations: int) -> float:
+    """Erreur type relative d'un écart-type d'échantillon de `observations`
+    séances sous normalité, en fraction : environ 1/√(2n)."""
+    if observations < 1:
+        raise ValueError(f"Au moins une séance (reçu : {observations}).")
+    return 1.0 / math.sqrt(2.0 * observations)
+
 # ------------------------------------------ ν maximal d'une loi de Student --
 #
 # Au-delà de ν = 30, l'ajustement d'une loi de Student est REFUSÉ, avec sa
@@ -213,12 +229,14 @@ def historical_var_min_observations(confidence: float) -> int:
 # 99 % et de −0,31 % à 95 % pour ν = 30, en relatif, et de moins encore
 # au-delà : 2,05 % au plus à 99 %, 0,31 % au plus à 95 %. C'est bien en deçà
 # de l'erreur d'estimation elle-même : l'erreur type relative d'un écart-type
-# d'échantillon vaut environ 1/√(2n) — 9 % sur 60 séances, 3,2 % encore sur
-# 504. Ce chiffre est calculé SOUS NORMALITÉ ; avec des queues épaisses,
-# l'erreur est plus grande encore, si bien que l'argument est prudent. Un ν
-# au-delà de 30 ne dit rien que la normale ne dise déjà ; le publier ferait
-# passer un nombre sans signification pour une mesure de la queue.
-# `tests/test_student.py` vérifie ces écarts.
+# d'échantillon vaut environ 1/√(2n) (`sample_std_relative_error`, plus haut).
+# La justification publiée l'écrit sur la fenêtre la plus courte que l'API
+# accepte et sur la fenêtre par défaut ; `tests/test_rules.py` tient ces
+# pourcentages à la formule. Cette erreur est calculée SOUS NORMALITÉ ; avec
+# des queues épaisses, elle est plus grande encore, si bien que l'argument est
+# prudent. Un ν au-delà de 30 ne dit rien que la normale ne dise déjà ; le
+# publier ferait passer un nombre sans signification pour une mesure de la
+# queue. `tests/test_student.py` vérifie ces écarts.
 #
 # ── Pourquoi un refus, et non un plafond ──
 #
@@ -240,8 +258,11 @@ MAX_STUDENT_NU = 30.0
 #     marquées comme estimation mince (`caveat`). Elles bougent avec les
 #     données, elles ne sont donc pas refusées (METHODOLOGY.md, « Where
 #     refusal stops ») ; mais sous normalité, l'écart-type d'échantillon qui
-#     les porte varie d'environ 1/√(2n) d'une fenêtre à l'autre — 13 % sur
-#     30 séances, 27 % sur 7. Le moteur de règles n'en tire aucune conclusion.
+#     les porte varie d'environ 1/√(2n) d'une fenêtre à l'autre
+#     (`sample_std_relative_error`) : la justification publiée l'écrit sur ce
+#     seuil et sur une fenêtre très courte, et `tests/test_rules.py` tient ces
+#     pourcentages à la formule. Le moteur de règles n'en tire aucune
+#     conclusion.
 #
 # SEUIL CHOISI À LA MAIN, le cinquième du projet, déclaré comme tel dans
 # `rules.thresholds.MIN_DISTRIBUTION_SAMPLE` : trente est la convention

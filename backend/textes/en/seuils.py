@@ -60,6 +60,18 @@ def nom(seuil: Threshold) -> str:
 
 
 def justification(seuil: Threshold) -> str:
+    # La seule lecture du moteur que s'autorise un module de textes : les
+    # constantes et les fonctions pures de sa configuration (ARCHITECTURE.md,
+    # « Module boundaries »). Importée à l'appel : au chargement du module,
+    # elle chargerait `backend.risk_engine`, dont le moteur importe
+    # `backend.textes` avant que ce paquet ait fini de se charger.
+    from backend.risk_engine.config import (
+        DEFAULT_WINDOW,
+        MIN_DISTRIBUTION_OBSERVATIONS,
+        MIN_REGRESSION_OBSERVATIONS,
+        sample_std_relative_error,
+    )
+
     match seuil.key:
         case "STRONG_CORRELATION":
             return (
@@ -87,19 +99,23 @@ def justification(seuil: Threshold) -> str:
                 f"it by at most {_pourcentage(0.0205, 2)} at {_pourcentage(0.99, 0)} "
                 f"and by at most {_pourcentage(0.0031, 2)} at "
                 f"{_pourcentage(0.95, 0)}, far less than the standard error of a "
-                "sample standard deviation, about 1/√(2n) under normality "
-                f"({_pourcentage(0.09, 0)} over {_seances(60)}, "
-                f"{_pourcentage(0.032, 1)} over {_seances(504)}) and more with "
-                "fat tails"
+                "sample standard deviation, about 1/√(2n) under normality ("
+                f"{_pourcentage(sample_std_relative_error(MIN_REGRESSION_OBSERVATIONS), 0)}"
+                f" over {_seances(MIN_REGRESSION_OBSERVATIONS)}, "
+                f"{_pourcentage(sample_std_relative_error(DEFAULT_WINDOW), 1)}"
+                f" over {_seances(DEFAULT_WINDOW)}) and more with fat tails"
             )
         case "MIN_DISTRIBUTION_SAMPLE":
             return (
                 "usual “large sample” convention, which no calculation on the "
                 "portfolio produces; under normality, the sample standard "
                 "deviation behind the volatility and the parametric VaR varies by "
-                "about 1/√(2n) from one window to the next "
-                f"({_pourcentage(0.13, 0)} over {_seances(30)}, "
-                f"{_pourcentage(0.27, 0)} over {_seances(7)}), and fitting a "
+                "about 1/√(2n) from one window to the next ("
+                f"{_pourcentage(sample_std_relative_error(MIN_DISTRIBUTION_OBSERVATIONS), 0)}"
+                f" over {_seances(MIN_DISTRIBUTION_OBSERVATIONS)}, "
+                # Sept séances : l'exemple du français, cité comme tel.
+                f"{_pourcentage(sample_std_relative_error(7), 0)}"
+                f" over {_seances(7)}), and fitting a "
                 "Student's t-distribution rests on one or two sessions in the tail"
             )
         case "MIN_ESTIMABLE_SAMPLE":

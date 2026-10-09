@@ -674,3 +674,111 @@ def test_l_ecriture_francaise_d_avant_le_chantier_n_a_plus_d_exception():
     assert fautes_de_publication(francais, "fr", "api", "lignes_refusees")
     assert fautes_de_publication("2 holdings rejected.", "en", "api", "lignes_refusees")
     assert fautes_de_publication(fr.api.lignes_refusees(2), "fr", "api", "lignes_refusees") == []
+
+
+# ═════════════════════════════════════ Ce que les textes lisent du moteur ══
+#
+# Un module de textes rédige : il ne décide ni ne calcule. Du moteur, il peut
+# lire les constantes et les fonctions pures de sa configuration,
+# `backend.risk_engine.config`, et rien d'autre (ARCHITECTURE.md, « Module
+# boundaries ») : la justification anglaise d'un seuil y lit 1/√(2n).
+
+TEXTES = Path(fr.__path__[0]).parent
+MOTEUR = "backend.risk_engine"
+CONFIGURATION = "backend.risk_engine.config"
+
+
+def lectures_du_moteur(source: str, paquet: str) -> list[str]:
+    """Ce qu'un module du paquet `paquet` lit du moteur, sa configuration
+    exceptée : imports absolus et relatifs, faits au chargement ou dans une
+    fonction, et imports dynamiques par leur nom."""
+
+    def du_moteur(nom: str) -> bool:
+        return nom == MOTEUR or nom.startswith(MOTEUR + ".")
+
+    def permise(nom: str) -> bool:
+        return nom == CONFIGURATION or nom.startswith(CONFIGURATION + ".")
+
+    lus: set[str] = set()
+    for noeud in ast.walk(ast.parse(source)):
+        if isinstance(noeud, ast.Import):
+            noms = [alias.name for alias in noeud.names]
+        elif isinstance(noeud, ast.ImportFrom):
+            base = noeud.module or ""
+            if noeud.level:
+                parties = paquet.split(".")
+                parties = parties[: len(parties) - (noeud.level - 1)]
+                base = ".".join(parties + ([base] if base else []))
+            # « from module import nom » lit le module ; « from paquet import
+            # nom » lit paquet.nom, qui peut être un sous-module.
+            if du_moteur(base) and base != MOTEUR:
+                noms = [base]
+            else:
+                noms = [f"{base}.{alias.name}" for alias in noeud.names]
+        elif (
+            isinstance(noeud, ast.Call)
+            and getattr(noeud.func, "attr", getattr(noeud.func, "id", None))
+            in ("import_module", "__import__")
+            and noeud.args
+            and isinstance(noeud.args[0], ast.Constant)
+            and isinstance(noeud.args[0].value, str)
+        ):
+            noms = [noeud.args[0].value]
+        else:
+            continue
+        lus.update(nom for nom in noms if du_moteur(nom) and not permise(nom))
+    return sorted(lus)
+
+
+def paquet_de(chemin: Path) -> str:
+    return ".".join(chemin.relative_to(TEXTES.parent.parent).parent.parts)
+
+
+@pytest.mark.parametrize(
+    "source, lus",
+    (
+        ("from backend.risk_engine.config import DEFAULT_WINDOW", []),
+        ("from backend.risk_engine import config", []),
+        ("import backend.risk_engine.config", []),
+        ("from ...risk_engine.config import DEFAULT_WINDOW", []),
+        ("from backend import typography", []),
+        ("from . import moteur", []),
+        ("from backend.risk_engine.engine import period_label", ["backend.risk_engine.engine"]),
+        ("from backend.risk_engine import engine", ["backend.risk_engine.engine"]),
+        ("from backend.risk_engine import DEFAULT_WINDOW", ["backend.risk_engine.DEFAULT_WINDOW"]),
+        ("import backend.risk_engine.var", ["backend.risk_engine.var"]),
+        ("import backend.risk_engine", ["backend.risk_engine"]),
+        ("from backend import risk_engine", ["backend.risk_engine"]),
+        ("from ...risk_engine import engine", ["backend.risk_engine.engine"]),
+        (
+            "def f():\n    from backend.risk_engine.measures import amount\n",
+            ["backend.risk_engine.measures"],
+        ),
+        ("importlib.import_module('backend.risk_engine.var')", ["backend.risk_engine.var"]),
+    ),
+)
+def test_une_lecture_du_moteur_est_vue_sous_toutes_ses_formes(source, lus):
+    assert lectures_du_moteur(source, "backend.textes.en") == lus
+
+
+def test_un_module_de_textes_ne_lit_du_moteur_que_sa_configuration():
+    modules = sorted(p for p in TEXTES.rglob("*.py") if "__pycache__" not in p.parts)
+    assert len(modules) >= 13, "le parcours ne voit pas les modules de textes"
+    fautes = {
+        chemin.relative_to(TEXTES).as_posix(): lus
+        for chemin in modules
+        if (lus := lectures_du_moteur(chemin.read_text(encoding="utf-8"), paquet_de(chemin)))
+    }
+    assert fautes == {}
+
+
+def test_la_justification_anglaise_lit_la_configuration_et_elle_seule():
+    """Le parcours n'est pas vide de sens : le module qui lit la configuration
+    est vu, et la même lecture détournée vers le moteur est relevée."""
+    chemin = TEXTES / "en" / "seuils.py"
+    source = chemin.read_text(encoding="utf-8")
+    assert f"from {CONFIGURATION} import" in source
+    assert paquet_de(chemin) == "backend.textes.en"
+    assert lectures_du_moteur(source, "backend.textes.en") == []
+    detournee = source.replace(CONFIGURATION, "backend.risk_engine.engine")
+    assert lectures_du_moteur(detournee, "backend.textes.en") == ["backend.risk_engine.engine"]

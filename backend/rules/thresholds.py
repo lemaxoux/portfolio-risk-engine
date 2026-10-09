@@ -29,12 +29,14 @@ from enum import Enum
 from backend import typography
 from backend.langue import Langue
 from backend.risk_engine.config import (
+    DEFAULT_WINDOW,
     MAX_STUDENT_NU,
     MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
     MIN_SCENARIO_COVERAGE_SHARE,
     historical_var_min_observations,
+    sample_std_relative_error,
 )
 from backend.textes import textes
 
@@ -242,6 +244,10 @@ MIN_REGRESSION_SAMPLE = Threshold(
 # cycle. Il est déclaré ici pour que la liste des seuils choisis à la main soit
 # complète au même endroit. La constante vit dans le moteur, le seuil — le
 # nombre plus sa provenance — ici, comme pour `MIN_REGRESSION_SAMPLE`.
+#
+# Les pourcentages de 1/√(2n) de cette justification et de la suivante sont
+# calculés par la configuration du moteur (`sample_std_relative_error`), sur
+# des fenêtres qu'elle nomme : écrit à la main, l'un d'eux s'en était écarté.
 STUDENT_NU_CEILING = Threshold(
     key="STUDENT_NU_CEILING",
     name="ν maximal d'une loi de Student",
@@ -254,9 +260,12 @@ STUDENT_NU_CEILING = Threshold(
         f"au plus à {typography.percent(0.99, 0)} et de "
         f"{typography.percent(0.0031, 2)} au plus à {typography.percent(0.95, 0)}, "
         "bien moins que l'erreur type d'un écart-type d'échantillon, environ "
-        f"1/√(2n) sous normalité ({typography.percent(0.09, 0)} sur "
-        f"{typography.sessions(60)}, {typography.percent(0.032, 1)} sur "
-        f"{typography.sessions(504)}) et davantage avec des queues épaisses"
+        "1/√(2n) sous normalité ("
+        f"{typography.percent(sample_std_relative_error(MIN_REGRESSION_OBSERVATIONS), 0)}"
+        f" sur {typography.sessions(MIN_REGRESSION_OBSERVATIONS)}, "
+        f"{typography.percent(sample_std_relative_error(DEFAULT_WINDOW), 1)}"
+        f" sur {typography.sessions(DEFAULT_WINDOW)}) et davantage avec des queues "
+        "épaisses"
     ),
 )
 
@@ -275,9 +284,13 @@ MIN_DISTRIBUTION_SAMPLE = Threshold(
         "convention usuelle du « grand échantillon », qu'aucun calcul sur le "
         "portefeuille ne produit ; sous normalité, l'écart-type d'échantillon "
         "qui porte la volatilité et la VaR paramétrique varie d'environ "
-        f"1/√(2n) d'une fenêtre à l'autre ({typography.percent(0.13, 0)} sur "
-        f"{typography.sessions(30)}, {typography.percent(0.27, 0)} sur "
-        f"{typography.sessions(7)}), et l'ajustement d'une loi de Student "
+        "1/√(2n) d'une fenêtre à l'autre ("
+        f"{typography.percent(sample_std_relative_error(MIN_DISTRIBUTION_OBSERVATIONS), 0)}"
+        f" sur {typography.sessions(MIN_DISTRIBUTION_OBSERVATIONS)}, "
+        # Sept séances : un exemple de fenêtre très courte, cité comme tel ;
+        # aucune constante du moteur ne le fixe.
+        f"{typography.percent(sample_std_relative_error(7), 0)}"
+        f" sur {typography.sessions(7)}), et l'ajustement d'une loi de Student "
         "repose sur une ou deux séances de queue"
     ),
 )
