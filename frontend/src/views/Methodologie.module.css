@@ -13,17 +13,19 @@
   margin-block-start: var(--space-8);
 }
 
-/* Un titre visé par une ancre s'arrête SOUS le bandeau collant, comme une
- * section de l'analyse : le bandeau publie sa hauteur (`--hauteur-bandeau`). */
+/* Un titre visé par une ancre s'arrête à 16 px SOUS le bandeau collant, comme
+ * une section de l'analyse : la page réserve la hauteur du bandeau
+ * (`scroll-padding` de `html`, styles/reset.css), la marge compte l'écart. */
 .titrePartie,
 .entree {
-  scroll-margin-block-start: calc(var(--hauteur-bandeau, var(--space-8)) + var(--space-4));
+  scroll-margin-block-start: var(--space-4);
 }
 
 /* Un titre a la largeur de son texte : l'anneau de focus, à l'arrivée sur
  * une ancre, l'entoure lui seul. À la largeur de la colonne, il courait bien
- * au-delà de la prose, qui s'arrête à 66 caractères (captures du 2026-10-07). */
-.titrePage,
+ * au-delà de la prose, qui s'arrête à 66 caractères (captures du 2026-10-07).
+ * Le titre de la page suit la même règle, pour toutes les pages
+ * (`Pages.module.css`, chantier 7E). */
 .titrePartie,
 .entree {
   inline-size: fit-content;

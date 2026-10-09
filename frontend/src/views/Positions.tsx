@@ -34,6 +34,7 @@ import { AncresSections, pagesApplication, RailPages } from '../components/Navig
 import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
 import { DepotCsv } from '../components/DepotCsv'
 import { FormatCsv } from '../components/FormatCsv'
+import { rangeeApresRetrait } from '../lib/focus'
 import { useLangue } from '../lib/langue'
 import { messageDeLigne } from '../lib/phrases'
 import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
@@ -93,6 +94,9 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [sortie, setSortie] = useState<Depart | null>(null)
+  // Ce qui avait le focus quand la garde a retenu le départ : le lien suivi,
+  // le bouton de langue. « Rester sur la page » le lui rend (chantier 7E).
+  const origineDuDepart = useRef<HTMLElement | null>(null)
   const resume = useRef<HTMLDivElement>(null)
 
   // Le focus se pose APRÈS le rendu qui fait apparaître sa cible : la liste
@@ -128,6 +132,8 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     }
     window.addEventListener('beforeunload', avertir)
     const retirerGarde = poserGarde((cible, suite) => {
+      origineDuDepart.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
       setSortie({ cible, suite })
       return false
     })
@@ -170,13 +176,24 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
   }
 
   const retirer = (rang: number) => {
-    setLignes((liste) => {
-      const reste = liste.filter((_, i) => i !== rang)
-      return reste.length === 0 ? [ligneVide()] : reste
-    })
+    const reste = lignes.filter((_, i) => i !== rang)
+    const nouvelles = reste.length === 0 ? [ligneVide()] : reste
+    setLignes(nouvelles)
     // Les numéros changent : les refus rangés par numéro ne valent plus.
     setRefusLocaux([])
     setRefusServeur([])
+    // Le bouton a disparu avec sa rangée : le focus va au ticker de celle qui
+    // prend sa place, plutôt que de tomber au début du document (7E).
+    const suivante = nouvelles[rangeeApresRetrait(rang, lignes.length)]
+    if (suivante !== undefined) setCibleDuFocus({ id: `ticker-${suivante.cle}` })
+  }
+
+  /** « Rester sur la page » : le focus revient à ce qui l'avait, sinon au titre. */
+  const rester = () => {
+    setSortie(null)
+    const origine = origineDuDepart.current
+    if (origine !== null && origine.isConnected) origine.focus()
+    else document.querySelector<HTMLElement>('main h1[tabindex="-1"]')?.focus()
   }
 
   const ajouter = () => {
@@ -243,7 +260,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
           quitter={() =>
             sortie.suite !== undefined ? sortie.suite() : naviguer(sortie.cible, { forcer: true })
           }
-          rester={() => setSortie(null)}
+          rester={rester}
         />
       )}
 

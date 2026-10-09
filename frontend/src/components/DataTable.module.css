@@ -18,6 +18,10 @@
   max-inline-size: 100%;
   overflow-x: auto;
   container-type: inline-size;
+  /* Ce qui reçoit le focus dans le cadre y est amené à droite de la colonne
+   * collante, dont la largeur est mesurée à la prise du focus, et l'anneau
+   * garde sa place à droite (chantier 7E, `DataTable.tsx`). */
+  scroll-padding-inline: var(--colonne-collee, 0px) var(--space-1);
 }
 
 .tableau {

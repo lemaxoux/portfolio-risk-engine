@@ -1,16 +1,20 @@
 /*
  * Bandeau permanent — §8.1.
  *
- * Collant, sur --surface-1, bordure basse d'1 px. C'est la SEULE exception que
- * §12 accorde à l'interdiction de l'ombre portée, et elle est une bordure.
- * Sa hauteur suit son contenu : il passe à deux, trois ou quatre lignes selon
- * ce qu'il a à dire, et rien ne la fixe.
+ * Sur --surface-1, bordure basse d'1 px. C'est la SEULE exception que §12
+ * accorde à l'interdiction de l'ombre portée, et elle est une bordure. Sa
+ * hauteur suit son contenu : il passe à deux, trois ou quatre lignes selon ce
+ * qu'il a à dire, et rien ne la fixe.
+ *
+ * Collant à partir de 900 px seulement (décision du 2026-10-08, chantier 7E).
+ * En dessous, il défile avec la page : à 320 x 225 px, la fenêtre d'un écran
+ * de 1280 x 1024 zoomé à 400 % (WCAG 1.4.10), il mesurait 309 px sur l'analyse
+ * de démonstration et couvrait toute la fenêtre, à toute position. Chaque
+ * mesure garde sa fenêtre et sa date dans son bloc : aucune provenance ne se
+ * perd quand il sort de l'écran.
  */
 
 .bandeau {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -18,6 +22,16 @@
   padding: var(--space-3) var(--gutter);
   border-block-end: 1px solid var(--border);
   background-color: var(--surface-1);
+}
+
+/* Le même seuil que la mise en page (`lib/largeur.ts`) : au-dessus, la place
+ * ne manque pas, et le bandeau reste en vue. */
+@media (width >= 900px) {
+  .bandeau {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+  }
 }
 
 .identite {

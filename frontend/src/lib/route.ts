@@ -102,6 +102,17 @@ export function aDejaNavigue(): boolean {
   return navigationsUtilisateur > 0
 }
 
+/**
+ * Une page remplacée par un geste de l'utilisateur, sans changement
+ * d'adresse : l'acceptation traversée, un changement de langue (chantier
+ * 7E). La page qui s'affiche ensuite est traitée comme une navigation
+ * décidée : elle s'ouvre en haut, et son titre reçoit le focus. Sans cela,
+ * l'analyse s'ouvrait, à 390 px, à la hauteur où l'on avait coché la case.
+ */
+export function marquerGesteDecide(): void {
+  navigationsUtilisateur += 1
+}
+
 function prevenir(): void {
   cheminCourant = window.location.pathname
   for (const abonne of abonnes) abonne()

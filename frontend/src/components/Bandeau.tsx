@@ -24,6 +24,7 @@ import { useEffect, useRef } from 'react'
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { useLangue } from '../lib/langue'
+import { useEtroit } from '../lib/largeur'
 import { cheminDe } from '../lib/route'
 import { BoutonLangue } from './BoutonLangue'
 import { Lien } from './Lien'
@@ -83,16 +84,23 @@ export function BandeauSimple({
 
 /**
  * La hauteur du bandeau, publiée en variable CSS (`--hauteur-bandeau`) pour
- * que les ancres de section s'arrêtent SOUS lui. Elle suit son contenu —
- * deux, trois ou quatre lignes, et bien davantage à 390 px — : une marge
- * écrite en dur laisserait le titre de la section sous le bandeau collant.
+ * que ce que la page fait défiler (une ancre, la tabulation) s'arrête SOUS
+ * lui (`scroll-padding` de `html`). Elle suit son contenu, deux, trois ou
+ * quatre lignes : une marge écrite en dur laisserait un titre ou un élément
+ * focalisé sous le bandeau collant. Sous 900 px, le bandeau défile avec la
+ * page (chantier 7E) : rien ne passe dessous, la hauteur publiée est nulle.
  */
 export function useHauteurPubliee() {
   const bandeau = useRef<HTMLElement>(null)
+  const etroit = useEtroit()
   useEffect(() => {
     const noeud = bandeau.current
     if (noeud === null) return
     const racine = document.documentElement
+    if (etroit) {
+      racine.style.setProperty('--hauteur-bandeau', '0px')
+      return () => racine.style.removeProperty('--hauteur-bandeau')
+    }
     const observateur = new ResizeObserver(([entree]) => {
       if (entree) {
         racine.style.setProperty(
@@ -106,7 +114,7 @@ export function useHauteurPubliee() {
       observateur.disconnect()
       racine.style.removeProperty('--hauteur-bandeau')
     }
-  }, [])
+  }, [etroit])
   return bandeau
 }
 

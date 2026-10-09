@@ -9,6 +9,10 @@
  * Les classes communes aux sections (sous-titre, chapeau, rangée de blocs)
  * sont exportées par `Section.module.css`, pour qu'aucune section ne
  * redéfinisse à sa façon ce qu'est un chapeau.
+ *
+ * Le titre reçoit le focus quand un lien du rail ou de la liste d'ancres
+ * mène à la section (`tabIndex={-1}`, `components/Cadre`, chantier 7E) : il
+ * n'est pas un arrêt de tabulation, mais la tabulation suivante part de lui.
  */
 import type { ReactNode } from 'react'
 
@@ -26,7 +30,7 @@ interface Props {
 export function Section({ ancre, numero, titre, introduction, children }: Props) {
   return (
     <section className={styles.section} id={ancre} aria-labelledby={`${ancre}-titre`}>
-      <h2 id={`${ancre}-titre`} className={styles.titre}>
+      <h2 id={`${ancre}-titre`} tabIndex={-1} className={styles.titre}>
         <span className={styles.numero}>{numero}.</span> {titre}
       </h2>
       <p className={styles.introduction}>{introduction}</p>

@@ -507,8 +507,16 @@ comparables d'un coup d'œil vertical.
 
 ### 8.1 Le bandeau permanent
 
-Quelques informations s'appliquent à **tous** les chiffres de la page. Elles
-ne défilent donc jamais : barre collante en haut, sur `--surface-1`.
+Quelques informations s'appliquent à **tous** les chiffres de la page. À
+partir de 900 px, elles ne défilent donc jamais : barre collante en haut, sur
+`--surface-1`. **Sous 900 px, le bandeau défile avec la page** (décision du
+2026-10-08, chantier 7E). À 320 × 225 px, la fenêtre d'un écran de
+1280 × 1024 zoomé à 400 % (WCAG 1.4.10), il mesurait 309 px sur l'analyse de
+démonstration, 372 avec une fenêtre réduite : collant, il couvrait toute la
+fenêtre, à toute position ; à 390 px, il en prenait 274 à 317. Chaque mesure
+garde sa fenêtre et sa date dans son bloc (§9.1, §17) : aucune provenance ne
+se perd quand il sort de l'écran. Le seuil est celui de la mise en page
+(`lib/largeur.ts`).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -886,6 +894,15 @@ Le composant le plus utilisé du produit. Il mérite du soin.
   compte de sa tranche.
 - **La première colonne (le ticker) est collante à l'horizontale** : quand le
   cadre défile, elle reste en place et nomme la ligne.
+- **Un cadre qui défile se prend au clavier** (chantier 7E, §13). Tant que le
+  tableau déborde, le cadre est une région nommée par la légende
+  (`role="region"`, `aria-labelledby`) et un arrêt de tabulation : les
+  flèches le font défiler, dans tous les navigateurs. Un tableau qui tient
+  dans sa colonne n'en a pas besoin, et la région y doublerait l'annonce de
+  la légende. Un élément qui reçoit le focus dans le cadre y est amené en
+  entier, à droite de la colonne collante, dont la largeur est mesurée :
+  Chrome ne fait pas défiler un cadre vers un élément déjà en partie visible
+  (à 390 px, l'en-tête « Nom » restait visible sur 11 px de ses 43).
 - Séparateurs horizontaux `1px solid var(--border)` uniquement. **Pas de
   bordures verticales** : l'alignement des chiffres suffit à séparer les
   colonnes, et une grille complète alourdit inutilement.
@@ -1097,9 +1114,38 @@ au regard de §11.
 - Texte : ratio ≥ 4,5:1 (valeurs calculées en §5). Éléments d'interface et
   limites de graphique : ≥ 3:1.
 - Focus clavier : `outline: 2px solid var(--accent); outline-offset: 2px`.
-  Visible sur **tous** les éléments interactifs. Jamais `outline: none`.
+  Visible sur **tous** les éléments interactifs. Jamais `outline: none`. Son
+  contraste est de 4,62:1 au moins sur les trois surfaces des deux thèmes,
+  colonne collante d'un tableau comprise (`styles/anneau.test.ts`).
 - Ordre de tabulation suivant l'ordre de lecture. Un lien « aller au contenu »
-  en début de document.
+  en début de document, sur toutes les pages : sur l'écran d'acceptation, il
+  mène au titre du texte, après le bouton de langue (chantier 7E).
+- **Le focus n'est jamais caché sous le bandeau collant** (chantier 7E, WCAG
+  2.4.11). La page réserve sa hauteur à tout ce qu'elle fait défiler, ancres
+  comme tabulation (`scroll-padding` de `html` sur `--hauteur-bandeau`,
+  nulle sous 900 px, où le bandeau défile avec la page, §8.1). Mesuré à
+  390 px avant ce chantier : en Maj+Tab, quatre liens disparaissaient
+  entièrement sous un bandeau de 274 px.
+- **Une ancre donne le focus au titre qu'elle vise** : une partie de la
+  méthodologie, et, depuis le chantier 7E, une section de l'analyse, dont le
+  titre porte `tabIndex={-1}`. Le focus restait sur le corps de la page, sans
+  anneau, et le Tab suivant repartait du haut. L'anneau d'un titre suit son
+  texte (`fit-content`), titres de page compris.
+- **Le focus ne se perd pas après un geste** (chantier 7E). « Retirer » le
+  porte au ticker de la rangée qui prend la place ; « Rester sur la page », à
+  ce qui l'avait (le lien suivi, le bouton de langue) ; un refus de champ, au
+  champ, que son refus décrit. Un changement de langue vers un écran
+  d'acceptation le porte au titre de cet écran ; vers une langue déjà
+  acceptée, il reste au bouton, l'analyse affichée restant en place, occupée
+  (`aria-busy`), pendant qu'elle se relit. Accepter ouvre la page en haut, son
+  titre focalisé. Les règles qui n'ont pas besoin d'un document sont des
+  fonctions pures (`lib/focus.ts`).
+- **Le titre caché de l'analyse** (« Analyse de « Démo » ») reçoit le focus
+  après une navigation, pour qu'un lecteur d'écran dise le nom de la page.
+  Il n'est pas un arrêt de tabulation, et son anneau ne se voit pas : le Tab
+  suivant en montre un (décision du 2026-10-08).
+- Aucun défilement adouci : ceux que le code demande (ancres, focus, retour
+  arrière) sont instantanés.
 - Tableaux : `<caption>`, `<th scope>`. Graphiques : `role="img"` et un
   `aria-label` qui énonce la conclusion, pas la forme (« VaR 95 % à 1,38 %,
   contre 1,95 % sous loi de Student »), et leurs valeurs en tableau replié

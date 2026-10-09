@@ -15,7 +15,11 @@
   margin-inline: auto;
 }
 
+/* Le titre reçoit le focus par le lien d'évitement, ou quand l'écran remplace
+ * une page après un changement de langue : à la largeur de son texte, son
+ * anneau l'entoure lui seul (chantier 7E). */
 .titre {
+  inline-size: fit-content;
   margin-block-end: var(--space-6);
   font-size: var(--text-xl);
   font-weight: var(--weight-medium);

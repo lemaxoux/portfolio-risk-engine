@@ -28,14 +28,19 @@
  * fragment de l'adresse désigne un titre du contenu qui porte `tabIndex={-1}`,
  * la page défile jusqu'à lui et c'est lui qui reçoit le focus ; au premier
  * affichage, elle défile seulement. Un fragment changé sur la même page, par
- * un retour arrière d'une ancre à l'autre, y ramène le focus. Les sections de
- * l'analyse portent leur ancre sur la `<section>`, pas sur un titre : elles
- * gardent le comportement du navigateur.
+ * un lien du rail ou par un retour arrière d'une ancre à l'autre, y porte le
+ * focus. Une section de l'analyse porte son ancre sur la `<section>` : c'est
+ * son titre qui reçoit le focus (chantier 7E, `lib/focus.ts`), et l'anneau
+ * entoure son texte. Avant, le focus restait sur le corps de la page, sans
+ * anneau, et le Tab suivant repartait du haut quand la section n'avait rien
+ * de focalisable.
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
+import { idDuTitreVise } from '../lib/focus'
 import { useLangue } from '../lib/langue'
 import { aDejaNavigue } from '../lib/route'
+import { SECTIONS } from './Navigation'
 import styles from './Cadre.module.css'
 
 interface Props {
@@ -53,11 +58,14 @@ interface Props {
 
 const APPLICATION = 'Mx Risk MGT'
 
+/** Les ancres des sections de l'analyse, portées par la `<section>`. */
+const ANCRES_DES_SECTIONS = SECTIONS.map((section) => section.ancre)
+
 /** Le titre du contenu que vise le fragment de l'adresse, s'il en est un. */
 function titreVise(contenu: HTMLElement | null): HTMLElement | null {
   const ancre = window.location.hash.slice(1)
   if (contenu === null || ancre === '') return null
-  const cible = document.getElementById(ancre)
+  const cible = document.getElementById(idDuTitreVise(ancre, ANCRES_DES_SECTIONS))
   if (cible === null || !contenu.contains(cible)) return null
   return /^H[1-3]$/.test(cible.tagName) && cible.getAttribute('tabindex') === '-1' ? cible : null
 }
@@ -114,8 +122,10 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
   }, [page])
 
   useEffect(() => {
-    // Un lien suivi sur la page a déjà fait défiler et posé le focus ; un
-    // retour arrière d'une ancre à l'autre rend sa position, pas le focus.
+    // Un lien suivi sur la page a déjà fait défiler ; il n'a posé le focus
+    // que sur un titre qui porte lui-même l'ancre. Un retour arrière d'une
+    // ancre à l'autre rend sa position, pas le focus. Dans les deux cas, le
+    // titre visé le reçoit, sans défiler davantage.
     const surFragment = () => titreVise(contenu.current)?.focus({ preventScroll: true })
     window.addEventListener('hashchange', surFragment)
     return () => window.removeEventListener('hashchange', surFragment)

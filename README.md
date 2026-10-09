@@ -2132,10 +2132,11 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
 - **Une adresse peut viser un titre.** Quand le fragment désigne un titre du
   contenu qui porte `tabIndex={-1}` (`/methodologie#cvar`), la page défile
   jusqu'à lui, sous le bandeau collant, et c'est lui qui reçoit le focus ; au
-  chargement, la page défile seulement. Un retour arrière d'une ancre à
-  l'autre y ramène le focus. Les sections de l'analyse, dont l'ancre est
-  portée par la `<section>`, gardent le comportement du navigateur
-  (`components/Cadre.tsx`). Tant que la page s'installe, le titre est ramené
+  chargement, la page défile seulement. Un lien du rail, ou un retour
+  arrière d'une ancre à l'autre, y porte le focus. Une section de l'analyse
+  porte son ancre sur la `<section>` : depuis le chantier 7E, c'est son titre
+  qui reçoit le focus (`idDuTitreVise`, `lib/focus.ts` ;
+  `components/Cadre.tsx`). Tant que la page s'installe, le titre est ramené
   sous le bandeau à chaque changement de taille, jusqu'au premier geste de
   l'utilisateur ou pendant dix secondes : les polices qui arrivent après le
   défilement le faisaient descendre de 790 px au chargement, et le bandeau,
@@ -2145,6 +2146,47 @@ du milieu et Ctrl + clic ouvrent un onglet, comme partout.
   rien ne bouge et la page affiche sa confirmation sur place. Le retour
   arrière du navigateur, qui ne se laisse pas annuler, remet la page courante
   dans l'historique avant de la consulter.
+
+#### Le clavier
+
+Chantier 7E (DESIGN.md §8.1, §9.3, §13). Un passage au clavier dans Chrome,
+page par page et à trois largeurs (`docs/outils/clavier.mjs`, hors dépôt),
+avait relevé un focus caché, perdu ou sans anneau. Ce qui a changé :
+
+- **Le bandeau ne colle qu'à partir de 900 px.** En dessous, il défile avec
+  la page : à 320 × 225 px (zoom à 400 %, WCAG 1.4.10), il mesurait 309 px
+  sur l'analyse de démonstration et couvrait toute la fenêtre
+  (`docs/outils/bandeau-320.mjs`, captures avant et après dans
+  `docs/captures/7E/`). Il publie alors une hauteur nulle
+  (`useHauteurPubliee`, `useEtroit`).
+- **La page réserve la hauteur du bandeau** à ce qu'elle fait défiler :
+  `scroll-padding` de `html` sur `--hauteur-bandeau`. La tabulation amenait
+  l'élément focalisé au bord haut de l'écran, sous le bandeau ; à 390 px, en
+  Maj+Tab, cinq arrêts y disparaissaient. Les ancres n'ajoutent plus que
+  leur écart (`scroll-margin` de 16 px).
+- **Un tableau qui déborde est une région** nommée par sa légende et prise
+  au clavier (`attributsDuCadre`, `components/DataTable.tsx`) ; l'élément qui
+  reçoit le focus dans le cadre y est amené en entier, à droite de la
+  colonne collante.
+- **Les ancres de l'analyse** donnent le focus au titre de leur section ;
+  l'anneau d'un titre, de section ou de page, suit son texte.
+- **Le focus après un geste** : au ticker de la rangée qui remplace une
+  rangée retirée (`rangeeApresRetrait`) ; à ce qui l'avait après « Rester
+  sur la page » ; au champ d'un nom vide ; au titre de l'écran
+  d'acceptation qui remplace une page ; en haut de la page qu'ouvre
+  l'acceptation, son titre focalisé (`marquerGesteDecide`, `lib/route.ts`).
+- **Un changement de langue ne remonte plus le bandeau.** Pendant que
+  l'analyse se relit dans l'autre langue, celle du même portefeuille reste
+  affichée, occupée (`aria-busy`), au lieu du squelette et de son bandeau
+  simple (`analyseAGarder`, `views/Analyse.tsx`) : le bouton de langue garde
+  le focus, et la page sa position.
+- **L'écran d'acceptation** a son lien d'évitement, vers le titre du texte.
+- **L'anneau** : 4,62:1 au moins sur chaque surface des deux thèmes
+  (`styles/anneau.test.ts`). Aucun défilement adouci (`defilement.test.ts`).
+
+`lib/focus.ts` tient les règles qui n'ont pas besoin d'un document
+(`focus.test.ts`) ; leur effet se vérifie dans Chrome, Vitest tournant sans
+document.
 
 #### La page de saisie
 

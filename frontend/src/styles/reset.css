@@ -13,6 +13,19 @@ html {
   box-sizing: border-box;
 }
 
+/*
+ * Ce que la page fait défiler pour amener un élément en vue (une ancre, la
+ * tabulation, `scrollIntoView`) s'arrête SOUS le bandeau collant, qui publie
+ * sa hauteur (`--hauteur-bandeau`, 0 sous 900 px, où il défile avec la page).
+ * Sans cela, la tabulation amenait l'élément au bord haut de l'écran, sous le
+ * bandeau : à 390 px, le focus y disparaissait entièrement (WCAG 2.4.11,
+ * DESIGN.md §13, chantier 7E). Aucun défilement adouci : ceux du code restent
+ * instantanés.
+ */
+html {
+  scroll-padding-block-start: var(--hauteur-bandeau, 0px);
+}
+
 *,
 ::before,
 ::after {

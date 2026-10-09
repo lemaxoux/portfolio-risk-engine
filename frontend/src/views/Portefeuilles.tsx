@@ -330,12 +330,22 @@ function Creation({
   const [refus, setRefus] = useState<string | null>(null)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const [enCours, setEnCours] = useState(false)
+  const champ = useRef<HTMLInputElement>(null)
+  // Un refus porte le focus au champ, après le rendu qui le relie au champ
+  // (`aria-describedby`) : un lecteur d'écran lit alors le champ ET son refus.
+  // Le focus restait sur le bouton, et le refus n'était annoncé nulle part
+  // (chantier 7E).
+  const [refusAFocaliser, setRefusAFocaliser] = useState(0)
+  useEffect(() => {
+    if (refusAFocaliser > 0) champ.current?.focus()
+  }, [refusAFocaliser])
 
   const creer = async (evenement: FormEvent<HTMLFormElement>) => {
     evenement.preventDefault()
     const propre = nom.trim()
     if (propre.length === 0) {
       setRefus(l.nomVide)
+      setRefusAFocaliser((n) => n + 1)
       return
     }
     setEnCours(true)
@@ -364,6 +374,7 @@ function Creation({
           {l.aideNom}
         </p>
         <input
+          ref={champ}
           id="nom-portefeuille"
           name="nom"
           className={controles.saisie}

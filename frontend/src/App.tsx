@@ -53,6 +53,7 @@ import { useListe, type EtatListe } from './lib/liste'
 import {
   cheminDe,
   dernierPortefeuille,
+  marquerGesteDecide,
   naviguer,
   portefeuilleDAccueil,
   remplacerLaPage,
@@ -69,7 +70,8 @@ import { VuePositions } from './views/Positions'
 type EtatAcceptation =
   | { phase: 'verification' }
   | { phase: 'erreur'; erreur: ApiErreur }
-  | { phase: 'acceptation'; bandeau: Disclaimer }
+  /** `decidee` : l'écran remplace une page après un geste, et son titre prend le focus. */
+  | { phase: 'acceptation'; bandeau: Disclaimer; decidee?: boolean }
   | { phase: 'acceptee' }
 
 export function App() {
@@ -102,6 +104,9 @@ export function App() {
     (nouvelle: Langue) => {
       if (nouvelle === langue) return
       const passer = (suivant: EtatAcceptation) => {
+        // Un geste de l'utilisateur : la page qui s'affiche, si elle change,
+        // s'ouvre en haut, son titre focalisé (chantier 7E).
+        marquerGesteDecide()
         appliquerLangue(nouvelle)
         setLangue(nouvelle)
         setEtat(suivant)
@@ -109,7 +114,7 @@ export function App() {
       getDisclaimer(nouvelle).then(
         (bandeau) => {
           if (aAccepte(bandeau.text, nouvelle)) passer({ phase: 'acceptee' })
-          else remplacerLaPage(() => passer({ phase: 'acceptation', bandeau }))
+          else remplacerLaPage(() => passer({ phase: 'acceptation', bandeau, decidee: true }))
         },
         (cause: unknown) => {
           remplacerLaPage(() => passer({ phase: 'erreur', erreur: versApiErreur(cause, nouvelle) }))
@@ -135,7 +140,14 @@ function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void
   if (etat.phase === 'acceptation') {
     // Une clé par langue : la case cochée sous un texte ne l'est pas sous
     // l'autre.
-    return <Acceptation key={langue} bandeau={etat.bandeau} onAccepte={accepter} />
+    return (
+      <Acceptation
+        key={langue}
+        bandeau={etat.bandeau}
+        onAccepte={accepter}
+        focaliser={etat.decidee === true}
+      />
+    )
   }
   if (etat.phase === 'acceptee') return <Application />
 

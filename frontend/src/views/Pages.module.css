@@ -3,7 +3,11 @@
  * (« volontairement pauvres »), §13.
  */
 
+/* Le titre d'une page reçoit le focus quand on y arrive : à la largeur de son
+ * texte, son anneau l'entoure lui seul. Il courait sur toute la colonne
+ * (Portefeuilles, saisie, analyse vide ; passation §9.6, chantier 7E). */
 .titre {
+  inline-size: fit-content;
   margin-block-end: var(--space-4);
   font-size: var(--text-lg);
   font-weight: var(--weight-medium);

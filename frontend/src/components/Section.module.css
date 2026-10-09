@@ -8,13 +8,16 @@
 
 .section {
   margin-block-end: var(--space-8);
-  /* L'ancre ne doit pas arriver SOUS le bandeau collant, dont la hauteur suit
-   * son contenu : le bandeau publie sa hauteur mesurée (`--hauteur-bandeau`),
-   * et la marge de défilement s'y ajoute. */
-  scroll-margin-block-start: calc(var(--hauteur-bandeau, var(--space-8)) + var(--space-4));
+  /* L'ancre arrive à 16 px sous le bandeau collant. La page réserve déjà sa
+   * hauteur (`scroll-padding` de `html`, styles/reset.css) : la marge de la
+   * section ne compte plus que l'écart. */
+  scroll-margin-block-start: var(--space-4);
 }
 
+/* Le titre reçoit le focus quand une ancre mène à sa section : à la largeur
+ * de son texte, son anneau l'entoure lui seul (chantier 7E). */
 .titre {
+  inline-size: fit-content;
   margin-block-end: var(--space-5);
   font-size: var(--text-lg);
   font-weight: var(--weight-medium);

@@ -13,6 +13,13 @@
  * l'est aussi quand la langue change : le serveur rédige ses phrases dans
  * celle de la page (chantier 7D).
  *
+ * Pendant cette relecture, l'analyse affichée du MÊME portefeuille reste en
+ * place, occupée (`aria-busy`), jusqu'à la nouvelle (chantier 7E). Le
+ * squelette, lui, se dessinait avec le bandeau simple : le bandeau changeait
+ * deux fois de composant, le bouton de langue avec lui, et le focus tombait
+ * sur le corps de la page, ramenée en haut. Un autre portefeuille, ou une
+ * erreur, repart du squelette.
+ *
  * ═══ LES QUATRE ÉTATS (§13) ═══
  *
  * Vide : aucune position, reconnu à la liste — invitation, lien vers la
@@ -51,10 +58,20 @@ import { SectionRisque } from './SectionRisque'
 import styles from './Pages.module.css'
 
 type Etat =
-  | { phase: 'chargement' }
+  | { phase: 'chargement'; precedente: Analysis | null }
   | { phase: 'erreur'; erreur: ApiErreur }
   | { phase: 'insuffisant'; raison: ApiErreur }
   | { phase: 'analyse'; analyse: Analysis }
+
+/**
+ * L'analyse que la page garde affichée pendant qu'elle se relit : celle du
+ * même portefeuille, déjà affichée ou déjà gardée. Aucune autre.
+ */
+function analyseAGarder(avant: Etat, id: number): Analysis | null {
+  const affichee =
+    avant.phase === 'analyse' ? avant.analyse : avant.phase === 'chargement' ? avant.precedente : null
+  return affichee !== null && affichee.portfolio_id === id ? affichee : null
+}
 
 interface Props {
   readonly portefeuille: PortfolioDetail
@@ -66,7 +83,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
   const l = libelles.analyse
   const vide = portefeuille.positions.length === 0
   const positionsStockees = JSON.stringify(portefeuille.positions)
-  const [etat, setEtat] = useState<Etat>({ phase: 'chargement' })
+  const [etat, setEtat] = useState<Etat>({ phase: 'chargement', precedente: null })
   const [essai, setEssai] = useState(0)
 
   useEffect(() => {
@@ -76,7 +93,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
   useEffect(() => {
     if (vide) return
     let vivant = true
-    setEtat({ phase: 'chargement' })
+    setEtat((avant) => ({ phase: 'chargement', precedente: analyseAGarder(avant, portefeuille.id) }))
     getAnalysis(portefeuille.id, langue).then(
       (analyse) => {
         if (vivant) setEtat({ phase: 'analyse', analyse })
@@ -156,7 +173,12 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
     )
   }
 
-  if (etat.phase !== 'analyse') {
+  // L'analyse à montrer : la nouvelle, ou, pendant qu'elle se relit, la
+  // précédente du même portefeuille (`analyseAGarder`).
+  const affichee =
+    etat.phase === 'analyse' ? etat.analyse : etat.phase === 'chargement' ? etat.precedente : null
+
+  if (affichee === null) {
     return (
       <Cadre
         titre={titre}
@@ -170,7 +192,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
           {titre}
         </h1>
         <AncresSections pages={pages} sections={false} />
-        {etat.phase === 'chargement' ? (
+        {etat.phase !== 'erreur' ? (
           <SqueletteAnalyse />
         ) : (
           <MessageErreur
@@ -190,12 +212,13 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
     )
   }
 
-  const analyse = etat.analyse
+  const analyse = affichee
   return (
     <Cadre
       titre={titre}
       page={page}
       annonce={annonce}
+      occupe={etat.phase === 'chargement'}
       entete={<Bandeau analyse={analyse} />}
       rail={<RailSections pages={pages} />}
     >
