@@ -39,11 +39,11 @@
  *
  * Un lien vers la méthode note sa clé dans l'entrée d'historique qu'il quitte
  * (`naviguer`, `lib/route.ts`). Au retour arrière, une fois la page prête (ni
- * occupée, ni en chargement), le lien suivi reprend le focus, amené au milieu
- * de la fenêtre, sous le bandeau, et gardé en vue pendant que la page
- * s'installe. La clé, et non la position : une langue ou un thème changés
- * sur la méthodologie déplacent tout. La position notée ne sert que si la clé
- * est introuvable. Avant, la page revenait en haut, le focus sur son titre.
+ * occupée, ni en chargement), le lien suivi reprend le focus, amené sous le
+ * bandeau comme une ancre, et gardé en vue pendant que la page s'installe.
+ * La clé, et non la position : une langue ou un thème changés sur la
+ * méthodologie déplacent tout. La position notée ne sert que si la clé est
+ * introuvable. Avant, la page revenait en haut, le focus sur son titre.
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
@@ -92,11 +92,11 @@ const GESTES = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
  * arrive, et le titre passe dessous. Chaque changement de taille de la page
  * ramène donc le titre, jusqu'au premier geste de l'utilisateur ou pendant
  * dix secondes au plus. Rend de quoi arrêter. Un lien rendu au retour est
- * gardé au milieu de la fenêtre (`alignement`), son bloc au-dessus de lui :
- * les graphiques, dessinés après le texte, allongent la page sous lui.
+ * gardé de même : les graphiques, dessinés après le texte, allongent la page
+ * au-dessus de lui.
  */
-function garderEnVue(element: HTMLElement, alignement: ScrollLogicalPosition = 'start'): () => void {
-  const observateur = new ResizeObserver(() => element.scrollIntoView({ block: alignement }))
+function garderEnVue(element: HTMLElement): () => void {
+  const observateur = new ResizeObserver(() => element.scrollIntoView({ block: 'start' }))
   const arreter = () => {
     observateur.disconnect()
     window.clearTimeout(delai)
@@ -156,7 +156,7 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
       const lien = liens.find((candidat) => candidat.dataset['retour'] === retour.focus)
       if (lien === undefined) return
       lien.focus({ preventScroll: true })
-      return garderEnVue(lien, 'center')
+      return garderEnVue(lien)
     }
     window.scrollTo({ top: retour.y })
   }, [occupe, page])

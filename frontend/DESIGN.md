@@ -801,8 +801,8 @@ vers la méthode (règle 5).
    et chaque raison de refus qui remplace un bloc. Le bandeau n'en porte pas.
    Chaque lien a une clé, son bloc et son ancre (les deux liens « La VaR
    historique » de la section 2 restent distincts) : au retour arrière depuis
-   la méthodologie, il reprend le focus, au milieu de la fenêtre, même si la
-   langue ou le thème ont changé là-bas (§13).
+   la méthodologie, il reprend le focus, amené sous le bandeau comme une
+   ancre, même si la langue ou le thème ont changé là-bas (§13).
 
 ### 9.2 `<Observation>` — ce que le moteur de règles affirme
 
@@ -1168,8 +1168,10 @@ au regard de §11.
 - **Le retour depuis la méthode** (chantier 7E). Suivre le lien d'une mesure
   vers sa méthode (§9.1, règle 5) note, dans l'entrée d'historique quittée,
   la clé de ce lien et la position de la page. Au retour arrière, une fois
-  la page relue, le lien de même clé reprend le focus, amené au milieu de la
-  fenêtre ; la position notée ne sert que si la clé n'est plus sur la page.
+  la page relue, le lien de même clé reprend le focus, amené sous le bandeau
+  avec l'écart d'une ancre (`scroll-margin` de 16 px) et gardé là pendant
+  que la page s'installe ; la position notée ne sert que si la clé n'est
+  plus sur la page.
   Une langue ou un thème changés sur la méthodologie n'y font rien : la clé
   ne dépend que du bloc et de l'ancre.
 - **Le titre caché de l'analyse** (« Analyse de « Démo » ») reçoit le focus

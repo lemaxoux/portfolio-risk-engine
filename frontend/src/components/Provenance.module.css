@@ -27,6 +27,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Le lien vers la méthode, seul lien d'une provenance, rendu au retour arrière
+ * (§13) : il s'arrête sous le bandeau avec l'écart d'une ancre, son anneau
+ * entier en vue. */
+.valeur a {
+  scroll-margin-block-start: var(--space-4);
+}
+
 /*
  * Sous le titre d'un graphique (§9.4) : les paires se suivent et passent à la
  * ligne ENTRE deux paires, jamais au milieu d'une. L'espace qui les sépare est

@@ -2223,9 +2223,9 @@ conditions, est « Méthodologie », puis un lien par entrée
   (`var-historique-0.99#var-historique`, `cleDeRetour`), et la position de
   la page (`naviguer`, `lib/route.ts`). Au retour arrière, une fois l'analyse
   relue, `components/Cadre.tsx` rend le focus au lien de même clé
-  (`data-retour`), l'amène au milieu de la fenêtre et l'y garde pendant que
-  les graphiques se dessinent ; la position notée ne sert que si la clé n'est
-  plus sur la page (`resoudreRetour`, `lib/focus.ts`). Une clé, et non une
+  (`data-retour`), l'amène sous le bandeau, à 16 px comme une ancre, et l'y
+  garde pendant que les graphiques se dessinent ; la position notée ne sert
+  que si la clé n'est plus sur la page (`resoudreRetour`, `lib/focus.ts`). Une clé, et non une
   position : une langue ou un thème changés sur la méthodologie déplacent
   tout. Avant, le retour ramenait en haut de la page. La note reste dans
   l'historique : une page qu'un geste remplace ensuite, l'acceptation d'une
@@ -2235,8 +2235,8 @@ conditions, est « Méthodologie », puis un lien par entrée
 Vérifié dans Chrome à 1280 et 390 px (`docs/outils/clavier.mjs`, hors
 dépôt) : la VaR historique à 99 %, son lien suivi au clavier, l'anglais
 choisi sur la méthodologie, puis le retour arrière, qui rend le focus à
-« Historical VaR », au milieu de la fenêtre ; puis le français, à accepter
-de nouveau, qui ouvre l'analyse en haut, son titre focalisé. Avant ce
+« Historical VaR », sous le bandeau ; puis le français, à accepter de
+nouveau, qui ouvre l'analyse en haut, son titre focalisé. Avant ce
 correctif, la page rouvrait sur le lien suivi.
 
 #### La page de saisie
