@@ -77,6 +77,10 @@ class PositionContribution:
 
     @property
     def pnl(self) -> float:
+        """Variation de valeur de la ligne sur l'épisode, `end_value` moins
+        `start_value`, dans l'unité de la trajectoire, où la valeur rejouée
+        vaut 1 au départ : une fraction de cette valeur, pas un montant en
+        devise."""
         return self.end_value - self.start_value
 
     @property

@@ -58,6 +58,9 @@ class Scenario:
 
     @property
     def calendar_days(self) -> int:
+        """Jours calendaires du début à la fin de la fenêtre, pas des séances :
+        le nombre de séances du rejeu est porté par son résultat
+        (`engine.ScenarioResult.observations`)."""
         return (self.end - self.start).days
 
     def nom(self, langue: Langue = "fr") -> str:
@@ -81,6 +84,8 @@ class Scenario:
         return self.avec_article("fr")
 
     def description_ecrite(self, langue: Langue = "fr") -> str:
+        """La description dans la langue demandée, la française à défaut
+        d'anglaise."""
         if langue == "en" and self.description_en is not None:
             return self.description_en
         return self.description

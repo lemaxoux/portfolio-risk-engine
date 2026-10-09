@@ -171,6 +171,17 @@ class DrawdownResult:
 
 @dataclass(frozen=True)
 class SharpeResult:
+    """Ratio de Sharpe annualisé de la série, et le taux sans risque qui le
+    porte.
+
+    `annualised` est sans unité (`measures.sharpe_ratio`, METHODOLOGY.md,
+    « Sharpe and Sortino ratios ») ; `risk_free_annual` est le taux annuel
+    retenu, en fraction, et `risk_free_daily` son équivalent quotidien,
+    converti géométriquement (`config.daily_risk_free_rate`). Aucun champ de
+    refus : sur une série dont les rendements excédentaires ont un écart-type
+    nul, `measures.sharpe_ratio` lève au lieu de rendre une valeur.
+    """
+
     annualised: float
     risk_free_annual: float
     risk_free_daily: float
@@ -185,6 +196,17 @@ class SharpeResult:
 
 @dataclass(frozen=True)
 class SortinoResult:
+    """Ratio de Sortino annualisé de la série, ou la raison de son absence.
+
+    `annualised` vaut None quand aucun rendement de la fenêtre ne passe sous la
+    cible : la déviation à la baisse est nulle, et le ratio indéfini, pas
+    infini (`measures.sortino_ratio`). `undefined_reason` le dit alors, dans
+    la langue du rapport. `downside_deviation_daily` est la déviation à la
+    baisse quotidienne, en fraction, non annualisée ; `target_daily` est la
+    cible, un rendement quotidien (METHODOLOGY.md, « Sharpe and Sortino
+    ratios »).
+    """
+
     annualised: float | None
     downside_deviation_daily: float
     target_daily: float
@@ -324,6 +346,9 @@ class BetaResult:
 
     @property
     def idiosyncratic_share(self) -> float | None:
+        """Part de la variance du portefeuille que le benchmark n'explique
+        pas : le complément à 1 de `r_squared`, en fraction. None avec lui,
+        sous `MIN_ESTIMABLE_OBSERVATIONS` séances."""
         return None if self.r_squared is None else 1.0 - self.r_squared
 
 
@@ -393,6 +418,8 @@ class ExpectedShortfallResult:
 
     @property
     def caveat(self) -> str | None:
+        """La réserve permanente, en français (`reserve("fr")`) ; None sous
+        99 % de confiance, ou quand la CVaR est refusée."""
         return self.reserve("fr")
 
     def reserve(self, langue: Langue = "fr") -> str | None:
@@ -676,6 +703,14 @@ def _estimation_mince(window: Window, langue: Langue = "fr") -> str | None:
 
 
 def volatility(serie: PortfolioSeries, *, langue: Langue = "fr") -> VolatilityResult:
+    """Volatilité de la série du portefeuille : l'écart-type des rendements
+    quotidiens, annualisé (`measures.annualised_volatility`, METHODOLOGY.md,
+    « Volatility »).
+
+    `annualised` et `daily` sont des fractions ; `daily` est la valeur
+    annualisée ramenée à une séance. Sous `MIN_DISTRIBUTION_OBSERVATIONS`
+    séances, le chiffre est publié et marqué (`caveat`), pas refusé.
+    """
     annualisee = measures.annualised_volatility(serie.returns)
     return VolatilityResult(
         annualised=annualisee,
@@ -689,6 +724,14 @@ def volatility(serie: PortfolioSeries, *, langue: Langue = "fr") -> VolatilityRe
 def ewma_volatility(
     serie: PortfolioSeries, lam: float = EWMA_LAMBDA, *, langue: Langue = "fr"
 ) -> VolatilityResult:
+    """Volatilité de la série par lissage exponentiel, convention RiskMetrics,
+    annualisée (`measures.ewma_volatility`, METHODOLOGY.md, « Volatility »).
+
+    Une prévision pour la séance qui suit la fenêtre, pas une description de
+    la fenêtre. `lam` est le facteur de décroissance, `EWMA_LAMBDA` par
+    défaut, écrit dans la méthode publiée. Même marque d'estimation mince que
+    `volatility`.
+    """
     annualisee = measures.ewma_volatility(serie.returns, lam=lam)
     return VolatilityResult(
         annualised=annualisee,
@@ -721,6 +764,16 @@ def benchmark_volatility(
 
 
 def drawdown(serie: PortfolioSeries) -> DrawdownResult:
+    """Creux maximal de la courbe de valeur sur la fenêtre, et le retour au
+    pic.
+
+    Mesuré sur `serie.wealth`, qui vaut 1 à la séance précédant le premier
+    rendement (METHODOLOGY.md, « Maximum drawdown »). `value` est négatif ou
+    nul, en fraction du plus haut atteint jusque-là ; `amount` l'applique à la
+    valeur du portefeuille au jour de la valorisation, négatif comme lui. Le
+    retour vaut None si la baisse n'est pas effacée à la fin de la fenêtre, ou
+    s'il n'y a pas eu de baisse (`measures.recovery_after`).
+    """
     brut = measures.max_drawdown(serie.wealth)
     retour = measures.recovery_after(serie.wealth, brut)
     return DrawdownResult(
@@ -735,6 +788,14 @@ def drawdown(serie: PortfolioSeries) -> DrawdownResult:
 
 
 def worst_day(serie: PortfolioSeries) -> WorstDayResult:
+    """La pire séance de la fenêtre, en perte positive, et son montant.
+
+    `loss` est l'opposé du plus bas rendement de la série
+    (`measures.worst_session`), en fraction ; en cas d'égalité, la première
+    des séances ex æquo. `amount` l'applique à la valeur du portefeuille au
+    jour de la valorisation : une conversion d'échelle, pas une perte subie ce
+    jour-là (`measures.amount`).
+    """
     pire = measures.worst_session(serie.returns)
     return WorstDayResult(
         date=pire.date,
@@ -785,6 +846,13 @@ def sharpe(
 def sortino(
     serie: PortfolioSeries, target_daily: float = 0.0, *, langue: Langue = "fr"
 ) -> SortinoResult:
+    """Ratio de Sortino annualisé de la série, contre une cible quotidienne.
+
+    `target_daily` est un rendement quotidien en fraction, zéro par défaut.
+    Quand aucun rendement ne passe sous la cible, le ratio vaut None et porte
+    sa raison, dans la langue demandée (METHODOLOGY.md, « Sharpe and Sortino
+    ratios »).
+    """
     deviation = measures.downside_deviation(serie.returns, target_daily)
     ratio = measures.sortino_ratio(serie.returns, target_daily)
     return SortinoResult(
@@ -799,6 +867,15 @@ def sortino(
 
 
 def concentration(poids: PortfolioWeights) -> ConcentrationResult:
+    """Concentration des poids en valeur : l'indice de Herfindahl-Hirschman,
+    les lignes effectives (son inverse) et la référence d'un portefeuille
+    équipondéré.
+
+    Une mesure ponctuelle, sans fenêtre, datée par `poids.as_of`
+    (METHODOLOGY.md, « Concentration and effective holdings »). Lève, comme
+    `measures.herfindahl_index`, sur un poids négatif ou sur des poids qui ne
+    somment pas à 1.
+    """
     hhi = measures.herfindahl_index(poids.weights)
     n = len(poids.weights)
     return ConcentrationResult(
@@ -1039,6 +1116,15 @@ def monte_carlo_var(
     *,
     langue: Langue = "fr",
 ) -> VarResult:
+    """VaR par simulation de rendements normaux corrélés, en perte positive :
+    la vérification croisée de la VaR paramétrique (`var.monte_carlo_var`,
+    METHODOLOGY.md, « Monte Carlo cross-check »).
+
+    Graine fixe par défaut : deux appels identiques rendent le même chiffre, et
+    `detail` écrit le nombre de tirages et la graine. Lève `ValeurRefusee`
+    quand la covariance n'est pas définie positive ; `analyse_portfolio` en
+    tire `monte_carlo_unavailable_reason`.
+    """
     matrice = covariance.covariance_matrix(serie.asset_returns)
     brut = var.monte_carlo_var(
         serie.weights.weights,
@@ -1178,14 +1264,20 @@ class ScenarioCoverage:
 
     @property
     def value_share(self) -> float:
+        """Part de la valeur d'aujourd'hui que portent les lignes rejouées, en
+        fraction ; zéro si la valeur totale est nulle."""
         return self.covered_value / self.total_value if self.total_value else 0.0
 
     @property
     def is_complete(self) -> bool:
+        """Vrai si aucune ligne n'est écartée : le scénario rejoue tout le
+        portefeuille."""
         return not self.excluded
 
     @property
     def has_any(self) -> bool:
+        """Vrai si au moins une ligne est rejouée. Sinon, ni le scénario ni la
+        comparaison de régimes n'ont de chiffre."""
         return bool(self.covered)
 
     @property
@@ -1201,10 +1293,12 @@ class ScenarioCoverage:
 
     @property
     def covered_count(self) -> int:
+        """Nombre de lignes rejouées."""
         return len(self.covered)
 
     @property
     def total_count(self) -> int:
+        """Nombre de lignes du portefeuille, rejouées et écartées."""
         return len(self.covered) + len(self.excluded)
 
     def ecrite(self, langue: Langue = "fr") -> str:
@@ -1448,6 +1542,11 @@ class RegressedBeta:
 
     @property
     def sample_too_thin(self) -> bool:
+        """Vrai sous `min_observations` observations
+        (`MIN_REGRESSION_OBSERVATIONS` par défaut, seuil choisi à la main) : la
+        pente reste rendue, marquée. Le moteur de règles le lit sur le beta de
+        crise : une crise ainsi marquée est citée à part et n'entre dans aucune
+        conclusion (METHODOLOGY.md, « Thin crisis samples »)."""
         return self.observations < self.min_observations
 
     def ecrit(self, langue: Langue = "fr") -> str:
@@ -1511,11 +1610,14 @@ class RegimeComparison:
         return self.nom_de_l_indice("fr")
 
     def nom_de_l_indice(self, langue: Langue = "fr") -> str | None:
+        """Le nom lisible de l'indice de référence, dans la langue demandée
+        (`benchmark_name`) ; None pour un indice sans nom connu."""
         nom = benchmark_name(self.benchmark, langue)
         return None if nom is None else nom.label
 
     @property
     def calm_period_label(self) -> str | None:
+        """La période du régime calme, en français (`periode_calme("fr")`)."""
         return self.periode_calme("fr")
 
     def periode_calme(self, langue: Langue = "fr") -> str | None:
@@ -1545,6 +1647,14 @@ class RegimeComparison:
 
     @property
     def ratio_beta_divergence(self) -> float | None:
+        """Le ratio d'amplification moins la pente de crise, sans unité ; None
+        si l'un des deux manque.
+
+        Un écart qui n'est pas une anomalie : la pente mesure la co-variation
+        quotidienne autour des moyennes, le ratio le rendement cumulé, qu'une
+        dérive propre au portefeuille peut changer sans changer la pente
+        (METHODOLOGY.md, « Three quantities »).
+        """
         if self.amplification_ratio is None or self.crisis_beta is None:
             return None
         return self.amplification_ratio - self.crisis_beta.beta
@@ -1563,6 +1673,12 @@ class RegimeComparison:
         return self.crisis_beta.r_squared - self.calm_beta.r_squared
 
     def summary(self, langue: Langue = "fr") -> str:
+        """Le résumé de la comparaison, sur plusieurs lignes, dans la langue
+        demandée : rendements du portefeuille et de l'indice, ratio, betas de
+        crise et de régime calme, parts systématiques, prédiction du beta calme
+        et écart, avec la mention d'un échantillon de crise trop mince. Une
+        raison à la place des chiffres quand la comparaison est impossible ; la
+        portée quand la couverture est partielle. Publié sous `summary`."""
         moteur = textes(langue).moteur
         nom = self.scenario.nom(langue)
         if self.unavailable_reason is not None:

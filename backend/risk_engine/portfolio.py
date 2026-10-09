@@ -30,6 +30,13 @@ class PortfolioError(ErreurRedigee):
 
 @dataclass(frozen=True)
 class Position:
+    """Une ligne d'un portefeuille, telle qu'elle est en base.
+
+    `quantity` est un nombre de titres, pas une valeur : les poids en valeur se
+    calculent sur la dernière clôture (`market_value_weights`). `cost_basis`,
+    le prix de revient unitaire, est facultatif, et aucune mesure ne le lit.
+    """
+
     ticker: str
     quantity: float
     cost_basis: float | None
@@ -55,6 +62,7 @@ class Security:
 
     @property
     def has_prices(self) -> bool:
+        """Vrai si le titre a au moins un cours en base."""
         return self.first_price_date is not None
 
 
@@ -75,6 +83,8 @@ class PortfolioWeights:
 
     @property
     def tickers(self) -> list[str]:
+        """Les tickers des lignes, dans l'ordre de `weights` : celui de
+        `load_positions`, par ticker, pour un portefeuille lu en base."""
         return list(self.weights)
 
 

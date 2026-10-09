@@ -77,6 +77,13 @@ class TailEstimate:
 
 @dataclass(frozen=True)
 class MonteCarloEstimate:
+    """VaR simulée, en perte positive, et de quoi la reproduire.
+
+    `simulations` et `seed` sont le nombre de tirages et la graine : avec les
+    mêmes entrées, ils redonnent le même chiffre. `nu` porte les degrés de
+    liberté d'une simulation Student, None pour une simulation normale.
+    """
+
     value: float
     simulations: int
     seed: int

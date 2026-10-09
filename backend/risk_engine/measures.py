@@ -269,6 +269,7 @@ class ReturnHistogram:
 
     @property
     def observations(self) -> int:
+        """Nombre de séances comptées : la somme des classes."""
         return sum(classe.count for classe in self.bins)
 
 
