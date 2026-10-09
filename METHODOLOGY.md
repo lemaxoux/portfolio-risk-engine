@@ -606,6 +606,12 @@ return without changing the slope.
 
 ### Thin crisis samples
 
+With fewer than 4 common closes in the crisis window, hence fewer than 3
+sessions of returns, no regimes are compared: the crisis beta would be one of
+the identities of “Two sample-size regimes”, and the reason gives the number of
+common trading days. The threshold is the proven one of that section, counted
+in closes (`config.MIN_CRISIS_CLOSES`).
+
 A crisis beta estimated on fewer than 60 sessions is flagged. The threshold
 is chosen by hand: about three months; below that, a few extreme sessions
 dictate the slope on their own. The 23 sessions of the COVID Crash fall below

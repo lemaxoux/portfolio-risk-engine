@@ -162,6 +162,18 @@ MIN_REGRESSION_OBSERVATIONS = 60
 # rupture, là où elle vaut 0,122 à n = 2 contre 0,069 à n = 3.
 MIN_ESTIMABLE_OBSERVATIONS = 3
 
+# ----------------------- Clôtures minimales d'une comparaison de régimes --
+#
+# SEUIL DÉRIVÉ, pas choisi : le seuil des séances estimables, compté en
+# clôtures. Une comparaison de régimes régresse les rendements quotidiens de la
+# crise rejouée sur ceux de l'indice, et n clôtures communes en donnent n − 1.
+# La pente n'a d'erreur type qu'à partir de `MIN_ESTIMABLE_OBSERVATIONS`
+# rendements ; en deçà, ce serait l'une des identités décrites plus haut. D'où
+# une clôture de plus. Sous ce nombre, `engine.compare_regimes` ne compare pas,
+# et sa raison dit combien de jours de bourse communs la crise comptait
+# (METHODOLOGY.md, « Thin crisis samples »).
+MIN_CRISIS_CLOSES = MIN_ESTIMABLE_OBSERVATIONS + 1
+
 # ----------------------------------- Séances minimales d'une mesure de queue --
 #
 # SEUIL DÉMONTRÉ, pas choisi : comme `MIN_ESTIMABLE_OBSERVATIONS`, il se lit dans

@@ -26,6 +26,7 @@ from .config import (
     DEFAULT_WINDOW,
     EWMA_LAMBDA,
     MAX_STUDENT_NU,
+    MIN_CRISIS_CLOSES,
     MIN_DISTRIBUTION_OBSERVATIONS,
     MIN_ESTIMABLE_OBSERVATIONS,
     MIN_REGRESSION_OBSERVATIONS,
@@ -1752,7 +1753,7 @@ def compare_regimes(
             ),
         )
     crise = align_panel(brut_crise)
-    if len(crise) < 4:
+    if len(crise) < MIN_CRISIS_CLOSES:
         return replace(base, unavailable_reason=moteur.jours_communs_seulement(len(crise)))
 
     trajectoire = stress.buy_and_hold_value(crise[tickers], poids_couverts)

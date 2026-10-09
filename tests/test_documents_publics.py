@@ -229,6 +229,7 @@ def constantes() -> dict[str, str]:
         "régression": seances(config.MIN_REGRESSION_OBSERVATIONS),
         "loi": seances(config.MIN_DISTRIBUTION_OBSERVATIONS),
         "estimables": seances(config.MIN_ESTIMABLE_OBSERVATIONS),
+        "clôtures d'une crise": f"{config.MIN_CRISIS_CLOSES} common closes",
         "λ": f"λ = {typography.compact(config.EWMA_LAMBDA, langue=EN)}",
         "tirages": ecrit(typography.grouped(config.MONTE_CARLO_SIMULATIONS, "draw", langue=EN)),
         "profondeur": jour(BACKFILL_START),

@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 from backend.db.init_db import connect, init_db
+from backend.risk_engine.config import MIN_CRISIS_CLOSES, MIN_ESTIMABLE_OBSERVATIONS
 from backend.risk_engine.config import MIN_REGRESSION_OBSERVATIONS
 from backend.risk_engine.covariance import beta
 from backend.risk_engine.engine import (
@@ -31,6 +32,7 @@ from backend.risk_engine.regime import (
     log_return,
 )
 from backend.risk_engine.scenarios import Scenario
+from backend.textes import textes
 
 # ---------------------------------------------------- Fonctions pures --
 
@@ -324,6 +326,44 @@ def test_sans_ligne_couverte_la_comparaison_est_impossible(conn):
     assert c.amplification_ratio is None and c.calm_beta is None
     assert c.systematic_share_change is None
     assert "impossible" in c.summary()
+
+
+def test_sous_quatre_clotures_communes_la_crise_n_est_pas_comparee(conn):
+    """Le seuil dérivé de `compare_regimes` (E8, phase 8). N clôtures communes
+    donnent N − 1 rendements, et la pente n'a d'erreur type qu'à partir de
+    `MIN_ESTIMABLE_OBSERVATIONS` rendements. Une clôture de moins, la
+    comparaison est refusée, et la raison dit le nombre de jours communs ; au
+    seuil, elle a lieu, sur `MIN_ESTIMABLE_OBSERVATIONS` rendements."""
+    assert MIN_CRISIS_CLOSES == MIN_ESTIMABLE_OBSERVATIONS + 1 == 4
+    peupler(
+        conn,
+        {
+            "SPY": cours_depuis(marche_synthetique(), JOURS),
+            "A": cours_depuis(marche_synthetique(graine=8), JOURS),
+        },
+        {"A": 10},
+    )
+
+    def crise(clotures: int) -> Scenario:
+        return Scenario(
+            key=f"courte_{clotures}",
+            name="Crise courte",
+            start=JOURS[20],
+            end=JOURS[20 + clotures - 1],
+            benchmark="SPY",
+            description="",
+        )
+
+    refusee = compare_regimes(conn, 1, crise(MIN_CRISIS_CLOSES - 1), window=100)
+    assert refusee.crisis_beta is None and refusee.amplification_ratio is None
+    assert refusee.unavailable_reason == textes("fr").moteur.jours_communs_seulement(
+        MIN_CRISIS_CLOSES - 1
+    )
+
+    admise = compare_regimes(conn, 1, crise(MIN_CRISIS_CLOSES), window=100)
+    assert admise.unavailable_reason is None
+    assert admise.crisis_beta.observations == MIN_ESTIMABLE_OBSERVATIONS
+    assert admise.crisis_beta.standard_error is not None
 
 
 def test_sans_benchmark_en_base_la_comparaison_est_impossible(conn):
