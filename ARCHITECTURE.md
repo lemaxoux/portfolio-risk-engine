@@ -32,7 +32,7 @@ Versions are pinned on both sides (`requirements.txt`, `requirements-dev.txt`,
 
 | Module | Responsibility | What verifies it |
 |---|---|---|
-| `backend/data_provider` | the only module that talks to the price provider: addresses, JSON fields, retries | convention, no test |
+| `backend/data_provider` | the only module that talks to the price provider: addresses, JSON fields, retries | `tests/test_frontiere_fournisseur.py` |
 | `backend/ingestion` | backfill, refresh, single additions, status, rebuild; writes prices and computes no risk | `tests/test_ingestion.py`, on doubles of the provider |
 | `backend/risk_engine` | pure functions in `measures`, `covariance`, `var`, `returns`, `stress`, `regime`; `portfolio` reads SQLite; `engine` composes and attaches its window to every result | tests on synthetic data with known results, and identities held to floating-point tolerance |
 | `backend/rules` | reads the results of the engine and turns them into findings; imports no calculation module | `test_le_moteur_de_regles_n_importe_aucun_module_de_calcul` |
@@ -426,6 +426,5 @@ page (`tests/test_api_static.py`).
   version.
 - The bundle is not split; both methodology texts ship in it.
 - No preview of an import: the API has no read without a write.
-- Two boundaries rest on convention, not on a test: only
-  `backend/data_provider` talks to the provider, and the client computes no
+- One boundary rests on convention, not on a test: the client computes no
   measure.

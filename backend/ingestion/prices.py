@@ -498,7 +498,7 @@ def _run(
                 connexion.rollback()
                 quota_epuise = True
                 report.results.append(TickerResult(ticker, ECHEC, detail=str(exc)))
-                logger.error("%s : quota Tiingo épuisé, arrêt du passage", ticker)
+                logger.error("%s : quota du fournisseur épuisé, arrêt du passage", ticker)
             except (UnknownTickerError, ProviderError) as exc:
                 connexion.rollback()
                 report.results.append(TickerResult(ticker, ECHEC, detail=str(exc)))
