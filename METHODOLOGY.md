@@ -817,9 +817,11 @@ portfolio of the tests.
 <!-- dated: calm-beta -->
 Portfolio: AAPL 40, MSFT 25, JPM 60, JNJ 50, XOM 80, KO 120 (shares), valued on
 September 9, 2026. Ordinary times: 504 sessions, from September 5, 2024, to
-September 9, 2026; beta 0.57 ± 0.03, R² 0.49.
+September 9, 2026; beta 0.57 ± 0.03, R² 0.49. Each beta is given ± one
+standard error of the slope, not a confidence interval (formula in “Beta and
+R²”).
 
-| Crisis | Sessions | Crisis beta | R² | Replayed | Implied by the calm beta | Gap | S&P 500 |
+| Crisis | Sessions | Crisis beta ± one standard error | R² | Replayed | Implied by the calm beta | Gap | S&P 500 |
 |---|---|---|---|---|---|---|---|
 | 2008 Financial Crisis | 355 | 0.96 ± 0.02 | 0.86 | −44.0% | −36.6% | −7.4 points | −55.2% |
 | COVID Crash | 23 | 1.07 ± 0.03 | 0.98 | −35.8% | −20.8% | −15.0 points | −33.7% |
@@ -884,8 +886,10 @@ September 8, 2026.
 The true return of KO on that session is −0.92%, the same from raw and from
 adjusted closes in the frozen copy. The database stored −1.51% before the fix,
 as read in the backup taken before the repair, on September 28, 2026. The
-provider had already re-adjusted the close of that session for a later
-dividend, while the close of the session before stayed on the old basis, and
+provider re-adjusts the whole history at each dividend. The refresh of the
+tool rewrote that session on the new basis, already re-adjusted for a later
+dividend, but not the session before it: in the tool's database, the session
+before stayed on the old basis, because the refresh had not rewritten it, and
 the return of the junction session counted the adjustment as a loss. The false
 return sat in the window of every analysis of a portfolio holding KO until the
 repair. Since the fix, a dividend or a split triggers a full reload of the

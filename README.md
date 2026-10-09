@@ -67,11 +67,12 @@ September 9, 2026. The details are in
 **The beta of ordinary times misses the crises.** Demonstration portfolio (AAPL
 40, MSFT 25, JPM 60, JNJ 50, XOM 80, KO 120), valued on September 9, 2026, over
 504 trading days, from September 5, 2024, to September 9, 2026: beta
-0.57 ± 0.03. Replayed, the portfolio ends the 2008 Financial Crisis at −44.0%
-where that beta implied −36.6%, the COVID Crash at −35.8% against −20.8%, and
-the 2022 Monetary Tightening at −8.7% against −14.7%. The share of the variance
-that follows the market rises from 0.49 to 0.86 and 0.79 in the two crises long
-enough to conclude.
+0.57 ± 0.03 (± one standard error of the slope, whose formula is in “Beta and
+R²” of [METHODOLOGY.md](METHODOLOGY.md)). Replayed, the portfolio ends the
+2008 Financial Crisis at −44.0% where that beta implied −36.6%, the COVID Crash
+at −35.8% against −20.8%, and the 2022 Monetary Tightening at −8.7% against
+−14.7%. The share of the variance that follows the market rises from 0.49 to
+0.86 and 0.79 in the two crises long enough to conclude.
 <!-- /dated -->
 
 <!-- dated: concentration-2022 -->
@@ -95,9 +96,11 @@ stops at ν = 2.01, where the Student's t VaR at 99% would be 0.45%, against
 **A false return at a dividend reload.** Security: KO alone, session of
 September 9, 2026, the return since September 8, 2026. The true return is
 −0.92%; the database stored −1.51% before the fix (backup of
-September 28, 2026), because the provider had re-adjusted one close for a later
-dividend and not the one before it. A dividend or a split now triggers a full
-reload of the security's history.
+September 28, 2026). The defect was the tool's: the provider re-adjusts the
+whole history at each dividend, but the refresh of the tool had rewritten only
+the last stored session, on the new basis, and left the session before it on
+the old one. A dividend or a split now triggers a full reload of the security's
+history.
 <!-- /dated -->
 
 <!-- screenshots -->
@@ -157,8 +160,9 @@ No test goes on the network: the provider and the HTTP session are replaced by
 doubles. The tests that read real prices work on a copy of the local database
 truncated at September 9, 2026, and are skipped when no local database exists.
 Guards prove what the documentation claims: the API layer computes nothing,
-every number of the methodology page and of these documents is recomputed from
-the engine, and no published sentence prescribes.
+every number of the methodology page and of these documents is checked against
+the engine, against the file that sets it, or against a closed list of declared
+values, and no published sentence prescribes.
 
 ## Project layout
 
