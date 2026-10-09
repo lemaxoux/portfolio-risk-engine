@@ -1477,7 +1477,8 @@ def test_chaque_raison_de_refus_n_affirme_que_ce_qui_la_concerne(
     « Le coefficient vaut ±1 » est vrai d'une corrélation et faux d'une pente :
     à deux séances le beta prend n'importe quelle valeur. Chaque raison, en
     clair, nomme SA mesure ; seule celle de la corrélation garde une
-    conséquence, vraie d'elle seule. La démonstration est dans le README.
+    conséquence, vraie d'elle seule. La démonstration est dans METHODOLOGY.md,
+    « Two sample-size regimes ».
     """
     corps = analyse_historique_court(3).json()
 

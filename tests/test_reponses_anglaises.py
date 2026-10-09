@@ -17,7 +17,8 @@ glissé dans un champ inattendu serait vu. Trois exceptions, déclarées :
 - les garde-fous internes du moteur et du lecteur CSV (question 10), dont
   les messages restent français dans les deux langues. Ils ne sortent que sur
   une base corrompue ; la garde les reconnaît par leur début, lu dans le code
-  des modules que le README déclare (`MODULES_RESTES_EN_FRANCAIS`).
+  des modules qu'ARCHITECTURE.md déclare (« What stays in French »,
+  `MODULES_RESTES_EN_FRANCAIS`).
 
 Les champs de prose passent en plus les gardes de forme et de registre de
 l'anglais ; l'écran d'acceptation dit à bon droit « not advice » et « buy,
@@ -64,8 +65,8 @@ IDENTIFIANTS = re.compile(r"^\.source\.decimal_separator$")
 # un placement ; la garde prescriptive ne le lit pas.
 MESSAGE_DE_PYDANTIC = re.compile(r"^Input should ")
 
-# Les modules dont les garde-fous internes restent en français, déclarés au
-# README (section 9, « Ce qui reste en français, déclaré »).
+# Les modules dont les garde-fous internes restent en français, déclarés dans
+# ARCHITECTURE.md (« What stays in French »).
 MODULES_RESTES_EN_FRANCAIS = (
     "backend/risk_engine/measures.py",
     "backend/risk_engine/covariance.py",

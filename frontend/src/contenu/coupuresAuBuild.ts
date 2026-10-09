@@ -19,8 +19,8 @@
  *
  * Ceux de TeX (hyph-utf8), portés en JavaScript par `hyphen` : le français
  * (Daniel Flipo, Bernard Gaulle, Arthur Reutenauer, licence MIT) et
- * l'anglais américain (Gerard D.C. Kuiken). Crédits et notice : README,
- * section 10.
+ * l'anglais américain (Gerard D.C. Kuiken). Crédits et notice : README.md,
+ * « Credits ».
  */
 import { readFileSync } from 'node:fs'
 

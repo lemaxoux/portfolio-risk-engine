@@ -1,7 +1,8 @@
 # CLAUDE.md — Mx Risk MGT
 
 Moteur de risque de portefeuille (Python), API FastAPI, frontend Vite + React.
-Le détail de chaque point ci-dessous est dans `README.md`. La spécification
+Le détail de chaque point ci-dessous est dans `ARCHITECTURE.md` (les
+décisions) et `METHODOLOGY.md` (les mesures), en anglais. La spécification
 visuelle est `frontend/DESIGN.md` : elle se lit en entier avant tout CSS.
 
 La racine du dépôt est ce dossier, `app/`. Les documents de cadrage, dont la
@@ -35,7 +36,8 @@ et ne se versionnent pas.
   serveur vit dans `backend/textes/fr/` et `backend/textes/en/`, mêmes noms
   et mêmes signatures : elle s'ajoute dans les deux, avec ses cas dans
   `tests/test_textes_symetriques.py`. Sans `?lang`, chaque réponse reste la
-  française d'avant le chantier 7D, octet pour octet (README, section 11).
+  française d'avant le chantier 7D, octet pour octet (`ARCHITECTURE.md`,
+  « Two languages »).
 
 ## Tests
 
@@ -47,7 +49,9 @@ npx tsc --noEmit -p .                   # types
 npm run build                           # types puis bundle dans dist/
 ```
 
-Chaque commit laisse les suites vertes et le README à jour.
+Chaque commit laisse les suites vertes et la documentation à jour
+(`README.md`, `METHODOLOGY.md`, `ARCHITECTURE.md`), ses nombres datés tenus
+par `tests/test_documents_publics.py`.
 
 ## La base réelle ne se lit que figée
 
@@ -67,7 +71,8 @@ utiliser un autre port avec une copie de la base.
 
 Un test existant ne se modifie qu'après avoir expliqué pourquoi il était
 faux, et avec l'accord de Maxence. Il faut aussi s'arrêter et demander si une
-consigne contredit `DESIGN.md` ou une convention du README, ou si une valeur
+consigne contredit `DESIGN.md` ou une convention d'`ARCHITECTURE.md` ou de
+`METHODOLOGY.md`, ou si une valeur
 de référence d'un test change.
 
 ## Pièges connus

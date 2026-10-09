@@ -13,9 +13,10 @@ PRAGMA foreign_keys = ON;
 --
 -- sector est nullable à dessein : le secteur n'est pas toujours disponible au
 -- moment de l'insertion d'un titre, et l'ingestion des prix ne doit pas échouer
--- pour une donnée descriptive manquante. Il sert au flag de concentration
--- sectorielle (Phase 6), qui devra donc traiter le cas NULL explicitement
--- plutôt que de supposer la colonne renseignée.
+-- pour une donnée descriptive manquante. Il est publié par /api/securities, et
+-- aucune règle ne le lit : le drapeau de concentration sectorielle de la
+-- spécification n'a pas été construit (METHODOLOGY.md, « What the tool does
+-- not do »).
 -- NOT NULL sur ticker n'est pas redondant avec PRIMARY KEY : SQLite accepte
 -- NULL dans une clé primaire non-INTEGER (bug historique conservé pour
 -- compatibilité). Sans cette contrainte, un ticker manquant à l'ingestion

@@ -9,10 +9,11 @@ par ordre de préférence :
    (« vos 6 lignes pèsent comme 5,7 lignes de même montant ») et de la part
    systématique.
 2. **Un seuil dérivé d'une référence calculée**, comme l'équipondération 1/N ou
-   la part de capital d'une ligne. Entre aussi dans cette catégorie le seuil
-   qui vient de l'ALGÈBRE de l'estimateur et non d'une convention : le nombre
+   la part de capital d'une ligne. Entrent aussi dans cette catégorie les seuils
+   qui viennent de l'ALGÈBRE de l'estimateur et non d'une convention : le nombre
    d'observations en deçà duquel une statistique cesse d'être une mesure n'a
-   pas été choisi, il se démontre (voir `MIN_ESTIMABLE_SAMPLE`).
+   pas été choisi, il se démontre (voir `MIN_ESTIMABLE_SAMPLE` et
+   `historical_var_sample`).
 3. **Un seuil relatif au portefeuille lui-même**, comme la corrélation de sa paire
    la plus corrélée.
 4. **En dernier recours seulement, un nombre rond choisi à la main.** Le résultat
@@ -281,7 +282,8 @@ MIN_DISTRIBUTION_SAMPLE = Threshold(
 
 # --------------------------------------------- Seuils calculés ou relatifs --
 
-# Le seul seuil du projet qui ne soit pas une convention : il se démontre.
+# Un seuil qui n'est pas une convention : il se démontre, comme celui d'une VaR
+# historique (`historical_var_sample`, plus bas).
 #
 # À deux observations, le centrage ne laisse qu'une SEULE direction — les deux
 # écarts à la moyenne valent ±δ/2, où δ est la différence entre les deux

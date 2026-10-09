@@ -77,8 +77,8 @@ const PARTIES = [
  * de package.json : Spectral 400 et 500 pour la prose (titres et étiquettes
  * compris), IBM Plex Sans 400 pour les formules. Le dépôt n'a pas de lecteur
  * de polices : un caractère hors de ces listes fait échouer le test, et l'on
- * vérifie la police à la main avant de l'ajouter (README, « La page
- * méthodologie »).
+ * vérifie la police à la main avant de l'ajouter (ARCHITECTURE.md, « The
+ * methodology page »).
  *
  * Deux signes ne sont dessinés par AUCUNE police du produit : √ et ≥. Ils
  * viennent de la police de repli, comme le √ et le → des provenances

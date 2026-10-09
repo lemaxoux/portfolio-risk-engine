@@ -426,12 +426,10 @@ def herfindahl_index(weights) -> float:
 
     RÉPARTITION DES RESPONSABILITÉS — c'est bien au moteur de lever : rendre un
     nombre ininterprétable serait pire qu'échouer, puisque rien en aval ne
-    pourrait plus détecter qu'il ne veut rien dire. Mais lever ici ne doit pas
-    faire tomber tout le rapport de risque. La couche de présentation (Phase 7)
-    doit attraper cette `ValueError` et afficher les autres mesures —
-    volatilité, drawdown, Sharpe, Sortino restent parfaitement valides sur un
-    portefeuille long/short — en signalant la seule concentration comme non
-    calculable et pourquoi.
+    pourrait plus détecter qu'il ne veut rien dire. Par l'API, le cas n'arrive
+    pas : la validation refuse toute quantité nulle ou négative à la saisie
+    (`api/validation.py`), si bien qu'aucun poids négatif n'atteint le moteur.
+    La levée protège qui appelle le moteur directement.
 
     Les poids doivent sommer à 1 : ce sont des parts, et une normalisation
     silencieuse masquerait une erreur de construction en amont.

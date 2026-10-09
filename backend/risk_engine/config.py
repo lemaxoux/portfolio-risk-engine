@@ -104,10 +104,11 @@ PRICE_CURRENCY = "USD"
 # de rendements du portefeuille, puisque c'est la même quantité calculée de deux
 # façons.
 #
-# L'écart qu'introduirait une incohérence vaut N/(N−1), soit 0,1 % sur 504
-# séances : assez petit pour passer pour un arrondi, assez réel pour être une
-# incohérence qu'on ne retrouverait jamais. D'où la constante partagée plutôt
-# qu'un défaut répété à chaque appel — et un test qui verrouille l'identité.
+# L'écart qu'introduirait une incohérence vaut N/(N−1) sur les variances, et sa
+# racine carrée sur les volatilités, soit 0,1 % sur 504 séances : assez petit
+# pour passer pour un arrondi, assez réel pour être une incohérence qu'on ne
+# retrouverait jamais. D'où la constante partagée plutôt qu'un défaut répété à
+# chaque appel — et un test qui verrouille l'identité.
 DDOF = 1
 
 # ------------------------------------------- Taille minimale d'une régression --
@@ -125,8 +126,9 @@ MIN_REGRESSION_OBSERVATIONS = 60
 #
 # En deçà de trois observations, corrélation, beta et contributions à la variance
 # cessent d'être des estimations. Ce n'est pas une convention comme
-# `MIN_REGRESSION_OBSERVATIONS` : c'est de l'algèbre, et c'est le seul seuil du
-# projet qui se démontre.
+# `MIN_REGRESSION_OBSERVATIONS` : c'est de l'algèbre. Le projet a deux seuils de
+# cette nature : celui-ci, et le minimum d'une VaR historique
+# (`historical_var_min_observations`, plus bas).
 #
 # CE QUI EST VRAI DES TROIS — à deux observations, le centrage ne laisse qu'une
 # SEULE direction. Les deux écarts à la moyenne valent ±δ/2, où δ est la
@@ -236,10 +238,10 @@ MAX_STUDENT_NU = 30.0
 #     qu'une ou deux au-delà du quantile à 95 % ;
 #   * la volatilité et la VaR paramétrique normale restent PUBLIÉES, mais
 #     marquées comme estimation mince (`caveat`). Elles bougent avec les
-#     données, elles ne sont donc pas refusées (README, « Où s'arrête le
-#     refus ») ; mais sous normalité, l'écart-type d'échantillon qui les porte
-#     varie d'environ 1/√(2n) d'une fenêtre à l'autre — 13 % sur 30 séances,
-#     27 % sur 7. Le moteur de règles n'en tire aucune conclusion.
+#     données, elles ne sont donc pas refusées (METHODOLOGY.md, « Where
+#     refusal stops ») ; mais sous normalité, l'écart-type d'échantillon qui
+#     les porte varie d'environ 1/√(2n) d'une fenêtre à l'autre — 13 % sur
+#     30 séances, 27 % sur 7. Le moteur de règles n'en tire aucune conclusion.
 #
 # SEUIL CHOISI À LA MAIN, le cinquième du projet, déclaré comme tel dans
 # `rules.thresholds.MIN_DISTRIBUTION_SAMPLE` : trente est la convention

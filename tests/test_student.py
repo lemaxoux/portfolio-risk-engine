@@ -197,7 +197,7 @@ def test_au_dela_de_nu_30_la_student_s_ecarte_a_peine_de_la_normale():
     À variance égale et en relatif, la VaR Student s'écarte de la normale de
     +2,05 % à 99 % et de −0,31 % à 95 % pour ν = 30, et de moins encore
     au-delà. Ces nombres sont écrits dans la configuration, dans le seuil
-    déclaré et dans le README : ce test les tient.
+    déclaré et dans METHODOLOGY.md : ce test les tient.
     """
     from backend.risk_engine.config import MAX_STUDENT_NU
 

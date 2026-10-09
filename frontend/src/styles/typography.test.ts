@@ -8,7 +8,8 @@
  *
  * Ce qui se vérifie ici sans navigateur : que la police contient bien ce
  * qu'on croit, et qu'elle est déclarée là où elle peut servir. Le rendu, lui,
- * a été mesuré dans Chrome (README, §10).
+ * a été mesuré dans Chrome (DESIGN.md §6.3 ; le détail des mesures est dans
+ * l'archive du README français, hors dépôt).
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

@@ -408,7 +408,8 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   côté d'une phrase en `1,38 %` créerait deux conventions dans un même
   produit.
 - **Format anglais en anglais** (chantier 7D), fixé de même des deux côtés
-  (`format.ts`, `backend/typography.py`, README section 10) : point décimal,
+  (`format.ts`, `backend/typography.py`, ARCHITECTURE.md, « One formatter on
+  each side ») : point décimal,
   virgule des milliers à partir de quatre chiffres (« 1,000 », « 504 »),
   aucune espace avant `%` (« 1.06% »), le même signe moins U+2212, U+00A0
   entre un nombre et le mot qu'il compte (« 504 sessions ») et dans une date
@@ -469,8 +470,10 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   règle 3). Le refus d'un champ de saisie, que précédait un tiret, porte à la
   place un trait vertical de 2 px, celui du contour d'un champ refusé.
   Ne sont pas concernés : le tiret court d'une paire (« JNJ–KO »), le signe
-  moins (U+2212) et la flèche d'une période (→). Ce document, le README et
-  les commentaires du code ne sont pas l'interface : ils gardent leurs tirets.
+  moins (U+2212) et la flèche d'une période (→). Ce document et les
+  commentaires du code ne sont pas l'interface : ils gardent leurs tirets. Les
+  documents publics du dépôt (README.md, METHODOLOGY.md, ARCHITECTURE.md) n'en
+  ont aucun (`tests/test_documents_publics.py`).
   Vérifié des deux côtés : `tests/test_textes_publies.py` sur les réponses de
   l'API et sur chaque chaîne du code qui les écrit ; `src/lib/ponctuation.test.ts`
   sur les chaînes et le JSX du client, ses feuilles de style et `index.html`.
@@ -487,7 +490,8 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   de 644 octets (`src/styles/fonts/espace-fine.ttf`, engendrée par
   `tools/espace_fine.py`) est déclarée dans la famille 'Spectral' pour
   U+202F seulement, en 400 et 500 : une espace vide de 0,200 em, qui ramène
-  le blanc au niveau de Plex. Mesures dans le README, section 10.
+  le blanc au niveau de Plex. Mesures : archive du README français
+  (`../README-fr.md`, hors dépôt), section 10.
 - **Les formules de la méthodologie, en IBM Plex Sans.** Spectral n'a pas de
   lettre grecque : une formule, même d'une lettre (« σ »), s'écrit dans un
   élément en Plex Sans, en ligne ou en bloc, et la prose n'en contient
@@ -677,10 +681,10 @@ Autres écrans, volontairement pauvres : **saisie / import du portefeuille**
 (tableau éditable + zone de dépôt CSV avec le format affiché en clair).
 
 **Méthodologie** (`/methodologie`, 7B.3b, décision du 2026-10-07) : comment
-chaque chiffre est calculé, pour un lecteur qui part de zéro. Ce n'est pas le
-README rendu, mais un texte propre à la page, dans un fichier de contenu par
-langue (`src/contenu/methodologie.fr.md`) ; le README reste la référence
-technique. Le texte suit l'ordre de l'analyse : ce que fait l'outil, les
+chaque chiffre est calculé, pour un lecteur qui part de zéro. Ce n'est pas
+METHODOLOGY.md rendu, mais un texte propre à la page, dans un fichier de
+contenu par langue (`src/contenu/methodologie.fr.md`) ; METHODOLOGY.md, en
+anglais, reste la référence technique. Le texte suit l'ordre de l'analyse : ce que fait l'outil, les
 données, les conventions, puis chaque mesure affichée, section par section
 (ce qu'elle calcule, sa formule, ses hypothèses, ses limites), les crises
 rejouées, les seuils et les refus. Chaque terme technique y est expliqué à
@@ -1032,7 +1036,7 @@ Raison : agréger volatilité, concentration, beta et couverture de scénario en
 un nombre unique suppose une pondération qui n'a aucune justification
 théorique, et cache exactement les arbitrages que l'outil existe pour montrer.
 C'est le dispositif central de Guardfolio, et le refuser est un choix de
-produit assumé, à écrire dans le README.
+produit assumé, écrit dans le README (« What it refuses to do »).
 
 **11.2 — La couverture d'un scénario a le même poids visuel que la perte.**
 Un scénario qui projette −44,0 % en ne couvrant que 73 % du portefeuille n'est

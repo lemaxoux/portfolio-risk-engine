@@ -1,8 +1,9 @@
 """VaR, Expected Shortfall et Monte Carlo. Fonctions pures.
 
 CONVENTION DE SIGNE — toutes les valeurs de ce module sont des PERTES
-POSITIVES. Une VaR 95 % de 0,021 se lit « une perte d'au moins 2,1 % est
-attendue une séance sur vingt ».
+POSITIVES. Une VaR 95 % de 0,021 se lit « une perte d'au moins 2,1 %, une
+séance sur vingt » : un seuil que la perte atteint ou dépasse, pas une
+moyenne (la moyenne au-delà est la CVaR).
 
 Ce choix est fixé une fois pour toutes parce que l'alternative — rendre le
 rendement négatif du quantile — coexiste dans la littérature et dans les

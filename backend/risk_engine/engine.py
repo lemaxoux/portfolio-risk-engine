@@ -660,10 +660,10 @@ def _estimation_mince(window: Window, langue: Langue = "fr") -> str | None:
     """Réserve d'une volatilité ou d'une VaR paramétrique sur trop peu de
     séances, ou None.
 
-    Le chiffre n'est pas refusé : il bouge avec les données (README, « Où
-    s'arrête le refus »). Il est MARQUÉ, et la phrase dit les deux choses que
-    le lecteur doit savoir — sur combien de séances, contre quel seuil, CHOISI
-    — et qu'aucune conclusion du moteur de règles n'en dépend.
+    Le chiffre n'est pas refusé : il bouge avec les données (METHODOLOGY.md,
+    « Where refusal stops »). Il est MARQUÉ, et la phrase dit les deux choses
+    que le lecteur doit savoir — sur combien de séances, contre quel seuil,
+    CHOISI — et qu'aucune conclusion du moteur de règles n'en dépend.
     """
     if window.observations >= MIN_DISTRIBUTION_OBSERVATIONS:
         return None
@@ -831,7 +831,8 @@ def concentration(poids: PortfolioWeights) -> ConcentrationResult:
 # sont dans `backend/textes/<langue>/moteur.py` (`refus_non_estimable`). La
 # démonstration — à deux observations, le centrage ne laisse qu'une seule
 # direction — et ses conséquences propres à chaque mesure (colinéarité,
-# absence de résidu, covariance de rang 1) sont dans le README.
+# absence de résidu, covariance de rang 1) sont dans METHODOLOGY.md, « Two
+# sample-size regimes ».
 
 
 def _non_estimable(window: Window, mesure: str, langue: Langue = "fr") -> str | None:
