@@ -338,7 +338,7 @@ between the two puts a price on the normality assumption.
   With $ν ≤ 2$, refused: the distribution has no finite variance. With
   $ν > 30$, refused (chosen by hand): the Student's t can no longer be
   distinguished from the normal. At equal variance, its VaR departs from the
-  normal one by at most 2.05% at 99% and by at most 0.31% at 95%, in relative
+  normal one by at most 2.05% at 99% and by about 0.31% at 95%, in relative
   terms, far less than the standard error of a sample standard deviation,
   about $1/√(2n)$ under normality, 9% over 60 sessions. The engine refuses
   rather than caps: a bound inside the optimizer would publish “ν = 30” as if

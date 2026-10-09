@@ -239,7 +239,7 @@ def sample_std_relative_error(observations: int) -> float:
 #
 # À variance égale, la VaR Student s'écarte de la VaR normale de +2,05 % à
 # 99 % et de −0,31 % à 95 % pour ν = 30, en relatif, et de moins encore
-# au-delà : 2,05 % au plus à 99 %, 0,31 % au plus à 95 %. C'est bien en deçà
+# au-delà : 2,05 % au plus à 99 %, environ 0,31 % à 95 %. C'est bien en deçà
 # de l'erreur d'estimation elle-même : l'erreur type relative d'un écart-type
 # d'échantillon vaut environ 1/√(2n) (`sample_std_relative_error`, plus haut).
 # La justification publiée l'écrit sur la fenêtre la plus courte que l'API

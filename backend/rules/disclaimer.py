@@ -52,7 +52,13 @@ def _duree(seances: int, langue: Langue = "fr") -> str:
     """« environ 2 ans », « environ 6 mois », « about 2 years » : en années
     quand la fenêtre en tombe à moins d'un vingtième près, en mois sinon. La
     décision est ici ; l'écriture, nombre et unité liés par une espace
-    insécable, est dans le module de la langue."""
+    insécable, est dans le module de la langue.
+
+    Ce n'est pas tout à fait la règle d'`engine.period_label`, qui attend 252
+    séances pour parler d'années et compte en jours sous 21 séances : de 240
+    à 251 séances, celle-ci écrit « environ 1 an » là où `period_label` dit
+    « ces 11 derniers mois » ou « ces 12 derniers mois », et sous 21 séances
+    elle compte en mois, « environ 0 mois » compris."""
     bandeau = textes(langue).bandeau
     annees = seances / TRADING_DAYS_PER_YEAR
     if abs(annees - round(annees)) < 0.05 and round(annees) >= 1:

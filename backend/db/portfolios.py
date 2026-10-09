@@ -101,7 +101,8 @@ def get(conn: sqlite3.Connection, portfolio_id: int) -> PortfolioRow | None:
 
 
 def list_all(conn: sqlite3.Connection) -> list[PortfolioRow]:
-    """Tous les portefeuilles, du plus récemment identifié au plus ancien."""
+    """Tous les portefeuilles, dans l'ordre de leur création : `ORDER BY id`
+    sur une clé `AUTOINCREMENT`, du plus ancien au plus récent."""
     return [
         _row(ligne)
         for ligne in conn.execute(

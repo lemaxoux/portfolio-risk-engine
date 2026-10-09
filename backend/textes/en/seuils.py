@@ -97,7 +97,7 @@ def justification(seuil: Threshold) -> str:
                 "above it, Student's t-distribution cannot be distinguished from "
                 "the normal distribution: at equal variance, its VaR departs from "
                 f"it by at most {_pourcentage(0.0205, 2)} at {_pourcentage(0.99, 0)} "
-                f"and by at most {_pourcentage(0.0031, 2)} at "
+                f"and by about {_pourcentage(0.0031, 2)} at "
                 f"{_pourcentage(0.95, 0)}, far less than the standard error of a "
                 "sample standard deviation, about 1/√(2n) under normality ("
                 f"{_pourcentage(sample_std_relative_error(MIN_REGRESSION_OBSERVATIONS), 0)}"

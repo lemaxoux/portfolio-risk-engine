@@ -257,8 +257,8 @@ STUDENT_NU_CEILING = Threshold(
     rationale=(
         "au-delà, la loi de Student ne se distingue pas de la normale : à "
         f"variance égale, sa VaR s'en écarte de {typography.percent(0.0205, 2)} "
-        f"au plus à {typography.percent(0.99, 0)} et de "
-        f"{typography.percent(0.0031, 2)} au plus à {typography.percent(0.95, 0)}, "
+        f"au plus à {typography.percent(0.99, 0)} et d'environ "
+        f"{typography.percent(0.0031, 2)} à {typography.percent(0.95, 0)}, "
         "bien moins que l'erreur type d'un écart-type d'échantillon, environ "
         "1/√(2n) sous normalité ("
         f"{typography.percent(sample_std_relative_error(MIN_REGRESSION_OBSERVATIONS), 0)}"

@@ -1,11 +1,17 @@
 """Composition des mesures sur un portefeuille réel.
 
 Cette couche assemble : elle charge (via `portfolio`), construit les séries (via
-`returns`), applique les mesures (via `measures`) et rend des résultats qui
-portent leur fenêtre d'estimation.
+`returns`), applique les mesures et rend des résultats qui portent leur fenêtre
+d'estimation.
 
-Aucun calcul n'est fait ici — tout ce qui produit un nombre vit dans `measures`,
-où il se teste sans base de données.
+Les mesures sont calculées dans les modules purs (`measures`, `covariance`,
+`var`, `stress`, `regime`), où elles se testent sans base de données. Ce module
+compose, et ne fait que des conversions d'échelle et des dérivations
+immédiates de résultats déjà calculés : la volatilité ramenée de l'année à la
+séance par √252, les lignes effectives comme inverse du HHI, les montants
+(`measures.amount`), le rendement de l'indice sur une crise et les poids
+renormalisés de ses lignes rejouées, les parts et les écarts entre deux
+résultats, la période dite en mots (`period_label`).
 """
 
 from __future__ import annotations
@@ -64,9 +70,13 @@ def period_label(observations: int, langue: Langue = "fr") -> str:
     * sinon, à partir de 21 séances : en mois arrondis ;
     * en deçà : en jours de bourse, le compte exact.
 
-    C'est la règle de `rules.disclaimer._duree`, sauf en deçà d'un mois, où
-    celle-ci écrirait « environ 0 mois ». Les nombres s'écrivent en lettres
-    jusqu'à dix (`typography.cardinal`), suivis d'une espace insécable.
+    Ce n'est pas tout à fait la règle de `rules.disclaimer._duree`. Les deux
+    divergent sous 21 séances, où `_duree` compte en mois, « environ 0 mois »
+    compris, et celle-ci en jours de bourse ; et de 240 à 251 séances, où
+    `_duree` écrit « environ 1 an » et celle-ci « ces 11 derniers mois » ou
+    « ces 12 derniers mois » : elle attend 252 séances pour parler d'années.
+    Les nombres s'écrivent en lettres jusqu'à dix (`typography.cardinal`),
+    suivis d'une espace insécable.
 
     La décision — années, mois ou jours, et combien — est ici ; l'écriture est
     dans le module de la langue (`backend/textes/<langue>/moteur.py`).
