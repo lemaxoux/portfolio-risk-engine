@@ -64,26 +64,28 @@ describe('portefeuilleDAccueil', () => {
   })
 })
 
-describe('naviguer et la garde', () => {
-  function simulerFenetre(depart: string) {
-    const location = { pathname: depart }
-    const history = {
-      pushState: vi.fn((_etat: unknown, _titre: string, chemin: string) => {
-        location.pathname = chemin
-      }),
-      replaceState: vi.fn((_etat: unknown, _titre: string, chemin: string) => {
-        location.pathname = chemin
-      }),
-    }
-    vi.stubGlobal('window', {
-      location,
-      history,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })
-    return { location, history }
+function simulerFenetre(depart: string, scrollY = 0) {
+  const location = { pathname: depart }
+  const history = {
+    pushState: vi.fn((_etat: unknown, _titre: string, chemin: string) => {
+      location.pathname = chemin
+    }),
+    // Sans adresse, l'entrée garde la sienne, comme dans le navigateur.
+    replaceState: vi.fn((_etat: unknown, _titre: string, chemin?: string) => {
+      if (chemin !== undefined) location.pathname = chemin
+    }),
   }
+  vi.stubGlobal('window', {
+    location,
+    history,
+    scrollY,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })
+  return { location, history }
+}
 
+describe('naviguer et la garde', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -125,5 +127,36 @@ describe('naviguer et la garde', () => {
     naviguer('/portefeuilles/1', { remplacer: true })
     expect(history.replaceState).toHaveBeenCalledOnce()
     expect(history.pushState).not.toHaveBeenCalled()
+  })
+})
+
+describe('la note d’un lien vers la méthode (chantier 7E)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('est écrite dans l’entrée quittée, avec la position, AVANT d’en ouvrir une autre', () => {
+    const { location, history } = simulerFenetre('/portefeuilles/1', 4757.4)
+    naviguer('/methodologie#var-historique', { retour: 'var-historique-0.99#var-historique' })
+    expect(history.replaceState).toHaveBeenCalledExactlyOnceWith(
+      { retour: { cle: 'var-historique-0.99#var-historique', y: 4757 } },
+      '',
+    )
+    const [noter] = history.replaceState.mock.invocationCallOrder
+    const [partir] = history.pushState.mock.invocationCallOrder
+    expect(noter).toBeLessThan(partir ?? 0)
+    expect(location.pathname).toBe('/methodologie#var-historique')
+  })
+
+  it('un lien sans clé l’efface : un retour ne rend pas une place qu’un autre lien a quittée', () => {
+    const { history } = simulerFenetre('/portefeuilles/1', 900)
+    naviguer('/portefeuilles')
+    expect(history.replaceState).toHaveBeenCalledExactlyOnceWith({ retour: null }, '')
+  })
+
+  it('une redirection n’en écrit pas', () => {
+    const { history } = simulerFenetre('/')
+    naviguer('/portefeuilles/1', { remplacer: true })
+    expect(history.replaceState).toHaveBeenCalledExactlyOnceWith(null, '', '/portefeuilles/1')
   })
 })

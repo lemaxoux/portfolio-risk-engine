@@ -124,6 +124,13 @@
   margin-block-start: var(--space-5);
 }
 
+/* Le lien vers la méthode, sous le tableau de sensibilité ou sous la raison
+ * de son absence : une provenance, donc en Plex Sans (chantier 7E). */
+.methode {
+  margin-block-start: var(--space-2);
+  font-family: var(--font-sans);
+}
+
 .prediction {
   max-inline-size: var(--prose-width);
   margin-block-start: var(--space-3);

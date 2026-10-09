@@ -33,7 +33,14 @@
  * qui dit ce que le chiffre ne dit pas (`neDitPas`) ; puis la provenance, sous
  * l'intertitre « Détails du calcul ». L'intertitre NOMME le bloc, il ne le
  * replie pas : la provenance reste dans le flux (règle 1).
+ *
+ * ═══ LE LIEN VERS SA MÉTHODE (chantier 7E, règle 5) ═══
+ *
+ * La dernière ligne des « Détails du calcul » mène à l'entrée de la
+ * méthodologie qui explique la mesure. `methode` est obligatoire, comme la
+ * fenêtre et la date d'un graphique : un bloc sans lien ne compile pas.
  */
+import type { Methode } from '../contenu/methodes'
 import { useLangue } from '../lib/langue'
 import { avecAbsence } from './Absent'
 import type { LigneProvenance } from './Provenance'
@@ -50,6 +57,8 @@ interface Props {
   /** Ce que le chiffre ne dit pas, en une ligne courte. */
   readonly neDitPas?: string | null
   readonly provenance: readonly LigneProvenance[]
+  /** Le lien vers sa méthode : la dernière ligne des « Détails du calcul ». */
+  readonly methode: Methode
   /** Réserve méthodologique, telle que le backend l'écrit. */
   readonly caveat?: string | null
   /**
@@ -66,6 +75,7 @@ export function Measure({
   lecture,
   neDitPas = null,
   provenance,
+  methode,
   caveat = null,
   niveau = 'principal',
 }: Props) {
@@ -87,7 +97,7 @@ export function Measure({
 
       <div className={styles.details}>
         <p className={styles.detailsTitre}>{libelles.mesure.detailsDuCalcul}</p>
-        <Provenance lignes={provenance} />
+        <Provenance lignes={provenance} methode={methode} />
       </div>
 
       {caveat !== null && <p className={styles.reserve}>{caveat}</p>}

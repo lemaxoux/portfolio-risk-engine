@@ -37,6 +37,7 @@ import { DataTable, type Colonne } from '../components/DataTable'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
+import { METHODES } from '../contenu/methodes'
 import { dateISO, decimal, decimalesDeColonne, pourcentage } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { useEtroit } from '../lib/largeur'
@@ -144,6 +145,7 @@ export function SectionPortefeuille({ valorisation }: { valorisation: Valuation 
             { libelle: l.prix, valeur: l.prixLu },
             { libelle: l.devise, valeur: valorisation.currency },
           ]}
+          methode={{ bloc: 'portefeuille', ancres: METHODES.portefeuille }}
         />
       </div>
       <DataTable

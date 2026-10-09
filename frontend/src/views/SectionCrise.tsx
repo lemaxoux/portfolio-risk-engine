@@ -34,6 +34,7 @@ import { DataTable, type Colonne } from '../components/DataTable'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
+import { METHODES, avecRefus } from '../contenu/methodes'
 import { TIRET_INDEFINI, dateISO, decimal, pourcentage, pourcentageSigne, seances } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { majuscule } from '../lib/phrases'
@@ -92,12 +93,22 @@ function BlocRegime({ regime }: { regime: Regime }) {
   const { langue, libelles, phrases } = useLangue()
   const l = libelles.crise
   const { calm_beta: calme, crisis_beta: crise } = regime
+  const bloc = `regime-${regime.scenario.key}`
   if (regime.unavailable_reason !== null || calme === null || crise === null) {
     return (
-      <p className={styles.reserve}>
+      <div className={styles.reserve}>
         <span className={styles.point} aria-hidden="true" />
-        {regime.unavailable_reason ?? l.regimeIndisponible}
-      </p>
+        <div>
+          <p>{regime.unavailable_reason ?? l.regimeIndisponible}</p>
+          <div className={styles.methode}>
+            <Provenance
+              lignes={[]}
+              disposition="ligne"
+              methode={{ bloc, ancres: avecRefus(METHODES.regime, true) }}
+            />
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -140,6 +151,9 @@ function BlocRegime({ regime }: { regime: Regime }) {
         lignes={lignesRegime}
         cleDeLigne={(l) => l.mesure}
       />
+      <div className={styles.methode}>
+        <Provenance lignes={[]} disposition="ligne" methode={{ bloc, ancres: METHODES.regime }} />
+      </div>
       {crise.sample_too_thin && (
         <p className={styles.reserve}>
           <span className={styles.point} aria-hidden="true" />
@@ -250,6 +264,10 @@ export function BlocScenario({
           { libelle: l.poids, valeur: l.poidsFiges(asOf) },
           { libelle: l.reference, valeur: definition.benchmark },
         ]}
+        methode={{
+          bloc: `crise-${definition.key}`,
+          ancres: avecRefus(METHODES.crise, scenario.end_to_end_return === null),
+        }}
       />
 
       {regime !== undefined && <BlocRegime regime={regime} />}

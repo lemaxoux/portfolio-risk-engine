@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { SECTIONS } from '../components/Navigation'
-import { idDuTitreVise, rangeeApresRetrait } from './focus'
+import { cleDeRetour, idDuTitreVise, noteDeRetour, rangeeApresRetrait, resoudreRetour } from './focus'
 
 const ANCRES = SECTIONS.map((section) => section.ancre)
 
@@ -55,5 +55,39 @@ describe('la rangée qui reçoit le focus après « Retirer »', () => {
         expect(cible).toBeLessThan(apres)
       }
     }
+  })
+})
+
+describe('le retour depuis la méthode', () => {
+  it('la clé d’un lien est son bloc ET son ancre : deux liens vers la même entrée restent distincts', () => {
+    expect(cleDeRetour('var-historique-0.95', 'var-historique')).toBe('var-historique-0.95#var-historique')
+    expect(cleDeRetour('var-historique-0.95', 'var-historique')).not.toBe(
+      cleDeRetour('var-historique-0.99', 'var-historique'),
+    )
+  })
+
+  it('la note se lit dans l’état d’une entrée d’historique, si elle est bien formée', () => {
+    expect(noteDeRetour({ retour: { cle: 'cvar-0.95#cvar', y: 4757 } })).toEqual({
+      cle: 'cvar-0.95#cvar',
+      y: 4757,
+    })
+    expect(noteDeRetour(null)).toBeNull()
+    expect(noteDeRetour({ retour: null })).toBeNull()
+    expect(noteDeRetour({ retour: { cle: 'x' } })).toBeNull()
+    expect(noteDeRetour({ retour: { cle: 3, y: 0 } })).toBeNull()
+    expect(noteDeRetour('retour')).toBeNull()
+  })
+
+  it('au retour, le lien suivi reprend le focus s’il est sur la page, quelle que soit sa position', () => {
+    const note = { cle: 'cvar-0.99#cvar', y: 4757 }
+    expect(resoudreRetour(note, ['cvar-0.95#cvar', 'cvar-0.99#cvar'])).toEqual({ focus: 'cvar-0.99#cvar' })
+  })
+
+  it('la position notée ne sert que si la clé est introuvable', () => {
+    expect(resoudreRetour({ cle: 'crise-x#couverture', y: 4757 }, ['cvar-0.95#cvar'])).toEqual({ y: 4757 })
+  })
+
+  it('sans note, rien : la page fait comme pour toute autre navigation', () => {
+    expect(resoudreRetour(null, ['cvar-0.95#cvar'])).toBeNull()
   })
 })

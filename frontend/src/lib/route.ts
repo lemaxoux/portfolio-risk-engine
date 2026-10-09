@@ -28,6 +28,8 @@
  */
 import { useMemo, useSyncExternalStore } from 'react'
 
+import { noteDeRetour, type NoteDeRetour } from './focus'
+
 export type Route =
   | { readonly vue: 'accueil' }
   | { readonly vue: 'portefeuilles' }
@@ -98,8 +100,28 @@ const abonnes = new Set<() => void>()
  */
 let navigationsUtilisateur = 0
 
+/**
+ * La dernière navigation : un lien suivi, un pas dans l'historique, ou une
+ * page remplacée par un geste (`marquerGesteDecide`).
+ */
+let derniereNavigation: 'lien' | 'historique' | 'geste' | null = null
+
 export function aDejaNavigue(): boolean {
   return navigationsUtilisateur > 0
+}
+
+/**
+ * La page affichée vient-elle d'un retour arrière (ou d'un pas en avant) ?
+ * C'est le seul cas où elle rend la place qu'avait quittée un lien vers la
+ * méthode (chantier 7E, `components/Cadre`).
+ */
+export function navigationParHistorique(): boolean {
+  return derniereNavigation === 'historique'
+}
+
+/** La note de retour de l'entrée d'historique courante, si un lien vers la méthode l'a laissée. */
+export function noteDeRetourCourante(): NoteDeRetour | null {
+  return noteDeRetour(window.history.state)
 }
 
 /**
@@ -108,9 +130,12 @@ export function aDejaNavigue(): boolean {
  * 7E). La page qui s'affiche ensuite est traitée comme une navigation
  * décidée : elle s'ouvre en haut, et son titre reçoit le focus. Sans cela,
  * l'analyse s'ouvrait, à 390 px, à la hauteur où l'on avait coché la case.
+ * Même juste après un retour arrière : elle ne rend pas la place qu'avait
+ * quittée un lien vers la méthode, dont la note reste dans l'historique.
  */
 export function marquerGesteDecide(): void {
   navigationsUtilisateur += 1
+  derniereNavigation = 'geste'
 }
 
 function prevenir(): void {
@@ -131,6 +156,7 @@ function surRetour(): void {
     return
   }
   navigationsUtilisateur += 1
+  derniereNavigation = 'historique'
   prevenir()
 }
 
@@ -151,16 +177,28 @@ function abonner(abonne: () => void): () => void {
  * courante de l'historique — pour une redirection, qu'un retour arrière ne
  * doit pas rejouer. `forcer` passe outre la garde : c'est ce que fait la
  * confirmation « Quitter sans enregistrer ».
+ *
+ * `retour` est la clé d'un lien vers la méthode (chantier 7E). Avant de
+ * partir, la page la note dans son entrée d'historique, avec sa position ;
+ * au retour arrière, le lien suivi reprend le focus. Un lien sans clé efface
+ * la note : un retour ne rend pas une place qu'un autre lien a quittée.
  */
 export function naviguer(
   chemin: string,
-  options: { readonly remplacer?: boolean; readonly forcer?: boolean } = {},
+  options: { readonly remplacer?: boolean; readonly forcer?: boolean; readonly retour?: string } = {},
 ): void {
   if (!options.forcer && garde !== null && !garde(chemin)) return
   if (!options.remplacer) navigationsUtilisateur += 1
+  derniereNavigation = 'lien'
   if (chemin !== window.location.pathname) {
-    if (options.remplacer) window.history.replaceState(null, '', chemin)
-    else window.history.pushState(null, '', chemin)
+    if (options.remplacer) {
+      window.history.replaceState(null, '', chemin)
+    } else {
+      const note =
+        options.retour === undefined ? null : { cle: options.retour, y: Math.round(window.scrollY) }
+      window.history.replaceState({ retour: note }, '')
+      window.history.pushState(null, '', chemin)
+    }
   }
   prevenir()
 }

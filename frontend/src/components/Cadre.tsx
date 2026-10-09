@@ -34,12 +34,22 @@
  * entoure son texte. Avant, le focus restait sur le corps de la page, sans
  * anneau, et le Tab suivant repartait du haut quand la section n'avait rien
  * de focalisable.
+ *
+ * ═══ LE RETOUR DEPUIS LA MÉTHODE (chantier 7E) ═══
+ *
+ * Un lien vers la méthode note sa clé dans l'entrée d'historique qu'il quitte
+ * (`naviguer`, `lib/route.ts`). Au retour arrière, une fois la page prête (ni
+ * occupée, ni en chargement), le lien suivi reprend le focus, amené au milieu
+ * de la fenêtre, sous le bandeau, et gardé en vue pendant que la page
+ * s'installe. La clé, et non la position : une langue ou un thème changés
+ * sur la méthodologie déplacent tout. La position notée ne sert que si la clé
+ * est introuvable. Avant, la page revenait en haut, le focus sur son titre.
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
-import { idDuTitreVise } from '../lib/focus'
+import { idDuTitreVise, resoudreRetour, type NoteDeRetour } from '../lib/focus'
 import { useLangue } from '../lib/langue'
-import { aDejaNavigue } from '../lib/route'
+import { aDejaNavigue, navigationParHistorique, noteDeRetourCourante } from '../lib/route'
 import { SECTIONS } from './Navigation'
 import styles from './Cadre.module.css'
 
@@ -81,10 +91,12 @@ const GESTES = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
  * déplacement ; le bandeau collant s'allonge quand la liste des portefeuilles
  * arrive, et le titre passe dessous. Chaque changement de taille de la page
  * ramène donc le titre, jusqu'au premier geste de l'utilisateur ou pendant
- * dix secondes au plus. Rend de quoi arrêter.
+ * dix secondes au plus. Rend de quoi arrêter. Un lien rendu au retour est
+ * gardé au milieu de la fenêtre (`alignement`), son bloc au-dessus de lui :
+ * les graphiques, dessinés après le texte, allongent la page sous lui.
  */
-function garderEnVue(titre: HTMLElement): () => void {
-  const observateur = new ResizeObserver(() => titre.scrollIntoView({ block: 'start' }))
+function garderEnVue(element: HTMLElement, alignement: ScrollLogicalPosition = 'start'): () => void {
+  const observateur = new ResizeObserver(() => element.scrollIntoView({ block: alignement }))
   const arreter = () => {
     observateur.disconnect()
     window.clearTimeout(delai)
@@ -100,12 +112,21 @@ function garderEnVue(titre: HTMLElement): () => void {
 export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: Props) {
   const { libelles } = useLangue()
   const contenu = useRef<HTMLElement>(null)
+  // La note d'un lien vers la méthode, en attente que la page soit prête.
+  const retourEnAttente = useRef<NoteDeRetour | null>(null)
 
   useEffect(() => {
     document.title = `${titre} (${APPLICATION})`
   }, [titre])
 
   useEffect(() => {
+    // Un retour arrière vers une page que quittait un lien vers la méthode :
+    // le lien suivi sera rendu quand la page sera prête (effet suivant).
+    const note = navigationParHistorique() ? noteDeRetourCourante() : null
+    if (note !== null) {
+      retourEnAttente.current = note
+      return
+    }
     // Le chargement de l'application change de page lui aussi (démarrage,
     // redirection de `/`) : seul un changement DÉCIDÉ par l'utilisateur
     // déplace le focus.
@@ -120,6 +141,25 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
     ;(titrePage ?? contenu.current)?.focus()
     window.scrollTo({ top: 0 })
   }, [page])
+
+  useEffect(() => {
+    const note = retourEnAttente.current
+    if (note === null || occupe) return
+    retourEnAttente.current = null
+    const liens = [...(contenu.current?.querySelectorAll<HTMLElement>('[data-retour]') ?? [])]
+    const retour = resoudreRetour(
+      note,
+      liens.map((lien) => lien.dataset['retour'] ?? ''),
+    )
+    if (retour === null) return
+    if ('focus' in retour) {
+      const lien = liens.find((candidat) => candidat.dataset['retour'] === retour.focus)
+      if (lien === undefined) return
+      lien.focus({ preventScroll: true })
+      return garderEnVue(lien, 'center')
+    }
+    window.scrollTo({ top: retour.y })
+  }, [occupe, page])
 
   useEffect(() => {
     // Un lien suivi sur la page a déjà fait défiler ; il n'a posé le focus

@@ -20,6 +20,7 @@ function rendre(neDitPas: string | null): string {
       lecture: 'Ces deux dernières années, environ un jour de bourse sur vingt.',
       neDitPas,
       provenance: [{ libelle: 'Méthode', valeur: 'historique' }],
+      methode: { bloc: 'var-historique-0.95', ancres: ['var-historique'] },
     }),
   ).replaceAll('&#x27;', "'")
 }
@@ -48,5 +49,22 @@ describe('<Measure> et sa lecture', () => {
   it('sans ligne « ne dit pas », aucun paragraphe vide', () => {
     expect(rendre(null)).not.toContain(styles.neDitPas)
     expect(rendre('Une ligne.')).toContain(styles.neDitPas)
+  })
+})
+
+describe('le lien vers sa méthode (chantier 7E, §9.1, règle 5)', () => {
+  it('la dernière paire des « Détails du calcul » mène à l’entrée de la méthodologie', () => {
+    const html = rendre(null)
+    const paire = html.indexOf('>Méthodologie</dt>')
+    expect(paire).toBeGreaterThan(html.indexOf('>Méthode</dt>'))
+    expect(html.slice(paire)).toMatch(
+      /^>Méthodologie<\/dt><dd[^>]*><a href="\/methodologie#var-historique" data-retour="var-historique-0\.95#var-historique">La VaR historique<\/a><\/dd>/,
+    )
+  })
+
+  it('elle suit les lignes publiées, sans les replier', () => {
+    const html = rendre(null)
+    expect(html.indexOf('Détails du calcul')).toBeLessThan(html.indexOf('>Méthodologie</dt>'))
+    expect(html).not.toContain('<details')
   })
 })

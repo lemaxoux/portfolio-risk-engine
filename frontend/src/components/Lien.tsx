@@ -13,9 +13,15 @@ import { naviguer } from '../lib/route'
 
 interface Props extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
   readonly vers: string
+  /**
+   * La clé d'un lien vers la méthode (chantier 7E, `lib/focus.ts`) : la page
+   * la note avant de partir, et le lien reprend le focus au retour arrière.
+   * Portée aussi par l'attribut `data-retour`, où le retour la cherche.
+   */
+  readonly retour?: string
 }
 
-export function Lien({ vers, onClick, children, ...reste }: Props) {
+export function Lien({ vers, retour, onClick, children, ...reste }: Props) {
   const surClic = (evenement: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(evenement)
     if (
@@ -29,11 +35,11 @@ export function Lien({ vers, onClick, children, ...reste }: Props) {
       return
     }
     evenement.preventDefault()
-    naviguer(vers)
+    naviguer(vers, retour === undefined ? {} : { retour })
   }
 
   return (
-    <a href={vers} onClick={surClic} {...reste}>
+    <a href={vers} onClick={surClic} data-retour={retour} {...reste}>
       {children}
     </a>
   )

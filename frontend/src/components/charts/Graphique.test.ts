@@ -54,6 +54,7 @@ function histogramme(langue: Langue = 'fr', avecValeurs = true): string {
       unite: 'séances par classe',
       fenetre: FENETRE,
       asOf: '2026-09-25',
+      methode: { bloc: 'histogramme', ancres: ['histogramme'] },
       description: 'Une conclusion.',
       options: () => ({ marks: [] }),
       ...(avecValeurs
@@ -176,5 +177,20 @@ describe('les parts dans les variations : le tracé désigne le tableau qui le s
     // « 1,9 » prend le singulier, comme partout (points, format.ts).
     expect(html).toContain('JPM +1,9\u00a0point, XOM \u22121,9\u00a0point')
     expect(html).not.toMatch(/aria-label="Parts des variations[^"]*pts/)
+  })
+})
+
+describe('le lien vers sa méthode (chantier 7E, §9.4)', () => {
+  it('la dernière paire des conditions, sous le titre, mène à l’entrée de la méthodologie', () => {
+    const html = histogramme()
+    const entete = html.slice(html.indexOf('<figcaption'), html.indexOf('</figcaption>'))
+    expect(entete).toMatch(
+      />Méthodologie<\/dt><dd[^>]*><a href="\/methodologie#histogramme" data-retour="histogramme#histogramme">Le graphique des variations<\/a><\/dd><\/div><\/dl>$/,
+    )
+  })
+
+  it('en anglais, le titre de l’entrée anglaise', () => {
+    expect(histogramme('en')).toContain('>Methodology</dt>')
+    expect(histogramme('en')).toContain('>The chart of changes</a>')
   })
 })

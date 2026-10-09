@@ -38,6 +38,7 @@ import * as Plot from '@observablehq/plot'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Window } from '../../api/types'
+import type { Methode } from '../../contenu/methodes'
 import { useLangue, type Langue } from '../../lib/langue'
 import { provenanceDeGraphique } from '../../lib/provenance'
 import { DataTable, type Colonne } from '../DataTable'
@@ -81,6 +82,11 @@ interface Props<T> {
   /** Date de valorisation de la réponse (`analysis.as_of`). */
   readonly asOf: string
   /**
+   * Le lien vers sa méthode, la dernière paire des conditions (chantier 7E,
+   * §9.4). Obligatoire comme l'unité, la fenêtre et la date.
+   */
+  readonly methode: Methode
+  /**
    * Ce que le graphique MONTRE, en une phrase (§13) : la conclusion, pas la
    * forme. C'est l'`aria-label` du tracé.
    */
@@ -109,6 +115,7 @@ export function Graphique<T>({
   unite,
   fenetre,
   asOf,
+  methode,
   description,
   options,
   proprietesDuTrace,
@@ -159,6 +166,7 @@ export function Graphique<T>({
         <Provenance
           lignes={provenanceDeGraphique(unite, fenetre, asOf, langue)}
           disposition="ligne"
+          methode={methode}
         />
       </figcaption>
       <div

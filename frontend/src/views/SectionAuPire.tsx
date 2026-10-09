@@ -27,6 +27,7 @@ import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { LIBELLES } from '../contenu/libelles'
+import { METHODES } from '../contenu/methodes'
 import { dateISO, decimal, pourcentage } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { lignesDeFenetre } from '../lib/provenance'
@@ -95,6 +96,7 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
             },
             ...lignesDeFenetre(creux.window, langue),
           ]}
+          methode={{ bloc: 'perte-maximale', ancres: METHODES.perteMaximale }}
         />
       </div>
 
@@ -104,6 +106,7 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
         unite={l.unite(depart === undefined ? null : depart.date)}
         fenetre={serie.window}
         asOf={asOf}
+        methode={{ bloc: 'courbe', ancres: METHODES.courbe }}
         description={descriptionRichesse(serie, creux, langue)}
         options={options}
         valeurs={{

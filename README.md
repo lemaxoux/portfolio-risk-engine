@@ -1802,8 +1802,9 @@ et aucun chiffre d'un portefeuille n'y figure.
   (chantier 7D), importés bruts (`?raw`). Le fichier d'une langue se choisit
   en un seul endroit, `src/contenu/methodologie.ts`. Les ancres (`{#cvar}`)
   sont des identifiants, les mêmes dans toutes les langues. Les liens d'une
-  mesure vers sa méthode les viseront, et `src/contenu/methodologie.test.ts`
-  en fixe la liste. Le même test compare les deux textes bloc par bloc (même
+  mesure vers sa méthode les visent (« Le lien de chaque mesure vers sa
+  méthode », plus bas), et `src/contenu/methodologie.test.ts` en fixe la
+  liste. Le même test compare les deux textes bloc par bloc (même
   suite de titres, paragraphes, listes et formules, mêmes étiquettes, autant
   de formules en ligne, les mêmes liens) et vérifie que les six parties
   reprises de l'analyse portent les noms courts de son rail.
@@ -1814,8 +1815,8 @@ et aucun chiffre d'un portefeuille n'y figure.
   Aucune dépendance et aucun HTML injecté : le lecteur rend des blocs typés,
   la vue des éléments React. Le texte français pèse 29,8 kB (10,1 kB
   compressés), l'anglais 27,4 kB (9,6 kB) ; les deux restent en clair dans
-  le bundle (décision du 2026-10-08), qui pèse 700 kB (226 kB compressés,
-  selon Vite) avec l'interface anglaise. Un chargement à la demande
+  le bundle (décision du 2026-10-08), qui pèse 711 kB (229 kB compressés,
+  selon Vite) avec l'interface anglaise et le chantier 7E. Un chargement à la demande
   n'économiserait qu'un texte, au prix d'un état de chargement et d'une
   course de plus avec l'arrivée sur une ancre : il relève du découpage du
   bundle, toujours reporté, pas de la langue.
@@ -2188,6 +2189,56 @@ avait relevé un focus caché, perdu ou sans anneau. Ce qui a changé :
 (`focus.test.ts`) ; leur effet se vérifie dans Chrome, Vitest tournant sans
 document.
 
+#### Le lien de chaque mesure vers sa méthode
+
+Chantier 7E (DESIGN.md §9.1, règle 5 ; §13). Chaque mesure, chaque graphique
+et chaque bloc de l'analyse mène à l'entrée de la méthodologie qui
+l'explique : la dernière paire de ses « Détails du calcul », ou de ses
+conditions, est « Méthodologie », puis un lien par entrée
+(`/methodologie#var-historique`).
+
+- **Une seule table, l'annexe A de la proposition de méthodologie**
+  (`METHODES`, `src/contenu/methodes.ts`) : les entrées qu'explique chaque
+  bloc, dans l'ordre où la paire les cite. Les sections la lisent ; aucune
+  n'écrit une ancre à la main. Un refus, le tiret et sa raison, ajoute
+  « Quand l'outil refuse un chiffre » (`avecRefus`). `methode` est
+  obligatoire sur `<Measure>` et `<Graphique>`. `methodes.test.ts` confronte
+  la table à l'annexe, rangée par rangée, et vérifie que chaque ancre visée
+  existe dans les deux textes.
+- **Le texte d'un lien est le titre de son entrée**, lu dans le fichier de
+  méthodologie de la langue de la page (`titresDesEntrees`) : le lien nomme
+  ce qu'il ouvre, et aucun libellé ne s'ajoute à traduire. Les entrées qui
+  suivent la première prennent une minuscule initiale, sauf un sigle
+  (`enSuite` : « Les trois chiffres d'une crise, la couverture »). Le nom de
+  la paire est celui de la page dans la navigation.
+- **Où.** Dans les « Détails du calcul » de chaque mesure, les conditions de
+  chaque graphique, le bloc de chaque crise rejouée, les lignes de conditions
+  des sections 1 et 6 ; sous le tableau de la section 4 et sous chaque
+  tableau de sensibilité ; dans chaque raison de refus qui remplace un bloc.
+  Le bandeau n'en porte pas (décision du 2026-10-08). L'analyse de
+  démonstration en compte 36.
+- **Le retour arrière ramène au lien suivi.** Le lien (`components/Lien.tsx`,
+  `retour`) note dans l'entrée d'historique qu'il quitte, avant d'en ouvrir
+  une autre, sa clé, faite du bloc et de l'ancre
+  (`var-historique-0.99#var-historique`, `cleDeRetour`), et la position de
+  la page (`naviguer`, `lib/route.ts`). Au retour arrière, une fois l'analyse
+  relue, `components/Cadre.tsx` rend le focus au lien de même clé
+  (`data-retour`), l'amène au milieu de la fenêtre et l'y garde pendant que
+  les graphiques se dessinent ; la position notée ne sert que si la clé n'est
+  plus sur la page (`resoudreRetour`, `lib/focus.ts`). Une clé, et non une
+  position : une langue ou un thème changés sur la méthodologie déplacent
+  tout. Avant, le retour ramenait en haut de la page. La note reste dans
+  l'historique : une page qu'un geste remplace ensuite, l'acceptation d'une
+  autre langue, s'ouvre en haut, son titre focalisé, même juste après un
+  retour (`marquerGesteDecide`).
+
+Vérifié dans Chrome à 1280 et 390 px (`docs/outils/clavier.mjs`, hors
+dépôt) : la VaR historique à 99 %, son lien suivi au clavier, l'anglais
+choisi sur la méthodologie, puis le retour arrière, qui rend le focus à
+« Historical VaR », au milieu de la fenêtre ; puis le français, à accepter
+de nouveau, qui ouvre l'analyse en haut, son titre focalisé. Avant ce
+correctif, la page rouvrait sur le lien suivi.
+
 #### La page de saisie
 
 `/portefeuilles/<id>/positions` (`views/Positions.tsx`,
@@ -2382,7 +2433,11 @@ tourner sur les mêmes cas que `choisirLangue`.
   contrôles du français avec les gardes anglaises (section 10, « La page
   méthodologie ») ; `methodologie.test.ts`, les glyphes de sa propre liste.
 
-**Ce qui reste à faire, en session 2** : les relevés aux captures.
+**Le chantier 7E** ajoute aux libellés ceux des tableaux de valeurs
+(`graphiques`, section 10, « Les valeurs des graphiques, en tableau »). Le
+lien d'une mesure vers sa méthode n'en ajoute aucun : « Méthodologie » est le
+nom de la page, et le texte du lien le titre de l'entrée, lu dans la
+méthodologie de la langue affichée.
 
 ## Schéma de données
 

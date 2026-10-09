@@ -62,6 +62,13 @@
   margin-block-start: var(--space-5);
 }
 
+/* Le lien vers la méthode, sous le tableau ou sous la raison d'un refus :
+ * une provenance, donc en Plex Sans (chantier 7E). */
+.methode {
+  margin-block-start: var(--space-2);
+  font-family: var(--font-sans);
+}
+
 /* Contribution de scénario : le chiffre en --text-1, et à côté une petite
  * marque de signe. La couleur est le TROISIÈME canal, après le signe écrit et
  * l'ordre (§5.3) ; en niveaux de gris, le « + » et le « − » restent. */

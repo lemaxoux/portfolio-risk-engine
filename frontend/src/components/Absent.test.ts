@@ -40,6 +40,7 @@ describe('une valeur absente', () => {
         valeur: TIRET_INDEFINI,
         lecture: 'Sur 60 jours de bourse, aucun ne tombe dans le 1 % le plus mauvais.',
         provenance: [{ libelle: 'Méthode', valeur: 'historique' }],
+        methode: { bloc: 'var-historique-0.99', ancres: ['var-historique'] },
       }),
     )
     expect(html).toContain(ATTENDU)

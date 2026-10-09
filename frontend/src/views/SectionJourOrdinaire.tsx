@@ -56,8 +56,10 @@ import {
   optionsHistogramme,
 } from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
+import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
+import { METHODES, avecRefus } from '../contenu/methodes'
 import { pourcentage, TIRET_INDEFINI } from '../lib/format'
 import { PHRASES, useLangue, type Langue } from '../lib/langue'
 import {
@@ -107,6 +109,7 @@ function CoupleParametrique({
           raisonMonteCarlo,
           langue,
         )}
+        methode={{ bloc: `var-normale-${niveau.confidence}`, ancres: METHODES.varParametrique }}
         caveat={niveau.parametric_var.caveat}
       />
 
@@ -117,12 +120,25 @@ function CoupleParametrique({
           valeur={pourcentage(student.value, 2, langue)}
           lecture={phrases.lectureVarParametrique(student, 'de Student', devise)}
           provenance={provenanceDeVar(student, niveau.student_monte_carlo_var, null, langue)}
+          methode={{ bloc: `var-student-${niveau.confidence}`, ancres: METHODES.varParametrique }}
         />
       ) : (
-        <p className={styles.absenceStudent}>
+        <div className={styles.absenceStudent}>
           <span className={styles.point} aria-hidden="true" />
-          {raisonStudent ?? l.studentSansRaison}
-        </p>
+          <div>
+            <p>{raisonStudent ?? l.studentSansRaison}</p>
+            <div className={styles.methode}>
+              <Provenance
+                lignes={[]}
+                disposition="ligne"
+                methode={{
+                  bloc: `var-student-${niveau.confidence}`,
+                  ancres: avecRefus(METHODES.varParametrique, true),
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -190,6 +206,10 @@ export function SectionJourOrdinaire({
                 niveau.expected_shortfall.tail_observations,
               )}
               provenance={provenanceDeVar(niveau.historical_var, null, null, langue)}
+              methode={{
+                bloc: `var-historique-${niveau.confidence}`,
+                ancres: avecRefus(METHODES.varHistorique, valeur === null),
+              }}
             />
           )
         })}
@@ -201,6 +221,7 @@ export function SectionJourOrdinaire({
           unite={l.uniteHistogramme(histogramme.bin_width)}
           fenetre={histogramme.window}
           asOf={asOf}
+          methode={{ bloc: 'histogramme', ancres: METHODES.histogramme }}
           description={descriptionHistogramme(histogramme, niveaux, langue)}
           options={options}
           valeurs={{
@@ -246,6 +267,7 @@ export function SectionJourOrdinaire({
           lecture={phrases.lectureVolatilite(risque.benchmark_volatility, parametres)}
           neDitPas={phrases.NE_DIT_PAS_VOLATILITE}
           provenance={provenanceDeVolatilite(risque.volatility, langue)}
+          methode={{ bloc: 'volatilite', ancres: METHODES.volatilite }}
           caveat={risque.volatility.caveat}
         />
       </div>
@@ -263,6 +285,10 @@ export function SectionJourOrdinaire({
               lecture={phrases.lectureCVaR(cvar, devise)}
               neDitPas={phrases.neDitPasCVaR(cvar)}
               provenance={provenanceDeCVaR(cvar, langue)}
+              methode={{
+                bloc: `cvar-${niveau.confidence}`,
+                ancres: avecRefus(METHODES.cvar, cvar.value === null),
+              }}
               caveat={cvar.caveat}
             />
           )

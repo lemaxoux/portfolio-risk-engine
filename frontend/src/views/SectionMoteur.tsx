@@ -15,6 +15,7 @@ import { Observation } from '../components/Observation'
 import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
+import { METHODES } from '../contenu/methodes'
 import { dateISO } from '../lib/format'
 import { useLangue } from '../lib/langue'
 import styles from './SectionMoteur.module.css'
@@ -33,6 +34,7 @@ export function SectionMoteur({ observations, bandeau, asOf }: Props) {
         <Provenance
           disposition="ligne"
           lignes={[{ libelle: libelles.provenance.valoriseAu, valeur: dateISO(asOf) }]}
+          methode={{ bloc: 'moteur', ancres: METHODES.moteur }}
         />
       </div>
 

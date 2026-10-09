@@ -51,6 +51,13 @@
   text-wrap: pretty;
 }
 
+/* Le lien vers la méthode, sous la raison du refus : une provenance, donc en
+ * Plex Sans, comme sous un bloc mesure (chantier 7E). */
+.methode {
+  margin-block-start: var(--space-2);
+  font-family: var(--font-sans);
+}
+
 .point {
   flex: none;
   inline-size: 6px;

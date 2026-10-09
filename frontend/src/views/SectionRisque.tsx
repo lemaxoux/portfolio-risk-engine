@@ -46,8 +46,10 @@ import {
   rangeesCorrelation,
 } from '../components/charts/correlation'
 import { Measure } from '../components/Measure'
+import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
+import { METHODES, avecRefus, type Methode } from '../contenu/methodes'
 import {
   dateISO,
   decimal,
@@ -170,6 +172,24 @@ function LegendeCorrelation() {
 }
 
 /**
+ * Un graphique que le moteur refuse : sa raison, à la place du dessin, et le
+ * lien vers la méthode de la mesure et vers celle des refus (chantier 7E).
+ */
+function Refus({ raison, methode }: { raison: string; methode: Methode }) {
+  return (
+    <div className={styles.refus}>
+      <span className={styles.point} aria-hidden="true" />
+      <div>
+        <p>{raison}</p>
+        <div className={styles.methode}>
+          <Provenance lignes={[]} disposition="ligne" methode={methode} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * Les deux mesures de la carte dont sa mise en page a besoin, posées en
  * propriétés CSS sur son conteneur : sa largeur quand la place ne manque pas,
  * et la hauteur des tickers au-dessus de sa grille. À partir de 900 px, la
@@ -241,6 +261,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             { libelle: l.lignes, valeur: compteLignes(concentration.n_positions, langue) },
             { libelle: libelles.provenance.valoriseAu, valeur: dateISO(concentration.as_of) },
           ]}
+          methode={{ bloc: 'lignes-capital', ancres: METHODES.lignesEffectives }}
         />
         <Measure
           libelle={l.enRisque}
@@ -254,15 +275,22 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             variance.effective_positions === null ? phrases.NE_DIT_PAS_REFUS : phrases.NE_DIT_PAS_RISQUE
           }
           provenance={lignesDeFenetre(variance.window, langue)}
+          methode={{
+            bloc: 'lignes-risque',
+            ancres: avecRefus(METHODES.lignesEffectives, variance.effective_positions === null),
+          }}
         />
       </div>
 
       <h3 className={commun.sousTitre}>{l.poids}</h3>
       {contributions === null ? (
-        <p className={styles.refus}>
-          <span className={styles.point} aria-hidden="true" />
-          {variance.undefined_reason ?? l.contributionsNonEstimables}
-        </p>
+        <Refus
+          raison={variance.undefined_reason ?? l.contributionsNonEstimables}
+          methode={{
+            bloc: 'parts-des-variations',
+            ancres: avecRefus(METHODES.partsDesVariations, true),
+          }}
+        />
       ) : (
         <>
           <p className={commun.chapeau}>{l.chapeauPoids}</p>
@@ -275,6 +303,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             unite={l.uniteBarres}
             fenetre={variance.window}
             asOf={asOf}
+            methode={{ bloc: 'parts-des-variations', ancres: METHODES.partsDesVariations }}
             description={l.descriptionBarres(
               contributions.length,
               lignesParContribution(contributions)
@@ -306,6 +335,13 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
               lignes={lignesParContribution(contributions)}
               cleDeLigne={(l) => l.ticker}
             />
+            <div className={styles.methode}>
+              <Provenance
+                lignes={[]}
+                disposition="ligne"
+                methode={{ bloc: 'apports-en-crise', ancres: METHODES.apportsEnCrise }}
+              />
+            </div>
           </div>
         </>
       )}
@@ -313,10 +349,10 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
       <h3 className={commun.sousTitre}>{l.ensemble}</h3>
       <p className={commun.chapeau}>{l.chapeauEnsemble}</p>
       {correlation === null ? (
-        <p className={styles.refus}>
-          <span className={styles.point} aria-hidden="true" />
-          {matrices.correlation_undefined_reason ?? l.correlationNonEstimable}
-        </p>
+        <Refus
+          raison={matrices.correlation_undefined_reason ?? l.correlationNonEstimable}
+          methode={{ bloc: 'correlation', ancres: avecRefus(METHODES.correlation, true) }}
+        />
       ) : (
         <div className={styles.carte} style={dispositionDeCarte(correlation.tickers.length)}>
           <Graphique
@@ -324,6 +360,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             unite={l.uniteCarte}
             fenetre={matrices.window}
             asOf={asOf}
+            methode={{ bloc: 'correlation', ancres: METHODES.correlation }}
             description={l.descriptionCarte(correlation.tickers.length)}
             options={optionsCarte}
             proprietesDuTrace={proprietesCarte}

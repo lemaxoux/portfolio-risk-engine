@@ -663,8 +663,8 @@ compare au moteur. Une colonne de prose en Spectral, à la largeur de prose,
 alignée à gauche (§6.3). Les formules en IBM Plex Sans, en ligne ou en
 bloc, chacune précédée de la phrase qui la dit en mots, sans bibliothèque de
 mise en forme mathématique. Chaque partie et chaque entrée a une ancre fixe
-(`#var-historique`), la même dans toutes les langues : c'est elle que visera
-le lien d'une mesure vers sa méthode. Le rail liste les parties de la page,
+(`#var-historique`), la même dans toutes les langues : c'est elle que vise
+le lien d'une mesure vers sa méthode (§9.1, règle 5). Le rail liste les parties de la page,
 sans numéro, puis les pages ; sous 900 px, la même liste en tête de page. Le
 bandeau nomme le dernier portefeuille consulté, s'il existe encore, pour que
 « Analyse » et « Positions et import » y mènent.
@@ -722,6 +722,7 @@ C'est le composant sur lequel repose la thèse du produit. Il rend un chiffre
 │ Calcul       quantile empirique, …      │  libellé text-2, valeur text-1
 │ Fenêtre      504 séances                │
 │ Période      2024-09-23 → 2026-09-25    │
+│ Méthodologie La VaR historique          │  lien vers l'entrée (règle 5)
 └─────────────────────────────────────────┘
 ```
 
@@ -739,7 +740,8 @@ C'est le composant sur lequel repose la thèse du produit. Il rend un chiffre
    `--text-2`. Elle manque quand la réserve du moteur le dit déjà, comme pour
    la CVaR à 99 %.
 3. **« Détails du calcul »** : l'intertitre du bloc de provenance. Il nomme ce
-   bloc, il ne le replie pas (règle 1).
+   bloc, il ne le replie pas (règle 1). Sa dernière ligne mène à la méthode
+   (règle 5).
 
 Ces phrases sont composées dans `src/lib/phrases.ts`, à partir de champs
 publiés et sans calcul. La fréquence vient d'une table, le montant et la
@@ -750,7 +752,9 @@ d'un champ publié : perte ou gain, même sens ou sens inverse.
 **Contrat.** Le bloc de provenance est **généré depuis les champs réels du
 backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
 `Window.start` / `Window.end`, `VarResult.nu` quand il existe,
-`ExpectedShortfallResult.tail_observations`.
+`ExpectedShortfallResult.tail_observations`. Sa dernière ligne,
+« Méthodologie », est la seule qui ne vienne pas d'un champ publié : un lien
+vers la méthode (règle 5).
 
 **Règles dures :**
 
@@ -780,6 +784,25 @@ backend**, jamais saisi à la main : `VarResult.method`, `Window.observations`,
 4. **Réserve méthodologique.** Si le résultat porte un `caveat` (CVaR 99 %) ou
    un seuil `CHOSEN`, un point `--caveat` de 6 px précède le libellé et la
    phrase de réserve s'affiche sous le bloc de provenance.
+5. **Le lien vers sa méthode** (chantier 7E, décisions du 2026-10-08). La
+   dernière ligne des « Détails du calcul » est « Méthodologie », puis un lien
+   par entrée de la méthodologie qui explique la mesure
+   (`/methodologie#var-historique`), selon l'annexe A de la proposition de
+   méthodologie, réunie dans `contenu/methodes.ts`. Le texte d'un lien est le
+   titre de son entrée, dans la langue de la page ; dans une même ligne, les
+   entrées qui suivent la première prennent une minuscule initiale, sauf un
+   sigle (« Les trois chiffres d'une crise, la couverture »). Une valeur
+   refusée ajoute « Quand l'outil refuse un chiffre ». Le lien ne replie rien
+   et ne remplace aucune ligne publiée. `methode` est obligatoire sur
+   `<Measure>` et `<Graphique>` : un bloc sans lien ne compile pas. Le même
+   lien termine les conditions d'un graphique (§9.4), la ligne « Détails du
+   calcul » d'une crise rejouée et les lignes de conditions des sections 1
+   et 6 ; il suit le tableau de la section 4, chaque tableau de sensibilité
+   et chaque raison de refus qui remplace un bloc. Le bandeau n'en porte pas.
+   Chaque lien a une clé, son bloc et son ancre (les deux liens « La VaR
+   historique » de la section 2 restent distincts) : au retour arrière depuis
+   la méthodologie, il reprend le focus, au milieu de la fenêtre, même si la
+   langue ou le thème ont changé là-bas (§13).
 
 ### 9.2 `<Observation>` — ce que le moteur de règles affirme
 
@@ -947,6 +970,8 @@ Le composant le plus utilisé du produit. Il mérite du soin.
 - Les infobulles ne sont qu'une commodité de souris : tout ce qu'elles disent
   (le compte d'une tranche, la valeur d'un jour, la corrélation d'une paire)
   est dans le tableau.
+- La dernière paire des conditions, sous le titre, mène à la méthode du
+  graphique (§9.1, règle 5) : « Méthodologie  Le graphique des variations ».
 
 ---
 
@@ -1140,6 +1165,13 @@ au regard de §11.
   (`aria-busy`), pendant qu'elle se relit. Accepter ouvre la page en haut, son
   titre focalisé. Les règles qui n'ont pas besoin d'un document sont des
   fonctions pures (`lib/focus.ts`).
+- **Le retour depuis la méthode** (chantier 7E). Suivre le lien d'une mesure
+  vers sa méthode (§9.1, règle 5) note, dans l'entrée d'historique quittée,
+  la clé de ce lien et la position de la page. Au retour arrière, une fois
+  la page relue, le lien de même clé reprend le focus, amené au milieu de la
+  fenêtre ; la position notée ne sert que si la clé n'est plus sur la page.
+  Une langue ou un thème changés sur la méthodologie n'y font rien : la clé
+  ne dépend que du bloc et de l'ancre.
 - **Le titre caché de l'analyse** (« Analyse de « Démo » ») reçoit le focus
   après une navigation, pour qu'un lecteur d'écran dise le nom de la page.
   Il n'est pas un arrêt de tabulation, et son anneau ne se voit pas : le Tab
