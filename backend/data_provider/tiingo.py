@@ -155,6 +155,13 @@ class TiingoProvider:
     # ------------------------------------------------------------ Interface --
 
     def get_security_info(self, ticker: str) -> SecurityInfo:
+        """Métadonnées du titre : ticker en capitales, nom (le ticker demandé à
+        défaut), place de cotation quand la réponse la donne.
+
+        Lève `UnknownTickerError` sur un 404 ou une réponse sans ticker ;
+        `RateLimitError` quand la dernière tentative échoue sur un 429 ;
+        `ProviderError` pour toute autre erreur (`_request`).
+        """
         payload = self._request(f"/{ticker.upper()}")
         if not isinstance(payload, dict) or not payload.get("ticker"):
             raise UnknownTickerError(f"Métadonnées Tiingo vides pour {ticker}")
@@ -165,6 +172,16 @@ class TiingoProvider:
         )
 
     def get_daily_adjusted(self, ticker: str, start: date, end: date) -> list[DailyBar]:
+        """Séances de `start` à `end` inclus, triées par date croissante, comme
+        le veut `MarketDataProvider`.
+
+        Aucun appel quand `start` suit `end` : la base est déjà à jour, et la
+        liste est vide. Une séance sans cours brut ou ajusté fait échouer
+        l'appel (`_to_bar`) plutôt que d'entrer en base avec un trou. Lève
+        comme `_request` (`UnknownTickerError` sur un 404, `RateLimitError`,
+        `ProviderError`), et `ProviderError` sur une réponse qui n'est pas une
+        liste.
+        """
         if start > end:
             # Arrive quand la base est déjà à jour : pas d'appel, pas de quota.
             logger.debug("%s : fenêtre vide (%s > %s), aucun appel", ticker, start, end)
