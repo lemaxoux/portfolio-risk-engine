@@ -10,7 +10,7 @@ It is written for a reader who knows the quantitative vocabulary. The
 methodology page of the application explains the same rules to a reader who
 starts from zero:
 [frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md).
-The design decisions behind the code are in `ARCHITECTURE.md`.
+The design decisions behind the code are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Reading this document
 
@@ -72,7 +72,7 @@ The fix: when a fetched session carries a dividend (`divCash` different from
 zero) or a split (`splitFactor` different from one), `refresh` reloads the
 whole history of the security and replaces it in one block, so that its series
 rests on a single basis. A database written before the fix is repaired by an
-explicit command, `rebuild`, described in `ARCHITECTURE.md`.
+explicit command, `rebuild`, described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### The benchmark
 

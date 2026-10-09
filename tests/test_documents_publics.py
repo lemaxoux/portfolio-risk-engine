@@ -100,7 +100,7 @@ from .test_methodologie import CONTRACTION, FORMULE, INDICE
 RACINE = Path(__file__).resolve().parents[1]
 
 # Les documents publics, dans l'ordre où les lots de la phase 8 les créent.
-DOCUMENTS = ("METHODOLOGY.md",)
+DOCUMENTS = ("METHODOLOGY.md", "ARCHITECTURE.md")
 
 EN = "en"
 
@@ -179,10 +179,11 @@ def visible(source: str) -> str:
     """Le texte tel que GitHub l'affiche, sans code, sans commentaires ni
     adresses, un paragraphe par ligne ; les indices et les exposants des
     formules retirés, comme dans `test_methodologie.lire` (des rangs et des
-    puissances, pas des nombres cités)."""
+    puissances, pas des nombres cités). Un code en ligne devient le mot
+    « CODE » : effacé, il laisserait « , ; » à la garde de ponctuation."""
     texte = CODE_CLOTURE.sub("\n", source)
     texte = COMMENTAIRE.sub("", texte)
-    texte = CODE_EN_LIGNE.sub("", texte)
+    texte = CODE_EN_LIGNE.sub("CODE", texte)
     texte = LIEN.sub(r"\1", texte)
     texte = ADRESSE.sub("", texte)
     texte = texte.replace("**", "")
@@ -323,11 +324,34 @@ FRAGMENTS_SOURCES = (
     ("13-week", "backend/risk_engine/config.py", "13 semaines"),
     ("360-day", "backend/risk_engine/config.py", "360 jours"),
     ("three months on both sides", "tests/test_stress.py", "months=3"),
+    ("Python 3.12", "requirements.txt", "(Python 3.12)"),
+    # Les codes HTTP d'un refus, tels que les déclare la couche API.
+    ("404", "backend/api/errors.py", "**404**"),
+    ("409", "backend/api/errors.py", "**409**"),
+    ("422", "backend/api/errors.py", "**422**"),
 )
 
 
 def fragments() -> list[str]:
     return [*FRAGMENTS_MATHEMATIQUES, *EXEMPLES, *(f for f, _, _ in FRAGMENTS_SOURCES)]
+
+
+# Un renvoi à une section de la spécification visuelle : « DESIGN.md §6.3 ».
+REFERENCE_DESIGN = re.compile(r"DESIGN\.md §([0-9]+(?:\.[0-9]+)?)")
+
+
+def references_design(texte: str) -> tuple[list[str], list[str]]:
+    """Les renvois à DESIGN.md d'un texte : couverts quand la section existe,
+    fautifs sinon. Un numéro de section n'est pas un chiffre du produit, mais
+    il se périme comme lui si la section bouge."""
+    design = (RACINE / "frontend" / "DESIGN.md").read_text(encoding="utf-8")
+    couverts, fautes = [], []
+    for m in REFERENCE_DESIGN.finditer(texte):
+        if re.search(rf"^#{{2,3}} {re.escape(m.group(1))}[. ]", design, re.M):
+            couverts.append(m.group(0))
+        else:
+            fautes.append(f"section absente de DESIGN.md : {m.group(0)}")
+    return couverts, fautes
 
 
 NOMBRE = re.compile(r"[0-9]+")
@@ -578,8 +602,9 @@ def fautes_des_blocs(document: str, source: str, res) -> list[str]:
 
 
 def fautes_des_nombres(document: str, source: str, mesures_: Mesures, res) -> list[str]:
-    communs = list(constantes().values()) + faits_de_marche(mesures_) + fragments()
-    fautes = fautes_de_nombres(visible(hors_des_blocs(source)), communs)
+    renvois, fautes = references_design(visible(source))
+    communs = list(constantes().values()) + faits_de_marche(mesures_) + fragments() + renvois
+    fautes += fautes_de_nombres(visible(hors_des_blocs(source)), communs)
     for cle, corps in BLOC_DATE.findall(source):
         if cle not in res:
             continue
@@ -799,6 +824,10 @@ TEMOINS = (
     ("METHODOLOGY.md", "does not measure what", "doesn't measure what", "contraction"),
     ("METHODOLOGY.md", "set out below.", f"set out below{CADRATIN}here.", "tiret cadratin"),
     ("METHODOLOGY.md", "about 13% from one window", "about 13,5% from one window", "virgule décimale"),
+    ("ARCHITECTURE.md", "would gain nothing.", "would gain nothing to avoid.", "prescriptif"),
+    ("ARCHITECTURE.md", "DESIGN.md §6.3", "DESIGN.md §6.9", "section absente de DESIGN.md"),
+    ("ARCHITECTURE.md", "- 409:", "- 410:", "nombre non déclaré"),
+    ("ARCHITECTURE.md", "a floor of\n60 sessions", "a floor of\n90 sessions", "nombre non déclaré"),
 )
 
 
