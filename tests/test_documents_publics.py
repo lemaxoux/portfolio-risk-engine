@@ -77,7 +77,7 @@ from scipy.stats import t as student_t
 from backend import typography
 from backend.api.routes.analysis import CONFIDENCE_LEVELS
 from backend.db.init_db import connect
-from backend.ingestion.universe import BACKFILL_START, BENCHMARK_TICKER
+from backend.ingestion.universe import BACKFILL_START, BENCHMARK_TICKER, DEV_UNIVERSE
 from backend.risk_engine import config, covariance, engine, var
 from backend.risk_engine.scenarios import SCENARIOS, SCENARIOS_BY_KEY
 from backend.rules import thresholds
@@ -100,7 +100,10 @@ from .test_methodologie import CONTRACTION, FORMULE, INDICE
 RACINE = Path(__file__).resolve().parents[1]
 
 # Les documents publics, dans l'ordre où les lots de la phase 8 les créent.
-DOCUMENTS = ("METHODOLOGY.md", "ARCHITECTURE.md")
+DOCUMENTS = ("METHODOLOGY.md", "ARCHITECTURE.md", "README.md")
+
+# Le README est court : ce qu'un recruteur ou un lecteur technique lit d'abord.
+LIGNES_DU_README = 250
 
 EN = "en"
 
@@ -248,11 +251,15 @@ def constantes() -> dict[str, str]:
         "règles": f"The {typography.cardinal(len(RuleId), langue=EN)} rules",
         # Le piège d'échelle de `var.student_scale_matrix` : √(ν/(ν−2)) − 1 à ν = 5.
         "piège d'échelle": pourcent(math.sqrt(5 / 3) - 1, 0),
+        "univers": f"{len(DEV_UNIVERSE)} securities",
     }
     for niveau in CONFIDENCE_LEVELS:
         c[f"niveau {niveau}"] = pourcent(niveau, 0)
         c[f"queue {niveau}"] = pourcent(round(1.0 - niveau, 9), 0)
         c[f"VaR historique {niveau}"] = seances(config.historical_var_min_observations(niveau))
+        c[f"VaR historique {niveau}, en jours de bourse"] = jours_de_bourse(
+            config.historical_var_min_observations(niveau)
+        )
         c[f"quantile normal {niveau}"] = nombre(-norm.ppf(1.0 - niveau), 3)
     for scenario in SCENARIOS:
         c[f"crise {scenario.key}"] = scenario.nom(EN)
@@ -291,6 +298,7 @@ FRAGMENTS_MATHEMATIQUES = (
     "n − 2",  # les degrés de liberté résiduels d'une régression
     "n = 2",  # la frontière démontrée, en symboles
     "two sessions",  # la même, en mots
+    "two trading days",  # la même, dans le registre du README
     "1 − α",
     "n × (1 − α)",
     "1 / (1 − α)",
@@ -318,6 +326,20 @@ FRAGMENTS_MATHEMATIQUES = (
 # Des exemples, cités comme tels.
 EXEMPLES = ("the past five years",)  # la profondeur glissante qu'on n'a pas retenue
 
+# Ni constantes, ni données, ni formules, et sans fichier du dépôt qui les
+# porte : chacun avec sa raison.
+DECLARES = (
+    # La version de Node.js du poste de développement (v24.21.0 le 2026-10-09) ;
+    # aucun fichier du dépôt ne la fige.
+    "Node.js 24",
+    # Le nom du projet qui publie les motifs de césure de TeX.
+    "hyph-utf8",
+    # Les notices des motifs de césure, reproduites comme leurs licences
+    # l'exigent.
+    "Copyright (C) 1994-2002 Daniel Flipo, Bernard Gaulle, 2016 Arthur Reutenauer",
+    "Copyright (C) 1990, 2004, 2005 Gerard D.C. Kuiken",
+)
+
 # Des faits qui ne sont pas des constantes du code, chacun relu dans le
 # fichier qui le porte : (fragment, fichier, ce que le fichier en dit).
 FRAGMENTS_SOURCES = (
@@ -325,6 +347,8 @@ FRAGMENTS_SOURCES = (
     ("360-day", "backend/risk_engine/config.py", "360 jours"),
     ("three months on both sides", "tests/test_stress.py", "months=3"),
     ("Python 3.12", "requirements.txt", "(Python 3.12)"),
+    # La licence des trois polices de @fontsource, dans le verrou des versions.
+    ("Open Font License 1.1", "frontend/package-lock.json", '"license": "OFL-1.1"'),
     # Les codes HTTP d'un refus, tels que les déclare la couche API.
     ("404", "backend/api/errors.py", "**404**"),
     ("409", "backend/api/errors.py", "**409**"),
@@ -333,7 +357,7 @@ FRAGMENTS_SOURCES = (
 
 
 def fragments() -> list[str]:
-    return [*FRAGMENTS_MATHEMATIQUES, *EXEMPLES, *(f for f, _, _ in FRAGMENTS_SOURCES)]
+    return [*FRAGMENTS_MATHEMATIQUES, *EXEMPLES, *DECLARES, *(f for f, _, _ in FRAGMENTS_SOURCES)]
 
 
 # Un renvoi à une section de la spécification visuelle : « DESIGN.md §6.3 ».
@@ -556,6 +580,29 @@ EXIGENCES = {
         "student-nu": TOUS,
         "ko-dividend": TOUS,
     },
+    "README.md": {
+        "calm-beta": (
+            "beta calme",
+            "rejoué gfc_2008",
+            "impliqué gfc_2008",
+            "rejoué covid_2020",
+            "impliqué covid_2020",
+            "rejoué tightening_2022",
+            "impliqué tightening_2022",
+            "R² calme",
+            "R² gfc_2008",
+            "R² tightening_2022",
+        ),
+        "concentration-2022": (
+            "XOM valeur",
+            "XOM variance",
+            "XOM contribution",
+            "portefeuille rejoué",
+            "S&P 500 tightening_2022",
+        ),
+        "student-nu": ("ν estimé", "SciPy", "ν de scipy", "VaR Student 99 au ν de scipy", "VaR normale 99"),
+        "ko-dividend": ("réel", "stocké", "sauvegarde"),
+    },
 }
 REGISTRES = {"README.md": "fenêtre trading day"}
 
@@ -639,6 +686,12 @@ EXCEPTIONS_PRESCRIPTIVES = {
         "fact; “you should reduce it” is investment advice, which nothing in this "
         "project allows the tool to give.",
     ),
+    "README.md": (
+        # Ce que l'outil refuse de dire.
+        "It never tells anyone to buy, sell, or rebalance a holding.",
+        "It describes statistical properties of a portfolio; it is not investment "
+        "advice and not a recommendation to buy, sell, or hold a security.",
+    ),
 }
 
 FIN_DE_PHRASE = re.compile(r"[.!?] [A-Z“]")
@@ -711,14 +764,31 @@ def test_chaque_resultat_date_porte_son_cadre_et_reste_dans_son_bloc(document, s
     assert fautes_des_blocs(document, sources[document], resultats) == []
 
 
+def ancre(titre: str) -> str:
+    """L'ancre que GitHub donne à un titre : minuscules, ponctuation retirée,
+    espaces changées en traits d'union."""
+    return re.sub(r"[^\w\- ]", "", titre.strip().lower()).replace(" ", "-")
+
+
 @pytest.mark.parametrize("document", DOCUMENTS)
-def test_les_liens_internes_menent_a_un_fichier_du_depot(document, sources):
-    cibles = [
-        cible.partition("#")[0]
-        for _, cible in LIEN.findall(sources[document])
-        if not cible.startswith(("http://", "https://", "#", "mailto:"))
-    ]
-    assert [c for c in cibles if not (RACINE / c).exists()] == []
+def test_les_liens_internes_menent_a_un_fichier_et_a_un_titre_du_depot(document, sources):
+    fautes = []
+    for _, cible in LIEN.findall(sources[document]):
+        if cible.startswith(("http://", "https://", "mailto:")):
+            continue
+        fichier, _, fragment = cible.partition("#")
+        chemin = RACINE / (fichier or document)
+        if not chemin.exists():
+            fautes.append(f"fichier absent : {cible}")
+        elif fragment and chemin.suffix == ".md":
+            titres = re.findall(r"^#{1,6} (.+)$", chemin.read_text(encoding="utf-8"), re.M)
+            if fragment not in {ancre(t) for t in titres}:
+                fautes.append(f"titre absent : {cible}")
+    assert fautes == []
+
+
+def test_le_readme_reste_court(sources):
+    assert len(sources["README.md"].splitlines()) <= LIGNES_DU_README
 
 
 def test_les_regles_citees_portent_les_libelles_de_l_application(sources):
@@ -828,6 +898,22 @@ TEMOINS = (
     ("ARCHITECTURE.md", "DESIGN.md §6.3", "DESIGN.md §6.9", "section absente de DESIGN.md"),
     ("ARCHITECTURE.md", "- 409:", "- 410:", "nombre non déclaré"),
     ("ARCHITECTURE.md", "a floor of\n60 sessions", "a floor of\n90 sessions", "nombre non déclaré"),
+    ("README.md", "0.57 ± 0.03", "0.58 ± 0.03", "nombre non déclaré"),
+    ("README.md", "## Tests\n", "## Tests\n\nThe calm beta is 0.57 ± 0.03.\n", "citation datée hors de son bloc"),
+    # Le même mot qu'une phrase admise, hors d'elle, échoue toujours.
+    (
+        "README.md",
+        "A lexical guard checks every published sentence.",
+        "A lexical guard checks every published sentence before you sell.",
+        "prescriptif",
+    ),
+    (
+        "README.md",
+        "It never tells anyone to buy, sell, or rebalance a holding.",
+        "It never tells anyone to buy, sell, or rebalance a single holding.",
+        "exception absente",
+    ),
+    ("README.md", "Node.js 24", "Node.js 26", "nombre non déclaré"),
 )
 
 
