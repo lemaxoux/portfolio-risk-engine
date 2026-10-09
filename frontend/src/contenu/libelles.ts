@@ -26,6 +26,19 @@ export type Destination = 'analyse' | 'positions' | 'portefeuilles' | 'methodolo
 /** Les pages que la navigation propose. */
 export type PageDuSite = 'analyse' | 'positions' | 'portefeuilles' | 'methodologie'
 
+/** Un trait de l'histogramme : son niveau, la VaR qu'il porte, son rendement sur l'axe. */
+export interface TraitDuGraphique {
+  readonly niveau: number
+  readonly varHistorique: number
+  readonly seuil: number
+}
+
+/** La zone ombrée de l'histogramme : la queue d'un niveau, et ses séances. */
+export interface QueueDuGraphique {
+  readonly niveau: number
+  readonly seances: number
+}
+
 export interface Libelles {
   /** Le bouton qui passe à l'autre langue. */
   readonly langue: {
@@ -245,6 +258,31 @@ export interface Libelles {
     readonly courbeDeValeur: string
     readonly pic: string
     readonly creux: string
+    /**
+     * Les valeurs d'un graphique, en tableau replié sous lui (chantier 7E,
+     * DESIGN.md §9.4) : le libellé du repli, le même sous chaque graphique.
+     */
+    readonly valeursEnTableau: string
+    /** La légende du tableau de l'histogramme : la largeur publiée des tranches. */
+    readonly tableauHistogramme: (largeur: number) => string
+    readonly tranche: string
+    readonly seances: string
+    /** Une tranche, de sa borne basse à sa borne haute. */
+    readonly trancheDe: (bas: number, haut: number) => string
+    /**
+     * Ce que le dessin de l'histogramme porte en plus de ses barres : les traits
+     * des niveaux tracés et la zone ombrée. `null` quand il n'y en a aucun.
+     */
+    readonly traitsDuGraphique: (
+      traits: readonly TraitDuGraphique[],
+      queue: QueueDuGraphique | null,
+    ) => string | null
+    /** La légende du tableau de la courbe : le titre du graphique, séance par séance. */
+    readonly tableauCourbe: (titre: string) => string
+    readonly seance: string
+    readonly valeur: string
+    readonly repere: string
+    readonly tableauCorrelation: string
   }
   readonly analyse: {
     readonly titre: (nom: string) => string

@@ -27,6 +27,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Les valeurs d'un graphique (§9.4) : la largeur de leurs colonnes, pas
+ * celle de la page, sans descendre sous 24 rem, où leur légende
+ * s'empilerait. */
+.tableau.auContenu {
+  inline-size: auto;
+  min-inline-size: min(100%, 24rem);
+}
+
 /* La légende a la largeur du TABLEAU, qui dépasse l'écran à 390 px : elle
  * serait coupée au bord du cadre. Bornée à la largeur du cadre (`cqi`), elle
  * passe à la ligne ; collante, elle reste en place quand le cadre défile. */

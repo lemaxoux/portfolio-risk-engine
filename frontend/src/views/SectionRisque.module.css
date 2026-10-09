@@ -188,6 +188,12 @@
     grid-column: 1 / -1;
   }
 
+  /* Les valeurs de la carte, en tableau replié : toute la largeur, sous la
+   * grille, l'échelle et sa lecture (chantier 7E). */
+  .carte > figure > details {
+    grid-column: 1 / -1;
+  }
+
   /* Les trois paragraphes de la légende deviennent des cases de la figure. */
   .carte .legendeCorrelation {
     display: contents;

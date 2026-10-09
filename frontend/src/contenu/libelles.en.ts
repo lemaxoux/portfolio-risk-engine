@@ -282,6 +282,36 @@ export const LIBELLES_EN: Libelles = {
     courbeDeValeur: 'value curve',
     pic: 'peak',
     creux: 'trough',
+    valeursEnTableau: "The chart's values, as a table",
+    tableauHistogramme: (largeur) =>
+      `Sessions per ${pointsEnAdjectif(largeur, 2)} bin; a bin includes its lower bound, ` +
+      'not its upper bound',
+    tranche: 'Bin',
+    seances: 'Sessions',
+    trancheDe: (bas, haut) => `${pourcentage(bas, 2, EN)} to ${pourcentage(haut, 2, EN)}`,
+    traitsDuGraphique: (traits, queue) => {
+      const morceaux: string[] = []
+      if (traits.length > 0) {
+        const tete = traits.length === 1 ? 'Line on the chart' : 'Lines on the chart'
+        const liste = traits.map(
+          (trait) =>
+            `VaR ${pourcentage(trait.niveau, 0, EN)} (${pourcentage(trait.varHistorique, 2, EN)}), ` +
+            `at a return of ${pourcentage(trait.seuil, 2, EN)}`,
+        )
+        morceaux.push(`${tete}: ${liste.join('; ')}.`)
+      }
+      if (queue !== null) {
+        morceaux.push(
+          `Shaded area: the tail at ${pourcentage(queue.niveau, 0, EN)}, ${seances(queue.seances, EN)}.`,
+        )
+      }
+      return morceaux.length === 0 ? null : morceaux.join(' ')
+    },
+    tableauCourbe: (titre) => `${titre}, session by session`,
+    seance: 'Session',
+    valeur: 'Value',
+    repere: 'Marker',
+    tableauCorrelation: 'Correlation of daily changes, pair by pair; the diagonal is 1 by definition',
   },
   analyse: {
     titre: (nom) => `Analysis of ${citer(nom)}`,

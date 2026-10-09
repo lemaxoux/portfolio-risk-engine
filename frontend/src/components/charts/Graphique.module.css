@@ -48,3 +48,39 @@
   font-variant-numeric: tabular-nums;
   --plot-background: var(--surface-1);
 }
+
+/*
+ * Les valeurs du graphique, repliées sous lui (§9.4, chantier 7E). Un
+ * `<details>` natif : Entrée et Espace l'ouvrent, et la recherche de la page
+ * ouvre un repli fermé qui contient le texte cherché. Le triangle du repli
+ * porte une fonction, ce que §12 admet.
+ */
+.valeurs {
+  margin-block-start: var(--space-3);
+}
+
+/* Une cible de 24 px au moins (WCAG 2.5.8) : 14 px de texte, son interligne
+ * et 4 px de part et d'autre. À la largeur de son texte : son anneau de focus
+ * l'entoure lui seul, pas la colonne. */
+.ouvrir {
+  inline-size: fit-content;
+  padding-block: var(--space-1);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  cursor: pointer;
+}
+
+.valeurs[open] > .ouvrir {
+  margin-block-end: var(--space-3);
+}
+
+/* Ce que le dessin porte en plus de ses valeurs, sous le tableau. */
+.note {
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}

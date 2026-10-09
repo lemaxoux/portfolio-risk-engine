@@ -50,6 +50,18 @@ type Sens = 'croissant' | 'decroissant'
 
 interface Props<T> {
   readonly legende: string
+  /**
+   * L'identifiant de la légende, quand un autre élément la désigne : le
+   * graphique des parts dans les variations renvoie au tableau qui le suit
+   * (`aria-describedby`, chantier 7E).
+   */
+  readonly idLegende?: string
+  /**
+   * `contenu` : le tableau prend la largeur de ses colonnes plutôt que celle
+   * de la colonne de lecture. Pour les valeurs d'un graphique, deux ou trois
+   * colonnes qui ne doivent pas s'écarter sur toute la page (§9.4).
+   */
+  readonly largeur?: 'colonne' | 'contenu'
   readonly colonnes: readonly Colonne<T>[]
   readonly lignes: readonly T[]
   readonly cleDeLigne: (ligne: T) => string
@@ -79,6 +91,8 @@ export function lignesTriees<T>(
 
 export function DataTable<T>({
   legende,
+  idLegende,
+  largeur = 'colonne',
   colonnes,
   lignes,
   cleDeLigne,
@@ -98,8 +112,12 @@ export function DataTable<T>({
 
   return (
     <div className={styles.cadre}>
-      <table className={styles.tableau}>
-        <caption className={styles.legende}>{legende}</caption>
+      <table
+        className={largeur === 'contenu' ? `${styles.tableau} ${styles.auContenu}` : styles.tableau}
+      >
+        <caption id={idLegende} className={styles.legende}>
+          {legende}
+        </caption>
         <thead>
           <tr>
             {colonnes.map((colonne) => {

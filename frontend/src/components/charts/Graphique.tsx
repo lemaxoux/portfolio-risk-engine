@@ -21,6 +21,18 @@
  * La police et sa taille sont imposées par la feuille de style, pas par Plot :
  * Plot écrit `font-size="10"` en attribut de présentation, qu'une règle CSS
  * surcharge. Aucune taille n'est donc écrite ici.
+ *
+ * ═══ SES VALEURS, EN TABLEAU, REPLIÉES (chantier 7E, §9.4, §13) ═══
+ *
+ * Le tracé est une image (`role="img"`) que nomme sa conclusion. Ses valeurs,
+ * elles, ne se lisent qu'au survol, à la souris. Sous le tracé, un
+ * `<details>` natif, fermé, les donne en tableau : les mêmes valeurs que le
+ * dessin, lues dans la réponse de l'API et écrites par `lib/format`, toutes et
+ * dans l'ordre publié. Son libellé visible est le même sous chaque graphique ;
+ * le titre du graphique le suit en texte masqué, pour qu'un lecteur d'écran
+ * sache lequel il ouvre, le nom commençant par le texte visible (WCAG 2.5.3).
+ * Un graphique dont le tableau suit déjà la figure n'en reçoit pas de second :
+ * il le désigne (`decritPar`).
  */
 import * as Plot from '@observablehq/plot'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -28,6 +40,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Window } from '../../api/types'
 import { useLangue, type Langue } from '../../lib/langue'
 import { provenanceDeGraphique } from '../../lib/provenance'
+import { DataTable, type Colonne } from '../DataTable'
 import { Provenance } from '../Provenance'
 import type { Couleurs } from './couleurs'
 import { useCouleurs } from './useCouleurs'
@@ -46,7 +59,20 @@ export type Trace = ReturnType<typeof Plot.plot>
 /** Des propriétés CSS, par nom : `{ '--haut-de-grille': '42px' }`. */
 export type ProprietesCss = Readonly<Record<string, string>>
 
-interface Props {
+/**
+ * Les valeurs d'un graphique, en tableau : sa légende, ses colonnes, ses
+ * rangées, faites des données publiées sans rien calculer ni choisir.
+ */
+export interface ValeursDuGraphique<T> {
+  readonly legende: string
+  readonly colonnes: readonly Colonne<T>[]
+  readonly lignes: readonly T[]
+  readonly cleDeLigne: (ligne: T) => string
+  /** Ce que le dessin porte en plus de ses valeurs (traits, zone ombrée), déjà écrit. */
+  readonly note?: string | null
+}
+
+interface Props<T> {
   readonly titre: string
   /** Ce que mesure l'axe des valeurs : « rendement quotidien, en % ». */
   readonly unite: string
@@ -69,9 +95,16 @@ interface Props {
   readonly proprietesDuTrace?: (trace: Trace) => ProprietesCss
   /** Légende ou mention placée sous le tracé. */
   readonly children?: ReactNode
+  /** Les valeurs du dessin, en tableau replié sous lui. */
+  readonly valeurs?: ValeursDuGraphique<T>
+  /**
+   * L'identifiant de ce qui décrit le tracé, quand ses valeurs sont déjà dans
+   * le tableau qui suit la figure : la légende de ce tableau.
+   */
+  readonly decritPar?: string
 }
 
-export function Graphique({
+export function Graphique<T>({
   titre,
   unite,
   fenetre,
@@ -80,8 +113,10 @@ export function Graphique({
   options,
   proprietesDuTrace,
   children,
-}: Props) {
-  const { langue } = useLangue()
+  valeurs,
+  decritPar,
+}: Props<T>) {
+  const { langue, libelles } = useLangue()
   const conteneur = useRef<HTMLDivElement>(null)
   const couleurs = useCouleurs()
   const [largeur, setLargeur] = useState(0)
@@ -131,8 +166,25 @@ export function Graphique({
         className={styles.trace}
         role="img"
         aria-label={description}
+        aria-describedby={decritPar}
       />
       {children}
+      {valeurs !== undefined && (
+        <details className={styles.valeurs}>
+          <summary className={styles.ouvrir}>
+            {libelles.graphiques.valeursEnTableau}
+            <span className="visuellement-cache"> ({titre})</span>
+          </summary>
+          <DataTable
+            legende={valeurs.legende}
+            largeur="contenu"
+            colonnes={valeurs.colonnes}
+            lignes={valeurs.lignes}
+            cleDeLigne={valeurs.cleDeLigne}
+          />
+          {valeurs.note != null && <p className={styles.note}>{valeurs.note}</p>}
+        </details>
+      )}
     </figure>
   )
 }

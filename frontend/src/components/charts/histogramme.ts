@@ -31,13 +31,21 @@
  * niveau (`value: null`) : aucune séance ne tombe dans la queue. Ni trait, ni
  * étiquette, ni ombre — un trait posé au minimum de la fenêtre dessinerait
  * exactement le quantile que le moteur a refusé d'écrire.
+ *
+ * ═══ SES VALEURS, EN TABLEAU (chantier 7E, §9.4) ═══
+ *
+ * Sous le dessin, replié : chaque classe publiée, vides comprises, dans
+ * l'ordre publié, et son compte. Puis, en une phrase, ce que le dessin porte
+ * en plus de ses barres : les traits des niveaux TRACÉS et la zone ombrée,
+ * choisis par le même filtre que le dessin (`niveauxTraces`).
  */
 import * as Plot from '@observablehq/plot'
 
 import type { HistogramBin, ReturnHistogram, TailRiskLevel } from '../../api/types'
-import { LIBELLES } from '../../contenu/libelles'
+import { LIBELLES, type TraitDuGraphique } from '../../contenu/libelles'
 import { decimal, pourcentage } from '../../lib/format'
 import type { Langue } from '../../lib/langue'
+import type { Colonne } from '../DataTable'
 import type { ContexteGraphique } from './Graphique'
 import { halo } from './habillage'
 
@@ -72,6 +80,61 @@ interface Donnees {
   readonly niveaux: readonly TailRiskLevel[]
 }
 
+/**
+ * Les niveaux que le dessin trace : ceux dont le moteur publie le quantile
+ * ET la VaR historique. Un niveau refusé n'a ni trait ni mention.
+ */
+export function niveauxTraces(niveaux: readonly TailRiskLevel[]): TailRiskLevel[] {
+  return niveaux.filter(
+    (niveau) =>
+      niveau.expected_shortfall.threshold !== null && niveau.historical_var.value !== null,
+  )
+}
+
+/** Les colonnes du tableau des valeurs : chaque classe publiée, et son compte. */
+export function colonnesHistogramme(langue: Langue = 'fr'): Colonne<HistogramBin>[] {
+  const l = LIBELLES[langue].graphiques
+  return [
+    {
+      cle: 'tranche',
+      titre: l.tranche,
+      nature: 'nombre',
+      cellule: (classe) => l.trancheDe(classe.lower, classe.upper),
+    },
+    {
+      cle: 'seances',
+      titre: l.seances,
+      nature: 'nombre',
+      cellule: (classe) => decimal(classe.count, 0, langue),
+    },
+  ]
+}
+
+/**
+ * La phrase sous le tableau : les traits et la zone ombrée que le dessin
+ * porte, avec leurs valeurs publiées (la VaR, son quantile en rendement, la
+ * taille de la queue). `null` quand le dessin n'en porte aucun.
+ */
+export function noteHistogramme(
+  niveaux: readonly TailRiskLevel[],
+  langue: Langue = 'fr',
+): string | null {
+  const traces = niveauxTraces(niveaux)
+  const traits = traces.flatMap((niveau): TraitDuGraphique[] => {
+    const valeur = niveau.historical_var.value
+    const seuil = niveau.expected_shortfall.threshold
+    return valeur === null || seuil === null
+      ? []
+      : [{ niveau: niveau.confidence, varHistorique: valeur, seuil }]
+  })
+  const queue = traces.find((niveau) => niveau.confidence === 0.95)?.expected_shortfall
+  const ombre =
+    queue !== undefined && queue.threshold !== null && queue.tail_observations !== null
+      ? { niveau: queue.confidence, seances: queue.tail_observations }
+      : null
+  return LIBELLES[langue].graphiques.traitsDuGraphique(traits, ombre)
+}
+
 export function optionsHistogramme(
   { histogramme, niveaux }: Donnees,
   { couleurs, largeur, langue = 'fr' }: ContexteGraphique,
@@ -80,10 +143,7 @@ export function optionsHistogramme(
   const classes = histogramme.bins
   const debut = classes[0]?.lower ?? 0
   const fin = classes[classes.length - 1]?.upper ?? 0
-  const traces = niveaux.filter(
-    (niveau) =>
-      niveau.expected_shortfall.threshold !== null && niveau.historical_var.value !== null,
-  )
+  const traces = niveauxTraces(niveaux)
   const niveau95 = traces.find((niveau) => niveau.confidence === 0.95)
 
   const marques: Plot.Markish[] = [

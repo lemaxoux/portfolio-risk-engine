@@ -16,7 +16,12 @@ import { useCallback } from 'react'
 
 import type { Drawdown, PortfolioSeries } from '../api/types'
 import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
-import { optionsRichesse, pointA } from '../components/charts/richesse'
+import {
+  colonnesCourbe,
+  optionsRichesse,
+  pointA,
+  rangeesCourbe,
+} from '../components/charts/richesse'
 import type { LigneProvenance } from '../components/Provenance'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
@@ -63,6 +68,7 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
     [serie, creux],
   )
   const depart = serie.wealth[0]
+  const titre = depart === undefined ? l.titreSansDepart : l.titre(devise, depart.date)
   const introduction = phrases.introAuPire(creux.period_label)
   // Le retour au pic n'a de ligne que s'il a eu lieu : `null` se dit dans la
   // phrase de lecture (« il n'avait pas encore retrouvé ce plus haut »).
@@ -94,12 +100,18 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
 
       <h3 className={commun.sousTitre}>{l.ou}</h3>
       <Graphique
-        titre={depart === undefined ? l.titreSansDepart : l.titre(devise, depart.date)}
+        titre={titre}
         unite={l.unite(depart === undefined ? null : depart.date)}
         fenetre={serie.window}
         asOf={asOf}
         description={descriptionRichesse(serie, creux, langue)}
         options={options}
+        valeurs={{
+          legende: libelles.graphiques.tableauCourbe(titre),
+          colonnes: colonnesCourbe(creux, langue),
+          lignes: rangeesCourbe(serie.wealth, creux),
+          cleDeLigne: (rangee) => rangee.date,
+        }}
       />
     </Section>
   )

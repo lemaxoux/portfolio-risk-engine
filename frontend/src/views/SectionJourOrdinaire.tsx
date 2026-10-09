@@ -50,7 +50,11 @@ import { useCallback } from 'react'
 
 import type { Parameters, ReturnHistogram, Risk, TailRiskLevel } from '../api/types'
 import { Graphique, type ContexteGraphique } from '../components/charts/Graphique'
-import { optionsHistogramme } from '../components/charts/histogramme'
+import {
+  colonnesHistogramme,
+  noteHistogramme,
+  optionsHistogramme,
+} from '../components/charts/histogramme'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
@@ -199,6 +203,13 @@ export function SectionJourOrdinaire({
           asOf={asOf}
           description={descriptionHistogramme(histogramme, niveaux, langue)}
           options={options}
+          valeurs={{
+            legende: libelles.graphiques.tableauHistogramme(histogramme.bin_width),
+            colonnes: colonnesHistogramme(langue),
+            lignes: histogramme.bins,
+            cleDeLigne: (classe) => String(classe.lower),
+            note: noteHistogramme(niveaux, langue),
+          }}
         >
           <p className={styles.legende}>
             {phrases.legendeHistogramme(

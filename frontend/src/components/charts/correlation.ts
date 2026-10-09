@@ -29,12 +29,20 @@
  * corrélation NULLE (#E7E5DE contre #DFDEDB) : la diagonale se serait lue
  * « corrélation ≈ 0 ». L'échelle, elle, ne change pas : son domaine est fixé,
  * pas déduit des cellules qu'elle colore.
+ *
+ * ═══ SES VALEURS, EN TABLEAU (chantier 7E, §9.4) ═══
+ *
+ * Sous le dessin, replié : la matrice publiée, une rangée et une colonne par
+ * ligne du portefeuille, dans l'ordre publié, deux décimales comme dans les
+ * cellules. La diagonale y est écrite « 1,00 », comme sur la carte.
  */
 import * as Plot from '@observablehq/plot'
 
 import type { Matrix } from '../../api/types'
 import { LIBELLES } from '../../contenu/libelles'
-import { decimal } from '../../lib/format'
+import { TIRET_INDEFINI, decimal } from '../../lib/format'
+import type { Langue } from '../../lib/langue'
+import type { Colonne } from '../DataTable'
 import { encreLisible, type Couleurs } from './couleurs'
 import type { ContexteGraphique } from './Graphique'
 
@@ -92,6 +100,40 @@ export function encreDeCellule(couleurs: Couleurs, valeur: number): string {
 /** La cellule d'une ligne avec elle-même : 1 par définition, rien à apprendre. */
 export function estDiagonale(cellule: Cellule): boolean {
   return cellule.ligne === cellule.colonne
+}
+
+/** Une rangée du tableau des valeurs : une ligne, et sa rangée de la matrice publiée. */
+export interface RangeeCorrelation {
+  readonly ticker: string
+  readonly valeurs: readonly number[]
+}
+
+/** La matrice publiée, rangée par rangée, dans l'ordre de ses tickers. */
+export function rangeesCorrelation(matrice: Matrix): RangeeCorrelation[] {
+  return matrice.tickers.map((ticker, i) => ({ ticker, valeurs: matrice.values[i] ?? [] }))
+}
+
+/** Les colonnes : le ticker de la rangée, puis une colonne par ligne de la matrice. */
+export function colonnesCorrelation(matrice: Matrix, langue: Langue = 'fr'): Colonne<RangeeCorrelation>[] {
+  return [
+    {
+      cle: 'ticker',
+      titre: LIBELLES[langue].risque.colonnes.ticker,
+      nature: 'texte',
+      cellule: (rangee) => rangee.ticker,
+    },
+    ...matrice.tickers.map(
+      (colonne, j): Colonne<RangeeCorrelation> => ({
+        cle: `colonne-${colonne}`,
+        titre: colonne,
+        nature: 'nombre',
+        cellule: (rangee) => {
+          const valeur = rangee.valeurs[j]
+          return valeur === undefined ? TIRET_INDEFINI : decimal(valeur, 2, langue)
+        },
+      }),
+    ),
+  ]
 }
 
 /*

@@ -2032,6 +2032,46 @@ Avant, la lecture était un `span` à `flex-basis: 100%` borné à la largeur de
 prose : à 1280 px, la borne la rendait assez étroite pour tenir à côté des
 pastilles, et elle s'y rangeait au lieu d'aller à la ligne.
 
+#### Les valeurs des graphiques, en tableau
+
+Chantier 7E (DESIGN.md §9.4, §13). Un tracé est une image (`role="img"`) que
+nomme sa conclusion ; ses valeurs, elles, ne se lisaient qu'au survol, à la
+souris. Sous chaque graphique, un `<details>` natif, fermé, les donne en
+tableau (`<Graphique valeurs>`). Son libellé est le même partout, « Les valeurs
+du graphique, en tableau », suivi du titre du graphique en texte masqué.
+
+- **Les mêmes valeurs que le dessin, sans calcul ni sélection.** Chaque
+  tableau est fait des données publiées, toutes et dans l'ordre publié,
+  écrites par `format.ts`. Les rangées viennent de fonctions pures, à côté des
+  options de Plot : `colonnesHistogramme`, `rangeesCourbe` et `colonnesCourbe`,
+  `rangeesCorrelation` et `colonnesCorrelation` (`valeurs.test.ts`).
+- **L'histogramme** : une rangée par classe publiée, vides comprises (29 sur
+  53 pour la démonstration), et son compte. Sous le tableau, une phrase dit ce
+  que le dessin trace en plus : les traits des niveaux et leur quantile en
+  rendement, la zone ombrée et ses séances. Les niveaux nommés sont ceux du
+  dessin, par le même filtre (`niveauxTraces`).
+- **La courbe de valeur** : une rangée par point publié (505 pour la
+  démonstration), la valeur à trois décimales comme l'infobulle, et une
+  colonne « Repère » qui reprend les annotations du dessin, « pic » et
+  « creux −14,8 % ». Un repère se pose par égalité avec `peak_date` et
+  `trough_date`, la lecture que `pointA` fait déjà pour le dessin. Le moteur
+  ne refuse jamais la perte maximale : sans baisse, il publie le pic et le
+  creux au premier jour, où le dessin pose ses deux annotations, et le
+  tableau aussi.
+- **La carte de corrélation** : la matrice publiée, deux décimales, la
+  diagonale écrite « 1,00 ».
+- **Les parts dans les variations** n'ont pas de second tableau : celui qui
+  suit la figure en porte toutes les valeurs, dans le même ordre. Le tracé le
+  désigne (`aria-describedby` vers sa légende, `Graphique.test.ts`).
+- **Les étiquettes.** Celle des barres écrit « +1,9 point » en toutes
+  lettres (`pointsSignesEnToutesLettres`) : un lecteur d'écran épelait
+  « pts ». Celle de la carte reste descriptive : la paire la plus liée n'est
+  publiée que dans une des trois branches de la règle
+  `apparent_diversification` (DESIGN.md §13).
+
+Le contenu d'un `<details>` fermé n'est pas dans le texte rendu (`innerText`)
+d'une page : seul le libellé du repli s'ajoute au relevé de l'interface.
+
 #### Acceptation
 
 L'écran d'acceptation est une **page entière**, pas une modale : une modale se

@@ -274,6 +274,37 @@ export const LIBELLES_FR: Libelles = {
     courbeDeValeur: 'courbe de richesse',
     pic: 'pic',
     creux: 'creux',
+    valeursEnTableau: 'Les valeurs du graphique, en tableau',
+    tableauHistogramme: (largeur) =>
+      `Séances par tranche de ${points(largeur, 2)}\u00a0; une tranche contient sa borne ` +
+      'basse, pas sa borne haute',
+    tranche: 'Tranche',
+    seances: 'Séances',
+    trancheDe: (bas, haut) => `${pourcentage(bas, 2)} à ${pourcentage(haut, 2)}`,
+    traitsDuGraphique: (traits, queue) => {
+      const morceaux: string[] = []
+      if (traits.length > 0) {
+        const tete = traits.length === 1 ? 'Trait du graphique' : 'Traits du graphique'
+        const liste = traits.map(
+          (trait) =>
+            `VaR ${pourcentage(trait.niveau, 0)} (${pourcentage(trait.varHistorique, 2)}), ` +
+            `au rendement de ${pourcentage(trait.seuil, 2)}`,
+        )
+        morceaux.push(`${tete}\u00a0: ${liste.join('\u00a0; ')}.`)
+      }
+      if (queue !== null) {
+        morceaux.push(
+          `Zone ombrée\u00a0: la queue à ${pourcentage(queue.niveau, 0)}, ${seances(queue.seances)}.`,
+        )
+      }
+      return morceaux.length === 0 ? null : morceaux.join(' ')
+    },
+    tableauCourbe: (titre) => `${titre}, séance par séance`,
+    seance: 'Séance',
+    valeur: 'Valeur',
+    repere: 'Repère',
+    tableauCorrelation:
+      'Corrélation des variations quotidiennes, deux à deux\u00a0; la diagonale vaut 1 par définition',
   },
   analyse: {
     titre: (nom) => `Analyse de ${cite(nom)}`,

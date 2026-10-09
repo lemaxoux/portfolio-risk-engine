@@ -66,6 +66,17 @@ function appels(l: Libelles): Record<string, string> {
     'graphiques.infobulleCorrelation': l.graphiques.infobulleCorrelation('JNJ', 'KO', '0'),
     'graphiques.classe': l.graphiques.classe(1234, -0.01, -0.0075),
     'graphiques.queue': l.graphiques.queue(0.95, 26),
+    'graphiques.tableauHistogramme': l.graphiques.tableauHistogramme(0.0025),
+    'graphiques.trancheDe': l.graphiques.trancheDe(-0.06, -0.0575),
+    'graphiques.traitsDuGraphique':
+      l.graphiques.traitsDuGraphique(
+        [
+          { niveau: 0.95, varHistorique: 0.0106, seuil: -0.0106 },
+          { niveau: 0.99, varHistorique: 0.0169, seuil: -0.0169 },
+        ],
+        { niveau: 0.95, seances: 1234 },
+      ) ?? '',
+    'graphiques.tableauCourbe': l.graphiques.tableauCourbe('Démo'),
     'analyse.titre': l.analyse.titre('Démo'),
     'analyse.vide': l.analyse.vide('Démo'),
     'analyse.insuffisant': l.analyse.insuffisant('Démo'),

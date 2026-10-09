@@ -877,7 +877,13 @@ Le composant le plus utilisé du produit. Il mérite du soin.
   défilement vertical imbriqué (piège au pouce sur mobile) ou un en-tête
   dupliqué et synchronisé en script. Les tableaux du produit font au plus une
   quinzaine de lignes : l'en-tête reste presque toujours visible, le coût ne
-  se justifie pas.
+  se justifie pas. Les tableaux des valeurs d'un graphique (§9.4) en font
+  davantage, jusqu'à quelque 500 rangées pour la courbe de valeur ; ils sont
+  repliés par défaut, et leurs deux ou trois colonnes (une tranche et son
+  compte, une séance et sa valeur) se lisent sans leur en-tête en vue. Ils
+  prennent la largeur de leurs colonnes, 24 rem au moins, et non celle de la
+  colonne de lecture : deux colonnes étirées sur 800 px écartaient chaque
+  compte de sa tranche.
 - **La première colonne (le ticker) est collante à l'horizontale** : quand le
   cadre défile, elle reste en place et nomme la ligne.
 - Séparateurs horizontaux `1px solid var(--border)` uniquement. **Pas de
@@ -903,6 +909,27 @@ Le composant le plus utilisé du produit. Il mérite du soin.
 - Domaines : jamais d'auto-échelle pour la corrélation (§5.4). Pour les
   rendements, l'axe zéro est **toujours** visible — un axe tronqué exagère une
   variation, ce qui est une faute méthodologique, pas un choix esthétique.
+- **Sous chaque graphique, ses valeurs en tableau, repliées** (chantier 7E,
+  décisions du 2026-10-08). Un `<details>` natif, fermé, dernier élément de
+  la figure : Entrée et Espace l'ouvrent, et la recherche de la page ouvre un
+  repli qui contient le texte cherché. Son libellé visible est le même
+  partout, « Les valeurs du graphique, en tableau » ; le titre du graphique
+  le suit en texte masqué, pour qu'un lecteur d'écran sache lequel il ouvre,
+  le nom accessible commençant par le texte visible (WCAG 2.5.3). Dedans, un
+  `<DataTable>` (`<caption>`, `<th scope>`) : **les mêmes valeurs que le
+  dessin**, lues dans la réponse de l'API et écrites par `format.ts`, toutes
+  et dans l'ordre publié, **sans calcul ni sélection**. Les classes vides de
+  l'histogramme restent, et la courbe garde ses quelque 500 jours. Ce que le
+  dessin porte en plus de ses valeurs y est écrit avec ses valeurs publiées :
+  les traits et la zone ombrée de l'histogramme, sous son tableau, choisis
+  par le même filtre que le dessin ; le pic et le creux de la courbe, dans
+  une colonne « Repère », posés par égalité avec les dates publiées. Un
+  graphique dont le tableau suit déjà la figure, les parts dans les
+  variations, n'en reçoit pas de second : son tracé le désigne
+  (`aria-describedby` vers la légende de ce tableau).
+- Les infobulles ne sont qu'une commodité de souris : tout ce qu'elles disent
+  (le compte d'une tranche, la valeur d'un jour, la corrélation d'une paire)
+  est dans le tableau.
 
 ---
 
@@ -1075,7 +1102,16 @@ au regard de §11.
   en début de document.
 - Tableaux : `<caption>`, `<th scope>`. Graphiques : `role="img"` et un
   `aria-label` qui énonce la conclusion, pas la forme (« VaR 95 % à 1,38 %,
-  contre 1,95 % sous loi de Student »).
+  contre 1,95 % sous loi de Student »), et leurs valeurs en tableau replié
+  (§9.4). Une exception, la carte de corrélation : son étiquette dit ce
+  qu'elle montre (« Corrélations deux à deux de 6 lignes, valeur écrite dans
+  chaque cellule »). La paire la plus liée, sa conclusion naturelle, n'est
+  publiée par le moteur que dans une des trois branches de sa règle
+  (`apparent_diversification`) : `paire` et `correlation_max` quand aucune
+  paire n'est forte ; une observation par paire forte, avec `correlation` et
+  la paire dans `subject` ; `correlation_max` nul quand la corrélation n'est
+  pas estimable. Une étiquette tirée de là ne tiendrait que pour certains
+  portefeuilles (décision du 2026-10-08).
 - **Les quatre états de chaque vue sont à dessiner, pas seulement l'état
   nominal** :
   - *vide* — aucun portefeuille : une invitation à agir, avec le format CSV

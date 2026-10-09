@@ -14,12 +14,23 @@
  * d'opacité, sans dégradé (§9.4). Le pic et le creux sont marqués d'un point
  * SUR la courbe, leurs dates écrites à côté — pas dans une légende détachée.
  * Le niveau du pic n'est pas calculé : c'est le point publié à `peak_date`.
+ *
+ * ═══ SES VALEURS, EN TABLEAU (chantier 7E, §9.4) ═══
+ *
+ * Sous le dessin, replié : chaque point publié, dans l'ordre publié, avec
+ * trois décimales comme l'infobulle, et les repères que le dessin pose. Un
+ * repère se pose par égalité avec une date publiée (`peak_date`,
+ * `trough_date`), la lecture que `pointA` fait pour les annotations : sans
+ * baisse, le moteur publie le pic et le creux au premier jour, et le dessin
+ * y pose ses deux annotations.
  */
 import * as Plot from '@observablehq/plot'
 
 import type { Drawdown, Point } from '../../api/types'
 import { LIBELLES } from '../../contenu/libelles'
 import { dateDepuisISO, dateISO, decimal, moisISO, pourcentage } from '../../lib/format'
+import type { Langue } from '../../lib/langue'
+import type { Colonne } from '../DataTable'
 import type { ContexteGraphique } from './Graphique'
 import { halo } from './habillage'
 
@@ -53,6 +64,55 @@ export function pointA(richesse: readonly Point[], date: string): Point {
     throw new Error(`Aucun point de la courbe publiée au ${date}.`)
   }
   return point
+}
+
+/** Un repère que le dessin pose sur la courbe. */
+export type Repere = 'pic' | 'creux'
+
+/** Une rangée du tableau des valeurs : un point publié, et ses repères. */
+export interface RangeeCourbe {
+  readonly date: string
+  readonly valeur: number
+  readonly reperes: readonly Repere[]
+}
+
+/**
+ * Les points publiés, tous et dans l'ordre, chacun avec les repères que le
+ * dessin y pose. Aucun point n'est choisi ni calculé : une date absente de la
+ * courbe ne reçoit aucun repère, et aucun point n'est ajouté pour elle.
+ */
+export function rangeesCourbe(richesse: readonly Point[], creux: Drawdown): RangeeCourbe[] {
+  return richesse.map((point) => ({
+    date: point.date,
+    valeur: point.value,
+    reperes: [
+      ...(point.date === creux.peak_date ? (['pic'] as const) : []),
+      ...(point.date === creux.trough_date ? (['creux'] as const) : []),
+    ],
+  }))
+}
+
+/** Les colonnes du tableau : la séance, la valeur, le repère du dessin. */
+export function colonnesCourbe(creux: Drawdown, langue: Langue = 'fr'): Colonne<RangeeCourbe>[] {
+  const l = LIBELLES[langue].graphiques
+  // Le texte d'un repère est celui de l'annotation du dessin.
+  const texte = (repere: Repere): string =>
+    repere === 'pic' ? l.pic : `${l.creux} ${pourcentage(creux.value, 1, langue)}`
+  return [
+    { cle: 'seance', titre: l.seance, nature: 'texte', cellule: (rangee) => dateISO(rangee.date) },
+    {
+      cle: 'valeur',
+      titre: l.valeur,
+      nature: 'nombre',
+      cellule: (rangee) => decimal(rangee.valeur, 3, langue),
+    },
+    {
+      cle: 'repere',
+      titre: l.repere,
+      nature: 'texte',
+      cellule: (rangee) => rangee.reperes.map(texte).join(', '),
+    },
+  ]
 }
 
 interface Donnees {

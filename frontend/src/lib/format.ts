@@ -392,6 +392,22 @@ export function pointsSignes(fraction: number, decimales: number, langue: Langue
 }
 
 /**
+ * Le même écart signé, en points écrits en toutes lettres : « +8,2 points »,
+ * « −8,2 points » (chantier 7E). Pour une étiquette qu'un lecteur d'écran
+ * lit à voix haute, où « pts » s'épellerait. Le signe suit `pointsSignes`,
+ * l'accord suit `points`.
+ */
+export function pointsSignesEnToutesLettres(
+  fraction: number,
+  decimales: number,
+  langue: Langue = 'fr',
+): string {
+  const nul = Number(Math.abs(fraction * 100).toFixed(decimales)) === 0
+  const signe = fraction > 0 && !nul ? '+' : ''
+  return `${signe}${points(fraction, decimales, langue)}`
+}
+
+/**
  * Une date ISO de l'API en `Date`, à minuit UTC — pour POSITIONNER un point
  * sur un axe de temps, jamais pour l'écrire.
  *

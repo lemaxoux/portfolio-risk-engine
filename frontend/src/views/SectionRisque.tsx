@@ -19,7 +19,7 @@
  * scénario est `scenarios[].contributions[].contribution`. Rien n'est soustrait
  * ni moyenné ici.
  */
-import { useCallback, type CSSProperties } from 'react'
+import { useCallback, useId, type CSSProperties } from 'react'
 
 import type {
   Concentration,
@@ -39,14 +39,24 @@ import {
 import {
   DOMAINE_CORRELATION,
   MARGE_HAUTE_CARTE,
+  colonnesCorrelation,
   hautDeGrille,
   largeurMaxCarte,
   optionsCarteCorrelation,
+  rangeesCorrelation,
 } from '../components/charts/correlation'
 import { Measure } from '../components/Measure'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
-import { dateISO, decimal, decimalOuTiret, lignes as compteLignes, pointsSignes, pourcentage } from '../lib/format'
+import {
+  dateISO,
+  decimal,
+  decimalOuTiret,
+  lignes as compteLignes,
+  pointsSignes,
+  pointsSignesEnToutesLettres,
+  pourcentage,
+} from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { lignesDeFenetre } from '../lib/provenance'
 import styles from './SectionRisque.module.css'
@@ -191,6 +201,9 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
   // part de variance, celui du graphique. Un tri, pas un calcul.
   const premiere = contributions === null ? undefined : lignesParContribution(contributions)[0]
   const introduction = l.introduction
+  // La légende du tableau qui suit les barres : il en porte toutes les
+  // valeurs, et le tracé le désigne plutôt que d'en recevoir un second.
+  const idTableau = useId()
 
   const optionsBarres = useCallback(
     (contexte: ContexteGraphique) => optionsContributions(contributions ?? [], contexte),
@@ -265,10 +278,14 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             description={l.descriptionBarres(
               contributions.length,
               lignesParContribution(contributions)
-                .map((ligne) => `${ligne.ticker} ${pointsSignes(ligne.excess_over_weight, 1, langue)}`)
+                .map(
+                  (ligne) =>
+                    `${ligne.ticker} ${pointsSignesEnToutesLettres(ligne.excess_over_weight, 1, langue)}`,
+                )
                 .join(', '),
             )}
             options={optionsBarres}
+            decritPar={idTableau}
           >
             <p className={styles.legende}>
               <span className={styles.cleBarre} aria-hidden="true" />
@@ -284,6 +301,7 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
           <div className={styles.tableau}>
             <DataTable
               legende={l.legendeTableau}
+              idLegende={idTableau}
               colonnes={colonnesDuRisque(scenarios, langue)}
               lignes={lignesParContribution(contributions)}
               cleDeLigne={(l) => l.ticker}
@@ -309,6 +327,12 @@ export function SectionRisque({ variance, concentration, matrices, scenarios, as
             description={l.descriptionCarte(correlation.tickers.length)}
             options={optionsCarte}
             proprietesDuTrace={proprietesCarte}
+            valeurs={{
+              legende: libelles.graphiques.tableauCorrelation,
+              colonnes: colonnesCorrelation(correlation, langue),
+              lignes: rangeesCorrelation(correlation),
+              cleDeLigne: (rangee) => rangee.ticker,
+            }}
           >
             <LegendeCorrelation />
           </Graphique>

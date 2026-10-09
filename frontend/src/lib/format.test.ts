@@ -40,6 +40,7 @@ import {
   pointsAbsolus,
   pointsEnAdjectif,
   pointsSignes,
+  pointsSignesEnToutesLettres,
   pourcentageAbsolu,
   valeurDePortefeuille,
 } from './format'
@@ -300,6 +301,15 @@ describe('points de pourcentage', () => {
     expect(pointsSignes(0.098, 1)).toBe(`+9,8${ESPACE_INSECABLE}pts`)
     expect(pointsSignes(-0.081, 1)).toBe(`${SIGNE_MOINS}8,1${ESPACE_INSECABLE}pts`)
     expect(pointsSignes(0.0004, 1)).toBe(`0,0${ESPACE_INSECABLE}pts`)
+  })
+
+  it('écrit le même écart en toutes lettres, pour une étiquette lue à voix haute (7E)', () => {
+    expect(pointsSignesEnToutesLettres(0.098, 1)).toBe(`+9,8${ESPACE_INSECABLE}points`)
+    expect(pointsSignesEnToutesLettres(-0.081, 1)).toBe(`${SIGNE_MOINS}8,1${ESPACE_INSECABLE}points`)
+    expect(pointsSignesEnToutesLettres(0.019, 1)).toBe(`+1,9${ESPACE_INSECABLE}point`)
+    expect(pointsSignesEnToutesLettres(0.0004, 1)).toBe(`0,0${ESPACE_INSECABLE}point`)
+    expect(pointsSignesEnToutesLettres(0.098, 1, 'en')).toBe(`+9.8${ESPACE_INSECABLE}points`)
+    expect(pointsSignesEnToutesLettres(-0.019, 1, 'en')).toBe(`${SIGNE_MOINS}1.9${ESPACE_INSECABLE}points`)
   })
 })
 
