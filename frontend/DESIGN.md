@@ -346,7 +346,8 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   gauche partout ailleurs** (décisions du 2026-10-06). **Une ligne justifiée
   n'ouvre aucune espace de plus de 2,5 fois la normale, avec ou sans
   dictionnaire de césure** : seule la prose qui tient cette condition est
-  justifiée. Mesurée dans Chrome, elle se réduit aux chapeaux, justifiés à
+  justifiée. Mesurée dans Chrome, elle se réduit aux chapeaux et, depuis le
+  2026-10-08, à la prose de la méthodologie. Les chapeaux sont justifiés à
   partir de 900 px avec `hyphens: auto` (la page déclare sa langue, `fr` ou
   `en-US`, sans quoi aucun mot ne se coupe) et la coupure de lignes
   ordinaire ; leur ligne la plus lâche est à 2,0, avec comme sans
@@ -354,7 +355,25 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   2026-10-08 sur les six chapeaux des quatre analyses de la copie, à 1280 px :
   leur ligne la plus lâche est à 1,27 avec le dictionnaire de coupure anglais
   et à 1,78 sans lui. Ils restent justifiés ; un chapeau anglais qui
-  dépasserait 2,5 serait aligné à gauche, en anglais seulement. Tout le reste est
+  dépasserait 2,5 serait aligné à gauche, en anglais seulement.
+  **La prose de la méthodologie** (décision du 2026-10-08), ses paragraphes
+  seulement, est justifiée à partir de 900 px grâce à des coupures
+  conditionnelles (U+00AD) posées au build dans le texte livré
+  (`contenu/coupures.ts`, `coupuresAuBuild.ts`) : avec `hyphens: auto`, elle
+  montait à 3,35 en français et 3,16 en anglais sans dictionnaire, un mot
+  long qu'aucune coupure ne venait rompre ; avec ses coupures, sa ligne la
+  plus lâche est à 2,34 et 2,12, avec comme sans dictionnaire, à 900, 1024,
+  1280 et 1440 px. Elle prend **`hyphens: manual`** : seules ces coupures
+  servent, jamais le dictionnaire du navigateur, et la mise en page est la
+  même partout, quoi que le visiteur ait téléchargé. Sous 900 px,
+  **`hyphens: none`** : `manual`, la valeur par défaut, suivrait les coupures
+  dans le texte aligné à gauche. Les coupures tombent dans les paragraphes
+  (étiquette en tête comprise), jamais dans un titre, une liste, une
+  formule, le texte d'un lien ou une entité ; au moins deux lettres avant
+  une coupure et trois après ; aucune dans un mot qui porte une capitale ou
+  un chiffre (« VaR », « Student », « S&P 500 ») ; les coupures que les
+  motifs ne trouvent pas sont données dans une liste unique. La source ne
+  change pas, et ses gardes la lisent telle qu'elle est écrite. Tout le reste est
   aligné à gauche, à toutes les largeurs, et passe en `text-wrap: pretty`, qui
   évite une dernière ligne d'un seul mot : légendes de tableau et de
   graphique, « Détails du calcul », lignes de seuil, cellules, libellés,
@@ -366,9 +385,12 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   suivante ; puis les introductions de section et l'écran d'acceptation, qui
   tenaient sous 2,5 avec le dictionnaire de césure français mais montaient à
   3,0 et 2,9 sans lui. Chrome télécharge ce dictionnaire après coup : un
-  visiteur peut ne pas l'avoir. La prose justifiée ne prend pas `pretty` :
-  pour éviter une dernière ligne courte, il raccourcit les lignes d'avant, que
-  la justification étire ensuite.
+  visiteur peut ne pas l'avoir. Mesurés le 2026-10-08 avec les coupures de
+  la méthodologie, posées pour l'essai seulement : 2,18 pour les
+  introductions, 1,64 et 1,60 pour l'acceptation, avec comme sans
+  dictionnaire ; ils restent à gauche, la décision est à prendre. La prose
+  justifiée ne prend pas `pretty` : pour éviter une dernière ligne courte, il
+  raccourcit les lignes d'avant, que la justification étire ensuite.
 - **Casse phrase partout.** Pas de capitales sur les libellés (§12).
 - **Format français obligatoire**, avec des caractères **fixés explicitement**
   et non laissés à `Intl.NumberFormat` : virgule décimale, **U+202F** (espace
@@ -660,7 +682,8 @@ rejouées, les seuils et les refus. Chaque terme technique y est expliqué à
 sa première apparition (§15). Il ne cite aucun chiffre d'un portefeuille,
 seulement les constantes du moteur, que `tests/test_methodologie.py`
 compare au moteur. Une colonne de prose en Spectral, à la largeur de prose,
-alignée à gauche (§6.3). Les formules en IBM Plex Sans, en ligne ou en
+ses paragraphes justifiés à partir de 900 px avec les coupures posées au
+build, à gauche en dessous (§6.3). Les formules en IBM Plex Sans, en ligne ou en
 bloc, chacune précédée de la phrase qui la dit en mots, sans bibliothèque de
 mise en forme mathématique. Chaque partie et chaque entrée a une ancre fixe
 (`#var-historique`), la même dans toutes les langues : c'est elle que vise

@@ -66,8 +66,9 @@
 
 /*
  * La prose longue justifiée à partir de 900 px (DESIGN.md §6.3, décisions du
- * 2026-10-06) : les chapeaux, et eux seuls. Les mots se coupent
- * (`hyphens: auto`) selon la langue de la page, `lang="fr"`.
+ * 2026-10-06) : les chapeaux, et, dans sa feuille, la prose de la
+ * méthodologie (coupures posées au build, 2026-10-08). Les mots des chapeaux
+ * se coupent (`hyphens: auto`) selon la langue de la page, `lang="fr"`.
  *
  * Mesuré dans Chrome sur les quatre portefeuilles des captures, AVEC et SANS
  * dictionnaire de césure : aucune ligne d'un chapeau ne dépasse 2 fois

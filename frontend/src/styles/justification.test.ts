@@ -2,9 +2,11 @@
  * La justification de la prose longue — DESIGN.md §6.3, décisions du
  * 2026-10-06.
  *
- * Justifiés à partir de 900 px, avec coupure des mots : les chapeaux, et eux
- * seuls. Tout le reste est aligné à gauche, à toutes les largeurs, et passe
- * en `text-wrap: pretty`.
+ * Justifiés à partir de 900 px, avec coupure des mots : les chapeaux, et,
+ * depuis le 2026-10-08, les paragraphes de la méthodologie, dont les
+ * coupures conditionnelles sont posées au build (`hyphens: manual`,
+ * `contenu/coupures.ts`). Tout le reste est aligné à gauche, à toutes les
+ * largeurs, et passe en `text-wrap: pretty`.
  *
  * Le reste a été essayé justifié, et mesuré dans Chrome. Les phrases de
  * lecture des mesures et les observations ouvraient des espaces de 2,8 à 4,9
@@ -64,15 +66,20 @@ const FEUILLES = new Map(
 
 const JUSTIFIE = 'text-align: justify'
 
+/** La prose de la méthodologie : ses coupures sont posées au build, `manual`. */
+const METHODOLOGIE = 'views/Methodologie.module.css'
+
 describe('la prose longue, justifiée à partir de 900 px', () => {
-  it('seuls les chapeaux se justifient', () => {
+  it('seuls les chapeaux et la prose de la méthodologie se justifient', () => {
     const justifiees = [...FEUILLES].filter(([, css]) => css.includes(JUSTIFIE)).map(([chemin]) => chemin)
-    expect(justifiees).toEqual(['components/Section.module.css'])
+    expect([...justifiees].sort()).toEqual(['components/Section.module.css', METHODOLOGIE])
     const section = blocsDeMedia(FEUILLES.get('components/Section.module.css') ?? '', LARGE).join('')
     expect(section).toContain('.chapeau')
     // Les introductions, essayées justifiées, montaient à 3,0 fois l'espace
     // normale sans dictionnaire de césure.
     expect(section).not.toContain('.introduction')
+    const methodologie = blocsDeMedia(FEUILLES.get(METHODOLOGIE) ?? '', LARGE).join('')
+    expect(methodologie).toContain('.texte')
   })
 
   it('jamais sous 900 px, et toujours avec coupure des mots et coupure de lignes ordinaire', () => {
@@ -82,7 +89,9 @@ describe('la prose longue, justifiée à partir de 900 px', () => {
       const horsBlocs = blocs.reduce((reste, bloc) => reste.replace(bloc, ''), css)
       expect(horsBlocs, chemin).not.toContain(JUSTIFIE)
       for (const bloc of blocs.filter((b) => b.includes(JUSTIFIE))) {
-        expect(bloc, chemin).toContain('hyphens: auto')
+        // La méthodologie porte ses coupures, posées au build : `manual`, pour
+        // elle seule, ne suit qu'elles.
+        expect(bloc, chemin).toContain(chemin === METHODOLOGIE ? 'hyphens: manual' : 'hyphens: auto')
         // `pretty` raccourcit les lignes d'avant la dernière, que la
         // justification étire : mesuré, il doublait les lignes trop lâches.
         expect(bloc, chemin).toContain('text-wrap: wrap')

@@ -1,10 +1,9 @@
 /*
  * La page méthodologie — DESIGN.md §8.2, §6.3.
  *
- * Une colonne de prose : Spectral, à la largeur de prose, alignée à gauche.
- * Pas justifiée : la justification est réservée aux chapeaux
- * (`justification.test.ts`), et la justifier ici demanderait de la mesurer
- * avec et sans dictionnaire de césure.
+ * Une colonne de prose : Spectral, à la largeur de prose. Ses paragraphes
+ * sont justifiés à partir de 900 px (décision du 2026-10-08) ; titres,
+ * listes et formules restent à gauche, comme tout le texte sous 900 px.
  */
 
 /* Une partie : un titre de section, sans numéro (§12 réserve la numérotation
@@ -57,6 +56,35 @@
 .liste {
   padding-inline-start: var(--space-5);
   list-style: disc;
+}
+
+/*
+ * La prose justifiée à partir de 900 px, avec ses coupures conditionnelles
+ * (U+00AD), posées au build dans les paragraphes seulement
+ * (`contenu/coupures.ts`). `hyphens: manual` : seules ces coupures servent,
+ * jamais le dictionnaire du navigateur, que Chrome télécharge après coup et
+ * qu'un visiteur peut ne pas avoir. La mise en page est donc la même dans tout
+ * navigateur. Mesurée dans Chrome à 900, 1024, 1280 et 1440 px (la colonne
+ * de prose fait 528 px à toutes ces largeurs), avec et sans dictionnaire : la
+ * ligne la plus lâche ouvre 2,34 fois l'espace normale en français, 2,12 en
+ * anglais. Sans les coupures, elle montait à 3,35 et 3,16.
+ *
+ * Coupure de lignes ordinaire (`wrap`), pas `pretty`, comme les chapeaux
+ * (Section.module.css).
+ *
+ * Sous 900 px, `hyphens: none` : `manual`, la valeur par défaut, suivrait
+ * aussi les coupures dans le texte aligné à gauche, qui ne change pas.
+ */
+.texte {
+  hyphens: none;
+}
+
+@media (width >= 900px) {
+  .texte {
+    text-align: justify;
+    hyphens: manual;
+    text-wrap: wrap;
+  }
 }
 
 .liste li + li {

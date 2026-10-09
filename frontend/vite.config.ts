@@ -18,15 +18,24 @@
  * Le proxy garde la permission du côté qui en a besoin, et seulement là : Vite
  * relaie `/api/*` vers l'API, le navigateur ne voit qu'une origine, et il n'y a
  * rien à retirer le jour du déploiement.
+ *
+ * ═══ LES COUPURES DE LA MÉTHODOLOGIE, AU BUILD ═══
+ *
+ * Le texte livré de la méthodologie porte ses coupures conditionnelles
+ * (U+00AD), posées au build seulement : la prose justifiée ne dépend plus du
+ * dictionnaire de césure du navigateur (DESIGN.md §6.3,
+ * `src/contenu/coupuresAuBuild.ts`).
  */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+
+import { coupuresDeLaMethodologie } from './src/contenu/coupuresAuBuild'
 
 // L'adresse est celle qu'impose `backend/api/__main__.py`, pas une option.
 const API = 'http://127.0.0.1:8000'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), coupuresDeLaMethodologie()],
   server: {
     proxy: {
       '/api': {

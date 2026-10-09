@@ -91,7 +91,8 @@ app/
 │   ├── src/styles/      #   tokens.css : SEUL fichier avec des valeurs brutes
 │   ├── src/api/         #   openapi.json commité + types ENGENDRÉS
 │   ├── src/lib/         #   format.ts : seul endroit qui écrit un nombre
-│   ├── src/contenu/     #   textes rédigés, un fichier par langue (méthodologie)
+│   ├── src/contenu/     #   textes rédigés, un fichier par langue (méthodologie) ;
+│   │                    #   coupures.ts : les coupures posées au build
 │   ├── src/components/  #   Measure, Provenance, Bandeau, ThemeToggle
 │   └── src/views/       #   écran d'acceptation, sections de l'analyse
 ├── tools/               # Outils de développement, hors application
@@ -1815,16 +1816,20 @@ et aucun chiffre d'un portefeuille n'y figure.
   Aucune dépendance et aucun HTML injecté : le lecteur rend des blocs typés,
   la vue des éléments React. Le texte français pèse 29,8 kB (10,1 kB
   compressés), l'anglais 27,4 kB (9,6 kB) ; les deux restent en clair dans
-  le bundle (décision du 2026-10-08), qui pèse 711 kB (229 kB compressés,
-  selon Vite) avec l'interface anglaise et le chantier 7E. Un chargement à la demande
+  le bundle (décision du 2026-10-08), qui pèse 716 kB (231 kB compressés,
+  selon Vite) avec l'interface anglaise, le chantier 7E et les coupures de la
+  méthodologie. Un chargement à la demande
   n'économiserait qu'un texte, au prix d'un état de chargement et d'une
   course de plus avec l'arrivée sur une ancre : il relève du découpage du
   bundle, toujours reporté, pas de la langue.
 - **La page** (`src/views/Methodologie.tsx`) : chaque partie est une
   `<section>` nommée par son titre ; chaque titre de partie ou d'entrée porte
   son ancre et `tabIndex={-1}`, et s'arrête sous le bandeau quand une adresse
-  le vise. La prose est en Spectral, alignée à gauche, à la largeur de prose ;
-  les formules en IBM Plex Sans, dans la phrase ou sur leur ligne. Une formule
+  le vise. La prose est en Spectral, à la largeur de prose, ses paragraphes
+  justifiés à partir de 900 px avec des coupures posées au build
+  (« Justification et coupure des lignes », plus bas) ; titres, listes et
+  formules restent à gauche. Les formules sont en IBM Plex Sans, dans la
+  phrase ou sur leur ligne. Une formule
   en bloc qui dépasserait la colonne défilerait dans son cadre, jamais la
   page.
 - **La typographie est écrite dans la source**, en entités (`&nbsp;`,
@@ -1931,6 +1936,48 @@ de césure. Tout le reste est aligné à gauche.
 - **Justifiés** : les chapeaux, avec `hyphens: auto`. La page déclare
   `lang="fr"`, sans quoi aucun mot ne se coupe. Leur ligne la plus lâche est
   à 2,0, avec comme sans dictionnaire.
+- **Justifiée depuis le 2026-10-08 : la prose de la méthodologie**, ses
+  paragraphes seulement, avec des coupures conditionnelles (U+00AD) posées
+  au build et `hyphens: manual`. Justifiée avec `hyphens: auto`, elle tenait
+  avec le dictionnaire de césure français (2,34) mais pas sans lui (3,35,
+  11 lignes au-delà de 2,5), ni en anglais (2,59 avec, 3,16 sans) : un mot
+  long qu'aucune coupure ne venait rompre (« appliquent »,
+  « inconsistent »). Avec les coupures posées dans le texte, la ligne la
+  plus lâche est à 2,34 en français et 2,12 en anglais, avec comme sans
+  dictionnaire, à 900, 1024, 1280 et 1440 px (la colonne de prose fait
+  528 px dès 600 px).
+  - **Au build seulement** : un greffon Vite (`src/contenu/coupuresAuBuild.ts`,
+    `apply: 'build'`) charge à leur place les deux fichiers de méthodologie
+    importés bruts. Les sources ne changent pas, ni les gardes de
+    `tests/test_methodologie.py` et de `methodologie.test.ts`, qui lisent le
+    fichier tel qu'il est écrit ; en développement, la page n'a pas de
+    coupures.
+  - **Les règles** (`src/contenu/coupures.ts`) : dans les paragraphes
+    seulement, étiquette en tête comprise, jamais dans un titre, une liste,
+    une formule, le texte d'un lien ou une entité ; au moins deux lettres
+    avant une coupure et trois après ; aucune coupure dans un mot qui porte
+    une capitale ou un chiffre (« VaR », « Student », « S&P 500 »). Les
+    coupures que les motifs ne trouvent pas sont données à la main, dans une
+    liste unique, `EXCEPTIONS` : « ar-ranged », sans quoi une ligne anglaise
+    restait à 2,59 sans dictionnaire. Les motifs sont ceux de TeX, portés par
+    le paquet `hyphen` (dépendance de développement, version figée ; crédits
+    en fin de README). Ce paquet fusionne les exceptions qu'on lui donne
+    dans les motifs eux-mêmes : chaque coupeur travaille sur une copie.
+  - **`hyphens: manual`** : seules ces coupures servent, jamais le
+    dictionnaire du navigateur, si bien que la mise en page est la même
+    partout. **Sous 900 px, `hyphens: none`** : `manual` est la valeur par
+    défaut, et les coupures casseraient aussi le texte aligné à gauche.
+  - Le texte livré porte 1 229 coupures en français et 1 224 en anglais ; le
+    bundle grandit d'environ 5 kB. La recherche de la page les ignore ; la
+    copie et `innerText` les gardent (les outils de relevé les retirent avant
+    de comparer) ; Chrome les laisse dans le texte accessible. Ce qu'en font
+    le copier-coller et un lecteur d'écran reste à vérifier par une personne.
+  - `src/contenu/coupures.test.ts` : le texte livré, coupures retirées, est la
+    source, dans les deux langues, et c'est lui que le greffon livre, au build
+    seulement ; aucune coupure hors des paragraphes, ni dans un mot à capitale
+    ou à chiffre ; deux lettres avant, trois après ; chaque exception
+    appliquée, présente dans son texte et nécessaire ; aucun module du client
+    n'importe les motifs ; `hyphens: none` sous 900 px.
 - **À gauche, à toutes les largeurs** : tout le reste, en
   `text-wrap: pretty`, posé sur le corps de la page, qui évite une dernière
   ligne d'un seul mot. Les titres gardent `balance`.
@@ -1944,7 +1991,12 @@ de césure. Tout le reste est aligné à gauche.
     2,5 avec le dictionnaire de césure français (2,2 et 1,6), mais montaient
     à 3,0 et 2,9 sans lui. Chrome télécharge ce dictionnaire après coup,
     comme un composant : un visiteur dont le Chrome ne l'a pas encore verrait
-    ces trous.
+    ces trous. Mesurés le 2026-10-08 avec les coupures de la méthodologie,
+    posées dans la page pour l'essai, sans rien appliquer : 2,18 pour les
+    introductions et 1,64 pour l'acceptation en français, 2,18 et 1,60 en
+    anglais, avec comme sans dictionnaire. Ils restent à gauche, la décision
+    est à prendre ; l'acceptation lit son texte dans l'API, et les
+    introductions sont composées par le client, certaines au moment du rendu.
 
 La mesure a été faite dans Chrome, sur l'écran d'acceptation et les quatre
 portefeuilles des captures, à 900 et à 1280 px, avec et sans dictionnaire :
@@ -1961,9 +2013,10 @@ largeurs, ces paragraphes étant bornés à la largeur de prose.
   Chrome neuf n'en a aucun : le script des captures copie celui du Chrome du
   poste dans son profil. La mesure sans dictionnaire se fait, elle, sur un
   profil neuf, sans cette copie.
-- `src/styles/justification.test.ts` tient la règle : seuls les chapeaux se
-  justifient, jamais sous 900 px, toujours avec coupure et sans `pretty` ; la
-  page déclare le français.
+- `src/styles/justification.test.ts` tient la règle : seuls les chapeaux et
+  la prose de la méthodologie se justifient, jamais sous 900 px, toujours
+  avec coupure (`hyphens: auto`, ou `manual` pour la méthodologie seule) et
+  sans `pretty` ; la page déclare le français.
 
 Le critère 1.4.8 des WCAG, de niveau AAA, déconseille le texte justifié. Le
 projet vise le niveau AA (DESIGN.md §13), et ne justifie ni sous 900 px ni
@@ -2615,6 +2668,26 @@ l'ordre chronologique.
       DESIGN.md §17 cochée, une preuve par point
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
+
+## Crédits
+
+**Les motifs de césure de la méthodologie.** Les coupures conditionnelles de
+la prose de la méthodologie sont calculées au build par le paquet npm
+`hyphen` 1.14.1 (Yevhen Tiurin, licence ISC), dépendance de développement,
+à partir des motifs de césure de TeX publiés par le projet hyph-utf8, que ce
+paquet porte en JavaScript. Ni le paquet ni les motifs n'entrent dans le
+bundle : seules les coupures posées dans le texte y figurent.
+
+- **Français**, « Hyphenation patterns for French » : Copyright (C)
+  1994-2002 Daniel Flipo, Bernard Gaulle, 2016 Arthur Reutenauer. Licence
+  MIT (<https://opensource.org/licenses/MIT>).
+- **Anglais américain**, « Hyphenation patterns for American English » :
+  Copyright (C) 1990, 2004, 2005 Gerard D.C. Kuiken. Sa notice, reproduite
+  comme elle le demande :
+
+  > Copying and distribution of this file, with or without modification,
+  > are permitted in any medium without royalty provided the copyright
+  > notice and this notice are preserved.
 
 ## Données de marché
 
