@@ -340,7 +340,7 @@ export const LIBELLES_EN: Libelles = {
     suppressionEnCours: 'Deleting…',
     supprimerDefinitivement: 'Delete permanently',
     annuler: 'Cancel',
-    nomVide: 'The name is empty: it takes one to recognize the portfolio.',
+    nomVide: 'The name is empty: the portfolio needs one to be recognized.',
     cree: (nom) => `Portfolio ${citer(nom)} created.`,
     nom: 'Name',
     aideNom: 'At most 120 characters. It appears in the banner of the analysis.',

@@ -26,7 +26,7 @@ import type {
   Window,
   WorstDay,
 } from '../api/types'
-import { ESPACE_FINE, ESPACE_INSECABLE } from './format'
+import { ESPACE_FINE, ESPACE_INSECABLE, LIAISON } from './format'
 import { apresDeuxPoints, cite, majuscule, messageDeLigne } from './phrases'
 import {
   NE_DIT_PAS_GAIN,
@@ -686,7 +686,7 @@ describe('les introductions de section', () => {
 describe('fraîcheur des positions (§8.1)', () => {
   it('dit quand les positions ont été modifiées', () => {
     expect(phraseFraicheurPositions('2026-09-21')).toBe(
-      'Positions modifiées le 2026-09-21',
+      `Positions modifiées le 2026-${LIAISON}09-${LIAISON}21`,
     )
   })
 
@@ -708,7 +708,7 @@ describe('fenêtre réduite (§8.1)', () => {
     expect(phraseFenetreReduite(REDUITE, [NEWCO])).toBe(
       `Fenêtre réduite à 40${NB}séances ` +
         `sur 504${NB}demandées${NB}: ` +
-        "NEWCO n'est coté que depuis le 2026-07-14.",
+        `NEWCO n'est coté que depuis le 2026-${LIAISON}07-${LIAISON}14.`,
     )
   })
 
@@ -730,7 +730,7 @@ describe('fenêtre réduite (§8.1)', () => {
       { ticker: 'ACME', first_available: '2026-06-02' },
     ])
     expect(phrase).toContain('NEWCO')
-    expect(phrase).toContain('ACME, depuis le 2026-06-02')
+    expect(phrase).toContain(`ACME, depuis le 2026-${LIAISON}06-${LIAISON}02`)
   })
 
   it('est le SEUL endroit du bandeau qui cite la fenêtre demandée', () => {

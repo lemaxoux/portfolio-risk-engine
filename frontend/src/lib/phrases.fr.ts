@@ -26,7 +26,7 @@ import {
   ESPACE_INSECABLE,
   compte,
   dateEnToutesLettres,
-  dateISO,
+  dateISOLiee,
   decimal,
   lignes,
   montantArrondi,
@@ -670,7 +670,7 @@ export function introPortefeuille(asOf: string): string {
 export function phraseFraicheurPositions(updatedAt: string | null): string {
   return updatedAt === null
     ? "Positions jamais modifiées depuis l'application"
-    : `Positions modifiées le ${dateISO(updatedAt)}`
+    : `Positions modifiées le ${dateISOLiee(updatedAt)}`
 }
 
 /**
@@ -704,9 +704,9 @@ export function phraseFenetreReduite(
   if (premiere === undefined) return `${tete} (historique incomplet).`
 
   const morceaux = [
-    `${premiere.ticker} n'est coté que depuis le ${dateISO(premiere.first_available)}`,
+    `${premiere.ticker} n'est coté que depuis le ${dateISOLiee(premiere.first_available)}`,
     ...suivantes.map(
-      (ligne) => `${ligne.ticker}, depuis le ${dateISO(ligne.first_available)}`,
+      (ligne) => `${ligne.ticker}, depuis le ${dateISOLiee(ligne.first_available)}`,
     ),
   ]
   return `${tete}${ESPACE_INSECABLE}: ${morceaux.join(`${ESPACE_INSECABLE}; `)}.`

@@ -253,10 +253,11 @@ export function dateISO(iso: string): string {
 export const LIAISON = '\u2060'
 
 /**
- * Une date ISO dans une phrase anglaise (chantier 7D), liée après ses tirets
+ * Une date ISO dans une phrase que compose le client, liée après ses tirets
  * comme `typography.prose` la lie côté serveur : « 2026-09-16 » ne se coupe
- * pas en fin de ligne (DESIGN.md §6.3). Le français écrit encore `dateISO`,
- * son interface ne changeant pas pendant le chantier.
+ * pas en fin de ligne (DESIGN.md §6.3). Dans les deux langues : l'anglais
+ * depuis le chantier 7D, le français depuis le 7E. Une date seule dans sa
+ * cellule (« Valorisé au », la liste des portefeuilles) reste `dateISO`.
  */
 export function dateISOLiee(iso: string): string {
   return dateISO(iso).split('-').join('-' + LIAISON)

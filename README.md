@@ -1677,6 +1677,14 @@ qu'il écrivait. L'anglais est l'anglais américain, ponctuation de Chicago :
 | Date longue | « 4 avril 2025 », « 1er janvier 2005 » | « April 4, 2025 » (U+00A0 après le mois et après la virgule) |
 | Nombre en lettres | zéro à dix | zero à ten |
 
+Une date ISO dans une phrase que compose le client est liée après chacun de ses
+tirets par U+2060 (`dateISOLiee`), comme `typography.prose` le fait côté
+serveur : la fraîcheur des positions et la fenêtre réduite du bandeau, l'unité
+et la description de la courbe de valeur, les poids figés d'une crise. Les
+captures de la 7D avaient trouvé « 2026- / 09-16 » coupé en fin de ligne dans
+le bandeau anglais ; le français suit depuis le chantier 7E. Une date seule
+dans sa cellule (« Valorisé au », la liste des portefeuilles) reste nue.
+
 Le premier du mois s'écrit « 1er » en français, des deux côtés, depuis ce
 chantier. Un nombre compté se groupe par milliers des deux côtés depuis sa
 session 2 (« 2 520 séances », « 2,520 sessions ») : `counted` l'écrivait nu,

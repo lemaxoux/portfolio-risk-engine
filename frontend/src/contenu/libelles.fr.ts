@@ -3,12 +3,14 @@
  * libellé y est recopié tel qu'il était écrit dans son composant avant le
  * chantier 7D, octet pour octet, sauf les trois exceptions décidées le
  * 2026-10-08 : le bouton de langue, le bouton de l'écran d'acceptation selon
- * la page d'arrivée, et « Bêta » dans le tableau de la section 5.
+ * la page d'arrivée, et « Bêta » dans le tableau de la section 5. Depuis le
+ * chantier 7E, la date ISO d'une phrase est liée après ses tirets
+ * (`dateISOLiee`), comme en anglais.
  */
 import {
   compte,
   dateEnToutesLettres,
-  dateISO,
+  dateISOLiee,
   decimal,
   lignes,
   points,
@@ -170,12 +172,12 @@ export const LIBELLES_FR: Libelles = {
     titreSansDepart: "Valeur d'une unité investie",
     titre: (devise, depart) =>
       `Valeur de 1\u00a0${devise} placé le ${dateEnToutesLettres(depart)}`,
-    unite: (depart) => `base 1${depart === null ? '' : ` le ${dateISO(depart)}`}, poids actuels`,
+    unite: (depart) => `base 1${depart === null ? '' : ` le ${dateISOLiee(depart)}`}, poids actuels`,
     descriptionVide: 'Courbe de richesse vide.',
     description: (depart, valeurFinale, arrivee, creux, pic, fond) =>
-      `Une unité investie le ${dateISO(depart)} vaut ${decimal(valeurFinale, 2)} ` +
-      `le ${dateISO(arrivee)}\u00a0; perte maximale de ${pourcentage(creux, 1)} ` +
-      `entre le pic du ${dateISO(pic)} et le creux du ${dateISO(fond)}.`,
+      `Une unité investie le ${dateISOLiee(depart)} vaut ${decimal(valeurFinale, 2)} ` +
+      `le ${dateISOLiee(arrivee)}\u00a0; perte maximale de ${pourcentage(creux, 1)} ` +
+      `entre le pic du ${dateISOLiee(pic)} et le creux du ${dateISOLiee(fond)}.`,
   },
   risque: {
     introduction:
@@ -243,7 +245,7 @@ export const LIBELLES_FR: Libelles = {
     exclue: (poids) => `${pourcentage(poids, 1)} de la valeur\u00a0: `,
     seances: 'Séances',
     poids: 'Poids',
-    poidsFiges: (date) => `ceux du ${dateISO(date)}, quantités figées ensuite`,
+    poidsFiges: (date) => `ceux du ${dateISOLiee(date)}, quantités figées ensuite`,
     reference: 'Référence',
   },
   moteur: {
