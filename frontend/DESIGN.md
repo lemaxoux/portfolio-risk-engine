@@ -388,7 +388,12 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   visiteur peut ne pas l'avoir. Mesurés le 2026-10-08 avec les coupures de
   la méthodologie, posées pour l'essai seulement : 2,18 pour les
   introductions, 1,64 et 1,60 pour l'acceptation, avec comme sans
-  dictionnaire ; ils restent à gauche, la décision est à prendre. La prose
+  dictionnaire. **Ils restent alignés à gauche** (décision du 2026-10-09) :
+  les coupures de la méthodologie sont posées au build dans un fichier du
+  client, et ces textes n'en sont pas. Le texte de l'acceptation vient de
+  l'API, et les introductions sont composées par le client, certaines au
+  moment du rendu. Les justifier demanderait des coupures dans les réponses
+  de l'API, ou les motifs de césure dans le bundle. La prose
   justifiée ne prend pas `pretty` : pour éviter une dernière ligne courte, il
   raccourcit les lignes d'avant, que la justification étire ensuite.
 - **Casse phrase partout.** Pas de capitales sur les libellés (§12).

@@ -1994,9 +1994,11 @@ de césure. Tout le reste est aligné à gauche.
     ces trous. Mesurés le 2026-10-08 avec les coupures de la méthodologie,
     posées dans la page pour l'essai, sans rien appliquer : 2,18 pour les
     introductions et 1,64 pour l'acceptation en français, 2,18 et 1,60 en
-    anglais, avec comme sans dictionnaire. Ils restent à gauche, la décision
-    est à prendre ; l'acceptation lit son texte dans l'API, et les
+    anglais, avec comme sans dictionnaire. Ils restent alignés à gauche
+    (décision du 2026-10-09) : l'acceptation lit son texte dans l'API, et les
     introductions sont composées par le client, certaines au moment du rendu.
+    Les justifier demanderait des coupures dans les réponses de l'API, ou les
+    motifs de césure dans le bundle (DESIGN.md §6.3).
 
 La mesure a été faite dans Chrome, sur l'écran d'acceptation et les quatre
 portefeuilles des captures, à 900 et à 1280 px, avec et sans dictionnaire :
