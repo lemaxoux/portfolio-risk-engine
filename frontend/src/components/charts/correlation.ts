@@ -26,7 +26,8 @@
  * apprendre. Elle est posée sur `--surface-1`, la surface surélevée, et son
  * « 1,00 » est écrit en `--text-2` : la valeur reste lisible, discrète. Pas sur
  * `--surface-2`, trop proche en thème clair du gris `--div-zero` qui code une
- * corrélation NULLE (#E7E5DE contre #DFDEDB) : la diagonale se serait lue
+ * corrélation NULLE (`--clair-surface-2` contre `--clair-div-zero`, deux gris
+ * presque égaux, `tokens.css`) : la diagonale se serait lue
  * « corrélation ≈ 0 ». L'échelle, elle, ne change pas : son domaine est fixé,
  * pas déduit des cellules qu'elle colore.
  *

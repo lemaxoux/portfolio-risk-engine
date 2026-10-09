@@ -1417,20 +1417,66 @@ le portefeuille perd 9,1 % pendant que sa ligne énergie gagne 59,7 %.
 
 ## 17. Vérification avant de déclarer la phase 7 terminée
 
-- [ ] Capture d'écran en niveaux de gris : aucune information perdue.
-- [ ] Aucune couleur de graphique hors des tokens de §5 ; toute couleur ajoutée
+Cochée le 2026-10-08, à la clôture du chantier 7E, en français et en
+anglais. Une preuve par point ; le détail est dans la passation (§12), les
+captures et les outils dans `docs/` (hors dépôt).
+
+- [x] Capture d'écran en niveaux de gris : aucune information perdue.
+      *Preuve* : l'analyse entière en achromatopsie émulée par Chrome, sombre
+      et clair, deux langues (`captures/7E/gris-*`). Traits et zone de
+      l'histogramme écrits, barre et trait distingués par la forme, apports
+      signés, valeur dans chaque cellule, point et mot « choisi », liens
+      soulignés.
+- [x] Aucune couleur de graphique hors des tokens de §5 ; toute couleur ajoutée
       a passé les contrôles de §5.4 (bande, chroma, contraste, daltonisme).
-- [ ] Recherche dans le code : aucun `#` hexadécimal hors de `tokens.css`.
-- [ ] Recherche dans le code : aucun `px` de taille de police hors de
+      *Preuve* : `couleurs.test.ts` (chaque couleur lue est un token déclaré),
+      `correlation.test.ts` (l'échelle sur les tokens de §5.4). La 7E n'ajoute
+      aucune couleur.
+- [x] Recherche dans le code : aucun `#` hexadécimal hors de `tokens.css`.
+      *Preuve* : `rg` sur `src` et `index.html`, tests exclus : 0. Le dernier,
+      dans un commentaire de `correlation.ts`, nomme désormais ses tokens.
+- [x] Recherche dans le code : aucun `px` de taille de police hors de
       `typography.css`.
-- [ ] Chaque chiffre affiché a sa fenêtre et sa date visibles sans clic.
-- [ ] Aucun score global nulle part.
-- [ ] Un seuil `CHOSEN` est visuellement distinct d'un seuil dérivé.
-- [ ] La heatmap de corrélation a le même domaine pour deux portefeuilles
+      *Preuve* : `rg` sur `font-size` et `fontSize` : 0.
+- [x] Chaque chiffre affiché a sa fenêtre et sa date visibles sans clic.
+      *Preuve* : `docs/outils/etats-17.mjs` : les 29 figures et blocs de
+      l'analyse portent une date hors de tout repli, aucune provenance n'est
+      repliée (trois largeurs, deux langues) ; `Measure.test.ts`. Les
+      tableaux repliés (§9.4) ne portent que des valeurs déjà dessinées.
+- [x] Aucun score global nulle part.
+      *Preuve* : `test_rules.py` (aucun champ, aucun texte), les gardes de
+      `libelles.test.ts`, `phrases.en.test.ts` et `test_methodologie.py` ; le
+      texte rendu des 72 écrans capturés, où « note globale » et « overall
+      rating » ne figurent que dans la phrase de la méthodologie qui dit
+      pourquoi il n'y en a pas.
+- [x] Un seuil `CHOSEN` est visuellement distinct d'un seuil dérivé.
+      *Preuve* : `Observation.test.ts` (point et classe `choisi` pour un seuil
+      choisi, et lui seul, sans lire le mot) ; la section 6 capturée, en
+      niveaux de gris compris.
+- [x] La heatmap de corrélation a le même domaine pour deux portefeuilles
       différents.
-- [ ] Couverture de scénario et perte projetée ont la même taille de police.
-- [ ] Navigation complète au clavier, focus visible partout.
-- [ ] Les quatre états (vide, insuffisant, en cours, erreur) existent.
-- [ ] Les deux thèmes testés sur la page d'analyse complète, pas seulement sur
+      *Preuve* : `correlation.test.ts`, « domaine fixe, indépendant des
+      données » : deux matrices, la même échelle, [−1, +1].
+- [x] Couverture de scénario et perte projetée ont la même taille de police.
+      *Preuve* : `SectionCrise.test.ts` (la même classe) ; mesuré dans
+      Chrome, les trois chiffres des trois crises : IBM Plex Sans, 39 px,
+      600, trois largeurs, deux langues.
+- [x] Navigation complète au clavier, focus visible partout.
+      *Preuve* : `docs/outils/clavier.mjs` à 1280, 390 et 320 px, deux
+      langues : chaque arrêt a son anneau, aucun n'est caché ni rogné, aucun
+      piège, chaque arrêt de l'analyse photographié à 1280 ; l'anneau à
+      4,62:1 au moins (`anneau.test.ts`, et mesuré dans la page, colonne
+      collante comprise).
+- [x] Les quatre états (vide, insuffisant, en cours, erreur) existent.
+      *Preuve* : `etats-17.mjs` les capture dans les deux langues, aux trois
+      variantes, le 409 servi depuis la réponse de référence ; ASBH pour la
+      mesure insuffisante.
+- [x] Les deux thèmes testés sur la page d'analyse complète, pas seulement sur
       un composant.
-- [ ] Rendu à 390 px de large sans défilement horizontal de page.
+      *Preuve* : l'analyse de démonstration et celle d'ASBH, section par
+      section, en sombre et en clair à 1280, deux langues (`captures/7E/fr`,
+      `en`).
+- [x] Rendu à 390 px de large sans défilement horizontal de page.
+      *Preuve* : aucune des 138 captures ne déborde (`journal.json`),
+      tableaux dépliés compris (`tableaux-deplies.mjs`) ; à 320 × 225, six
+      écrans sans défilement horizontal (`etats-17.mjs`).

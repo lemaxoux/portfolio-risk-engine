@@ -2501,7 +2501,8 @@ l'ordre chronologique.
     sur la fenêtre EFFECTIVE ; refus des mesures dégénérées dans le moteur —
     corrélation, beta et contributions à la variance `null` avec une raison
     propre à chacune ; ligne limitante nommée avec sa première date
-- [ ] **Phase 7B — Frontend**
+- [x] **Phase 7B — Frontend** (close le 2026-10-08, avec la 7E et la
+  checklist de DESIGN.md §17)
   - [x] **7B.1 — Fondations** : Vite + React + TypeScript à versions figées,
     tokens et thème de `DESIGN.md` §4–§7, polices auto-hébergées, `format.ts`
     aux points de code fixés, client d'API, écran d'acceptation, bandeau
@@ -2567,9 +2568,9 @@ l'ordre chronologique.
     - À 390 px : légendes et refus bornés à leur cadre ; dans le tableau de
       saisie, la quantité suit le ticker ; la légende de l'histogramme ne
       décrit que ce qui est tracé
-  - [ ] **Textes de lecture** — chantier ouvert le 2026-10-05, avant le test
-    utilisateur et la 7B.3b : chaque mesure dite en calendrier, en dollars et
-    en période, pour un lecteur qui part de zéro
+  - [x] **Textes de lecture** — chantier ouvert le 2026-10-05, clos le
+    2026-10-06, avant la 7B.3b : chaque mesure dite en calendrier, en
+    dollars et en période, pour un lecteur qui part de zéro
     - [x] Données publiées par le moteur : montants, retour au pic, pire
       séance, volatilité et nom de l'indice de référence, libellés de
       période, verdict de couverture d'un scénario
@@ -2595,16 +2596,23 @@ l'ordre chronologique.
       nombres, recalculés depuis le moteur ; caractères admis par police
     - « Méthodologie » dans la navigation de toutes les pages, la page
       Portefeuilles comprise ; focus sur le titre que vise une adresse
-  - [ ] 7D — L'interface en anglais
-    - [x] Session 1, le serveur (2026-10-08) : `?lang=en` sur chaque route
-      qui publie du texte, le français inchangé octet pour octet ; textes du
-      serveur en deux langues (`backend/textes/`) ; typographie anglaise des
-      deux côtés ; gardes doublées, aucune phrase française dans une réponse
+  - [x] **7D — L'interface en anglais** (2026-10-08)
+    - [x] Session 1, le serveur : `?lang=en` sur chaque route qui publie du
+      texte, le français inchangé octet pour octet ; textes du serveur en
+      deux langues (`backend/textes/`) ; typographie anglaise des deux
+      côtés ; gardes doublées, aucune phrase française dans une réponse
       anglaise
-    - [ ] Session 2, le client : choix de la langue, libellés, phrases,
-      méthodologie anglaise, relevés
-  - [ ] 7E — Lien de chaque mesure vers sa méthode, tableaux équivalents aux
-    graphiques, clavier, checklist §17
+    - [x] Session 2, le client : choix de la langue, libellés, phrases,
+      méthodologie anglaise, relevés aux captures
+  - [x] **7E — Accessibilité** (2026-10-08), dans les deux langues
+    - Les valeurs de chaque graphique en tableau replié, faites des données
+      publiées
+    - Le clavier : un focus visible, jamais caché sous le bandeau, qui ne
+      colle plus qu'à partir de 900 px, ni perdu après un geste
+    - Le lien de chaque mesure vers sa méthode, et le retour arrière qui
+      rend le focus au lien suivi
+    - La date du bandeau français liée à ses tirets ; la checklist de
+      DESIGN.md §17 cochée, une preuve par point
 - [ ] **Phase 8 — Documentation** : README méthodologie
 - [ ] **Phase 9 — Publication**
 
