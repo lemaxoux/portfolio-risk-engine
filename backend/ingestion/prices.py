@@ -33,6 +33,13 @@ IGNORE = "ignoré"
 
 @dataclass
 class TickerResult:
+    """Le sort d'un titre dans un passage d'ingestion.
+
+    `status` vaut `OK` (des séances écrites), `A_JOUR` (aucune), `ECHEC`, ou
+    `IGNORE` (quota épuisé avant son tour) ; `rows` compte les séances
+    écrites, `detail` dit la cause d'un échec ou d'un titre ignoré.
+    """
+
     ticker: str
     status: str
     rows: int = 0
@@ -49,13 +56,20 @@ class IngestionReport:
 
     @property
     def rows(self) -> int:
+        """Séances écrites ou réécrites pendant le passage, tous titres
+        confondus."""
         return sum(r.rows for r in self.results)
 
     @property
     def failures(self) -> list[TickerResult]:
+        """Les titres en échec et ceux ignorés faute de quota : ce qui fait
+        sortir la commande avec le code 1."""
         return [r for r in self.results if r.status in (ECHEC, IGNORE)]
 
     def summary(self) -> str:
+        """Le bilan à afficher : les titres écrits ou à jour sur le total, les
+        séances écrites et les appels au fournisseur, puis une ligne par titre
+        en échec ou ignoré, avec sa cause."""
         ok = sum(1 for r in self.results if r.status in (OK, A_JOUR))
         lignes = [
             f"{ok}/{len(self.results)} titres traités, {self.rows} séances écrites, "
@@ -118,6 +132,13 @@ def store_bars(conn: sqlite3.Connection, ticker: str, bars: list[DailyBar]) -> i
 def upsert_security(
     conn: sqlite3.Connection, ticker: str, name: str, sector: str | None
 ) -> None:
+    """Enregistre le titre dans `securities`, ou met à jour son nom.
+
+    Un secteur None ne remplace pas un secteur déjà saisi. La ligne existante
+    n'est jamais supprimée, si bien que la cascade de `prices` n'emporte pas
+    l'historique (voir `_UPSERT_SECURITY`). Ne commite pas : c'est le rôle de
+    l'appelant.
+    """
     conn.execute(_UPSERT_SECURITY, (ticker, name, sector))
 
 
@@ -143,6 +164,8 @@ def first_stored_date(conn: sqlite3.Connection, ticker: str) -> date | None:
 
 
 def est_enregistre(conn: sqlite3.Connection, ticker: str) -> bool:
+    """Vrai si le ticker a sa ligne dans `securities`, qu'il ait des cours en
+    base ou non."""
     return (
         conn.execute(
             "SELECT 1 FROM securities WHERE ticker = ?", (ticker,)
@@ -502,9 +525,13 @@ class _CompteurAppels:
         self.appels = 0
 
     def get_daily_adjusted(self, ticker: str, start: date, end: date) -> list[DailyBar]:
+        """Compte l'appel, qu'il réussisse ou non, puis délègue au
+        fournisseur."""
         self.appels += 1
         return self._fournisseur.get_daily_adjusted(ticker, start, end)
 
     def get_security_info(self, ticker: str) -> SecurityInfo:
+        """Compte l'appel, qu'il réussisse ou non, puis délègue au
+        fournisseur."""
         self.appels += 1
         return self._fournisseur.get_security_info(ticker)

@@ -32,6 +32,8 @@ from backend.ingestion.universe import BACKFILL_START, DEV_UNIVERSE
 
 
 def configure_logging(verbose: bool = False) -> None:
+    """Prépare la sortie de la commande : console en UTF-8, journal au niveau
+    INFO (DEBUG avec `verbose`), urllib3 limité aux avertissements."""
     # La console Windows est en cp1252 par défaut : sans cela, les accents et
     # les flèches des messages de log ressortent en mojibake illisible.
     for flux in (sys.stdout, sys.stderr):
@@ -120,6 +122,10 @@ def reconstruire(tickers: list[str] | None, *, today: date | None = None) -> int
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """L'analyseur des cinq commandes, `backfill`, `refresh`, `add`, `status`
+    et `rebuild`, avec leurs options. Sans `--tickers`, `backfill` et
+    `refresh` portent sur l'univers de développement, `rebuild` sur tous les
+    titres en base ; la date d'ancrage par défaut est `BACKFILL_START`."""
     parser = argparse.ArgumentParser(
         prog="python -m backend.ingestion",
         description="Ingestion des prix quotidiens ajustés.",
@@ -166,6 +172,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Exécute la commande et rend son code de sortie : 1 dès qu'un titre
+    échoue ou est ignoré faute de quota, 0 sinon. `status` rend 0, `rebuild`
+    le code de `reconstruire`. Les tickers saisis passent en capitales."""
     args = build_parser().parse_args(argv)
     configure_logging(args.verbose)
 
