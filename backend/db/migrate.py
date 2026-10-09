@@ -45,6 +45,8 @@ def table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
 
 
 def table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    """Vrai si la table existe : `PRAGMA table_info` lui trouve des
+    colonnes."""
     return bool(table_columns(conn, table))
 
 
@@ -102,6 +104,10 @@ def migrate(conn: sqlite3.Connection) -> list[str]:
 
 
 def migrate_path(db_path: Path | None = None) -> list[str]:
+    """Ouvre la base (`get_db_path` par défaut), applique `migrate` et la
+    referme, même en cas d'erreur. Rend les instructions exécutées, une liste
+    vide si la base était à jour ; lève comme `migrate` sur une base sans
+    table `portfolios`."""
     chemin = db_path or get_db_path()
     conn = connect(chemin)
     try:

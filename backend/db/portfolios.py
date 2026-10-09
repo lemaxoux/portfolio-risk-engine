@@ -50,6 +50,10 @@ class PortfolioRow:
 
 @dataclass(frozen=True)
 class PositionRow:
+    """Une position telle qu'elle est stockée : ticker, quantité en nombre de
+    titres, prix de revient unitaire facultatif. Aucun contrôle ici : la
+    validation métier appartient à l'appelant."""
+
     ticker: str
     quantity: float
     cost_basis: float | None
