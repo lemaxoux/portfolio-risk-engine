@@ -132,6 +132,7 @@ class Threshold:
 
     @property
     def chosen(self) -> bool:
+        """Vrai pour un seuil choisi à la main (`ThresholdKind.CHOSEN`)."""
         return self.kind is ThresholdKind.CHOSEN
 
     def nom(self, langue: Langue = "fr") -> str:
@@ -150,6 +151,7 @@ class Threshold:
 
     @property
     def displayed(self) -> str:
+        """La valeur écrite en français (`affiche("fr")`)."""
         return self.affiche("fr")
 
     def origine(self, langue: Langue = "fr") -> str:
@@ -163,6 +165,7 @@ class Threshold:
 
     @property
     def origin(self) -> str:
+        """La provenance dite au lecteur, en français (`origine("fr")`)."""
         return self.origine("fr")
 
     def etiquette(self, langue: Langue = "fr") -> str:

@@ -29,15 +29,21 @@ ACCEPTANCE_CONFIRMATION = textes("fr").bandeau.CONFIRMATION
 
 
 def acceptance_title(langue: Langue = "fr") -> str:
+    """Le titre du texte d'acceptation, dans la langue demandée."""
     return textes(langue).bandeau.TITRE
 
 
 def acceptance_confirmation(langue: Langue = "fr") -> str:
+    """La phrase de confirmation qui clôt le texte d'acceptation, dans la
+    langue demandée."""
     return textes(langue).bandeau.CONFIRMATION
 
 
 @dataclass(frozen=True)
 class DisclaimerSection:
+    """Une section du texte d'acceptation : son titre et son corps, déjà
+    rédigés dans une langue."""
+
     title: str
     body: str
 
@@ -57,6 +63,13 @@ def _duree(seances: int, langue: Langue = "fr") -> str:
 def acceptance_sections(
     window: int = DEFAULT_WINDOW, *, langue: Langue = "fr"
 ) -> tuple[DisclaimerSection, ...]:
+    """Les sections du texte d'acceptation, dans l'ordre, dans la langue
+    demandée.
+
+    `window` est la fenêtre d'estimation, en séances, que le texte cite avec sa
+    durée en années ou en mois (`_duree`) : elle vient de la configuration du
+    moteur, jamais d'un nombre écrit dans le texte.
+    """
     return tuple(
         DisclaimerSection(title=titre, body=corps)
         for titre, corps in textes(langue).bandeau.sections(window, _duree(window, langue))

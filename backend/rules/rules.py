@@ -122,6 +122,9 @@ class Observation:
 
     @property
     def uses_chosen_threshold(self) -> bool:
+        """Vrai si l'un de ses seuils a été choisi à la main
+        (`Threshold.chosen`) ; une référence ou un seuil démontré ne compte
+        pas."""
         return any(seuil.chosen for seuil in self.thresholds)
 
     @property
@@ -130,6 +133,9 @@ class Observation:
         return textes(self.langue).regles.libelle(self.rule)
 
     def render(self) -> str:
+        """L'observation à plat, dans sa langue : le libellé de la règle et le
+        sujet, la phrase, une ligne par seuil (ou la mention qu'il n'y en a
+        pas), puis la provenance. Publiée sous `rendered`."""
         return textes(self.langue).regles.rendu(
             self.rule_label,
             self.subject,
@@ -149,9 +155,13 @@ class RulesReport:
     disclaimer: str
 
     def of_rule(self, rule: RuleId) -> tuple[Observation, ...]:
+        """Les observations d'une règle, dans l'ordre du rapport ; un tuple
+        vide si elle n'en a produit aucune."""
         return tuple(o for o in self.observations if o.rule is rule)
 
     def render(self) -> str:
+        """Toutes les observations à plat, séparées par une ligne vide, sans
+        le texte d'acceptation."""
         return "\n\n".join(o.render() for o in self.observations)
 
 
