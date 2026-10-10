@@ -20,11 +20,9 @@ answers five questions, in order:
 - **An ordinary day.** Historical and parametric value at risk (VaR) at 95% and
   99%, the average loss beyond it (CVaR), the volatility, a Student's t VaR next
   to the normal one, and the chart of daily returns.
-- **At worst.** The maximum drawdown of the window, its dates, and the
-  recovery.
+- **At worst.** The maximum drawdown of the window, its dates, and the recovery.
 - **What carries the risk.** Each holding's share of the variance against its
-  share of the value, the effective number of holdings, and the correlation
-  map.
+  share of the value, the effective number of holdings, and the correlation map.
 - **In a crisis.** Three historical crises replayed on today's portfolio, each
   from the S&P 500's closing peak to its closing low, with the share of the
   value they cover, and the beta of ordinary times against the one measured in
@@ -103,7 +101,17 @@ the old one. A dividend or a split now triggers a full reload of the security's
 history.
 <!-- /dated -->
 
-<!-- screenshots -->
+## Screenshots
+
+The demonstration portfolio of the results above, valued on September 9, 2026.
+
+![The “An ordinary day” section in the dark theme, under the header that gives the portfolio, its valuation date, and its estimation window: the historical values at risk, each followed by a sentence in plain words and by its calculation details.](screenshots/an-ordinary-day.png)
+
+![The “In a crisis” section in the light theme: the first replayed crisis, with the loss at the market low, the worst point along the way, and the coverage at the same size, then the beta of ordinary times against the one measured in the crisis.](screenshots/in-a-crisis.png)
+
+![The “What carries the risk” section in the dark theme: each holding's share of the portfolio's fluctuations, drawn as a bar, against its share of the value, drawn as a line, then a table of what each holding contributed in each replayed crisis.](screenshots/what-carries-the-risk.png)
+
+![The analysis at phone width, in the light theme, side by side: the start of “An ordinary day”, with a historical value at risk, its sentence in plain words, and its calculation details, and the start of “What the engine says”, with a finding of the rules engine and its calculation details.](screenshots/phone-width.png)
 
 ## Getting started
 
@@ -127,12 +135,8 @@ cd ..
 python -m backend.api                   # then open http://127.0.0.1:8000
 ```
 
-On macOS or Linux, only two lines change:
-
-```bash
-source venv/bin/activate
-cp .env.example .env
-```
+On macOS or Linux, only two lines change: `source venv/bin/activate` and
+`cp .env.example .env`.
 
 The backfill loads the 14 securities of the development universe, SPY
 included, from January 1, 2005. Then, day to day:
@@ -199,8 +203,7 @@ tools/             the OpenAPI export and a one-glyph font generator
   [frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md),
   which GitHub renders as it stands, or the `/methodologie` page of a local
   installation.
-- [frontend/DESIGN.md](frontend/DESIGN.md): the visual specification, in
-  French.
+- [frontend/DESIGN.md](frontend/DESIGN.md): the visual specification, in French.
 
 ## How it was built
 
@@ -233,8 +236,7 @@ Co-Authored-By trailer.
 ## License
 
 The code and the documentation of this repository are released under the MIT
-License: see [LICENSE](LICENSE). The market data are not part of the
-repository.
+License: see [LICENSE](LICENSE). The market data are not part of the repository.
 
 ## Disclaimer
 
