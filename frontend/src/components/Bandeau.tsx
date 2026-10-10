@@ -43,7 +43,7 @@ function Identite({ nom, navigation = true }: { nom: string | null; navigation?:
   const { libelles } = useLangue()
   return (
     <div className={styles.identite}>
-      <span className={styles.marque}>Mx Risk MGT</span>
+      <span className={styles.marque}>Portfolio Risk Engine</span>
       {nom !== null && <span className={styles.portefeuille}>{nom}</span>}
       {navigation && (
         <Lien vers={cheminDe({ vue: 'portefeuilles' })} className={styles.changer}>

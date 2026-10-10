@@ -197,7 +197,7 @@ describe('la garde du tiret cadratin', () => {
 
   it('le voit dans une chaîne, un gabarit, le JSX, un attribut, une entité', () => {
     expect(fautes(`const a = 'Ligne 4 \u2014 Ticker inconnu'`)).toHaveLength(1)
-    expect(fautes('const b = `${titre} \u2014 Mx Risk MGT`')).toHaveLength(1)
+    expect(fautes('const b = `${titre} \u2014 Portfolio Risk Engine`')).toHaveLength(1)
     expect(fautes(`const c = <p>un fichier CSV \u2014 par exemple</p>`)).toHaveLength(1)
     expect(fautes(`const d = <button aria-label="Thème clair \u2014 actuellement sombre" />`)).toHaveLength(1)
     expect(fautes(`const e = <p>en crise &mdash; jamais moyennées</p>`)).toHaveLength(1)
@@ -233,8 +233,8 @@ describe('la garde du tiret cadratin', () => {
   it('lit les feuilles de style et index.html hors commentaires', () => {
     expect(cadratinsHorsCommentaires(`.refus::before {\n  content: '\u2014 ' / '';\n}`)).toHaveLength(1)
     expect(cadratinsHorsCommentaires(`/* 12px \u2014 unités */\n.a { color: red; }`)).toEqual([])
-    expect(cadratinsHorsCommentaires(`<!-- §4 \u2014 obligatoire -->\n<title>Mx Risk MGT</title>`)).toEqual([])
-    expect(cadratinsHorsCommentaires(`<title>Analyse \u2014 Mx Risk MGT</title>`)).toHaveLength(1)
+    expect(cadratinsHorsCommentaires(`<!-- §4 \u2014 obligatoire -->\n<title>Portfolio Risk Engine</title>`)).toEqual([])
+    expect(cadratinsHorsCommentaires(`<title>Analyse \u2014 Portfolio Risk Engine</title>`)).toHaveLength(1)
   })
 })
 

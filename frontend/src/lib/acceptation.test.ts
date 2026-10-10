@@ -17,10 +17,10 @@ import {
 } from './acceptation'
 
 const TEXTE = [
-  "Avant d'utiliser Mx Risk MGT",
+  "Avant d'utiliser Portfolio Risk Engine",
   '',
   'Un outil informatif, pas un conseil',
-  'Mx Risk MGT décrit des propriétés statistiques de votre portefeuille.',
+  'Portfolio Risk Engine décrit des propriétés statistiques de votre portefeuille.',
 ].join('\n')
 
 function stockageEnMemoire() {
@@ -124,7 +124,7 @@ describe('une acceptation par langue', () => {
 
   it('accepter l’anglais ne vaut pas pour le français, ni l’inverse', () => {
     const donnees = stockageEnMemoire()
-    const anglais = 'Before using Mx Risk MGT'
+    const anglais = 'Before using Portfolio Risk Engine'
     memoriserAcceptation(anglais, 'en')
     expect(aAccepte(anglais, 'en')).toBe(true)
     expect(aAccepte(TEXTE, 'fr')).toBe(false)
@@ -137,9 +137,9 @@ describe('une acceptation par langue', () => {
   it('l’aller-retour entre les langues ne redemande rien', () => {
     stockageEnMemoire()
     memoriserAcceptation(TEXTE, 'fr')
-    memoriserAcceptation('Before using Mx Risk MGT', 'en')
+    memoriserAcceptation('Before using Portfolio Risk Engine', 'en')
     expect(aAccepte(TEXTE, 'fr')).toBe(true)
-    expect(aAccepte('Before using Mx Risk MGT', 'en')).toBe(true)
-    expect(acceptationMemorisee('en')).toBe(empreinte('Before using Mx Risk MGT'))
+    expect(aAccepte('Before using Portfolio Risk Engine', 'en')).toBe(true)
+    expect(acceptationMemorisee('en')).toBe(empreinte('Before using Portfolio Risk Engine'))
   })
 })

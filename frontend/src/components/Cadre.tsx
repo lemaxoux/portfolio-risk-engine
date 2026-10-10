@@ -66,7 +66,7 @@ interface Props {
   readonly children: ReactNode
 }
 
-const APPLICATION = 'Mx Risk MGT'
+const APPLICATION = 'Portfolio Risk Engine'
 
 /** Les ancres des sections de l'analyse, portées par la `<section>`. */
 const ANCRES_DES_SECTIONS = SECTIONS.map((section) => section.ancre)

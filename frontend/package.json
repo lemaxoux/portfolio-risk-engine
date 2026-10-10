@@ -1,9 +1,9 @@
 {
-  "name": "mx-risk-mgt-frontend",
+  "name": "portfolio-risk-engine-frontend",
   "private": true,
   "type": "module",
   "version": "0.7.0",
-  "description": "Interface de Mx Risk MGT. Spécification : DESIGN.md.",
+  "description": "Interface de Portfolio Risk Engine. Spécification : DESIGN.md.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

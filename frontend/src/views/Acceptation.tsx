@@ -67,9 +67,10 @@ export function Acceptation({ bandeau, onAccepte, focaliser = false }: Props) {
   const [coche, setCoche] = useState(false)
   const titre = useRef<HTMLHeadingElement>(null)
 
-  // L'onglet dit où l'on est, comme sur toute autre page.
+  // L'onglet dit où l'on est, comme sur toute autre page. Le titre de cet
+  // écran nomme déjà le produit : il n'est pas répété entre parenthèses.
   useEffect(() => {
-    document.title = `${bandeau.title} (Mx Risk MGT)`
+    document.title = bandeau.title
   }, [bandeau.title])
 
   useEffect(() => {
