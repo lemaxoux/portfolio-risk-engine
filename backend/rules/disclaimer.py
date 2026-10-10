@@ -11,8 +11,11 @@ jour où le calcul en utiliserait un autre nombre.
 DEUX LANGUES (chantier 7D). Ce module décide — la durée de la fenêtre se dit en
 années ou en mois, et combien — et lit le texte de la langue demandée dans
 `backend/textes/<langue>/bandeau.py`, « fr » par défaut. Le texte français y a
-été déplacé tel quel : son empreinte n'a pas changé, personne n'a à réaccepter.
-Le texte anglais a la sienne. Ni l'un ni l'autre n'a été relu par un juriste.
+été déplacé tel quel : à ce déplacement, son empreinte n'a pas changé, et
+personne n'a eu à réaccepter. Le texte anglais a la sienne. Le renommage du
+produit (chantier 9.1b) a changé le nom dans les deux textes, donc les deux
+empreintes : l'écran d'acceptation revient une fois par langue. Ni l'un ni
+l'autre texte n'a été relu par un juriste.
 """
 
 from __future__ import annotations
