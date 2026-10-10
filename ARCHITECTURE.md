@@ -11,6 +11,12 @@ document, [README.md](README.md), and [METHODOLOGY.md](METHODOLOGY.md) are the
 English reference. The measures themselves, their formulas and their limits,
 are in METHODOLOGY.md.
 
+The internal identifiers keep the former name of the project, Mx Risk MGT, so
+that existing installations keep working: the browser storage keys (prefixed
+`mx-risk-`), the `MX_RISK_*` environment variables, the database file name
+(`data/mx_risk.sqlite`), and the internal name of the font face that draws the
+narrow no-break space.
+
 ## Stack
 
 | Component | Choice | Why |
@@ -179,9 +185,9 @@ Checked by `tests/test_api_csv.py` and `tests/test_nombres_saisis.py`.
 
 Every route that publishes text takes `?lang=fr` or `?lang=en`. Without it, or
 with `lang=fr`, each response is the French of before the English version, byte
-for byte; any other value is refused. There is no `Accept-Language`: the
-browser sends it on its own, and a response would change language without
-anyone asking.
+for byte, the product name aside; any other value is refused. There is no
+`Accept-Language`: the browser sends it on its own, and a response would change
+language without anyone asking.
 
 The server's sentences live in `backend/textes/fr/` and `backend/textes/en/`,
 one module per domain, with the same names and the same signatures. The

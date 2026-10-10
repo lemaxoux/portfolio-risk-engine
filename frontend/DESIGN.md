@@ -1,4 +1,4 @@
-# Design frontend — Mx Risk MGT
+# Design frontend — Portfolio Risk Engine
 
 *Spécification visuelle de l'interface. Écrite avant la phase 7, pour que le
 frontend soit une décision et non une accumulation de défauts. À lire
@@ -458,8 +458,10 @@ Graisses utilisées : **400** (prose, données), **500** (libellés, en-têtes),
   du 2026-10-05) : ni dans ce que le frontend compose, ni dans ce que le
   backend publie. Dans une phrase, la ponctuation dit le lien : deux-points,
   virgule, parenthèses ou point : « en temps ordinaire et en crise (jamais
-  moyennées) ». Le titre de l'onglet s'écrit « Analyse de « Démo » (Mx Risk
-  MGT) ».
+  moyennées) ». Le titre de l'onglet s'écrit « Analyse de « Démo » (Portfolio
+  Risk Engine) ». Sur l'écran d'acceptation, c'est le titre de l'écran seul,
+  « Avant d'utiliser Portfolio Risk Engine » : il nomme déjà le produit, qui
+  n'est pas répété entre parenthèses (décision du 2026-10-10).
   **Un refus de ligne s'écrit « Ligne 4 : XYZ n'est pas un titre connu. »**
   Le sujet vient d'abord, pour que la première phrase ne porte pas un second
   deux-points (« Ligne 4 : ticker inconnu : XYZ »). Après le deux-points, la
@@ -550,11 +552,11 @@ se perd quand il sort de l'écran. Le seuil est celui de la mise en page
 (`lib/largeur.ts`).
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Mx Risk MGT      Portefeuille principal   84 076,05 USD  [English] [◐]  │
-│           Valorisé au 2026-09-25   Fenêtre d'estimation : 504 séances     │
-│                   Positions modifiées le 2026-09-23                       │
-└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Portfolio Risk Engine    Portefeuille principal   84 076,05 USD  [English] [◐]  │
+│               Valorisé au 2026-09-25   Fenêtre d'estimation : 504 séances         │
+│                       Positions modifiées le 2026-09-23                           │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 `as_of`, la fenêtre d'estimation, la valeur du portefeuille et la date de
@@ -589,6 +591,23 @@ qualificatif se lit dollar canadien.
   sans nommer de ligne — le backend ne nomme que ce qu'il a prouvé.
 - Le bandeau peut passer à deux ou trois lignes : sa hauteur suit son
   contenu, elle n'est pas fixée à 56 px.
+- **Mesure du 2026-10-10** (chantier 9.1b : le produit, qui s'appelait
+  « Mx Risk MGT », devient « Portfolio Risk Engine »). Un constat de ce jour,
+  dans Chrome, pas une valeur à tenir. La marque fait 193 px de large (128
+  avant), sur une ligne à toutes les largeurs de 320 à 1440 px, et la page ne
+  déborde à aucune. À 320 × 225, 390, 900 et 1280 px, dans les deux langues
+  et les deux thèmes, la hauteur du bandeau n'a pas changé : 309 à 312, 274,
+  176 et 102 px sur l'analyse de démonstration ; 372 à 375, 317, 184 et
+  110 px avec une fenêtre réduite. Entre ces largeurs, la colonne de la
+  marque, plus large de 46 px en français et de 66 px en anglais, décale
+  d'autant les seuils du bandeau d'analyse : il tient sur une rangée à partir
+  de 1107 à 1130 px selon la langue et le thème (1061 à 1079 px avant), et
+  sur deux à partir de 641 px (575 à 595 px avant). Dans ces deux bandes, il
+  a une rangée de plus qu'avant : 59 px sous 900 px, où il défile avec la
+  page, et 74 px au-dessus, où il est collant (71 et 51 px avec une fenêtre
+  réduite, plus 22 px sur deux bandes de même largeur, vers 700 et 1200 px,
+  où les conditions passent à une par ligne). Le bandeau des autres pages ne
+  change à aucune largeur. Accepté sans toucher à la feuille de style.
 
 **Le bouton de langue** (chantier 7D, décisions du 2026-10-07 et du
 2026-10-08). À côté de la bascule de thème, sur toutes les pages ; sur

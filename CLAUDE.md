@@ -1,4 +1,4 @@
-# CLAUDE.md — Mx Risk MGT
+# CLAUDE.md — Portfolio Risk Engine
 
 Moteur de risque de portefeuille (Python), API FastAPI, frontend Vite + React.
 Le détail de chaque point ci-dessous est dans `ARCHITECTURE.md` (les
@@ -36,8 +36,8 @@ et ne se versionnent pas.
   serveur vit dans `backend/textes/fr/` et `backend/textes/en/`, mêmes noms
   et mêmes signatures : elle s'ajoute dans les deux, avec ses cas dans
   `tests/test_textes_symetriques.py`. Sans `?lang`, chaque réponse reste la
-  française d'avant le chantier 7D, octet pour octet (`ARCHITECTURE.md`,
-  « Two languages »).
+  française d'avant le chantier 7D, octet pour octet, au nom du produit près
+  (`ARCHITECTURE.md`, « Two languages »).
 
 ## Tests
 

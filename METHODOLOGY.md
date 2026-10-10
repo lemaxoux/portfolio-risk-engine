@@ -1,10 +1,10 @@
 # Methodology
 
-Mx Risk MGT measures the risk of a portfolio of US-listed stocks and ETFs.
-This document states how each figure is obtained: the data, the conventions,
-every measure with its formula, assumptions, limitations, and the point where
-the tool refuses to give a figure, then the crisis replays, the rules engine,
-and four dated results from the project.
+Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and
+ETFs. This document states how each figure is obtained: the data, the
+conventions, every measure with its formula, assumptions, limitations, and the
+point where the tool refuses to give a figure, then the crisis replays, the
+rules engine, and four dated results from the project.
 
 It is written for a reader who knows the quantitative vocabulary. The
 methodology page of the application explains the same rules to a reader who

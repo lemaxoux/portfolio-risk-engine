@@ -1,9 +1,9 @@
-# Mx Risk MGT
+# Portfolio Risk Engine
 
-A portfolio risk engine for US-listed stocks and ETFs, with an API and a web
-interface, in English and in French, that shows every figure together with the
-conditions it was estimated under: the window, the valuation date, the method,
-and the number of trading days behind it.
+Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and
+ETFs. Through an API and a web interface, in English and in French, it shows
+every figure together with the conditions it was estimated under: the window,
+the valuation date, the method, and the number of trading days behind it.
 
 It is written for two readers: an individual investor who starts from zero, for
 whom the interface explains each measure in plain words, and a reader who wants
@@ -240,10 +240,10 @@ License: see [LICENSE](LICENSE). The market data are not part of the repository.
 
 ## Disclaimer
 
-Mx Risk MGT is an informational tool. It describes statistical properties of a
-portfolio; it is not investment advice and not a recommendation to buy, sell,
-or hold a security. The market data come from a third party and can contain
-errors, delays, or omissions, and the calculations rest on statistical
-assumptions, stated with their limits in METHODOLOGY.md. The figures describe
-the past and predict nothing. The application shows its full acceptance text
-before first use.
+Portfolio Risk Engine is an informational tool. It describes statistical
+properties of a portfolio; it is not investment advice and not a recommendation
+to buy, sell, or hold a security. The market data come from a third party and
+can contain errors, delays, or omissions, and the calculations rest on
+statistical assumptions, stated with their limits in METHODOLOGY.md. The figures
+describe the past and predict nothing. The application shows its full acceptance
+text before first use.
