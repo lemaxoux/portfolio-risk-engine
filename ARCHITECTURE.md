@@ -356,6 +356,27 @@ Python suite runs on a machine without Node. The fallback to `index.html`
 never masks the API: an unknown path under `/api` returns a JSON 404, not the
 page (`tests/test_api_static.py`).
 
+## Two builds
+
+`npm run build` writes `frontend/dist`, the application that FastAPI serves.
+`npm run build:demo` writes `frontend/dist-demo`, a static site with no
+server: the same client, in which `src/api/client.ts` reads API responses
+recorded as files instead of calling the API. That module remains the only one
+that knows where the data come from; the rest of the client reads the build
+mode only to hide what writes and to say what the site is (DESIGN.md §18). The
+files are written by `python -m tools.export_demo`, which copies the database,
+truncates the copy at the freeze date of the tests, replaces its portfolios
+with those of `demo/compositions.json`, and calls the application as it is, so
+that each file carries the bytes of one response. The demonstration has no
+write path: the screens that create, delete, enter, or import are left out of
+the bundle, and the build fails if the bundle still names the API or a write
+method. It publishes measures of portfolios, never the series of one security:
+the export refuses a set of portfolios in which a linear combination isolates
+a security. Neither the exported files nor the builds are committed.
+
+Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`, and
+`src/api/demoAuBuild.test.ts`.
+
 ## The client
 
 - Composing is not computing. The sentences under each measure cite only

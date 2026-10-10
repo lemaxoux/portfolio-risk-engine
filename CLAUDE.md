@@ -32,6 +32,14 @@ et ne se versionnent pas.
   `tokens.test.ts`).
 - **Types de l'API engendrés, jamais écrits à la main** :
   `python -m tools.openapi_schema`, puis `cd frontend; npm run api:types`.
+- **Une source de données, choisie au build, dans `client.ts` seulement.**
+  `frontend/src/api/client.ts` est le seul module qui sait d'où viennent les
+  données : l'API, ou, dans le build de démonstration (`npm run build:demo`),
+  les réponses enregistrées par `python -m tools.export_demo`. Le reste du
+  client ne lit `DEMO` que pour masquer ce qui écrit et afficher la mention.
+  La démonstration n'a aucun chemin d'écriture : son build échoue si une
+  écriture ou « /api » y reste. Ses fichiers exportés (`demo/export/`) et
+  `dist-demo/` ne se versionnent pas.
 - **Deux langues, un seul texte par langue.** Une phrase que publie le
   serveur vit dans `backend/textes/fr/` et `backend/textes/en/`, mêmes noms
   et mêmes signatures : elle s'ajoute dans les deux, avec ses cas dans
@@ -47,7 +55,11 @@ cd frontend
 npm test                                # Vitest
 npx tsc --noEmit -p .                   # types
 npm run build                           # types puis bundle dans dist/
+npm run build:demo                      # la démonstration, dans dist-demo/
 ```
+
+`build:demo` relit `demo/export/`, que `python -m tools.export_demo` écrit
+depuis la base locale.
 
 Chaque commit laisse les suites vertes et la documentation à jour
 (`README.md`, `METHODOLOGY.md`, `ARCHITECTURE.md`), ses nombres datés tenus

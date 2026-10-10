@@ -1533,3 +1533,115 @@ captures et les outils dans `docs/` (hors dépôt).
       *Preuve* : aucune des 138 captures ne déborde (`journal.json`),
       tableaux dépliés compris (`tableaux-deplies.mjs`) ; à 320 × 225, six
       écrans sans défilement horizontal (`etats-17.mjs`).
+
+---
+
+## 18. Le mode démonstration
+
+**Section du 2026-10-10, chantier 9.2.** Le site public est d'abord une
+démonstration figée : le même client, servi en fichiers statiques, sans
+serveur (`npm run build:demo`). Il lit des réponses de l'API enregistrées par
+`python -m tools.export_demo` au lieu d'appeler l'API. Trois portefeuilles
+fixes, « Démo », « Tech » et « Défensif » (« Demo », « Tech » et
+« Defensive » en anglais), valorisés au 2026-09-09. Tout ce que ce document
+demande d'une page vaut pour elle : les deux langues, les deux thèmes,
+l'écran d'acceptation, la méthodologie. Cette section dit seulement ce qui
+diffère.
+
+### 18.1 Rien n'écrit, rien n'est grisé
+
+Le client ne lit le mode (`DEMO`, dans `api/client.ts`) que pour masquer ce
+qui écrit et pour afficher la mention. Ce qui est masqué n'est pas rendu, et
+sort du build :
+
+- **Portefeuilles** : le formulaire « Nouveau portefeuille », la colonne
+  « Actions » entière (le lien « Positions » et le bouton « Supprimer ») et
+  la confirmation de suppression. Restent la phrase d'introduction, la
+  légende et les cinq autres colonnes.
+- **Navigation**, rail et liste d'ancres, sur toutes les pages : l'entrée
+  « Positions et import ».
+- **Analyse**, états vide et insuffisant : le lien vers les positions et le
+  format du fichier.
+
+Aucune entrée grisée, aucun « bientôt » : une page ne propose que ce qui
+existe.
+
+### 18.2 L'adresse des positions, et un numéro inconnu
+
+`/portefeuilles/<id>/positions` n'est l'adresse d'aucune page de la
+démonstration. Elle rend l'état existant « Page introuvable » : « Aucune
+page à cette adresse », l'adresse citée, le lien « Voir les portefeuilles ».
+L'écran d'acceptation, qui dit la page où il mène (§15), dit alors « Ouvrir
+la page demandée », « Open the requested page », comme pour toute adresse
+inconnue.
+
+Un numéro de portefeuille inconnu rend « Portefeuille introuvable », avec le
+texte de l'application : c'est la liste qui dit ce qui existe, avant tout
+autre appel.
+
+### 18.3 La mention
+
+En tête du contenu de chaque page (`Cadre`), sous le bandeau, avant le
+titre :
+
+- « Démonstration : 3 portefeuilles fixes, valorisés au 9 septembre 2026. »
+- « Demonstration: 3 fixed portfolios, valued as of September 9, 2026. »
+
+Du texte courant (`--text-sm`, `--text-2`), qui défile avec la page : une
+ligne à partir de 900 px, deux à 390 et à 320 px. Pas dans le bandeau, qui y
+gagnerait une ligne à toutes les largeurs (§8.1). L'écran d'acceptation, qui
+n'a pas de `Cadre`, ne la porte pas. Elle ne promet aucune fonction à venir.
+
+Le nombre et la date passent par `format.ts`. Leurs valeurs sont écrites
+dans `contenu/demo.ts`, et tenues égales à la date du gel des tests et au
+nombre de portefeuilles de `demo/compositions.json`.
+
+### 18.4 La fraîcheur des positions
+
+Les portefeuilles de la démonstration sont écrits par l'export, pas par
+l'application : `updated_at` est nul, et le bandeau dit la phrase de §8.1,
+« Positions jamais modifiées depuis l'application », « Positions never
+changed in the app ». La colonne de la liste dit « jamais », « never ».
+Aucune date n'est inventée, et aucune ne suit la date de valorisation.
+
+**Mesure du 2026-10-10**, dans Chrome, sur le build de démonstration. Un
+constat de ce jour, pas une valeur à tenir. Le bandeau de l'analyse a la
+même hauteur avec les trois noms, dans les deux langues et les deux thèmes :
+274,27, 175,98 et 102,30 px à 390, 900 et 1280 px, comme en §8.1. À
+320 × 225, il mesure 329,34 px en français sombre et 332,25 px en clair,
+soit 20,29 px de plus qu'avec une date : la phrase d'une date absente y
+prend une ligne de plus. En anglais, 311,95 px, comme avec une date. Aucun
+débordement à ces quatre largeurs.
+
+### 18.5 Les quatre états (§13)
+
+- *vide* et *insuffisant* : les trois portefeuilles ne les atteignent pas,
+  l'export exige une analyse de chacun. Une liste vide n'est pas un état de
+  la démonstration, qui n'a rien pour créer un portefeuille : elle se dit
+  comme un fichier illisible.
+- *en cours* : les squelettes, inchangés.
+- *erreur* : la démonstration a ses propres textes. Elle n'a pas de serveur
+  à démarrer : « L'API ne répond pas. La démarrer : python -m backend.api »
+  n'y est jamais affiché, ni « L'API a répondu un corps vide ».
+  - La requête n'aboutit pas : « Les données de la démonstration n'ont pas
+    pu être chargées. Vérifier la connexion, puis recharger la page. »,
+    « The demonstration data could not be loaded. Check the connection, then
+    reload the page. »
+  - Le fichier manque ou n'est pas du JSON : « Le fichier
+    `fr/portfolios.json` de la démonstration manque ou n'est pas lisible.
+    Recharger la page. », « The demonstration file `en/portfolios.json` is
+    missing or cannot be read. Reload the page. » Le nom du fichier est
+    rendu en code, comme un séparateur cité par l'import.
+  - Le titre de la page quand le démarrage échoue : « Démonstration
+    indisponible », « Demonstration unavailable ».
+
+  Un hébergeur statique rend sa page d'accueil, avec un 200, pour un fichier
+  absent : le statut ne dit rien. Seul un corps qui se lit comme un document
+  JSON non vide est une réponse.
+
+### 18.6 Ce qui ne change pas
+
+L'écran d'acceptation ; l'adresse `/`, qui ouvre le dernier portefeuille
+consulté, sinon le premier ; la méthodologie et ses renvois ; les six
+sections de l'analyse ; la légende « Portefeuilles en base » et le texte
+d'un numéro inconnu.
