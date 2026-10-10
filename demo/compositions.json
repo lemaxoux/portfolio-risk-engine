@@ -1,0 +1,16 @@
+{
+  "portefeuilles": [
+    {
+      "nom": { "fr": "Démo", "en": "Demo" },
+      "positions": { "AAPL": 40, "MSFT": 25, "JPM": 60, "JNJ": 50, "XOM": 80, "KO": 120 }
+    },
+    {
+      "nom": { "fr": "Tech", "en": "Tech" },
+      "positions": { "NVDA": 75, "AAPL": 55, "MSFT": 35, "GOOGL": 50, "AMZN": 65 }
+    },
+    {
+      "nom": { "fr": "Défensif", "en": "Defensive" },
+      "positions": { "JNJ": 80, "PG": 150, "KO": 240, "PFE": 700 }
+    }
+  ]
+}

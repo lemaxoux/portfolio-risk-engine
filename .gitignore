@@ -39,6 +39,13 @@ docs/
 frontend/node_modules/
 frontend/dist/
 
+# --- Démonstration ---
+# Des fichiers produits : `python -m tools.export_demo` écrit le premier
+# dossier, `npm run build:demo` le second. La commande et les compositions
+# (demo/compositions.json) sont versionnées, pas ce qu'elles écrivent.
+demo/export/
+frontend/dist-demo/
+
 # --- Éditeurs / OS ---
 .vscode/
 .idea/
