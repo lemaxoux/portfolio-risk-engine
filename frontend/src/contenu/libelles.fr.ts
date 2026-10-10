@@ -53,6 +53,15 @@ export const LIBELLES_FR: Libelles = {
     reponseInattendue: (statut) => `Réponse ${statut} inattendue de l'API.`,
     corpsVide: "L'API a répondu un corps vide.",
   },
+  demo: {
+    indisponible: 'Démonstration indisponible',
+    injoignable:
+      "Les données de la démonstration n'ont pas pu être chargées. Vérifier la " +
+      'connexion, puis recharger la page.',
+    fichierIllisible: (fichier) =>
+      `Le fichier \`${fichier}\` de la démonstration manque ou n'est pas lisible. ` +
+      'Recharger la page.',
+  },
   cadre: {
     allerAuContenu: 'Aller au contenu',
   },

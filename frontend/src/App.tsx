@@ -34,7 +34,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { ApiErreur, getDisclaimer, versApiErreur } from './api/client'
+import { ApiErreur, getDisclaimer, titreSourceInjoignable, versApiErreur } from './api/client'
 import type { Disclaimer } from './api/types'
 import { BandeauSimple } from './components/Bandeau'
 import { Cadre } from './components/Cadre'
@@ -154,7 +154,7 @@ function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void
   return (
     <Cadre
       titre={
-        etat.phase === 'erreur' ? libelles.application.apiInjoignable : libelles.application.chargement
+        etat.phase === 'erreur' ? titreSourceInjoignable(langue) : libelles.application.chargement
       }
       page="demarrage"
       occupe={etat.phase === 'verification'}

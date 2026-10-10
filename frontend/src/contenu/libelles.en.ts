@@ -63,6 +63,14 @@ export const LIBELLES_EN: Libelles = {
     reponseInattendue: (statut) => `Unexpected ${statut} response from the API.`,
     corpsVide: 'The API returned an empty body.',
   },
+  demo: {
+    indisponible: 'Demonstration unavailable',
+    injoignable:
+      'The demonstration data could not be loaded. Check the connection, then reload ' +
+      'the page.',
+    fichierIllisible: (fichier) =>
+      `The demonstration file \`${fichier}\` is missing or cannot be read. Reload the page.`,
+  },
   cadre: {
     allerAuContenu: 'Skip to content',
   },

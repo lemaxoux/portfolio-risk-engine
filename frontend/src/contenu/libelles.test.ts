@@ -40,6 +40,7 @@ function appels(l: Libelles): Record<string, string> {
   return {
     'api.erreurDuClient': l.api.erreurDuClient('TypeError: x'),
     'api.reponseInattendue': l.api.reponseInattendue(409),
+    'demo.fichierIllisible': l.demo.fichierIllisible('fr/portfolios.json'),
     'theme.vers': l.theme.vers(l.theme.sombre),
     'theme.commeLeSysteme': l.theme.commeLeSysteme(l.theme.sombre),
     'theme.fige': l.theme.fige(l.theme.clair),

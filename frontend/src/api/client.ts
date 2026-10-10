@@ -21,6 +21,23 @@
  * 127.0.0.1:8000 ; en production, FastAPI sert la page et l'API. Dans les deux
  * cas le navigateur ne voit qu'une origine, et il n'y a pas d'adresse d'API à
  * configurer quelque part — donc pas d'adresse à se tromper.
+ *
+ * ═══ DEUX SOURCES, CHOISIES AU BUILD, ICI SEULEMENT ═══
+ *
+ * Le build de démonstration (`npm run build:demo`, mode Vite `demo`) est un
+ * site statique, sans serveur. Les LECTURES y demandent des réponses de l'API
+ * enregistrées en fichiers par `python -m tools.export_demo`, une par langue :
+ * `/donnees/fr/portfolios.json` à la place de `/api/portfolios?lang=fr`. Ce
+ * module est le seul à savoir d'où viennent les données ; le reste du client
+ * ne lit `DEMO` que pour masquer ce qui écrit.
+ *
+ * Les ÉCRITURES n'ont pas d'autre source que l'API. En démonstration, plus
+ * rien ne les appelle : elles sortent du bundle avec les écrans qui les
+ * portaient, et le build de démonstration échoue si l'une d'elles y revient.
+ *
+ * La démonstration a ses propres échecs. Il n'y a pas de serveur à démarrer,
+ * et un fichier absent ne se voit pas au statut : un hébergeur statique rend
+ * sa page d'accueil, avec un 200, pour une adresse qu'il ne connaît pas.
  */
 import type {
   Analysis,
@@ -38,6 +55,29 @@ import { LIBELLES } from '../contenu/libelles'
 import type { Langue } from '../lib/langue'
 
 const BASE = '/api'
+
+/**
+ * Le build de démonstration. Une constante connue au build : Vite remplace
+ * `import.meta.env.MODE`, et tout ce qui ne sert qu'à l'autre source sort du
+ * bundle. Fausse dans le build ordinaire, en développement et sous Vitest.
+ */
+export const DEMO = import.meta.env.MODE === 'demo'
+
+/** Où le site de démonstration sert les réponses enregistrées. */
+const DONNEES = '/donnees'
+
+/** Le fichier d'une lecture, tel que l'export le nomme : `fr/portfolios.json`. */
+function fichierDeDemo(chemin: string, langue: Langue): string {
+  return `${langue}${chemin}.json`
+}
+
+/**
+ * L'adresse d'une lecture en démonstration. La langue est dans le chemin : un
+ * fichier statique ne lit pas `?lang`.
+ */
+export function adresseDeDemo(chemin: string, langue: Langue): string {
+  return `${DONNEES}/${fichierDeDemo(chemin, langue)}`
+}
 
 /**
  * La langue des textes rédigés de la réponse (chantier 7D) : `?lang=fr` ou
@@ -129,7 +169,9 @@ export function segmenter(message: string): Segment[] {
  *
  * `statut` vaut 0 quand la requête n'est jamais partie — serveur éteint, réseau
  * coupé. C'est un cas distinct d'un 4xx, et il se dit autrement : il n'y a rien
- * à corriger dans la demande, il y a un serveur à démarrer.
+ * à corriger dans la demande, il y a un serveur à démarrer. Il vaut 0 aussi
+ * pour tout échec de la démonstration : un fichier absent n'est pas le refus
+ * d'une API, et son statut ne doit pas se lire comme tel.
  */
 export class ApiErreur extends Error {
   readonly statut: number
@@ -162,6 +204,14 @@ export function versApiErreur(cause: unknown, langue: Langue = 'fr'): ApiErreur 
 }
 
 /**
+ * Le titre de la page quand la source des données ne répond pas au démarrage.
+ * Il dépend de la source, donc il se demande ici.
+ */
+export function titreSourceInjoignable(langue: Langue = 'fr'): string {
+  return DEMO ? LIBELLES[langue].demo.indisponible : LIBELLES[langue].application.apiInjoignable
+}
+
+/**
  * Ce qu'une requête envoie. `json` est sérialisé ; `fichier` part en
  * multipart, sous le nom de champ que la route attend (`file`), et c'est le
  * navigateur qui pose l'en-tête `Content-Type` avec sa frontière — l'écrire à
@@ -173,7 +223,8 @@ interface Envoi {
   readonly fichier?: File
 }
 
-async function lire<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T> {
+/** Un appel à l'API : toute écriture, et les lectures hors démonstration. */
+async function appeler<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T> {
   let reponse: Response
   try {
     reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
@@ -182,6 +233,38 @@ async function lire<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T
   }
   return decoder<T>(reponse, langue)
 }
+
+/**
+ * Une lecture en démonstration : le fichier de la réponse enregistrée.
+ *
+ * Seul un corps qui se lit comme un document JSON non vide est une réponse.
+ * Le statut ne suffit pas : pour un fichier absent, un hébergeur statique
+ * rend sa page d'accueil avec un 200. Une liste vide est un export cassé, pas
+ * un état de la démonstration, qui n'a rien pour créer un portefeuille.
+ */
+async function lireFichier<T>(chemin: string, langue: Langue): Promise<T> {
+  const textes = LIBELLES[langue].demo
+  let reponse: Response
+  try {
+    reponse = await fetch(adresseDeDemo(chemin, langue), { headers: { Accept: 'application/json' } })
+  } catch {
+    throw new ApiErreur(0, textes.injoignable)
+  }
+  const illisible = new ApiErreur(0, textes.fichierIllisible(fichierDeDemo(chemin, langue)))
+  if (!reponse.ok) throw illisible
+  let corps: unknown
+  try {
+    corps = JSON.parse(await reponse.text())
+  } catch {
+    throw illisible
+  }
+  if (typeof corps !== 'object' || corps === null) throw illisible
+  if (Array.isArray(corps) && corps.length === 0) throw illisible
+  return corps as T
+}
+
+/** Les lectures : l'API, ou les fichiers de la démonstration. */
+const lire: <T>(chemin: string, langue: Langue) => Promise<T> = DEMO ? lireFichier : appeler
 
 function requete(envoi: Envoi | undefined): RequestInit {
   const entetes: Record<string, string> = { Accept: 'application/json' }
@@ -282,7 +365,7 @@ export function getCsvFormat(langue: Langue = 'fr'): Promise<CsvFormat> {
 }
 
 export function createPortfolio(nom: string, langue: Langue = 'fr'): Promise<Portfolio> {
-  return lire<Portfolio>('/portfolios', langue, {
+  return appeler<Portfolio>('/portfolios', langue, {
     methode: 'POST',
     json: { name: nom },
   })
@@ -298,7 +381,7 @@ export function putPositions(
   positions: readonly PositionIn[],
   langue: Langue = 'fr',
 ): Promise<PositionsWritten> {
-  return lire<PositionsWritten>(`/portfolios/${portfolioId}/positions`, langue, {
+  return appeler<PositionsWritten>(`/portfolios/${portfolioId}/positions`, langue, {
     methode: 'PUT',
     json: { positions },
   })
@@ -310,7 +393,7 @@ export function importCsv(
   fichier: File,
   langue: Langue = 'fr',
 ): Promise<CsvImport> {
-  return lire<CsvImport>(`/portfolios/${portfolioId}/positions/csv`, langue, {
+  return appeler<CsvImport>(`/portfolios/${portfolioId}/positions/csv`, langue, {
     methode: 'POST',
     fichier,
   })

@@ -65,6 +65,18 @@ export interface Libelles {
     readonly reponseInattendue: (statut: number) => string
     readonly corpsVide: string
   }
+  /**
+   * Ce que la démonstration dit d'un échec (`npm run build:demo`) : ses
+   * données sont des fichiers, il n'y a ni API ni serveur à démarrer.
+   */
+  readonly demo: {
+    /** Le titre de la page quand le démarrage échoue. */
+    readonly indisponible: string
+    /** La requête n'aboutit pas. */
+    readonly injoignable: string
+    /** Le fichier manque ou n'est pas du JSON ; son nom, entre accents graves, est rendu en code. */
+    readonly fichierIllisible: (fichier: string) => string
+  }
   readonly cadre: {
     readonly allerAuContenu: string
   }
