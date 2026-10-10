@@ -66,8 +66,9 @@ export interface Libelles {
     readonly corpsVide: string
   }
   /**
-   * Ce que la démonstration dit d'un échec (`npm run build:demo`) : ses
-   * données sont des fichiers, il n'y a ni API ni serveur à démarrer.
+   * Les textes propres à la démonstration (`npm run build:demo`) : ce qu'elle
+   * est, et ce qu'elle dit d'un échec. Ses données sont des fichiers, il n'y
+   * a ni API ni serveur à démarrer.
    */
   readonly demo: {
     /** Le titre de la page quand le démarrage échoue. */
@@ -76,6 +77,8 @@ export interface Libelles {
     readonly injoignable: string
     /** Le fichier manque ou n'est pas du JSON ; son nom, entre accents graves, est rendu en code. */
     readonly fichierIllisible: (fichier: string) => string
+    /** Ce qu'est le site, en tête de chaque page : le nombre de portefeuilles, leur date de valorisation en ISO. */
+    readonly mention: (portefeuilles: number, date: string) => string
   }
   readonly cadre: {
     readonly allerAuContenu: string

@@ -61,6 +61,9 @@ export const LIBELLES_FR: Libelles = {
     fichierIllisible: (fichier) =>
       `Le fichier \`${fichier}\` de la démonstration manque ou n'est pas lisible. ` +
       'Recharger la page.',
+    mention: (portefeuilles, date) =>
+      `Démonstration\u00a0: ${compte(portefeuilles, 'portefeuille')} fixes, ` +
+      `valorisés au ${dateEnToutesLettres(date)}.`,
   },
   cadre: {
     allerAuContenu: 'Aller au contenu',

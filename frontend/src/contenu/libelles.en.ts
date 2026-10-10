@@ -70,6 +70,9 @@ export const LIBELLES_EN: Libelles = {
       'the page.',
     fichierIllisible: (fichier) =>
       `The demonstration file \`${fichier}\` is missing or cannot be read. Reload the page.`,
+    mention: (portefeuilles, date) =>
+      `Demonstration: ${compte(portefeuilles, 'fixed portfolio', undefined, EN)}, ` +
+      `valued as of ${dateEnToutesLettres(date, EN)}.`,
   },
   cadre: {
     allerAuContenu: 'Skip to content',

@@ -9,7 +9,9 @@ démonstration. Ces tests tiennent ce qu'il promet :
 * l'export ne contient que les portefeuilles de `demo/compositions.json`, le
   premier étant la démonstration que datent le README et METHODOLOGY.md ;
 * aucune combinaison des portefeuilles publiés n'isole un titre ;
-* deux exports donnent les mêmes octets, sans une connexion hors de la machine.
+* deux exports donnent les mêmes octets, sans une connexion hors de la machine ;
+* la mention que le client affiche (`frontend/src/contenu/demo.ts`) dit la
+  date du gel et le nombre de portefeuilles des compositions.
 
 LA SOURCE DE CES TESTS EST UNE COPIE FIGÉE de `conftest.py`, jamais la base
 réelle : `exporter` la reçoit en `source`, et la dernière garde de ce fichier
@@ -26,6 +28,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import re
 import socket
 import stat
 from collections.abc import Iterator
@@ -579,6 +582,34 @@ def test_un_dossier_qui_n_est_pas_un_export_n_est_pas_efface(tmp_path):
         "fr/disclaimer.json",
         MANIFESTE,
     ]
+
+
+# ------------------------------------------- Ce que la mention affirme --
+
+CONTENU_DE_LA_DEMO = (
+    Path(__file__).resolve().parents[1] / "frontend" / "src" / "contenu" / "demo.ts"
+)
+
+
+def valeurs_de_la_mention(code: str) -> tuple[str, int]:
+    """La date et le nombre que le client écrit dans sa mention."""
+    date = re.search(r"^export const DATE_DE_LA_DEMO = '([0-9-]+)'$", code, re.M)
+    nombre = re.search(r"^export const PORTEFEUILLES_DE_LA_DEMO = ([0-9]+)$", code, re.M)
+    assert date is not None and nombre is not None, "constantes de la mention illisibles"
+    return date.group(1), int(nombre.group(1))
+
+
+def test_la_mention_du_client_dit_la_date_du_gel_et_le_nombre_de_portefeuilles(compositions):
+    """« 3 portefeuilles fixes, valorisés au 9 septembre 2026 » : les deux
+    valeurs sont écrites dans le client, et tenues ici."""
+    temoin = """
+export const DATE_DE_LA_DEMO = '2020-01-31'
+export const PORTEFEUILLES_DE_LA_DEMO = 12
+"""
+    assert valeurs_de_la_mention(temoin) == ("2020-01-31", 12)
+    date, nombre = valeurs_de_la_mention(CONTENU_DE_LA_DEMO.read_text(encoding="utf-8"))
+    assert date == DATE_GEL
+    assert nombre == len(compositions)
 
 
 # ------------------------------------------------ La source de ces tests --

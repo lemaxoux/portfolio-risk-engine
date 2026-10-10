@@ -31,11 +31,24 @@
  * avant (`remplacerLaPage`). La langue ne change qu'une fois cette réponse
  * connue : aucune page ne s'affiche dans une langue dont le texte n'a pas
  * été accepté.
+ *
+ * ═══ LA DÉMONSTRATION N'A PAS DE PAGE DE SAISIE (chantier 9.2) ═══
+ *
+ * Dans le build de démonstration, `/portefeuilles/<id>/positions` n'est
+ * l'adresse d'aucune page : elle rend « Page introuvable », comme toute
+ * adresse inconnue, et la page des positions sort du build avec ses
+ * écritures.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { ApiErreur, getDisclaimer, titreSourceInjoignable, versApiErreur } from './api/client'
-import type { Disclaimer } from './api/types'
+import {
+  ApiErreur,
+  DEMO,
+  getDisclaimer,
+  titreSourceInjoignable,
+  versApiErreur,
+} from './api/client'
+import type { Disclaimer, PortfolioDetail } from './api/types'
 import { BandeauSimple } from './components/Bandeau'
 import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
@@ -198,6 +211,23 @@ function Application() {
   const chemin = route.vue === 'inconnue' ? route.chemin : cheminDe(route)
   const annonceIci = annonce !== null && annonce.page === chemin ? annonce.texte : null
 
+  /**
+   * La page d'un portefeuille : il est lu dans la liste, qui dit s'il existe
+   * avant tout autre appel. `forme` est celle du squelette en attendant.
+   */
+  const avecPortefeuille = (
+    id: number,
+    forme: 'analyse' | 'tableau',
+    rendre: (portefeuille: PortfolioDetail) => ReactNode,
+  ): ReactNode => {
+    if (liste.phase !== 'prete') {
+      return <ListeEnAttente liste={liste} recharger={recharger} page={chemin} forme={forme} />
+    }
+    const portefeuille = liste.portefeuilles.find((p) => p.id === id)
+    if (portefeuille === undefined) return <PortefeuilleIntrouvable id={id} page={chemin} />
+    return rendre(portefeuille)
+  }
+
   switch (route.vue) {
     case 'accueil':
       return <Accueil liste={liste} recharger={recharger} />
@@ -211,24 +241,12 @@ function Application() {
         />
       )
     case 'analyse':
-    case 'positions': {
-      if (liste.phase !== 'prete') {
-        return (
-          <ListeEnAttente
-            liste={liste}
-            recharger={recharger}
-            page={chemin}
-            forme={route.vue === 'positions' ? 'tableau' : 'analyse'}
-          />
-        )
-      }
-      const portefeuille = liste.portefeuilles.find((p) => p.id === route.id)
-      if (portefeuille === undefined) {
-        return <PortefeuilleIntrouvable id={route.id} page={chemin} />
-      }
-      return route.vue === 'analyse' ? (
+      return avecPortefeuille(route.id, 'analyse', (portefeuille) => (
         <VueAnalyse portefeuille={portefeuille} annonce={annonceIci} />
-      ) : (
+      ))
+    case 'positions':
+      if (DEMO) return <PageInconnue chemin={chemin} />
+      return avecPortefeuille(route.id, 'tableau', (portefeuille) => (
         // Une clé par portefeuille : passer de l'un à l'autre repart d'un
         // tableau neuf, jamais des lignes du précédent.
         <VuePositions
@@ -238,8 +256,7 @@ function Application() {
           annonce={annonceIci}
           annoncer={annoncer}
         />
-      )
-    }
+      ))
     case 'methodologie': {
       // Elle ne dépend d'aucun portefeuille, et n'attend pas la liste. Le
       // bandeau nomme le dernier consulté s'il existe encore ; sinon aucun,

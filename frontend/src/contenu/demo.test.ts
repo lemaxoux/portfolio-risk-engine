@@ -1,0 +1,119 @@
+/**
+ * Ce que la démonstration montre de plus, et ce qu'elle ne propose pas
+ * (chantier 9.2).
+ *
+ * Le rendu se vérifie dans un navigateur ; ici, les fonctions pures qui le
+ * décident. Elles reçoivent le mode en paramètre, avec la constante du build
+ * pour défaut : hors démonstration, rien ne change.
+ */
+import { describe, expect, it } from 'vitest'
+
+import { pagesApplication } from '../components/Navigation'
+import type { Route } from '../lib/route'
+import { destinationDe } from '../views/Acceptation'
+import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from './demo'
+import { LIBELLES } from './libelles'
+
+describe('la mention de la démonstration', () => {
+  it('dit ce qu’est le site, en français', () => {
+    expect(LIBELLES.fr.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)).toBe(
+      'Démonstration\u00a0: 3\u00a0portefeuilles fixes, valorisés au 9\u00a0septembre\u00a02026.',
+    )
+  })
+
+  it('et en anglais', () => {
+    expect(LIBELLES.en.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)).toBe(
+      'Demonstration: 3\u00a0fixed portfolios, valued as of September\u00a09,\u00a02026.',
+    )
+  })
+
+  it('écrit ses nombres par le formateur, quels qu’ils soient', () => {
+    expect(LIBELLES.fr.demo.mention(1200, '2026-01-01')).toBe(
+      'Démonstration\u00a0: 1\u202f200\u00a0portefeuilles fixes, valorisés au 1er\u00a0janvier\u00a02026.',
+    )
+    expect(LIBELLES.en.demo.mention(1200, '2026-01-01')).toBe(
+      'Demonstration: 1,200\u00a0fixed portfolios, valued as of January\u00a01,\u00a02026.',
+    )
+  })
+
+  it('ne promet aucune fonction à venir', () => {
+    const PROMESSE = /bientôt|prochain|à venir|plus tard|soon|coming|later|will\b|upcoming/i
+    for (const langue of ['fr', 'en'] as const) {
+      expect(LIBELLES[langue].demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)).not.toMatch(PROMESSE)
+    }
+    expect('Saisie bientôt disponible').toMatch(PROMESSE)
+    expect('Entry coming soon').toMatch(PROMESSE)
+  })
+
+  it('porte une date ISO et un nombre entier de portefeuilles', () => {
+    expect(DATE_DE_LA_DEMO).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(Number.isInteger(PORTEFEUILLES_DE_LA_DEMO) && PORTEFEUILLES_DE_LA_DEMO > 1).toBe(true)
+  })
+})
+
+describe('la navigation de la démonstration', () => {
+  const COURANTES = ['analyse', 'portefeuilles', 'methodologie'] as const
+
+  it('ne propose pas « Positions et import »', () => {
+    expect(pagesApplication('analyse', 3, 'fr', true).map((page) => page.libelle)).toEqual([
+      'Analyse',
+      'Portefeuilles',
+      'Méthodologie',
+    ])
+    expect(pagesApplication('methodologie', 3, 'en', true).map((page) => page.libelle)).toEqual([
+      'Analysis',
+      'Portfolios',
+      'Methodology',
+    ])
+  })
+
+  it('ne mène à aucune adresse de saisie, depuis aucune page', () => {
+    for (const courante of COURANTES) {
+      for (const id of [1, 2, 3, null]) {
+        for (const langue of ['fr', 'en'] as const) {
+          const adresses = pagesApplication(courante, id, langue, true).map((page) => page.vers)
+          expect(adresses.filter((adresse) => adresse.includes('positions'))).toEqual([])
+        }
+      }
+    }
+  })
+
+  it('marque toujours la page courante, et elle seule', () => {
+    for (const courante of COURANTES) {
+      const marquees = pagesApplication(courante, 2, 'fr', true).filter((page) => page.courante)
+      expect(marquees).toHaveLength(1)
+    }
+  })
+
+  it('hors démonstration, la saisie reste proposée : c’est le défaut', () => {
+    expect(pagesApplication('analyse', 3).map((page) => page.vers)).toContain('/portefeuilles/3/positions')
+    expect(pagesApplication('analyse', 3, 'fr', false)).toEqual(pagesApplication('analyse', 3))
+  })
+})
+
+describe('l’écran d’acceptation de la démonstration', () => {
+  const POSITIONS: Route = { vue: 'positions', id: 1 }
+
+  it('une adresse de saisie mène à « la page demandée », comme une adresse inconnue', () => {
+    expect(destinationDe(POSITIONS, true)).toBe('page')
+    expect(destinationDe(POSITIONS, true)).toBe(destinationDe({ vue: 'inconnue', chemin: '/rien' }, true))
+    expect(LIBELLES.fr.acceptation.ouvrir[destinationDe(POSITIONS, true)]).toBe('Ouvrir la page demandée')
+    expect(LIBELLES.en.acceptation.ouvrir[destinationDe(POSITIONS, true)]).toBe('Open the requested page')
+  })
+
+  it('les autres adresses gardent leur destination', () => {
+    const routes: Route[] = [
+      { vue: 'accueil' },
+      { vue: 'analyse', id: 2 },
+      { vue: 'portefeuilles' },
+      { vue: 'methodologie' },
+      { vue: 'inconnue', chemin: '/rien' },
+    ]
+    for (const route of routes) expect(destinationDe(route, true)).toBe(destinationDe(route, false))
+  })
+
+  it('hors démonstration, rien ne change : c’est le défaut', () => {
+    expect(destinationDe(POSITIONS)).toBe('positions')
+    expect(destinationDe(POSITIONS, false)).toBe('positions')
+  })
+})

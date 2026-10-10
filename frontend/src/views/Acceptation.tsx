@@ -25,6 +25,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 
+import { DEMO } from '../api/client'
 import type { Disclaimer } from '../api/types'
 import { BoutonLangue } from '../components/BoutonLangue'
 import cadre from '../components/Cadre.module.css'
@@ -37,14 +38,19 @@ import styles from './Acceptation.module.css'
 /** L'identifiant du titre du texte : la cible du lien d'évitement. */
 const TITRE = 'texte-acceptation'
 
-/** La page où mène l'adresse d'arrivée ; `/` rouvre une analyse. */
-export function destinationDe(route: Route): Destination {
+/**
+ * La page où mène l'adresse d'arrivée ; `/` rouvre une analyse. En
+ * démonstration, l'adresse des positions n'est celle d'aucune page (chantier
+ * 9.2) : le bouton dit « la page demandée », comme pour toute adresse
+ * inconnue.
+ */
+export function destinationDe(route: Route, demo: boolean = DEMO): Destination {
   switch (route.vue) {
     case 'accueil':
     case 'analyse':
       return 'analyse'
     case 'positions':
-      return 'positions'
+      return demo ? 'page' : 'positions'
     case 'portefeuilles':
       return 'portefeuilles'
     case 'methodologie':

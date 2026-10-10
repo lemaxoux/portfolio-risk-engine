@@ -44,9 +44,19 @@
  * La clé, et non la position : une langue ou un thème changés sur la
  * méthodologie déplacent tout. La position notée ne sert que si la clé est
  * introuvable. Avant, la page revenait en haut, le focus sur son titre.
+ *
+ * ═══ LA MENTION DE LA DÉMONSTRATION (chantier 9.2) ═══
+ *
+ * Dans le build de démonstration, chaque page dit d'abord ce qu'est le site :
+ * des portefeuilles fixes, valorisés à une date. En tête du contenu, sous le
+ * bandeau, en texte courant qui défile avec la page ; le visiteur arrive le
+ * plus souvent sur une analyse, pas sur la liste. Le build ordinaire ne la
+ * contient pas.
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
+import { DEMO } from '../api/client'
+import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from '../contenu/demo'
 import { idDuTitreVise, resoudreRetour, type NoteDeRetour } from '../lib/focus'
 import { useLangue } from '../lib/langue'
 import { aDejaNavigue, navigationParHistorique, noteDeRetourCourante } from '../lib/route'
@@ -189,6 +199,11 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
           className={styles.contenu}
           aria-busy={occupe ? true : undefined}
         >
+          {DEMO && (
+            <p className={styles.mention}>
+              {libelles.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)}
+            </p>
+          )}
           <p className={styles.annonce} role="status">
             {annonce ?? ''}
           </p>

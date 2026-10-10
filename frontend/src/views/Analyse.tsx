@@ -29,10 +29,14 @@
  * section 1 depuis la valorisation de la liste ; une fenêtre seulement
  * COURTE, elle, donne une analyse, où chaque mesure indisponible dit
  * pourquoi. Erreur : le message et l'action suivante.
+ *
+ * En démonstration (chantier 9.2), rien ne mène à la saisie : les états vide
+ * et insuffisant, que ses portefeuilles n'atteignent pas, n'y proposent ni le
+ * lien vers les positions ni le format du fichier.
  */
 import { useEffect, useState } from 'react'
 
-import { ApiErreur, getAnalysis, versApiErreur } from '../api/client'
+import { ApiErreur, DEMO, getAnalysis, versApiErreur } from '../api/client'
 import type { Analysis, PortfolioDetail } from '../api/types'
 import { Bandeau, BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
@@ -135,10 +139,14 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
             {l.vide(nom)}
           </h1>
           <p className={styles.texte}>{l.decritDesPositions}</p>
-          <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
-            {l.saisirOuImporter}
-          </Lien>
-          <FormatCsv niveau={2} />
+          {!DEMO && (
+            <>
+              <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
+                {l.saisirOuImporter}
+              </Lien>
+              <FormatCsv niveau={2} />
+            </>
+          )}
         </div>
       </Cadre>
     )
@@ -160,11 +168,13 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
           </h1>
           <p className={styles.texte}>{l.ditPourquoi}</p>
           <MessageErreur erreur={etat.raison} alerte={false} />
-          <p className={`${styles.texte} ${styles.suite}`}>
-            <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
-              {l.revoirLesPositions}
-            </Lien>
-          </p>
+          {!DEMO && (
+            <p className={`${styles.texte} ${styles.suite}`}>
+              <Lien vers={cheminDe({ vue: 'positions', id: portefeuille.id })}>
+                {l.revoirLesPositions}
+              </Lien>
+            </p>
+          )}
         </div>
         {portefeuille.valuation !== null && (
           <SectionPortefeuille valorisation={portefeuille.valuation} />

@@ -54,6 +54,18 @@
   min-inline-size: 0;
 }
 
+/*
+ * La mention de la démonstration : ce qu'est le site, en tête du contenu de
+ * chaque page. Du texte courant, qui défile avec la page. Absente du build
+ * ordinaire.
+ */
+.mention {
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-5);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
 /* La région d'annonce existe toujours ; vide, elle ne prend aucune place. */
 .annonce {
   max-inline-size: var(--prose-width);

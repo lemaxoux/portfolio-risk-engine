@@ -20,6 +20,12 @@
  *
  * La colonne « Lignes » compte les positions PUBLIÉES par l'API ; la valeur,
  * la date et la raison d'une valorisation impossible sont des champs publiés.
+ *
+ * ═══ EN DÉMONSTRATION, RIEN N'ÉCRIT (chantier 9.2) ═══
+ *
+ * La liste reste, pour choisir. Ce qui crée, supprime ou mène à la saisie
+ * n'est pas rendu, et sort du build avec les écritures : le formulaire, la
+ * colonne « Actions » et sa confirmation. Rien n'est grisé.
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
@@ -27,6 +33,7 @@ import {
   ApiErreur,
   createPortfolio,
   deletePortfolio,
+  DEMO,
   versApiErreur,
 } from '../api/client'
 import type { PortfolioDetail } from '../api/types'
@@ -84,7 +91,9 @@ export function VuePortefeuilles({ liste, recharger, annonce, annoncer }: Props)
         />
       )}
       {liste.phase === 'prete' &&
-        (liste.portefeuilles.length === 0 ? (
+        // En démonstration, une liste vide ne se lit pas : `client.ts` la
+        // refuse. L'invitation à créer n'y est jamais rendue.
+        (!DEMO && liste.portefeuilles.length === 0 ? (
           <AucunPortefeuille recharger={recharger} annoncer={annoncer} />
         ) : (
           <Liste
@@ -187,7 +196,11 @@ function Liste({
         </span>
       ),
     },
-    {
+  ]
+  // Les deux actions d'une ligne écrivent, ou mènent à ce qui écrit : la
+  // colonne entière n'existe pas en démonstration.
+  if (!DEMO) {
+    colonnes.push({
       cle: 'actions',
       titre: l.colonnes.actions,
       nature: 'texte',
@@ -206,8 +219,8 @@ function Liste({
           </button>
         </span>
       ),
-    },
-  ]
+    })
+  }
 
   return (
     <>
@@ -218,7 +231,7 @@ function Liste({
         lignes={portefeuilles}
         cleDeLigne={(p) => String(p.id)}
       />
-      {aSupprimer !== null && (
+      {!DEMO && aSupprimer !== null && (
         <ConfirmationSuppression
           portefeuille={aSupprimer}
           annuler={annuler}
@@ -233,7 +246,7 @@ function Liste({
           }}
         />
       )}
-      <Creation recharger={recharger} annoncer={annoncer} titre={l.nouveau} />
+      {!DEMO && <Creation recharger={recharger} annoncer={annoncer} titre={l.nouveau} />}
     </>
   )
 }

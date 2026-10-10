@@ -22,6 +22,7 @@
  */
 import { useEffect, useState } from 'react'
 
+import { DEMO } from '../api/client'
 import { LIBELLES } from '../contenu/libelles'
 import { useLangue, type Langue } from '../lib/langue'
 import { cheminDe } from '../lib/route'
@@ -40,27 +41,31 @@ export interface PageApplication {
  * proposée que lorsqu'un portefeuille est en vue : sans lui, elle n'a rien à
  * montrer. La méthodologie l'est toujours, en dernier : elle ne dépend
  * d'aucun portefeuille. Les noms sont ceux de la langue demandée.
+ *
+ * `demo` : la démonstration n'a pas de page de saisie (chantier 9.2).
+ * « Positions et import » n'y est pas proposée, plutôt que grisée.
  */
 export function pagesApplication(
   courante: 'analyse' | 'positions' | 'portefeuilles' | 'methodologie',
   id: number | null,
   langue: Langue = 'fr',
+  demo: boolean = DEMO,
 ): PageApplication[] {
   const noms = LIBELLES[langue].navigation.pages
   const pages: PageApplication[] = []
   if (id !== null) {
-    pages.push(
-      {
-        vers: cheminDe({ vue: 'analyse', id }),
-        libelle: noms.analyse,
-        courante: courante === 'analyse',
-      },
-      {
+    pages.push({
+      vers: cheminDe({ vue: 'analyse', id }),
+      libelle: noms.analyse,
+      courante: courante === 'analyse',
+    })
+    if (!demo) {
+      pages.push({
         vers: cheminDe({ vue: 'positions', id }),
         libelle: noms.positions,
         courante: courante === 'positions',
-      },
-    )
+      })
+    }
   }
   pages.push(
     {
