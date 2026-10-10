@@ -255,7 +255,7 @@ def test_une_saisie_et_un_import_reussis_en_anglais(client_synthetique, portefeu
 def client_avec_bundle(tmp_path, base_synthetique, client_factory, monkeypatch):
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<!doctype html><title>Mx Risk MGT</title>", encoding="utf-8")
+    (dist / "index.html").write_text("<!doctype html><title>Portfolio Risk Engine</title>", encoding="utf-8")
     monkeypatch.setenv(DOSSIER_DU_BUNDLE, str(dist))
     with client_factory(base_synthetique) as client:
         yield client

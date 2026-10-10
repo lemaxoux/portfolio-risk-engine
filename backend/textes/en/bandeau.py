@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from backend import typography
 
-TITRE = "Before using Mx Risk MGT"
+TITRE = "Before using Portfolio Risk Engine"
 
 CONFIRMATION = "I have read these limitations, I understand them, and I use this tool knowingly."
 
@@ -36,7 +36,7 @@ def sections(fenetre: int, duree: str) -> tuple[tuple[str, str], ...]:
     return (
         (
             "An information tool, not advice",
-            "Mx Risk MGT describes statistical properties of your portfolio. It is "
+            "Portfolio Risk Engine describes statistical properties of your portfolio. It is "
             "not regulated investment advice, nor a recommendation to buy, sell, or "
             "hold a security. It does not know your investment horizon, your "
             "objectives, your tax situation, or the rest of your wealth: none of its "

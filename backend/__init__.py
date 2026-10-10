@@ -1,1 +1,1 @@
-"""Mx Risk MGT — backend applicatif (données, moteur de risque, API)."""
+"""Portfolio Risk Engine — backend applicatif (données, moteur de risque, API)."""

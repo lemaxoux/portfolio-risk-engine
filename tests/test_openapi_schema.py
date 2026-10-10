@@ -49,7 +49,7 @@ def test_le_schema_commite_est_celui_que_l_application_publie(commite):
 def test_le_schema_commite_est_du_json_valide(commite):
     document = json.loads(commite)
     assert document["openapi"].startswith("3.")
-    assert document["info"]["title"] == "Mx Risk MGT"
+    assert document["info"]["title"] == "Portfolio Risk Engine"
 
 
 def test_le_schema_decrit_les_routes_dont_le_frontend_depend(commite):

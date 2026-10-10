@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Mx Risk MGT",
+    "title": "Portfolio Risk Engine",
     "description": "\nMoteur de risque de portefeuille, exposé en lecture et en écriture locale.\n\n**Toutes les valeurs sont des fractions**, jamais des pourcentages : une VaR de\n1,38 % se lit `0.0138`. Le formatage — pourcentage, virgule décimale, arrondi —\nest décidé côté client, à un seul endroit.\n\n**Chaque mesure porte sa propre fenêtre d'estimation.** Il n'y a délibérément\naucune fenêtre au niveau du document : le beta est régressé sous une contrainte\nd'échantillon qui lui est propre, et un scénario à couverture partielle a sa\npropre portée.\n\n**L'analyse est un seul endpoint.** Une page assemblée à partir de plusieurs\nappels pourrait mélanger deux états de la base sans le signaler.\n",
     "version": "0.7.0"
   },

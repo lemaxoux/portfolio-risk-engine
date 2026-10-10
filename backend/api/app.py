@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Mx Risk MGT",
+        title="Portfolio Risk Engine",
         description=DESCRIPTION,
         version="0.7.0",
         lifespan=lifespan,

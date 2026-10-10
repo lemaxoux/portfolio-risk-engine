@@ -1,4 +1,4 @@
--- Mx Risk MGT — schéma SQLite (v1)
+-- Portfolio Risk Engine — schéma SQLite (v1)
 --
 -- Conventions :
 --   * les dates sont stockées en TEXT au format ISO-8601 'YYYY-MM-DD'.

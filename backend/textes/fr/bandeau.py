@@ -3,7 +3,10 @@
 Déplacé tel quel de `rules/disclaimer.py` (chantier 7D), qui garde la
 décision — quelle durée, en années ou en mois — et lit ici le texte. Un octet
 de plus dans ce texte changerait son empreinte, et ferait réaccepter tout le
-monde : rien n'y a changé.
+monde : rien n'y a changé au déplacement. Le nom du produit, lui, y a changé
+avant la publication (chantier 9.1b), ici et dans le texte anglais : leurs
+empreintes ont changé avec lui, et l'écran d'acceptation revient une fois par
+langue.
 
 Ce texte VOUVOIE, comme toute la page depuis les textes de lecture du
 2026-10-05. C'est le seul endroit du projet à portée quasi juridique. Ce texte
@@ -14,7 +17,7 @@ from __future__ import annotations
 
 from backend import typography
 
-TITRE = "Avant d'utiliser Mx Risk MGT"
+TITRE = "Avant d'utiliser Portfolio Risk Engine"
 
 CONFIRMATION = (
     "J'ai lu ces limites, je les comprends, et j'utilise cet outil en connaissance "
@@ -40,7 +43,7 @@ def sections(fenetre: int, duree: str) -> tuple[tuple[str, str], ...]:
     return (
         (
             "Un outil informatif, pas un conseil",
-            "Mx Risk MGT décrit des propriétés statistiques de votre portefeuille. "
+            "Portfolio Risk Engine décrit des propriétés statistiques de votre portefeuille. "
             "Il ne constitue pas un conseil en investissement réglementé, ni une "
             "recommandation d'acheter, de vendre ou de conserver un titre. Il ne "
             "connaît ni votre horizon de placement, ni vos objectifs, ni votre "

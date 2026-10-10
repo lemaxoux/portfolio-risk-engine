@@ -74,7 +74,7 @@ def test_une_langue_inconnue_est_refusee(client_synthetique, portefeuille_synthe
 
 def test_l_ecran_d_acceptation_anglais(client_synthetique):
     corps = client_synthetique.get("/api/disclaimer?lang=en").json()
-    assert corps["title"] == "Before using Mx Risk MGT"
+    assert corps["title"] == "Before using Portfolio Risk Engine"
     assert len(corps["sections"]) == 5
     assert corps["confirmation"].startswith("I have read these limitations")
     # La fenêtre de la configuration, groupée et liée à son unité, et sa durée.
@@ -481,7 +481,7 @@ def test_un_refus_de_validation_de_fastapi_ne_change_pas_de_langue(
 def client_avec_bundle(tmp_path, base_synthetique, client_factory, monkeypatch):
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<!doctype html><title>Mx Risk MGT</title>", encoding="utf-8")
+    (dist / "index.html").write_text("<!doctype html><title>Portfolio Risk Engine</title>", encoding="utf-8")
     monkeypatch.setenv(DOSSIER_DU_BUNDLE, str(dist))
     with client_factory(base_synthetique) as client:
         yield client

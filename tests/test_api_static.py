@@ -30,7 +30,7 @@ def bundle(tmp_path) -> Path:
     dist = tmp_path / "dist"
     (dist / "assets").mkdir(parents=True)
     (dist / "index.html").write_text(
-        "<!doctype html><html lang=fr><body>Mx Risk MGT</body></html>",
+        "<!doctype html><html lang=fr><body>Portfolio Risk Engine</body></html>",
         encoding="utf-8",
     )
     (dist / "assets" / "index-abc123.js").write_text(
@@ -134,7 +134,7 @@ def test_une_mauvaise_methode_reste_un_405_et_ne_devient_pas_un_404(
 def test_une_route_du_client_rend_index_html(client_avec_bundle):
     reponse = client_avec_bundle.get("/methodologie")
     assert reponse.status_code == 200
-    assert "Mx Risk MGT" in reponse.text
+    assert "Portfolio Risk Engine" in reponse.text
     # `index.html` n'est jamais gardé en cache : il pointe sur des ressources
     # empreintées qui n'existent plus après une reconstruction.
     assert reponse.headers["cache-control"] == "no-store"
@@ -143,7 +143,7 @@ def test_une_route_du_client_rend_index_html(client_avec_bundle):
 def test_la_racine_rend_index_html(client_avec_bundle):
     reponse = client_avec_bundle.get("/")
     assert reponse.status_code == 200
-    assert "Mx Risk MGT" in reponse.text
+    assert "Portfolio Risk Engine" in reponse.text
 
 
 def test_une_ressource_construite_est_servie_telle_quelle(client_avec_bundle):
