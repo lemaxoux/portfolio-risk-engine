@@ -426,7 +426,8 @@ def ensure_ticker(
     sur des périodes différentes selon la paire. Un titre introduit en bourse
     après `start` entre simplement avec l'historique qui existe.
 
-    Le secteur reste NULL — Tiingo ne le fournit pas et personne ne l'a saisi.
+    Le secteur reste NULL — le fournisseur n'en donne pas (`SecurityInfo`) et
+    personne ne l'a saisi.
     """
     cible = ticker.upper()
     end = today or date.today()

@@ -2,17 +2,25 @@
 
 Trois couches, séparées volontairement :
 
-* `measures` — fonctions PURES : tableaux en entrée, nombres en sortie, aucune
-  base de données. C'est là que vit tout ce qui produit un chiffre, et c'est ce
-  qui rend les calculs testables contre des résultats connus à la main.
+* les modules de mesure — fonctions PURES : tableaux en entrée, nombres en
+  sortie, aucune base de données. C'est là que se calculent les mesures, et
+  c'est ce qui les rend testables contre des résultats connus à la main.
+  `measures` porte celles d'une seule série ou d'un jeu de poids
+  (volatilité, drawdown, Sharpe, Sortino, HHI), `covariance` les mesures
+  multi-titres (covariance, corrélation, beta, parts de variance), `var` la
+  VaR et la CVaR (historiques, paramétriques, de Student, Monte Carlo),
+  `stress` le rejeu des crises, `regime` la comparaison du régime calme et du
+  régime de crise.
 * `returns` — construction et alignement des séries de rendements. Pures elles
   aussi.
-* `portfolio` / `engine` — la seule couche qui touche SQLite : elle charge,
-  compose, et attache à chaque résultat la fenêtre d'estimation utilisée.
+* `portfolio` / `engine` — la seule couche qui touche SQLite : `portfolio`
+  charge, `engine` compose et attache à chaque résultat la fenêtre
+  d'estimation utilisée. `engine` ne fait que des conversions d'échelle et des
+  dérivations immédiates de résultats déjà calculés (sa docstring les
+  énumère).
 
-Bloc 4A : volatilité (écart-type et EWMA), max drawdown, Sharpe, Sortino,
-concentration HHI. Les mesures multi-titres — covariance, corrélation, beta,
-VaR, CVaR — relèvent du bloc 4B et ne sont pas ici.
+À côté : `config`, les constantes et hypothèses du moteur, et `scenarios`, le
+catalogue des crises, qui ne contient que des données.
 """
 
 from __future__ import annotations
