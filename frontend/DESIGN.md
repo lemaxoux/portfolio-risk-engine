@@ -61,7 +61,7 @@ Tout le reste de ce document découle de là.
 
 | Référence | Ce qu'on prend | Ce qu'on laisse |
 |---|---|---|
-| **Tiingo** (tiingo.com) | Le registre : fournisseur de données sérieux, palette réduite, zéro effet. La sobriété est la marque de crédibilité du secteur. | La structure de site marketing. Ici on construit un outil, pas une landing page : pas de hero, pas de logos clients, pas de section « pricing ». |
+| **Tiingo** (tiingo.com) | Le registre : fournisseur de données sérieux, palette réduite, zéro effet. La sobriété est la marque de crédibilité du secteur. | La structure de site marketing : pas de hero, pas de logos clients, pas de section « pricing ». La page d'accueil de la démonstration (§19) n'y fait pas exception : c'est une page de l'outil, une colonne de lecture. |
 | **Guardfolio** (guardfolio.ai) | Le concurrent direct le plus proche. On prend sa qualité de vulgarisation : des concepts quantitatifs formulés en langage courant pour un particulier, et un regroupement des mesures par *question posée* plutôt que par famille statistique. | **Son « Portfolio Health Score ».** C'est exactement le score global unique que la méthodologie de ce projet rejette (§11.1). On ne copie pas le dispositif central du concurrent qu'on a choisi de contredire. On laisse aussi l'agrégation multi-comptes, hors périmètre v1. |
 | **FRED** (fred.stlouisfed.org) | **La meilleure référence du lot pour ce projet.** Chaque graphique porte, directement sous son titre et sans clic : la source, l'unité, la fréquence, la date de dernière mise à jour. C'est littéralement la discipline de provenance du backend, déjà résolue visuellement par une institution crédible. À imiter de près. | Son habillage daté (dégradés bleus, boutons biseautés). |
 | **Portfolio Visualizer** | Le bloc « paramètres » affiché **au-dessus** des résultats : période, fréquence, benchmark, hypothèses. Le lecteur voit sous quelles conditions il lit avant de lire. | L'esthétique tableur des années 2010 et la densité de formulaire. |
@@ -1378,7 +1378,12 @@ bug en attente.
   décision de la 7B. Elle se traverse **une fois par langue** (chantier 7D) :
   le texte anglais est un autre texte. Son bouton dit la page où il mène,
   celle de l'adresse d'arrivée (« Ouvrir la méthodologie », « Open the
-  methodology »), et la phrase sous lui le même geste.
+  methodology »), et la phrase sous lui le même geste. Dans la
+  démonstration, cet écran n'est pas posé (décision du 2026-10-11, §19) :
+  il a été décidé pour quelqu'un qui analyse son propre portefeuille, et la
+  démonstration n'en montre aucun. Son texte y reste lisible, à un clic au
+  plus de chaque page. L'application locale garde son acceptation telle
+  quelle.
 - Ensuite, un **rappel court et permanent** en pied de la section 6, en texte
   courant, sans case ni bouton.
 
@@ -1544,15 +1549,15 @@ serveur (`npm run build:demo`). Il lit des réponses de l'API enregistrées par
 `python -m tools.export_demo` au lieu d'appeler l'API. Trois portefeuilles
 fixes, « Démo », « Tech » et « Défensif » (« Demo », « Tech » et
 « Defensive » en anglais), valorisés au 2026-09-09. Tout ce que ce document
-demande d'une page vaut pour elle : les deux langues, les deux thèmes,
-l'écran d'acceptation, la méthodologie. Cette section dit seulement ce qui
-diffère.
+demande d'une page vaut pour elle : les deux langues, les deux thèmes, la
+méthodologie. Cette section et la §19 disent seulement ce qui diffère.
 
 ### 18.1 Rien n'écrit, rien n'est grisé
 
-Le client ne lit le mode (`DEMO`, dans `api/client.ts`) que pour masquer ce
-qui écrit et pour afficher la mention. Ce qui est masqué n'est pas rendu, et
-sort du build :
+Le client ne lit le mode (`DEMO`, dans `api/client.ts`) que pour quatre
+choses : masquer ce qui écrit, afficher la mention, rendre la page d'accueil
+à l'adresse `/`, et ne pas poser l'écran d'acceptation (§19). Ce qui est
+masqué n'est pas rendu, et sort du build :
 
 - **Portefeuilles** : le formulaire « Nouveau portefeuille », la colonne
   « Actions » entière (le lien « Positions » et le bouton « Supprimer ») et
@@ -1571,9 +1576,6 @@ existe.
 `/portefeuilles/<id>/positions` n'est l'adresse d'aucune page de la
 démonstration. Elle rend l'état existant « Page introuvable » : « Aucune
 page à cette adresse », l'adresse citée, le lien « Voir les portefeuilles ».
-L'écran d'acceptation, qui dit la page où il mène (§15), dit alors « Ouvrir
-la page demandée », « Open the requested page », comme pour toute adresse
-inconnue.
 
 Un numéro de portefeuille inconnu rend « Portefeuille introuvable », avec le
 texte de l'application : c'est la liste qui dit ce qui existe, avant tout
@@ -1589,8 +1591,8 @@ titre :
 
 Du texte courant (`--text-sm`, `--text-2`), qui défile avec la page : une
 ligne à partir de 900 px, deux à 390 et à 320 px. Pas dans le bandeau, qui y
-gagnerait une ligne à toutes les largeurs (§8.1). L'écran d'acceptation, qui
-n'a pas de `Cadre`, ne la porte pas. Elle ne promet aucune fonction à venir.
+gagnerait une ligne à toutes les largeurs (§8.1). Elle se termine par un
+lien vers l'avertissement (§19). Elle ne promet aucune fonction à venir.
 
 Le nombre et la date passent par `format.ts`. Leurs valeurs sont écrites
 dans `contenu/demo.ts`, et tenues égales à la date du gel des tests et au
@@ -1633,7 +1635,9 @@ débordement à ces quatre largeurs.
     missing or cannot be read. Reload the page. » Le nom du fichier est
     rendu en code, comme un séparateur cité par l'import.
   - Le titre de la page quand le démarrage échoue : « Démonstration
-    indisponible », « Demonstration unavailable ».
+    indisponible », « Demonstration unavailable ». Depuis le 2026-10-11, le
+    démarrage de la démonstration n'attend aucun fichier (§19) : ce titre
+    ne s'y affiche plus.
 
   Un hébergeur statique rend sa page d'accueil, avec un 200, pour un fichier
   absent : le statut ne dit rien. Seul un corps qui se lit comme un document
@@ -1641,7 +1645,398 @@ débordement à ces quatre largeurs.
 
 ### 18.6 Ce qui ne change pas
 
-L'écran d'acceptation ; l'adresse `/`, qui ouvre le dernier portefeuille
-consulté, sinon le premier ; la méthodologie et ses renvois ; les six
-sections de l'analyse ; la légende « Portefeuilles en base » et le texte
-d'un numéro inconnu.
+La méthodologie et ses renvois ; les six sections de l'analyse et le rappel
+en pied de la section 6 ; la légende « Portefeuilles en base » et le texte
+d'un numéro inconnu. L'écran d'acceptation et l'adresse `/` ont changé le
+2026-10-11 (§19).
+
+---
+
+## 19. La page d'accueil
+
+**Section du 2026-10-11, chantier 9.3.** Une spécification : à cette date,
+rien n'en est codé, et la 9.4 la code. Dans la démonstration (§18),
+l'adresse `/` rend une page qui présente le projet à quelqu'un qui ne le
+connaît pas, et l'écran d'acceptation n'est plus posé. L'application locale
+ne change pas : `/` y reste une redirection (§8.2), l'acceptation une page
+à traverser (§15), et son build ne reçoit ni cette page, ni ses images, ni
+ses métadonnées. Comme la §18, cette section dit seulement ce qui diffère.
+
+Le mode n'est lu que pour les quatre choses de §18.1. Deux sont décrites
+ici, chacune avec ce qu'elle entraîne : rendre la page d'accueil, donc le
+chemin qui y mène (la marque cliquable et l'entrée « Présentation »,
+19.5) ; ne pas poser l'écran d'acceptation, donc ce qui garde son texte
+lisible (la page de l'avertissement, son entrée et le lien de la mention,
+19.6).
+
+### 19.1 La page et son ordre
+
+Le lecteur est un recruteur, en finance ou en informatique. Il ne connaît
+ni le produit ni la VaR, et lira deux minutes. La page est courte et mène à
+la démonstration.
+
+Elle s'appelle « Présentation », « Overview », dans la liste des pages
+comme dans l'onglet (« Présentation (Portfolio Risk Engine) », §6.3) : le
+nom dit ce qu'elle est. « Accueil » ne dirait que sa place, et dans
+l'application locale `/` reste une redirection.
+
+Sept parties, dans cet ordre, qui est l'argument (§3.2). Les intertitres
+sont ceux de la page ; ils n'ont pas de numéro (§12).
+
+1. **Ce que fait l'outil.** Le titre, « Le risque d'un portefeuille,
+   chaque chiffre avec ses conditions », et un chapeau : ce que l'outil
+   mesure, les questions auxquelles l'analyse répond, pour quel lecteur,
+   et que tout y décrit le passé.
+2. **« La démonstration ».** Ce qu'est le site, puis le tableau des
+   portefeuilles, chacun un lien vers son analyse. En second, parce que
+   c'est là que la page mène : sur un téléphone, l'entrée se voit sans
+   défiler longtemps.
+3. **« Ce qui le distingue ».** Trois points, chacun une phrase d'attaque
+   puis son paragraphe : « Un chiffre et ses conditions se lisent
+   ensemble. », avec la première capture ; « Aucune note globale. » ; « Un
+   chiffre qui ne veut plus rien dire n'est pas donné. »
+4. **« Un résultat ».** Une phrase de l'analyse, avec ses conditions
+   (19.3).
+5. **« Comment il a été construit ».** La section « How it was built » du
+   README, ni plus ni moins.
+6. **« Ce que la démonstration ne montre pas ».** La saisie, avec la
+   seconde capture, et un lien vers l'installation, dans le README.
+7. **« Liens »**, puis l'auteur.
+
+**La page n'affirme que ce que le moteur fait.** Le troisième point
+distingue le refus du signalement, comme le moteur (§9.1, règles 3 et 4) :
+« Quand les jours de bourse sont trop peu nombreux pour qu'une estimation
+veuille encore dire quelque chose, l'outil la refuse et dit pourquoi ;
+quand ils sont seulement peu nombreux, il la donne, et la signale. Un seuil
+choisi à la main est signalé comme tel. » Écrire que l'outil n'affiche pas
+une estimation dès que les jours manquent serait faux : une estimation
+mince est donnée, avec son point `--caveat`. Les règles de §15 valent pour
+la page comme pour le reste : rien de prescriptif, aucune note globale,
+rien que le moteur ne mesure pas.
+
+**Les liens**, dans cet ordre : le code source, sur GitHub ; la
+méthodologie du site ; METHODOLOGY.md ; ARCHITECTURE.md ; l'avertissement
+(19.6). Un lien vers un document écrit en anglais le dit dans son texte.
+
+**L'auteur.** Une ligne, « Projet personnel de Maxence Champlong, étudiant
+à HEC Montréal », suivie de deux liens, GitHub et LinkedIn, sans point
+médian entre eux (§12). Aucune adresse électronique, sur aucune page. Les
+adresses des deux liens se posent en 9.4.
+
+Le texte français validé le 2026-10-11 est dans `landing-proposition.md`,
+§4.2 (document de cadrage, hors dépôt). L'anglais s'écrit en 9.4 depuis ce
+texte, avec le glossaire (§15) ; sa partie « How it was built » est celle
+du README, mot pour mot. Il passe les gardes de `libelles.test.ts` sans
+exception nouvelle ; une exception qui s'imposerait se montre avant d'être
+posée.
+
+### 19.2 Le registre
+
+Une page de l'outil, pas une page de site marketing (§2). Elle tient §3,
+§10 et §12 sans rien de nouveau :
+
+- **Pas de hero.** Le titre est un titre de page, à la taille des autres
+  (`--text-lg`). Pas de grand chiffre, pas de bouton d'appel : les entrées
+  sont les liens du tableau.
+- **Un rapport** (§3.2) : une colonne de lecture, sur la grille de la
+  méthodologie et de la liste des portefeuilles. Aucune grille de tuiles ;
+  le seul chiffre mis en avant est dans un bloc qui porte ses conditions
+  (19.3).
+- **Les interdits de §12** : ni ombre, ni dégradé, ni capitales, ni émoji,
+  ni flèche accolée à un lien, ni étiquette au-dessus d'un titre, ni
+  numérotation.
+- **Aucun mouvement** (§10) : ni animation d'entrée, ni fondu d'image.
+- **Aucune couleur nouvelle, aucun token nouveau.** Prose en Spectral, à
+  la largeur de prose ; libellés et tableau en IBM Plex Sans.
+- **Toute la prose à gauche, à toutes les largeurs**, chapeau compris.
+  Seule une prose mesurée sous 2,5 est justifiée (§6.3) : celle-ci n'a pas
+  été mesurée, et n'a pas de coupures posées au build.
+
+### 19.3 Les chiffres
+
+**Aucun nombre n'est écrit dans le texte de la page**, ni en chiffres ni
+en lettres : elle dit « des crises passées », pas leur nombre, et « trop
+peu nombreux », pas un seuil. Une garde Vitest lit les libellés de la
+page, dans les deux langues, et refuse un chiffre ou un nombre écrit en
+lettres ; un texte fautif prouve qu'elle mord. Tout nombre affiché est lu
+dans un fichier exporté ou dans `contenu/demo.ts`, et écrit par
+`format.ts` :
+
+- la mention : le nombre de portefeuilles et la date (§18.3) ;
+- le tableau des portefeuilles : pour chacun, son nom, qui est le lien,
+  ses titres et sa valeur, lus dans `<langue>/portfolios.json` ; la
+  légende du tableau donne la date de valorisation ;
+- le résultat.
+
+**Le résultat est une phrase de l'analyse, pas un texte de la page.**
+Celle de la section 5 qui met côte à côte, pour la première crise rejouée,
+ce que le comportement de temps ordinaire laissait attendre et ce que le
+rejeu donne. Elle est composée par la même fonction
+(`phrases.lecturePrediction`) depuis les mêmes champs publiés
+(`predicted_return`, `portfolio_return`, `prediction_gap`,
+`calm_period_label`), lus dans l'analyse exportée du premier portefeuille,
+`<langue>/portfolios/1/analysis.json`. Le client n'écrit ni ne recopie
+aucun de ses nombres : la phrase suit l'export. Le premier portefeuille est
+celui des résultats du README, et `tests/test_export_demo.py` le tient.
+
+Le bloc a un titre (la crise, rejouée sur le portefeuille), la phrase, puis
+ses conditions dans une grille libellé et valeur, comme sous une mesure
+(§9.1), lues dans le même fichier : le portefeuille, la date de
+valorisation, la fenêtre, la période, la crise et ses dates. Son dernier
+élément est un lien vers la section 5 de l'analyse, « Voir cette crise
+dans l'analyse », où se lisent la provenance complète et le lien vers la
+méthode. C'est le produit qui parle : la page montre un chiffre et ses
+conditions comme un seul objet (§1), au lieu de le dire. Le coût est une
+requête de plus, après le premier affichage (19.9).
+
+**À trancher avant le code : la couverture.** §11.2 veut la couverture
+d'une crise dans le bloc qui en donne la perte, au même poids. Dans
+l'analyse, cette phrase se lit dans le bloc de sa crise, sous ses trois
+chiffres. Les conditions validées le 2026-10-11 pour le bloc de la page ne
+nomment pas la couverture, que le même objet publie pourtant
+(`regimes[].coverage`). Le bloc ne se code pas avant cette décision.
+
+### 19.4 Les images
+
+Deux captures, et elles seules, toutes deux du portefeuille « Démo » :
+
+1. **un bloc de mesure** de la section 2, la valeur à risque historique :
+   le chiffre, sa phrase, ses détails. La thèse du produit en une image.
+   Prise sur le build de démonstration ;
+2. **la page de saisie** de l'application locale, avec la composition de
+   « Démo ». Prise sur le build ordinaire, servi sur une copie de la base
+   qui ne contient que les portefeuilles de la démonstration
+   (`python -m tools.export_demo --garder-les-copies`).
+
+Leur cadrage est celui de la proposition (§6.1). Elles sortent de la chaîne
+des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
+`rogner-png.mjs`, `optimiser-png.mjs`), telles quelles, jamais retouchées.
+
+- **Quatre versions de chacune** : français et anglais, clair et sombre.
+  Huit fichiers, dont deux chargés par visite.
+- **La langue** : le composant connaît la langue de la page et choisit le
+  fichier. Une capture en anglais sur une page française serait la capture
+  d'un autre site.
+- **Le thème** : aucun composant ne connaît le thème (§4), et
+  `<picture media>` suivrait le système, pas le thème figé au bouton.
+  Chaque figure porte donc deux `<img>`, l'une claire, l'autre sombre, et
+  la feuille de style du composant montre celle du thème, par les
+  sélecteurs mêmes de `tokens.css` (§4). L'image masquée n'a pas de boîte :
+  avec `loading="lazy"`, le navigateur ne la demande pas. La 9.4 le
+  vérifie dans le journal réseau de Chrome, bascule de thème comprise.
+- **Largeur de téléphone** : capturées à 390 px de large, à l'échelle 2,
+  et affichées à leur taille, 390 px au plus, jamais agrandies. Une capture
+  de 1280 px réduite à la largeur d'un téléphone ne se lirait pas.
+- **Dimensions déclarées** : `width` et `height` sur chaque `<img>`.
+  Aucune image ne déplace le texte en arrivant.
+- **Chargement différé** : `loading="lazy"` et `decoding="async"` sur
+  toutes. Aucune dans le premier écran (19.9).
+- **Poids** : PNG en palette, 100 ko au plus par image. La 9.4 donne les
+  poids réels.
+- **Cadre** : une bordure de 1 px (`--border`), `--radius-md`. Ni ombre,
+  ni inclinaison, ni cadre d'appareil.
+- **Texte alternatif** : ce que montre l'image, sans aucun chiffre, comme
+  ceux du README. Une légende visible sous chaque figure.
+- **Versionnées**, à côté du client : un dossier d'images que la vue
+  importe, pour que Vite leur donne une empreinte. L'image de
+  prévisualisation (19.7) suit la même règle.
+
+### 19.5 La structure
+
+- **Le bandeau** : le bandeau simple des pages sans analyse, tel quel
+  (§8.2) : la marque, le portefeuille en vue s'il y en a un, le bouton de
+  langue, la bascule de thème. Pas de variante réduite. Comme sur la
+  méthodologie, il nomme le dernier portefeuille consulté, s'il existe
+  encore.
+- **La marque** mène à `/` dans la démonstration, sans changer de dessin :
+  même taille, même couleur, soulignée au survol et au focus, avec
+  l'anneau (§13). C'est le seul chemin vers la présentation depuis les
+  deux pages introuvables, qui n'ont pas de rail. Dans l'application
+  locale, elle reste un texte.
+- **La liste des pages**, dans la démonstration : « Présentation »,
+  « Analyse » si un portefeuille est en vue, « Portefeuilles »,
+  « Méthodologie », « Avertissement » (« Overview », « Analysis »,
+  « Portfolios », « Methodology », « Disclaimer »). La page n'a pas de
+  sections à lister : elle est courte. Sous 900 px, la même liste en tête
+  de page.
+- **« Analyse » sans portefeuille consulté** n'est pas proposée, comme
+  ailleurs : sans portefeuille en vue, elle n'a rien à montrer. Le tableau
+  de la page est l'entrée. Une fois un portefeuille consulté, le bandeau le
+  nomme et « Analyse » y mène.
+- **L'adresse `/`** rend la page au lieu de rediriger. Elle n'ouvre plus le
+  dernier portefeuille consulté, qui reste mémorisé pour le bandeau et
+  pour « Analyse ».
+- **La mention** (§18.3) en tête, par `Cadre`, comme sur toute page : elle
+  donne la date des valeurs du tableau.
+- **Le lien d'évitement et le titre** sont ceux de `Cadre`. Le titre reçoit
+  le focus après une navigation décidée ; au premier affichage, rien ne
+  bouge (§13).
+
+### 19.6 L'avertissement et sa page
+
+L'écran d'acceptation a été décidé pour quelqu'un qui analyse son propre
+portefeuille (§15). La démonstration n'en montre aucun : l'écran n'y est
+pas posé, et son texte y reste lisible, à un clic au plus de chaque page.
+
+- **Une page à part**, à l'adresse `/avertissement`. Pas une section de la
+  page d'accueil, qui doit se lire en deux minutes : elle dit l'essentiel
+  en deux phrases (l'outil décrit et ne dit jamais quoi faire ; tout y
+  décrit le passé) et renvoie au texte.
+- **Deux chemins y mènent.** Un lien à la fin de la mention, « Lire
+  l'avertissement » : la mention est posée par `Cadre`, donc sur toutes les
+  pages, pages introuvables comprises. Le lien est un libellé à part : la
+  phrase de la mention ne change pas. Et la dernière entrée de la liste des
+  pages, pour que la liste reste celle de toutes les pages et marque la
+  page courante. La mention s'allonge : la 9.4 la mesure avec son lien, à
+  390 et à 320 px.
+- **Ce que la page montre.** Le titre et les sections de
+  `<langue>/disclaimer.json`, tels quels, sans copie dans le client. La
+  phrase de confirmation n'est pas affichée : il n'y a ni case ni bouton,
+  et une phrase à la première personne sans rien à cocher ne dit rien.
+  Sous le titre, une phrase du client dit pourquoi la page n'a rien à
+  accepter : « L'application installée affiche ce texte avant la première
+  utilisation et demande de l'accepter. La démonstration ne le demande
+  pas : elle ne montre aucun portefeuille qui soit le vôtre. »
+- **Son titre**, dans la page et dans l'onglet, est celui du fichier,
+  seul, comme sur l'écran d'acceptation (§6.3). Bandeau simple, liste des
+  pages, mention.
+- **Ce que devient l'acceptation.** Plus rien n'attend le texte au
+  démarrage, et aucune acceptation n'est mémorisée. Changer de langue relit
+  la page en place, dans tous les cas (§8.1). Le titre d'un démarrage qui
+  échoue n'a plus d'occasion de s'afficher (§18.5) ; son libellé reste.
+- **Ce qui ne change pas.** Le rappel en pied de la section 6, qui vient de
+  la réponse d'analyse (§15). L'acceptation de l'application locale.
+
+L'acceptation bloquante reviendra avant la première analyse d'un
+portefeuille saisi par le visiteur (9.6).
+
+### 19.7 Les métadonnées de partage
+
+`index.html` est un fichier statique, lu sans JavaScript par les robots de
+prévisualisation : il n'a qu'une langue. C'est l'anglais, celle du dépôt,
+du README et du nom du produit ; un lien partagé se lit hors contexte. La
+page, elle, suit la langue du navigateur (§8.1).
+
+- `<title>` : « Portfolio Risk Engine », inchangé.
+- `description` et `og:description` : la première phrase du README, à
+  valider en 9.4 avec l'anglais de la page.
+- `og:title`, `og:type` (« website »), `twitter:card`.
+- `og:image` et `og:url` demandent une adresse absolue, celle du site, qui
+  se choisit en 9.5. **Aucune adresse n'est écrite en dur** : le greffon du
+  build de démonstration les ajoute quand l'origine lui est donnée par une
+  variable d'environnement, et ne les écrit pas sinon.
+- L'image de prévisualisation : 1200 × 630, une vraie capture cadrée par
+  la chaîne (le bloc de mesure, thème clair, en anglais), sans composition
+  ajoutée.
+
+Ces balises n'entrent que dans `dist-demo/index.html`, par le greffon,
+comme `noindex`. `dist/` n'en reçoit aucune. Ce qui ne se vérifie que chez
+l'hébergeur attend la 9.5 : l'aperçu dans les outils de partage malgré
+`noindex`, les adresses absolues, la compression servie, les types de
+contenu, et le LCP remesuré sur le vrai site.
+
+### 19.8 Les états
+
+Le texte de la page est dans le bundle : il s'affiche toujours, et tout de
+suite. Seuls deux blocs lisent un fichier : le tableau et le résultat. Des
+quatre états de §13 :
+
+- *en cours* : le tableau montre un squelette de sa forme finale, une
+  rangée par portefeuille (le nombre vient de `contenu/demo.ts`), et le
+  bloc du résultat le sien. Aucun des deux ne déplace le texte en arrivant.
+  La page n'est pas occupée en entier : son titre et son focus n'attendent
+  rien. Rien n'est annoncé.
+- *erreur* : si `<langue>/portfolios.json` manque, le message existant
+  prend la place du tableau, avec le nom du fichier et le bouton
+  « Recharger la liste » (§18.5). Si l'analyse du premier portefeuille
+  manque, le même message, avec son fichier, prend la place du bloc du
+  résultat. Le reste de la page se lit, liens compris.
+- *vide* et *insuffisant* : pas des états de la démonstration (§18.5).
+
+La page de l'avertissement : un squelette de texte en attendant, le
+message du fichier manquant sinon.
+
+### 19.9 Le poids de la page
+
+Le découpage du bundle se décide par une mesure : le LCP de `/` sur le
+build de démonstration, Lighthouse en profil mobile par défaut (débit
+simulé), cinq passages, la médiane, contre 2,5 s, la limite « bon » publiée
+par web.dev. Elle est définie sur des visites réelles ; Lighthouse en donne
+une estimation de laboratoire.
+
+**Mesuré le 2026-10-11** (Lighthouse 13.5.0, Chrome 153), un constat de ce
+jour : 2 862,6 ms sans découpage, sur un écran de texte seul, celui de
+l'acceptation ; 2 416,8 ms sur une sonde où l'analyse et la méthodologie se
+chargeaient à la demande. Observable Plot et ses dépendances faisaient
+40 % du bundle (278 241 octets sur 695 820), et la page d'accueil ne
+dessine aucun graphique. La médiane dépassait le seuil : la 9.4 découpe.
+
+1. Le fichier d'entrée porte ce que `/` affiche, et rien de ce qui dessine
+   un graphique. **Seule l'analyse, avec Observable Plot, se charge à la
+   demande.** La méthodologie et ses deux textes restent dans le fichier
+   d'entrée : l'analyse en lit les titres pour nommer ses liens (§9.1,
+   règle 5), et la sonde qui a voulu les en sortir a échoué. Un fichier du
+   build de démonstration contenait de nouveau des écritures, et la garde
+   du build l'a refusé.
+2. Le premier écran de `/` n'attend aucune requête. Aucune image n'y
+   figure, aux deux écrans de la mesure (412 × 823 et 1350 × 940).
+   **L'élément du LCP est du texte du bundle, le titre ou le chapeau ;
+   jamais le tableau ni le bloc du résultat, qui attendent un fichier
+   exporté.**
+3. Attendre le fichier de l'analyse ne change rien de §13. La page
+   attendue garde son squelette (`aria-busy`) ; le focus ne se déplace
+   qu'une fois par navigation ; le retour depuis la méthode rend le focus
+   au lien suivi, que ce fichier soit chargé ou non.
+4. Rien ne se découpe par langue derrière une attente qui remplacerait la
+   page : un changement de langue laisse la page en place (§13).
+5. La garde du build de démonstration lit chaque fichier émis (§18). Un
+   découpage qui ramène une écriture dans l'un d'eux fait échouer le build.
+6. La mesure se refait à chaque changement de ce que `/` charge, images
+   comprises. Une médiane au-dessus du seuil arrête le lot.
+
+**Le même code, donc le même découpage, dans les deux builds.**
+L'application locale n'y gagne rien, elle est servie depuis le poste ; mais
+un seul graphe de modules est à vérifier, et elle n'y perd que ce que la
+règle interdit déjà.
+
+Ce que le découpage ajoute se joue entre l'adresse et la page : au premier
+passage par l'analyse, une page d'attente s'intercale. Sur la sonde, son
+onglet disait « Chargement », et après un lien suivi le focus se déplaçait
+deux fois, d'abord sur la page d'attente, puis sur le titre visé. Le point
+3 l'interdit. Deux moyens, que la 9.4 choisit et prouve : demander le
+fichier de l'analyse en tâche de fond une fois `/` affichée, pour que
+l'attente devienne rare ; et faire que la page d'attente ne prenne pas le
+focus quand la page attendue le prendra.
+
+### 19.10 Ce que la 9.4 vérifie
+
+- **Le LCP** : la mesure de 19.9 refaite sur la vraie page, images
+  comprises, dans les deux langues ; la médiane sous 2,5 s en profil
+  mobile ; l'élément du LCP est le titre ou le chapeau.
+- **Les comportements de §13** sur les deux builds, avant et après le
+  découpage : un seul déplacement de focus par navigation, le retour depuis
+  la méthode, l'arrivée sur une ancre de la méthodologie, le changement de
+  langue en place.
+- **Le clavier** : chaque arrêt de `/` et de `/avertissement` a son anneau,
+  aucun n'est caché ni rogné ; le lien d'évitement ; le titre focalisé
+  après une navigation.
+- **390 et 320 px**, et 320 × 225 : aucun défilement horizontal de la page,
+  le tableau dans son cadre (§9.3), la mention mesurée avec son lien.
+- **Les deux thèmes**, bascule comprise : la bonne capture, et l'autre non
+  chargée.
+- **Les niveaux de gris** : aucune information perdue (§5.3).
+- **Les images** : le cadrage de la proposition, les dimensions déclarées,
+  aucun déplacement du texte à leur arrivée, les poids réels.
+- **Les états** : en cours et erreur, un fichier oublié par le serveur
+  d'essai, dans les deux langues.
+- **Les textes** : la ponctuation, aucun tiret cadratin, des libellés
+  symétriques, la garde prescriptive, aucun nombre dans la prose.
+- **Les deux builds** : `dist/` ne contient ni la page d'accueil, ni les
+  métadonnées, ni les images ; la démonstration ne contient toujours ni
+  `/api` ni écriture, dans aucun de ses fichiers ; le texte rendu de
+  l'application locale est le même avant et après ; le serveur de
+  l'application sert un build en plusieurs fichiers.
+
+ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
+(« Two builds », « The client », « Deliberate limits of the current
+version »).

@@ -36,7 +36,9 @@ et ne se versionnent pas.
   `frontend/src/api/client.ts` est le seul module qui sait d'où viennent les
   données : l'API, ou, dans le build de démonstration (`npm run build:demo`),
   les réponses enregistrées par `python -m tools.export_demo`. Le reste du
-  client ne lit `DEMO` que pour masquer ce qui écrit et afficher la mention.
+  client ne lit `DEMO` que pour quatre choses : masquer ce qui écrit,
+  afficher la mention, rendre la page d'accueil à l'adresse `/`, et ne pas
+  poser l'écran d'acceptation (DESIGN.md §18.1, §19).
   La démonstration n'a aucun chemin d'écriture : son build échoue si une
   écriture ou « /api » y reste. Ses fichiers exportés (`demo/export/`) et
   `dist-demo/` ne se versionnent pas.
