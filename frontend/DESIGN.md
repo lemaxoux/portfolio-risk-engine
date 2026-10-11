@@ -1712,7 +1712,11 @@ choisi à la main est signalé comme tel. » Écrire que l'outil n'affiche pas
 une estimation dès que les jours manquent serait faux : une estimation
 mince est donnée, avec son point `--caveat`. Les règles de §15 valent pour
 la page comme pour le reste : rien de prescriptif, aucune note globale,
-rien que le moteur ne mesure pas.
+rien que le moteur ne mesure pas. Elle dit « L'outil décrit : il ne dit
+jamais quoi faire. », « The tool describes: it never says what to do. »,
+sans nommer les gestes qu'il ne conseille pas : la garde prescriptive des
+libellés anglais les refuserait, et elle ne change pas (décision du
+2026-10-11).
 
 **Les liens**, dans cet ordre : le code source, sur GitHub ; la
 méthodologie du site ; METHODOLOGY.md ; ARCHITECTURE.md ; l'avertissement
@@ -1720,15 +1724,17 @@ méthodologie du site ; METHODOLOGY.md ; ARCHITECTURE.md ; l'avertissement
 
 **L'auteur.** Une ligne, « Projet personnel de Maxence Champlong, étudiant
 à HEC Montréal », suivie de deux liens, GitHub et LinkedIn, sans point
-médian entre eux (§12). Aucune adresse électronique, sur aucune page. Les
-adresses des deux liens se posent en 9.4.
+médian entre eux (§12). Le lien GitHub mène au profil
+(`github.com/lemaxoux`) ; le dépôt, lui, est dans la liste des liens.
+L'adresse LinkedIn est donnée à la 9.4. Aucune adresse électronique, sur
+aucune page. En anglais, l'école garde son nom, « HEC Montréal » (19.10).
 
 Le texte français validé le 2026-10-11 est dans `landing-proposition.md`,
 §4.2 (document de cadrage, hors dépôt). L'anglais s'écrit en 9.4 depuis ce
 texte, avec le glossaire (§15) ; sa partie « How it was built » est celle
-du README, mot pour mot. Il passe les gardes de `libelles.test.ts` sans
-exception nouvelle ; une exception qui s'imposerait se montre avant d'être
-posée.
+du README, mot pour mot. Il passe les gardes de `libelles.test.ts`, dont
+la seule retouche est le nom de l'école (19.10) ; toute autre exception se
+montre avant d'être posée.
 
 ### 19.2 Le registre
 
@@ -1789,12 +1795,18 @@ méthode. C'est le produit qui parle : la page montre un chiffre et ses
 conditions comme un seul objet (§1), au lieu de le dire. Le coût est une
 requête de plus, après le premier affichage (19.9).
 
-**À trancher avant le code : la couverture.** §11.2 veut la couverture
-d'une crise dans le bloc qui en donne la perte, au même poids. Dans
-l'analyse, cette phrase se lit dans le bloc de sa crise, sous ses trois
-chiffres. Les conditions validées le 2026-10-11 pour le bloc de la page ne
-nomment pas la couverture, que le même objet publie pourtant
-(`regimes[].coverage`). Le bloc ne se code pas avant cette décision.
+**La couverture, sous la phrase** (décision du 2026-10-11). §11.2 veut la
+couverture d'une crise dans le bloc qui en donne la perte, au même poids ;
+dans l'analyse, cette phrase se lit dans le bloc de sa crise, sous ses
+trois chiffres. Sur la page, une ligne de couverture suit donc la phrase, à
+la taille de la phrase : pas dans la grille des conditions, qui est plus
+petite. Elle a le libellé et l'écriture de la couverture de la section 5
+(« Couverture », la part de la valeur, puis « 6 lignes sur 6 »), par le
+même code, lus dans l'objet d'où vient la phrase (`regimes[0].coverage`).
+Sous 100 %, elle porte le point `--caveat`, comme en §11.2. Si la
+couverture passait sous le seuil, le bloc se comporterait comme celui de la
+section 5 : aucune règle nouvelle. Ni les trois chiffres de la crise, qui
+seraient le grand chiffre que 19.2 écarte, ni exception à §11.2.
 
 ### 19.4 Les images
 
@@ -1880,8 +1892,9 @@ pas posé, et son texte y reste lisible, à un clic au plus de chaque page.
 
 - **Une page à part**, à l'adresse `/avertissement`. Pas une section de la
   page d'accueil, qui doit se lire en deux minutes : elle dit l'essentiel
-  en deux phrases (l'outil décrit et ne dit jamais quoi faire ; tout y
-  décrit le passé) et renvoie au texte.
+  en deux phrases (« L'outil décrit : il ne dit jamais quoi faire. »,
+  « Tout y décrit le passé : rien n'y est une prévision. ») et renvoie au
+  texte.
 - **Deux chemins y mènent.** Un lien à la fin de la mention, « Lire
   l'avertissement » : la mention est posée par `Cadre`, donc sur toutes les
   pages, pages introuvables comprises. Le lien est un libellé à part : la
@@ -2036,6 +2049,22 @@ focus quand la page attendue le prendra.
   `/api` ni écriture, dans aucun de ses fichiers ; le texte rendu de
   l'application locale est le même avant et après ; le serveur de
   l'application sert un build en plusieurs fichiers.
+
+**Les tests existants que la 9.4 modifie**, avec l'accord donné d'avance
+le 2026-10-11. Trois cas, et eux seuls :
+
+1. `contenu/demo.test.ts` : la liste des pages de la démonstration reçoit
+   « Présentation » et « Avertissement ». Une valeur de référence change.
+2. `contenu/libelles.test.ts` : des lignes ajoutées à sa table `appels()`,
+   pour les libellés à paramètres de la page. Aucune assertion ne change.
+3. `contenu/libelles.test.ts`, la garde des accents de l'anglais : elle
+   retire « HEC Montréal » avant son contrôle, comme elle retire déjà
+   « Démo ». Ce nom propre déclaré, et lui seul : l'école garde son vrai
+   nom dans la ligne de l'auteur. Une assertion prouve que la garde refuse
+   encore « Montréal » seul, et un mot français accentué.
+
+Les tests de `destinationDe(…, true)` restent intacts : la fonction ne
+change pas. Tout autre test existant à modifier arrête le lot.
 
 ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
 (« Two builds », « The client », « Deliberate limits of the current
