@@ -208,7 +208,7 @@ tools/             the OpenAPI export and a one-glyph font generator
 ## How it was built
 
 Built with Claude Code, Anthropic's coding agent, which wrote the code, the
-tests, and most of this documentation. The author set the scope and the
+tests, and most of the documentation. The author set the scope and the
 methodological conventions, decided each trade-off, and had every phase
 verified independently in a separate Claude session: test suites re-run on a
 clean copy, published figures recomputed from raw prices. Commits carry a
