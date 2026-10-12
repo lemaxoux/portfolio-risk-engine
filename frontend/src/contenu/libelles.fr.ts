@@ -153,10 +153,8 @@ export const LIBELLES_FR: Libelles = {
         "L'application, installée sur un poste, analyse un portefeuille saisi à la main ou " +
         "importé d'un fichier CSV.",
       figure: {
-        legende: `La page de saisie de l'application, avec le portefeuille ${cite('Démo')}.`,
-        alternative:
-          'La page de saisie\u00a0: un tableau où chaque ligne porte un titre et une quantité, puis ' +
-          'la zone où déposer un fichier CSV.',
+        legende: `Le tableau de saisie de l'application, avec le portefeuille ${cite('Démo')}.`,
+        alternative: 'Le tableau de saisie\u00a0: chaque ligne porte un titre et une quantité.',
       },
       installer: "Installer l'application\u00a0: le README du dépôt, en anglais",
     },

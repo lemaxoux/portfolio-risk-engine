@@ -82,8 +82,9 @@ describe('les images de la page de présentation', () => {
     }
   })
 
-  it('capturées à la largeur d’un téléphone, affichées à 390 px au plus', () => {
-    for (const { nom, largeur } of DECLAREES) expect(largeur, nom).toBe(390)
+  it('capturées dans une fenêtre de 390 px : affichées à 390 px au plus, jamais agrandies', () => {
+    for (const { nom, largeur } of DECLAREES) expect(largeur, nom).toBeLessThanOrEqual(390)
+    for (const langue of LANGUES) expect(CAPTURES.mesure[langue].largeur).toBe(390)
   })
 
   it('l’image de prévisualisation fait 1200 × 630', () => {

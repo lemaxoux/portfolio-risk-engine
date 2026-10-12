@@ -146,7 +146,7 @@ export interface Libelles {
     readonly neMontrePas: {
       readonly titre: string
       readonly texte: string
-      /** La capture de la page de saisie : sa légende, puis ce que montre l'image. */
+      /** La capture du tableau de saisie : sa légende, puis ce que montre l'image. */
       readonly figure: { readonly legende: string; readonly alternative: string }
       readonly installer: string
     }

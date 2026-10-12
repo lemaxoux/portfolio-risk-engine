@@ -158,10 +158,8 @@ export const LIBELLES_EN: Libelles = {
         'The application, installed on a computer, analyzes a portfolio entered by hand or ' +
         'imported from a CSV file.',
       figure: {
-        legende: `The positions page of the application, with the ${citer('Demo')} portfolio.`,
-        alternative:
-          'The positions page: a table where each row holds a security and a quantity, then ' +
-          'the area where a CSV file can be dropped.',
+        legende: `The positions table of the application, with the ${citer('Demo')} portfolio.`,
+        alternative: 'The positions table: each row holds a security and a quantity.',
       },
       installer: 'Install the application: the README of the repository',
     },

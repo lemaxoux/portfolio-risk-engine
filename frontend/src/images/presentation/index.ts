@@ -2,9 +2,10 @@
  * Les captures de la page de présentation — DESIGN.md §19.4.
  *
  * Deux figures, toutes deux du portefeuille « Démo » : un bloc de mesure de
- * l'analyse, pris sur le build de démonstration, et la page de saisie de
- * l'application. Quatre fichiers chacune : une langue, un thème. Capturées à
- * 390 px de large et à l'échelle 2, passées en palette, jamais retouchées.
+ * l'analyse, pris sur le build de démonstration, et le tableau de saisie de
+ * l'application. Quatre fichiers chacune : une langue, un thème. Capturées
+ * dans une fenêtre de 390 px de large, à l'échelle 2, passées en palette,
+ * jamais retouchées ni agrandies.
  *
  * La page n'en charge que deux par visite : celles de sa langue, dans son
  * thème (`components/Capture`). Importées ici, elles reçoivent de Vite une
@@ -38,13 +39,19 @@ export interface FichiersDUneCapture {
 /** La largeur de la fenêtre des captures : celle d'un téléphone (§19.4). */
 const LARGEUR = 390
 
+/*
+ * La capture de la saisie est rognée au bord droit de la colonne des
+ * quantités, sous le tableau : plus large, elle couperait les noms des titres
+ * en plein mot. Sa largeur suit donc celle des colonnes, qui tient aux
+ * libellés de chaque langue.
+ */
 export const CAPTURES: Record<'mesure' | 'saisie', Record<Langue, FichiersDUneCapture>> = {
   mesure: {
     fr: { claire: mesureFrClair, sombre: mesureFrSombre, largeur: LARGEUR, hauteur: 461 },
     en: { claire: mesureEnClair, sombre: mesureEnSombre, largeur: LARGEUR, hauteur: 461 },
   },
   saisie: {
-    fr: { claire: saisieFrClair, sombre: saisieFrSombre, largeur: LARGEUR, hauteur: 988 },
-    en: { claire: saisieEnClair, sombre: saisieEnSombre, largeur: LARGEUR, hauteur: 968 },
+    fr: { claire: saisieFrClair, sombre: saisieFrSombre, largeur: 288, hauteur: 544 },
+    en: { claire: saisieEnClair, sombre: saisieEnSombre, largeur: 293, hauteur: 543 },
   },
 }

@@ -1839,9 +1839,16 @@ Deux captures, et elles seules, toutes deux du portefeuille « Démo » :
 Leur cadrage est celui de la proposition (§6.1). Elles sortent de la chaîne
 des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
 `rogner-png.mjs`, `optimiser-png.mjs`), telles quelles, jamais retouchées.
-Chaque image est la fenêtre du navigateur, cadrée sur une zone de la page
-(2026-10-12) : le bloc de mesure, seul ; pour la saisie, du sous-titre
-« Saisir les positions » au cadre où déposer le fichier CSV.
+Chaque image est la fenêtre du navigateur, à 390 px de large, cadrée sur
+une zone de la page (2026-10-12) : le bloc de mesure, seul ; pour la
+saisie, le tableau, de son sous-titre « Saisir les positions » à sa
+dernière rangée, rogné au bord droit de la colonne des quantités
+(`rogner-png.mjs`). À 390 px, le cadre du tableau coupe la colonne des noms
+en plein mot : sur la page de présentation, cela se lirait comme un défaut.
+Aucun mot n'est coupé par le bord de l'image ; elle est plus étroite que
+390 px, sa largeur suit les colonnes de chaque langue, et elle n'est jamais
+agrandie. Sa légende et son texte alternatif disent ce qu'elle montre : le
+tableau de saisie.
 
 - **Quatre versions de chacune** : français et anglais, clair et sombre.
   Huit fichiers, dont deux chargés par visite.
