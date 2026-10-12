@@ -35,6 +35,15 @@
  * anneau, et le Tab suivant repartait du haut quand la section n'avait rien
  * de focalisable.
  *
+ * UN TITRE QUI N'EST PAS ENCORE LÀ EST ATTENDU (chantier 9.4). Une section
+ * de l'analyse n'existe qu'une fois l'analyse lue : à l'ouverture de
+ * `/portefeuilles/1#en-crise`, la page charge encore, et l'ancre n'était pas
+ * suivie. Elle l'est maintenant, quand la page est prête, comme sur la
+ * méthodologie : au premier affichage, la page défile seulement ; après un
+ * lien suivi ou un retour arrière, le titre reçoit le focus. En attendant,
+ * le focus n'est posé nulle part, pour ne se déplacer qu'une fois. Si la
+ * page est prête sans ce titre, elle s'ouvre comme sans fragment.
+ *
  * ═══ LE RETOUR DEPUIS LA MÉTHODE (chantier 7E) ═══
  *
  * Un lien vers la méthode note sa clé dans l'entrée d'historique qu'il quitte
@@ -70,7 +79,12 @@ import { useEffect, useRef, type ReactNode } from 'react'
 
 import { DEMO } from '../api/client'
 import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from '../contenu/demo'
-import { idDuTitreVise, resoudreRetour, type NoteDeRetour } from '../lib/focus'
+import {
+  ancreALOuverture,
+  idDuTitreVise,
+  resoudreRetour,
+  type NoteDeRetour,
+} from '../lib/focus'
 import { useLangue } from '../lib/langue'
 import {
   aDejaNavigue,
@@ -119,6 +133,23 @@ function titreVise(contenu: HTMLElement | null): HTMLElement | null {
   return /^H[1-3]$/.test(cible.tagName) && cible.getAttribute('tabindex') === '-1' ? cible : null
 }
 
+/**
+ * Vise un titre : le focus si la navigation était un geste, puis le
+ * défilement, gardé pendant que la page s'installe. L'élément qui porte
+ * l'ancre porte aussi la marge qui l'écarte du bandeau : la section, pour
+ * l'analyse ; le titre lui-même, pour la méthodologie.
+ */
+function viser(titre: HTMLElement, decide: boolean): () => void {
+  if (decide) titre.focus({ preventScroll: true })
+  return garderEnVue(document.getElementById(window.location.hash.slice(1)) ?? titre)
+}
+
+/** Le focus au titre de la page, ou à défaut à son contenu. */
+function focaliserLaPage(contenu: HTMLElement | null): void {
+  const titrePage = contenu?.querySelector<HTMLElement>('h1[tabindex="-1"]')
+  ;(titrePage ?? contenu)?.focus()
+}
+
 /** Ce qui rend la main à l'utilisateur : il fait défiler, touche, clique ou tape. */
 const GESTES = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
 
@@ -163,6 +194,9 @@ export function Cadre({
   const contenu = useRef<HTMLElement>(null)
   // La note d'un lien vers la méthode, en attente que la page soit prête.
   const retourEnAttente = useRef<NoteDeRetour | null>(null)
+  // Un titre visé par l'adresse, que la page n'a pas encore : attendu de
+  // même. `decide` : la navigation qui a ouvert la page était un geste.
+  const ancreEnAttente = useRef<{ readonly decide: boolean } | null>(null)
 
   useEffect(() => {
     document.title = titreSeul ? titre : `${titre} (${APPLICATION})`
@@ -170,6 +204,7 @@ export function Cadre({
 
   useEffect(() => {
     if (attente) return
+    ancreEnAttente.current = null
     // Un retour arrière vers une page que quittait un lien vers la méthode :
     // le lien suivi sera rendu quand la page sera prête (effet suivant).
     const note = navigationParHistorique() ? noteDeRetourCourante() : null
@@ -182,19 +217,32 @@ export function Cadre({
     // déplace le focus.
     const decide = aDejaNavigue()
     const vise = titreVise(contenu.current)
-    if (vise !== null) {
-      if (decide) vise.focus({ preventScroll: true })
-      return garderEnVue(vise)
+    if (vise !== null) return viser(vise, decide)
+    // `occupe` est lu tel qu'il est à l'ouverture de la page : c'est elle
+    // qui décide d'attendre, pas ses relectures.
+    if (ancreALOuverture(window.location.hash.slice(1), false, occupe === true) === 'attendre') {
+      ancreEnAttente.current = { decide }
+      if (decide) window.scrollTo({ top: 0 })
+      return
     }
     if (!decide) return
-    const titrePage = contenu.current?.querySelector<HTMLElement>('h1[tabindex="-1"]')
-    ;(titrePage ?? contenu.current)?.focus()
+    focaliserLaPage(contenu.current)
     window.scrollTo({ top: 0 })
   }, [page, attente])
 
   useEffect(() => {
+    if (occupe) return
     const note = retourEnAttente.current
-    if (note === null || occupe) return
+    if (note === null) {
+      // La page est prête : le titre que visait l'adresse, s'il est là.
+      const ancre = ancreEnAttente.current
+      if (ancre === null) return
+      ancreEnAttente.current = null
+      const vise = titreVise(contenu.current)
+      if (vise !== null) return viser(vise, ancre.decide)
+      if (ancre.decide) focaliserLaPage(contenu.current)
+      return
+    }
     retourEnAttente.current = null
     const liens = [...(contenu.current?.querySelectorAll<HTMLElement>('[data-retour]') ?? [])]
     const retour = resoudreRetour(

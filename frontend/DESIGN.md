@@ -1207,6 +1207,16 @@ au regard de §11.
   titre porte `tabIndex={-1}`. Le focus restait sur le corps de la page, sans
   anneau, et le Tab suivant repartait du haut. L'anneau d'un titre suit son
   texte (`fit-content`), titres de page compris.
+- **Une ancre vers une page qui charge encore est attendue** (2026-10-12,
+  chantier 9.4). Une section de l'analyse n'existe qu'une fois l'analyse
+  lue : `/portefeuilles/1#en-crise`, ouverte d'une autre page ou retrouvée
+  par un retour arrière, s'ouvrait en haut, l'ancre ignorée. La page vise
+  maintenant le titre quand elle est prête, comme la méthodologie : sur une
+  arrivée directe, le titre sous le bandeau et le focus laissé où il est ;
+  sur un lien suivi ou un retour arrière, le focus au titre. En attendant,
+  le focus n'est posé nulle part : il ne se déplace qu'une fois. Une page
+  prête sans ce titre s'ouvre comme sans ancre, et le retour depuis la
+  méthode garde la priorité.
 - **Le focus ne se perd pas après un geste** (chantier 7E). « Retirer » le
   porte au ticker de la rangée qui prend la place ; « Rester sur la page », à
   ce qui l'avait (le lien suivi, le bouton de langue) ; un refus de champ, au

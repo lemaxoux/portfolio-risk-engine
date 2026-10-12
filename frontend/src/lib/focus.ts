@@ -20,6 +20,27 @@ export function idDuTitreVise(ancre: string, sections: readonly string[]): strin
 }
 
 /**
+ * Ce que fait une page qui s'ouvre sur une adresse à fragment (chantier 9.4).
+ *
+ * Le titre visé est là : la page le vise, comme la méthodologie l'a toujours
+ * fait. Il n'y est pas, et la page charge encore son contenu : elle
+ * l'attend, parce qu'une section de l'analyse n'existe qu'une fois l'analyse
+ * lue. Il n'y est pas et rien ne charge : le fragment ne désigne aucun
+ * titre, et la page s'ouvre comme sans lui.
+ */
+export type AncreALOuverture = 'viser' | 'attendre' | 'ignorer'
+
+export function ancreALOuverture(
+  fragment: string,
+  titrePresent: boolean,
+  occupe: boolean,
+): AncreALOuverture {
+  if (fragment === '') return 'ignorer'
+  if (titrePresent) return 'viser'
+  return occupe ? 'attendre' : 'ignorer'
+}
+
+/**
  * La rangée du tableau de saisie qui reçoit le focus après « Retirer », par
  * son rang dans le tableau d'après.
  *
