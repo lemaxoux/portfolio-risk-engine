@@ -1,0 +1,21 @@
+/*
+ * La page de l'avertissement — DESIGN.md §19.6. Une colonne de prose, comme
+ * l'écran d'acceptation dont elle montre le texte : Spectral, à la largeur de
+ * prose, alignée à gauche à toutes les largeurs (`Pages.module.css`).
+ */
+
+/* Le texte du fichier, séparé de la phrase du client qui le précède. */
+.texteDuFichier {
+  margin-block-start: var(--space-6);
+}
+
+.section {
+  margin-block-end: var(--space-5);
+}
+
+/* Un intertitre du texte : calme (§3.3), près de son paragraphe. */
+.sousTitre {
+  margin-block-end: var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}

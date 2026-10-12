@@ -56,14 +56,18 @@ describe('la navigation de la démonstration', () => {
 
   it('ne propose pas « Positions et import »', () => {
     expect(pagesApplication('analyse', 3, 'fr', true).map((page) => page.libelle)).toEqual([
+      'Présentation',
       'Analyse',
       'Portefeuilles',
       'Méthodologie',
+      'Avertissement',
     ])
     expect(pagesApplication('methodologie', 3, 'en', true).map((page) => page.libelle)).toEqual([
+      'Overview',
       'Analysis',
       'Portfolios',
       'Methodology',
+      'Disclaimer',
     ])
   })
 

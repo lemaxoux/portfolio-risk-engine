@@ -42,7 +42,8 @@ const TITRE = 'texte-acceptation'
  * La page où mène l'adresse d'arrivée ; `/` rouvre une analyse. En
  * démonstration, l'adresse des positions n'est celle d'aucune page (chantier
  * 9.2) : le bouton dit « la page demandée », comme pour toute adresse
- * inconnue.
+ * inconnue. Celle de l'avertissement non plus, hors de la démonstration,
+ * qui ne pose pas cet écran (chantier 9.4).
  */
 export function destinationDe(route: Route, demo: boolean = DEMO): Destination {
   switch (route.vue) {
@@ -55,6 +56,7 @@ export function destinationDe(route: Route, demo: boolean = DEMO): Destination {
       return 'portefeuilles'
     case 'methodologie':
       return 'methodologie'
+    case 'avertissement':
     case 'inconnue':
       return 'page'
   }

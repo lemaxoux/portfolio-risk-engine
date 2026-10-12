@@ -66,6 +66,13 @@
   font-size: var(--text-sm);
 }
 
+/* Le lien vers l'avertissement, qui termine la mention (§19.6), ne se coupe
+ * pas : à 320 px, « Lire » finissait une ligne que « l'avertissement »
+ * commençait, et son anneau de focus se fendait en deux. */
+.mention a {
+  white-space: nowrap;
+}
+
 /* La région d'annonce existe toujours ; vide, elle ne prend aucune place. */
 .annonce {
   max-inline-size: var(--prose-width);

@@ -74,6 +74,12 @@ export const LIBELLES_EN: Libelles = {
     mention: (portefeuilles, date) =>
       `Demonstration: ${compte(portefeuilles, 'fixed portfolio', undefined, EN)}, ` +
       `valued as of ${dateEnToutesLettres(date, EN)}.`,
+    lireLAvertissement: 'Read the disclaimer',
+  },
+  avertissement: {
+    pourquoi:
+      'The installed application shows this text before its first use and asks you to ' +
+      'accept it. The demonstration does not: none of the portfolios it shows is yours.',
   },
   cadre: {
     allerAuContenu: 'Skip to content',
@@ -95,10 +101,12 @@ export const LIBELLES_EN: Libelles = {
   },
   navigation: {
     pages: {
+      presentation: 'Overview',
       analyse: 'Analysis',
       positions: 'Positions and import',
       portefeuilles: 'Portfolios',
       methodologie: 'Methodology',
+      avertissement: 'Disclaimer',
     },
     etiquettePages: 'Pages',
     sections: [

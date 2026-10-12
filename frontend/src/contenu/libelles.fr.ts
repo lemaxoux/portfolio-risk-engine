@@ -66,6 +66,13 @@ export const LIBELLES_FR: Libelles = {
     mention: (portefeuilles, date) =>
       `Démonstration\u00a0: ${compte(portefeuilles, 'portefeuille')} fixes, ` +
       `valorisés au ${dateEnToutesLettres(date)}.`,
+    lireLAvertissement: "Lire l'avertissement",
+  },
+  avertissement: {
+    pourquoi:
+      "L'application installée affiche ce texte avant la première utilisation et demande " +
+      "de l'accepter. La démonstration ne le demande pas\u00a0: elle ne montre aucun " +
+      'portefeuille qui soit le vôtre.',
   },
   cadre: {
     allerAuContenu: 'Aller au contenu',
@@ -87,10 +94,12 @@ export const LIBELLES_FR: Libelles = {
   },
   navigation: {
     pages: {
+      presentation: 'Présentation',
       analyse: 'Analyse',
       positions: 'Positions et import',
       portefeuilles: 'Portefeuilles',
       methodologie: 'Méthodologie',
+      avertissement: 'Avertissement',
     },
     etiquettePages: 'Pages',
     sections: [

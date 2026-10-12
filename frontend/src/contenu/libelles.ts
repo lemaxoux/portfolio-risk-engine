@@ -23,8 +23,17 @@ import type { Langue } from '../lib/langue'
  */
 export type Destination = 'analyse' | 'positions' | 'portefeuilles' | 'methodologie' | 'page'
 
-/** Les pages que la navigation propose. */
-export type PageDuSite = 'analyse' | 'positions' | 'portefeuilles' | 'methodologie'
+/**
+ * Les pages que la navigation propose. « Présentation » et « Avertissement »
+ * ne sont proposées que dans la démonstration (DESIGN.md §19.5).
+ */
+export type PageDuSite =
+  | 'presentation'
+  | 'analyse'
+  | 'positions'
+  | 'portefeuilles'
+  | 'methodologie'
+  | 'avertissement'
 
 /** Un trait de l'histogramme : son niveau, la VaR qu'il porte, son rendement sur l'axe. */
 export interface TraitDuGraphique {
@@ -81,6 +90,13 @@ export interface Libelles {
     readonly fichierIllisible: (fichier: string) => string
     /** Ce qu'est le site, en tête de chaque page : le nombre de portefeuilles, leur date de valorisation en ISO. */
     readonly mention: (portefeuilles: number, date: string) => string
+    /** Le lien qui termine la mention, vers la page de l'avertissement (§19.6). */
+    readonly lireLAvertissement: string
+  }
+  /** La page de l'avertissement de la démonstration (DESIGN.md §19.6). */
+  readonly avertissement: {
+    /** Sous le titre : pourquoi la page n'a rien à accepter. */
+    readonly pourquoi: string
   }
   readonly cadre: {
     readonly allerAuContenu: string

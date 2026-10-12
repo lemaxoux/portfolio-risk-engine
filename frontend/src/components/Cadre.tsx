@@ -51,7 +51,11 @@
  * des portefeuilles fixes, valorisés à une date. En tête du contenu, sous le
  * bandeau, en texte courant qui défile avec la page ; le visiteur arrive le
  * plus souvent sur une analyse, pas sur la liste. Le build ordinaire ne la
- * contient pas.
+ * contient pas. Elle se termine par un lien vers l'avertissement (chantier
+ * 9.4, DESIGN.md §19.6) : la démonstration ne pose pas l'écran
+ * d'acceptation, et son texte reste ainsi à un clic de chaque page, pages
+ * introuvables comprises. Le lien est un libellé à part, la phrase ne change
+ * pas.
  *
  * ═══ LA PAGE D'ATTENTE NE PREND RIEN (chantier 9.4) ═══
  *
@@ -68,13 +72,24 @@ import { DEMO } from '../api/client'
 import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from '../contenu/demo'
 import { idDuTitreVise, resoudreRetour, type NoteDeRetour } from '../lib/focus'
 import { useLangue } from '../lib/langue'
-import { aDejaNavigue, navigationParHistorique, noteDeRetourCourante } from '../lib/route'
+import {
+  aDejaNavigue,
+  cheminDe,
+  navigationParHistorique,
+  noteDeRetourCourante,
+} from '../lib/route'
+import { Lien } from './Lien'
 import { SECTIONS } from './Navigation'
 import styles from './Cadre.module.css'
 
 interface Props {
   /** Le titre de l'onglet, sans le nom de l'application. */
   readonly titre: string
+  /**
+   * Le titre nomme déjà le produit : l'onglet le porte seul, sans le répéter
+   * entre parenthèses (§6.3), comme sur l'écran d'acceptation.
+   */
+  readonly titreSeul?: boolean
   readonly entete: ReactNode
   readonly rail?: ReactNode
   readonly annonce?: string | null
@@ -88,6 +103,9 @@ interface Props {
 }
 
 const APPLICATION = 'Portfolio Risk Engine'
+
+/** La page de l'avertissement, où mène le lien de la mention. */
+const AVERTISSEMENT = cheminDe({ vue: 'avertissement' })
 
 /** Les ancres des sections de l'analyse, portées par la `<section>`. */
 const ANCRES_DES_SECTIONS = SECTIONS.map((section) => section.ancre)
@@ -130,15 +148,25 @@ function garderEnVue(element: HTMLElement): () => void {
   return arreter
 }
 
-export function Cadre({ titre, entete, rail, annonce, occupe, attente, page, children }: Props) {
+export function Cadre({
+  titre,
+  titreSeul,
+  entete,
+  rail,
+  annonce,
+  occupe,
+  attente,
+  page,
+  children,
+}: Props) {
   const { libelles } = useLangue()
   const contenu = useRef<HTMLElement>(null)
   // La note d'un lien vers la méthode, en attente que la page soit prête.
   const retourEnAttente = useRef<NoteDeRetour | null>(null)
 
   useEffect(() => {
-    document.title = `${titre} (${APPLICATION})`
-  }, [titre])
+    document.title = titreSeul ? titre : `${titre} (${APPLICATION})`
+  }, [titre, titreSeul])
 
   useEffect(() => {
     if (attente) return
@@ -213,7 +241,13 @@ export function Cadre({ titre, entete, rail, annonce, occupe, attente, page, chi
         >
           {DEMO && (
             <p className={styles.mention}>
-              {libelles.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)}
+              {libelles.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)}{' '}
+              <Lien
+                vers={AVERTISSEMENT}
+                aria-current={page === AVERTISSEMENT ? 'page' : undefined}
+              >
+                {libelles.demo.lireLAvertissement}
+              </Lien>
             </p>
           )}
           <p className={styles.annonce} role="status">

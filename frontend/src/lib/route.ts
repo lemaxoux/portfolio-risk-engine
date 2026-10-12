@@ -1,13 +1,18 @@
 /**
  * Les routes du client — History API, sans bibliothèque.
  *
- * Cinq adresses, et c'est tout :
+ * Six adresses, et c'est tout :
  *
  *   /                              le dernier portefeuille ouvert, ou le premier
  *   /portefeuilles                 la liste : choisir, créer, supprimer
  *   /portefeuilles/<id>            l'analyse
  *   /portefeuilles/<id>/positions  la saisie et l'import
  *   /methodologie                  comment chaque chiffre est calculé (7B.3b)
+ *   /avertissement                 le texte de l'acceptation, à lire (9.4)
+ *
+ * Les deux builds lisent les mêmes adresses ; ce que chacune rend se décide
+ * dans `App.tsx` : `/avertissement` n'est une page que dans la démonstration
+ * (DESIGN.md §19.6).
  *
  * De VRAIES adresses et non des fragments : les fragments servent déjà aux
  * ancres des six sections (`#en-crise`) et des entrées de la méthodologie
@@ -36,6 +41,7 @@ export type Route =
   | { readonly vue: 'analyse'; readonly id: number }
   | { readonly vue: 'positions'; readonly id: number }
   | { readonly vue: 'methodologie' }
+  | { readonly vue: 'avertissement' }
   | { readonly vue: 'inconnue'; readonly chemin: string }
 
 /** Un identifiant tel que la base les attribue : entier, à partir de 1. */
@@ -48,6 +54,9 @@ export function lireRoute(chemin: string): Route {
   if (premier === undefined) return { vue: 'accueil' }
   if (premier === 'methodologie') {
     return identifiant === undefined ? { vue: 'methodologie' } : { vue: 'inconnue', chemin }
+  }
+  if (premier === 'avertissement') {
+    return identifiant === undefined ? { vue: 'avertissement' } : { vue: 'inconnue', chemin }
   }
   if (premier !== 'portefeuilles' || reste.length > 0) return { vue: 'inconnue', chemin }
   if (identifiant === undefined) return { vue: 'portefeuilles' }
@@ -71,6 +80,8 @@ export function cheminDe(route: Exclude<Route, { vue: 'inconnue' }>): string {
       return `/portefeuilles/${route.id}/positions`
     case 'methodologie':
       return '/methodologie'
+    case 'avertissement':
+      return '/avertissement'
   }
 }
 

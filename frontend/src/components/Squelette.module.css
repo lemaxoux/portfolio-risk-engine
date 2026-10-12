@@ -59,3 +59,31 @@
   block-size: 36px;
   border-block-end: 1px solid var(--border);
 }
+
+/* De la prose : un intertitre, puis des lignes à la largeur de prose, la
+ * dernière plus courte. */
+.paragraphe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-inline-size: var(--prose-width);
+}
+
+.intertitre {
+  inline-size: 14rem;
+  max-inline-size: 100%;
+  block-size: var(--text-body);
+  margin-block-end: var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+}
+
+.ligne {
+  block-size: var(--text-body);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-1);
+}
+
+.courte {
+  inline-size: 60%;
+}

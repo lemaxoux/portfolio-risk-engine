@@ -21,6 +21,7 @@
  */
 import { useEffect, useRef } from 'react'
 
+import { DEMO } from '../api/client'
 import type { Analysis } from '../api/types'
 import { dateISO, montant, seances } from '../lib/format'
 import { useLangue } from '../lib/langue'
@@ -31,6 +32,8 @@ import { Lien } from './Lien'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './Bandeau.module.css'
 
+const MARQUE = 'Portfolio Risk Engine'
+
 /**
  * La marque, et le portefeuille en vue quand il y en a un.
  *
@@ -38,12 +41,24 @@ import styles from './Bandeau.module.css'
  * déroulant qui changerait de page à la sélection : un tel menu déplace
  * l'utilisateur au moindre coup de flèche (WCAG 3.2.2). Le lien le dit en
  * toutes lettres, sous le nom.
+ *
+ * Dans la démonstration, la marque mène à la présentation, à l'adresse `/`
+ * (chantier 9.4, DESIGN.md §19.5) : c'est le seul chemin vers elle depuis
+ * les deux pages introuvables, qui n'ont pas de rail. Même dessin, soulignée
+ * au survol et au focus. Dans l'application, `/` est une redirection : la
+ * marque y reste un texte.
  */
 function Identite({ nom, navigation = true }: { nom: string | null; navigation?: boolean }) {
   const { libelles } = useLangue()
   return (
     <div className={styles.identite}>
-      <span className={styles.marque}>Portfolio Risk Engine</span>
+      {DEMO ? (
+        <Lien vers={cheminDe({ vue: 'accueil' })} className={styles.marque}>
+          {MARQUE}
+        </Lien>
+      ) : (
+        <span className={styles.marque}>{MARQUE}</span>
+      )}
       {nom !== null && <span className={styles.portefeuille}>{nom}</span>}
       {navigation && (
         <Lien vers={cheminDe({ vue: 'portefeuilles' })} className={styles.changer}>

@@ -39,6 +39,16 @@
  * adresse inconnue, et la page des positions sort du build avec ses
  * écritures.
  *
+ * ═══ LA DÉMONSTRATION NE POSE PAS L'ÉCRAN D'ACCEPTATION (chantier 9.4) ═══
+ *
+ * Cet écran a été décidé pour quelqu'un qui analyse son propre portefeuille,
+ * et la démonstration n'en montre aucun (DESIGN.md §15, §19.6). Dans son
+ * build, rien n'attend le texte au démarrage, aucune acceptation n'est lue ni
+ * mémorisée, et un changement de langue relit la page en place, dans tous
+ * les cas. Le texte y reste lisible à l'adresse `/avertissement`, qui n'est
+ * une page que là : dans l'application, elle rend « Page introuvable ».
+ * Tout ce qui précède vaut pour l'application, et pour elle seule.
+ *
  * ═══ L'ANALYSE SE CHARGE À LA DEMANDE (chantier 9.4) ═══
  *
  * Son fichier, avec la bibliothèque de graphiques, n'est plus dans le fichier
@@ -84,6 +94,7 @@ import {
 import controles from './styles/controles.module.css'
 import { Acceptation } from './views/Acceptation'
 import { AnalyseALaDemande, chargerLAnalyse } from './views/AnalyseALaDemande'
+import { VueAvertissement } from './views/Avertissement'
 import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
 import { VueMethodologie } from './views/Methodologie'
 import { VuePortefeuilles } from './views/Portefeuilles'
@@ -98,10 +109,13 @@ type EtatAcceptation =
 
 export function App() {
   const [langue, setLangue] = useState<Langue>(langueDeLaPage)
-  const [etat, setEtat] = useState<EtatAcceptation>({ phase: 'verification' })
+  const [etat, setEtat] = useState<EtatAcceptation>(
+    DEMO ? { phase: 'acceptee' } : { phase: 'verification' },
+  )
   const langueDuDemarrage = useRef(langue)
 
   useEffect(() => {
+    if (DEMO) return
     let vivant = true
     const premiere = langueDuDemarrage.current
     getDisclaimer(premiere).then(
@@ -133,6 +147,10 @@ export function App() {
         setLangue(nouvelle)
         setEtat(suivant)
       }
+      if (DEMO) {
+        passer({ phase: 'acceptee' })
+        return
+      }
       getDisclaimer(nouvelle).then(
         (bandeau) => {
           if (aAccepte(bandeau.text, nouvelle)) passer({ phase: 'acceptee' })
@@ -159,6 +177,7 @@ export function App() {
 function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void }) {
   const { langue, libelles } = useLangue()
 
+  if (DEMO) return <Application />
   if (etat.phase === 'acceptation') {
     // Une clé par langue : la case cochée sous un texte ne l'est pas sous
     // l'autre.
@@ -240,6 +259,17 @@ function Application() {
     return rendre(portefeuille)
   }
 
+  /**
+   * Le portefeuille que nomme le bandeau d'une page qui n'en dépend pas : le
+   * dernier consulté s'il existe encore ; sinon aucun, et pas le premier de
+   * la liste, que personne n'a ouvert.
+   */
+  const portefeuilleEnVue = (): PortfolioDetail | null => {
+    if (liste.phase !== 'prete') return null
+    const memorise = dernierPortefeuille()
+    return liste.portefeuilles.find((p) => p.id === memorise) ?? null
+  }
+
   switch (route.vue) {
     case 'accueil':
       return <Accueil liste={liste} recharger={recharger} />
@@ -269,17 +299,14 @@ function Application() {
           annoncer={annoncer}
         />
       ))
-    case 'methodologie': {
-      // Elle ne dépend d'aucun portefeuille, et n'attend pas la liste. Le
-      // bandeau nomme le dernier consulté s'il existe encore ; sinon aucun,
-      // et pas le premier de la liste, que personne n'a ouvert.
-      const memorise = dernierPortefeuille()
-      const portefeuille =
-        liste.phase === 'prete'
-          ? (liste.portefeuilles.find((p) => p.id === memorise) ?? null)
-          : null
-      return <VueMethodologie portefeuille={portefeuille} />
-    }
+    case 'methodologie':
+      // Elle ne dépend d'aucun portefeuille, et n'attend pas la liste.
+      return <VueMethodologie portefeuille={portefeuilleEnVue()} />
+    case 'avertissement':
+      // Une page de la démonstration seulement (DESIGN.md §19.6). Ailleurs,
+      // l'adresse reste celle d'aucune page, citée telle qu'elle a été écrite.
+      if (!DEMO) return <PageInconnue chemin={window.location.pathname} />
+      return <VueAvertissement portefeuille={portefeuilleEnVue()} />
     case 'inconnue':
       return <PageInconnue chemin={chemin} />
   }

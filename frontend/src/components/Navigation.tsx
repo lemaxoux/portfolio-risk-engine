@@ -23,7 +23,7 @@
 import { useEffect, useState } from 'react'
 
 import { DEMO } from '../api/client'
-import { LIBELLES } from '../contenu/libelles'
+import { LIBELLES, type PageDuSite } from '../contenu/libelles'
 import { useLangue, type Langue } from '../lib/langue'
 import { cheminDe } from '../lib/route'
 import { Lien } from './Lien'
@@ -43,16 +43,26 @@ export interface PageApplication {
  * d'aucun portefeuille. Les noms sont ceux de la langue demandée.
  *
  * `demo` : la démonstration n'a pas de page de saisie (chantier 9.2).
- * « Positions et import » n'y est pas proposée, plutôt que grisée.
+ * « Positions et import » n'y est pas proposée, plutôt que grisée. Elle a
+ * deux pages de plus (chantier 9.4, DESIGN.md §19.5) : « Présentation », en
+ * tête, à l'adresse `/`, et « Avertissement », en dernier, pour que la liste
+ * reste celle de toutes les pages.
  */
 export function pagesApplication(
-  courante: 'analyse' | 'positions' | 'portefeuilles' | 'methodologie',
+  courante: PageDuSite,
   id: number | null,
   langue: Langue = 'fr',
   demo: boolean = DEMO,
 ): PageApplication[] {
   const noms = LIBELLES[langue].navigation.pages
   const pages: PageApplication[] = []
+  if (demo) {
+    pages.push({
+      vers: cheminDe({ vue: 'accueil' }),
+      libelle: noms.presentation,
+      courante: courante === 'presentation',
+    })
+  }
   if (id !== null) {
     pages.push({
       vers: cheminDe({ vue: 'analyse', id }),
@@ -79,6 +89,13 @@ export function pagesApplication(
       courante: courante === 'methodologie',
     },
   )
+  if (demo) {
+    pages.push({
+      vers: cheminDe({ vue: 'avertissement' }),
+      libelle: noms.avertissement,
+      courante: courante === 'avertissement',
+    })
+  }
   return pages
 }
 

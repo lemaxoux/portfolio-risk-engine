@@ -24,6 +24,25 @@ export function SqueletteTableau({ rangees = 4 }: { rangees?: number }) {
 }
 
 /**
+ * De la prose : des paragraphes sous leur intertitre, à la largeur de prose,
+ * la dernière ligne plus courte. Le texte de l'avertissement (chantier 9.4).
+ */
+export function SqueletteTexte({ paragraphes = 3 }: { paragraphes?: number }) {
+  return (
+    <div className={styles.squelette} aria-hidden="true">
+      {Array.from({ length: paragraphes }, (_, rang) => (
+        <div key={rang} className={styles.paragraphe}>
+          <span className={styles.intertitre} />
+          <span className={styles.ligne} />
+          <span className={styles.ligne} />
+          <span className={`${styles.ligne} ${styles.courte}`} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
  * Le début de la page d'analyse, à sa forme : la section 1 (titre, ligne de
  * provenance, tableau des positions), puis le titre de la section 2 et deux
  * blocs mesure. Ce qui arrive se reconnaît avant d'arriver.
