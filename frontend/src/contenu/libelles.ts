@@ -126,6 +126,8 @@ export interface Libelles {
       readonly conditions: { readonly attaque: string; readonly texte: string }
       readonly note: { readonly attaque: string; readonly texte: string }
       readonly refus: { readonly attaque: string; readonly texte: string }
+      /** La capture d'un bloc de mesure : sa légende, puis ce que montre l'image. */
+      readonly figure: { readonly legende: string; readonly alternative: string }
     }
     readonly resultat: {
       readonly titre: string
@@ -144,6 +146,8 @@ export interface Libelles {
     readonly neMontrePas: {
       readonly titre: string
       readonly texte: string
+      /** La capture de la page de saisie : sa légende, puis ce que montre l'image. */
+      readonly figure: { readonly legende: string; readonly alternative: string }
       readonly installer: string
     }
     /** Les textes des liens ; leurs adresses sont dans `contenu/liens.ts`. */

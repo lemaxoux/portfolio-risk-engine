@@ -123,6 +123,15 @@ export const LIBELLES_EN: Libelles = {
           'tool refuses it and says why; when there are only a few, it gives it, and flags ' +
           'it. A threshold chosen by hand is flagged as such.',
       },
+      figure: {
+        legende:
+          `A block from the analysis of the ${citer('Demo')} portfolio: the figure, its ` +
+          'sentence in plain words, then the calculation details.',
+        alternative:
+          'A value-at-risk block from the analysis: the figure, a sentence in plain words that ' +
+          'states it as a frequency, in dollars, and over a period, then the calculation ' +
+          'details (method, window, and period).',
+      },
     },
     resultat: {
       titre: 'A result',
@@ -148,6 +157,12 @@ export const LIBELLES_EN: Libelles = {
       texte:
         'The application, installed on a computer, analyzes a portfolio entered by hand or ' +
         'imported from a CSV file.',
+      figure: {
+        legende: `The positions page of the application, with the ${citer('Demo')} portfolio.`,
+        alternative:
+          'The positions page: a table where each row holds a security and a quantity, then ' +
+          'the area where a CSV file can be dropped.',
+      },
       installer: 'Install the application: the README of the repository',
     },
     liens: {

@@ -42,6 +42,7 @@ import type { Analysis, PortfolioDetail } from '../api/types'
 import { Absent } from '../components/Absent'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
+import { Capture } from '../components/Capture'
 import { DataTable, type Colonne } from '../components/DataTable'
 import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
@@ -49,6 +50,7 @@ import { AncresSections, pagesApplication, RailPages, SECTIONS } from '../compon
 import { Provenance, type LigneProvenance } from '../components/Provenance'
 import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from '../contenu/demo'
 import { ADRESSES, NOMS } from '../contenu/liens'
+import { CAPTURES } from '../images/presentation'
 import { apresLAffichage } from '../lib/affichage'
 import { ecrireLaCouverture } from '../lib/couverture'
 import { dateISO, montant, seances } from '../lib/format'
@@ -381,6 +383,13 @@ export function VuePresentation({ liste, recharger, portefeuille }: Props) {
             <p className={communs.texte}>{l.distingue[point].texte}</p>
           </div>
         ))}
+        {/* Sous le troisième point, et non sous le premier : la figure
+            entrerait sinon dans le premier écran d'un grand écran (§19.9). */}
+        <Capture
+          {...CAPTURES.mesure[langue]}
+          alternative={l.distingue.figure.alternative}
+          legende={l.distingue.figure.legende}
+        />
       </section>
 
       <section className={styles.partie}>
@@ -399,6 +408,11 @@ export function VuePresentation({ liste, recharger, portefeuille }: Props) {
       <section className={styles.partie}>
         <h2 className={styles.intertitre}>{l.neMontrePas.titre}</h2>
         <p className={communs.texte}>{l.neMontrePas.texte}</p>
+        <Capture
+          {...CAPTURES.saisie[langue]}
+          alternative={l.neMontrePas.figure.alternative}
+          legende={l.neMontrePas.figure.legende}
+        />
         <p className={communs.texte}>
           <a href={ADRESSES.installation}>{l.neMontrePas.installer}</a>
         </p>

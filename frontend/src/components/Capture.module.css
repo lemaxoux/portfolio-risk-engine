@@ -1,0 +1,59 @@
+/*
+ * Une capture d'écran et sa légende — DESIGN.md §19.4.
+ *
+ * Une bordure de 1 px et le rayon des blocs. Ni ombre, ni inclinaison, ni
+ * cadre d'appareil. Aucun token nouveau, aucun mouvement.
+ */
+
+.capture {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-5);
+}
+
+/* L'image s'affiche à sa taille (`width`, `height`), ou plus petite dans une
+ * colonne plus étroite : la bordure est hors de cette taille, et sa largeur
+ * est retirée de la place disponible. La hauteur suit, dans le rapport des
+ * deux attributs : la place est prise avant le fichier. L'emplacement vide
+ * qui précède l'image porte la même classe et les mêmes dimensions. */
+.image {
+  display: block;
+  box-sizing: content-box;
+  max-inline-size: calc(100% - 2px);
+  block-size: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/*
+ * L'image du thème, par les sélecteurs de `tokens.css` (§4) : le sombre du
+ * système quand rien n'est figé, puis le sombre figé au bouton. Une image
+ * masquée n'a pas de boîte, et n'est donc pas demandée (`loading="lazy"`).
+ */
+.sombre {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .claire {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .sombre {
+    display: block;
+  }
+}
+
+:root[data-theme='dark'] .claire {
+  display: none;
+}
+
+:root[data-theme='dark'] .sombre {
+  display: block;
+}
+
+.legende {
+  margin-block-start: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}

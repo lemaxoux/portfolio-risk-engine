@@ -1705,6 +1705,12 @@ sont ceux de la page ; ils n'ont pas de numéro (§12).
    puis son paragraphe : « Un chiffre et ses conditions se lisent
    ensemble. », avec la première capture ; « Aucune note globale. » ; « Un
    chiffre qui ne veut plus rien dire n'est pas donné. »
+   **La première capture suit le troisième point** (2026-10-12, accord
+   donné d'avance le 2026-10-11), et non le premier. Sous le premier, elle
+   commençait à 925 px du haut de la page en anglais et à 945 px en
+   français, à 1350 × 940 : dans le premier écran en anglais, où aucune
+   image ne figure (19.9, point 2). Sous le troisième, elle commence à
+   1 239 px en anglais et à 1 259 px en français. Sa légende ne change pas.
 4. **« Un résultat ».** Une phrase de l'analyse, avec ses conditions
    (19.3).
 5. **« Comment il a été construit ».** La section « How it was built » du
@@ -1833,6 +1839,9 @@ Deux captures, et elles seules, toutes deux du portefeuille « Démo » :
 Leur cadrage est celui de la proposition (§6.1). Elles sortent de la chaîne
 des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
 `rogner-png.mjs`, `optimiser-png.mjs`), telles quelles, jamais retouchées.
+Chaque image est la fenêtre du navigateur, cadrée sur une zone de la page
+(2026-10-12) : le bloc de mesure, seul ; pour la saisie, du sous-titre
+« Saisir les positions » au cadre où déposer le fichier CSV.
 
 - **Quatre versions de chacune** : français et anglais, clair et sombre.
   Huit fichiers, dont deux chargés par visite.
@@ -1853,6 +1862,15 @@ des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
   Aucune image ne déplace le texte en arrivant.
 - **Chargement différé** : `loading="lazy"` et `decoding="async"` sur
   toutes. Aucune dans le premier écran (19.9).
+  **Posées une fois la page affichée** (2026-10-12). `loading="lazy"` ne
+  retient pas une image proche de la fenêtre : Chrome 153 demandait celle
+  de la première figure dès la mise en page, avant la première peinture, à
+  chaque passage et aux deux écrans de la mesure, alors qu'elle est hors du
+  premier écran. Or le premier écran ne lance aucune requête avant d'être
+  peint (19.9, point 2). Le composant ne pose donc ses `<img>` qu'une fois
+  la page affichée (`lib/affichage.ts`) ; d'ici là, un emplacement vide de
+  mêmes dimensions tient leur place. Pas une `<img>` sans fichier : Chrome
+  y dessine l'image manquante et son texte alternatif.
 - **Poids** : PNG en palette, 100 ko au plus par image. La 9.4 donne les
   poids réels.
 - **Cadre** : une bordure de 1 px (`--border`), `--radius-md`. Ni ombre,
@@ -1862,6 +1880,11 @@ des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
 - **Versionnées**, à côté du client : un dossier d'images que la vue
   importe, pour que Vite leur donne une empreinte. L'image de
   prévisualisation (19.7) suit la même règle.
+  **Hors du build ordinaire** (2026-10-12) : Vite émet un fichier importé
+  même quand la vue qui l'importe est retirée du bundle. Un greffon du
+  build ordinaire retire donc ces images de `dist/`, et échoue si un
+  fichier du build en nomme une (`sansLaDemonstration`,
+  `api/demoAuBuild.ts`).
 
 ### 19.5 La structure
 

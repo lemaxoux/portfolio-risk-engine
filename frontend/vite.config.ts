@@ -34,14 +34,15 @@
  * le greffon de `src/api/demoAuBuild.ts` y ajoute ces fichiers, l'interdiction
  * d'indexer, et la garde qui refuse un bundle où resterait une écriture. Ce
  * greffon n'est chargé que dans ce mode : rien de la démonstration n'entre
- * dans `dist/`.
+ * dans `dist/`. Le build ordinaire charge l'autre, `sansLaDemonstration`,
+ * qui en retire les captures de la page de présentation.
  */
 import { fileURLToPath } from 'node:url'
 
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
-import { demonstration } from './src/api/demoAuBuild'
+import { demonstration, sansLaDemonstration } from './src/api/demoAuBuild'
 import { coupuresDeLaMethodologie } from './src/contenu/coupuresAuBuild'
 
 // L'adresse est celle qu'impose `backend/api/__main__.py`, pas une option.
@@ -56,7 +57,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       coupuresDeLaMethodologie(),
-      ...(demo ? [demonstration(EXPORT_DE_LA_DEMO)] : []),
+      demo ? demonstration(EXPORT_DE_LA_DEMO) : sansLaDemonstration(),
     ],
     server: {
       proxy: {

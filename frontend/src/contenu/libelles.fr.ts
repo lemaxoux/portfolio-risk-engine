@@ -117,6 +117,15 @@ export const LIBELLES_FR: Libelles = {
           'seulement peu nombreux, il la donne, et la signale. Un seuil choisi à la main est ' +
           'signalé comme tel.',
       },
+      figure: {
+        legende:
+          `Un bloc de l'analyse du portefeuille ${cite('Démo')}\u00a0: le chiffre, sa phrase en ` +
+          'mots courants, puis les détails du calcul.',
+        alternative:
+          "Le bloc d'une valeur à risque dans l'analyse\u00a0: le chiffre, une phrase en mots " +
+          'courants qui le dit en fréquence, en dollars et en période, puis les détails du ' +
+          'calcul\u00a0: méthode, fenêtre et période.',
+      },
     },
     resultat: {
       titre: 'Un résultat',
@@ -143,6 +152,12 @@ export const LIBELLES_FR: Libelles = {
       texte:
         "L'application, installée sur un poste, analyse un portefeuille saisi à la main ou " +
         "importé d'un fichier CSV.",
+      figure: {
+        legende: `La page de saisie de l'application, avec le portefeuille ${cite('Démo')}.`,
+        alternative:
+          'La page de saisie\u00a0: un tableau où chaque ligne porte un titre et une quantité, puis ' +
+          'la zone où déposer un fichier CSV.',
+      },
       installer: "Installer l'application\u00a0: le README du dépôt, en anglais",
     },
     liens: {

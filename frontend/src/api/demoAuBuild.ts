@@ -2,9 +2,9 @@
  * Le build de démonstration (`npm run build:demo`, mode Vite `demo`) : ce qui
  * s'ajoute au bundle pour en faire un site statique, et ce qui le refuse.
  *
- * Le greffon ne sert qu'à ce build. Ni les données ni la balise ne vont dans
- * `dist/`, le build ordinaire, que FastAPI sert : rien n'est posé dans
- * `public/`, et `index.html` n'est pas modifié à la source.
+ * Le greffon `demonstration` ne sert qu'à ce build. Ni les données ni la
+ * balise ne vont dans `dist/`, le build ordinaire, que FastAPI sert : rien
+ * n'est posé dans `public/`, et `index.html` n'est pas modifié à la source.
  *
  * ═══ LES DONNÉES ═══
  *
@@ -36,10 +36,19 @@
  * JavaScript contient `/api`, ou le nom d'une méthode d'écriture entre
  * guillemets ou accents graves. Dans le build ordinaire, ces chaînes ne
  * viennent que de `client.ts`.
+ *
+ * ═══ LES IMAGES DE LA PRÉSENTATION, HORS DU BUILD ORDINAIRE ═══
+ *
+ * La page de présentation importe ses captures (`src/images/presentation/`).
+ * Elle n'existe que dans la démonstration ; mais Vite émet un fichier importé
+ * dès qu'il le lit, que la vue reste ou non dans le bundle. Un second
+ * greffon, `sansLaDemonstration`, sert donc au build ordinaire, et à lui
+ * seul : il retire ces images de `dist/`, et échoue si un fichier du build
+ * en nomme une, car la page y serait alors entrée.
  */
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 import type { Plugin } from 'vite'
 
@@ -182,6 +191,74 @@ export function fautesDuBundle(code: string): string[] {
     fautes.push(`la méthode d'écriture ${methode}`)
   }
   return fautes
+}
+
+/** Le dossier des captures de la page de présentation, depuis la racine du client. */
+export const IMAGES_DE_LA_PRESENTATION = 'src/images/presentation/'
+
+/** Ce que le contrôle lit d'un fichier du build. */
+export interface FichierDuBuild {
+  readonly type: 'asset' | 'chunk'
+  readonly fileName: string
+  /** Les fichiers d'origine d'une ressource émise, tels que Vite les nomme. */
+  readonly originalFileNames?: readonly string[]
+  readonly code?: string
+  readonly source?: string | Uint8Array
+}
+
+function texteDe(fichier: FichierDuBuild): string {
+  if (fichier.type === 'chunk') return fichier.code ?? ''
+  return typeof fichier.source === 'string' ? fichier.source : ''
+}
+
+/**
+ * Les images de la page de présentation qu'un build a émises, par le nom
+ * qu'il leur a donné. Lève une erreur si un autre fichier du build nomme
+ * l'une d'elles : elle ne serait plus un fichier que rien ne demande.
+ */
+export function imagesDeLaPresentation(fichiers: readonly FichierDuBuild[]): string[] {
+  const images = fichiers
+    .filter(
+      (fichier) =>
+        fichier.type === 'asset' &&
+        (fichier.originalFileNames ?? []).some((origine) =>
+          origine.split(sep).join('/').includes(IMAGES_DE_LA_PRESENTATION),
+        ),
+    )
+    .map((fichier) => fichier.fileName)
+
+  for (const fichier of fichiers) {
+    if (images.includes(fichier.fileName)) continue
+    const texte = texteDe(fichier)
+    const nommee = images.find((image) => texte.includes(image))
+    if (nommee !== undefined) {
+      throw new Error(
+        `Le build ordinaire ne montre pas la page de présentation\u00a0: ${fichier.fileName} nomme ` +
+          `${nommee}. La vue n'est pas masquée derrière DEMO (api/client.ts).`,
+      )
+    }
+  }
+  return images
+}
+
+/**
+ * Le greffon du build ordinaire : les images de la page de présentation n'y
+ * entrent pas.
+ */
+export function sansLaDemonstration(): Plugin {
+  return {
+    name: 'mx-risk-sans-la-demonstration',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      let images: string[]
+      try {
+        images = imagesDeLaPresentation(Object.values(bundle))
+      } catch (cause) {
+        this.error(cause instanceof Error ? cause.message : String(cause))
+      }
+      for (const image of images) delete bundle[image]
+    },
+  }
 }
 
 /** Le greffon du build de démonstration ; `dossier` est celui de l'export. */
