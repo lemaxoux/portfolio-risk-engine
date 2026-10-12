@@ -362,9 +362,13 @@ page (`tests/test_api_static.py`).
 `npm run build:demo` writes `frontend/dist-demo`, a static site with no
 server: the same client, in which `src/api/client.ts` reads API responses
 recorded as files instead of calling the API. That module remains the only one
-that knows where the data come from; the rest of the client reads the build
-mode only to hide what writes and to say what the site is (DESIGN.md §18). The
-files are written by `python -m tools.export_demo`, which copies the database,
+that knows where the data come from. The rest of the client reads the build
+mode only to hide what writes, to say what the site is in a notice at the top
+of every page, to render a presentation page at the address `/`, where the
+application redirects to a portfolio, and to leave out the acceptance screen,
+whose text the demonstration shows on a page of its own (DESIGN.md §18 and
+DESIGN.md §19).
+The files are written by `python -m tools.export_demo`, which copies the database,
 truncates the copy at the freeze date of the tests, replaces its portfolios
 with those of `demo/compositions.json`, and calls the application as it is, so
 that each file carries the bytes of one response. The demonstration has no
@@ -374,8 +378,21 @@ method. It publishes measures of portfolios, never the series of one security:
 the export refuses a set of portfolios in which a linear combination isolates
 a security. Neither the exported files nor the builds are committed.
 
-Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`, and
-`src/api/demoAuBuild.test.ts`.
+Each build has a plugin of its own (`src/api/demoAuBuild.ts`). The plugin of
+the demonstration adds the recorded files, forbids indexing, runs the guard on
+the bundle, and writes the sharing metadata into `index.html`: a description
+and the Open Graph tags, in English, the language of the repository. No
+address is written in the source: the tags that need an absolute address, and
+the preview image, are written only when the environment variable
+`MX_RISK_ORIGINE_DU_SITE` gives the origin of the site, and a value that is not
+an origin stops the build. The plugin of the ordinary build removes the
+screenshots of the presentation page, which the bundler emits even though the
+page is left out of that bundle, and fails if a file of the build still names
+one of them.
+
+Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`,
+`src/api/demoAuBuild.test.ts`, `src/api/demoAuBuild.partage.test.ts`, and
+`src/api/demoAuBuild.images.test.ts`.
 
 ## The client
 
@@ -401,7 +418,20 @@ Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`, and
 - The acceptance screen is a full page, not a modal window. Its text comes from
   `GET /api/disclaimer`, and the acceptance is remembered under the fingerprint
   of the text, once per language: a reworded limitation brings the screen
-  back.
+  back. The demonstration does not pose it, because it shows no portfolio that
+  belongs to the reader; the same text stays one click away from every page,
+  on a page of its own (DESIGN.md §19.6).
+- The demonstration opens on a presentation page (`src/views/Presentation.tsx`,
+  DESIGN.md §19). Its prose contains no number: every number it shows is read
+  from an exported file and written by the formatter, and its result is a
+  sentence of the analysis, composed by the function that composes it there.
+  Its first screen waits for no request and starts none before it is painted:
+  the list of portfolios, the analysis of the first one, the screenshots, and
+  the code of the analysis page are requested once the page is displayed
+  (`src/lib/affichage.ts`).
+- Each figure of that page carries one image per theme, and the style sheet
+  shows the one of the current theme: no component knows the theme. The
+  hidden image is never requested (`src/components/Capture.tsx`).
 
 ## The methodology page
 
@@ -454,6 +484,8 @@ Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`, and
 - Only the analysis page, with the charting library, loads on demand.
   Everything else ships in the entry file, both methodology texts included,
   and nothing is split by language (`src/decoupage.test.ts`).
+- The sharing metadata of the demonstration are in English only: `index.html`
+  is a static file and has one language.
 - No preview of an import: the API has no read without a write.
 - One boundary rests on convention, not on a test: the client computes no
   measure.

@@ -2144,6 +2144,27 @@ Les tests de `destinationDe(…, true)` restent intacts : la fonction reçoit
 un cas, la page de l'avertissement, et ses cas existants ne changent pas.
 Tout autre test existant à modifier arrête le lot.
 
+**Constaté le 2026-10-12**, à la fin de la 9.4 (Chrome 153, Lighthouse
+13.5.0, profil mobile, cinq passages, la médiane) :
+
+- *Le LCP de `/`*, images et balises de partage comprises : 2 279,4 ms en
+  français et 2 279,6 ms en anglais, l'indice de vitesse que Lighthouse
+  donne au poste autour de 3 000. Sur le build final, deux séries où cet
+  indice était tombé entre 700 et 1 500, sans cause trouvée : 2 259,8 puis
+  2 228,2 ms en français, 2 258,5 puis 2 319,6 ms en anglais. L'élément du
+  LCP est le chapeau, à chaque passage.
+- *Les images* : le bloc de mesure, de 33 506 à 34 058 octets ; le tableau
+  de saisie, de 15 011 à 15 392 octets ; l'image de prévisualisation,
+  37 030 octets. Aucune partie de la page ne bouge à leur arrivée, et seule
+  l'image du thème est demandée, bascule comprise.
+- *La mention avec son lien* (19.6) : deux lignes à 390 px et trois à
+  320 px, dans les deux langues ; à 1350 px, deux lignes en français, une
+  en anglais. Le lien ne se coupe pas.
+- *Le premier écran* : le bloc du résultat commence à 2 454 px du haut de
+  la page à 412 × 823, et à 1 956 px en français, 1 936 px en anglais, à
+  1350 × 940. Il est hors du premier écran aux deux écrans de la mesure
+  (19.8), comme les deux figures.
+
 ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
 (« Two builds », « The client », « Deliberate limits of the current
 version »).
