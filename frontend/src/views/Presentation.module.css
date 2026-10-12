@@ -38,11 +38,19 @@
   max-inline-size: var(--prose-width);
 }
 
-/* Les titres d'un portefeuille ne se coupent pas : la rangée garde ses
- * 36 px, comme celle du squelette, et le tableau défile dans son cadre quand
- * la place manque (§9.3). */
+/* À partir de 900 px, les titres d'un portefeuille ne se coupent pas : la
+ * rangée garde ses 36 px, comme celle du squelette, et le tableau, qui est
+ * alors dans le premier écran, ne déplace rien en arrivant (§19.8). En
+ * dessous, la liste passe à la ligne après ses virgules : les trois colonnes
+ * tiennent dans la largeur d'un téléphone, sans défilement du cadre. */
 .titres {
   white-space: nowrap;
+}
+
+@media (width < 900px) {
+  .titres {
+    white-space: normal;
+  }
 }
 
 /* La place d'un texte qui arrive : une barre, sans animation (§10). En
@@ -73,11 +81,9 @@
 
 /* ───────────────────────────────────────────────────── Le bloc du résultat */
 
-/* Le bloc tient dans la largeur de prose : sa phrase se lit comme elle. Sa
- * largeur décide de la hauteur réservée plus bas. */
+/* Le bloc tient dans la largeur de prose : sa phrase se lit comme elle. */
 .resultat {
   max-inline-size: var(--prose-width);
-  container: resultat / inline-size;
 }
 
 /* Un chiffre et ses conditions, un seul objet (§1, §9.1) : un bloc
@@ -166,88 +172,9 @@
   font-size: var(--text-sm);
 }
 
-/*
- * Le bloc garde la hauteur de sa forme finale, avec ou sans ses données : il
- * ne déplace pas le texte qui le suit en arrivant (§19.8).
- *
- * Cette hauteur dépend de la largeur et de la langue : la phrase et le titre
- * se coupent à mesure que la place manque, puis la couverture et deux
- * conditions. Elle ne se déduit pas d'un token : elle a été MESURÉE dans
- * Chrome le 2026-10-12, à chaque largeur de 320 à 1440 px, sur l'export de
- * la démonstration, qui est figé (hors dépôt : docs/9.4, balayage-bloc.mjs).
- * Les paliers ci-dessous sont ce constat, arrondi au pixel supérieur, par
- * largeur du bloc. Un contenu plus haut que son palier pousserait seulement
- * la suite, comme sans réserve.
- */
-.bloc:lang(fr) {
-  min-block-size: 467px;
-}
-
-.bloc:lang(en) {
-  min-block-size: 491px;
-}
-
-@container resultat (inline-size >= 276px) {
-  .bloc:lang(en) {
-    min-block-size: 471px;
-  }
-}
-
-@container resultat (inline-size >= 282px) {
-  .bloc:lang(fr) {
-    min-block-size: 432px;
-  }
-}
-
-@container resultat (inline-size >= 284px) {
-  .bloc:lang(en) {
-    min-block-size: 436px;
-  }
-}
-
-@container resultat (inline-size >= 290px) {
-  .bloc:lang(en) {
-    min-block-size: 412px;
-  }
-}
-
-@container resultat (inline-size >= 324px) {
-  .bloc:lang(fr) {
-    min-block-size: 412px;
-  }
-}
-
-@container resultat (inline-size >= 352px) {
-  .bloc:lang(en) {
-    min-block-size: 369px;
-  }
-}
-
-@container resultat (inline-size >= 358px) {
-  .bloc:lang(fr) {
-    min-block-size: 389px;
-  }
-}
-
-@container resultat (inline-size >= 388px) {
-  .bloc:lang(fr) {
-    min-block-size: 369px;
-  }
-}
-
-@container resultat (inline-size >= 490px) {
-  .bloc:lang(en) {
-    min-block-size: 348px;
-  }
-}
-
-@container resultat (inline-size >= 542px) {
-  .bloc:lang(fr) {
-    min-block-size: 348px;
-  }
-}
-
-/* Le squelette du bloc : son titre, puis les lignes de sa phrase. */
+/* Le squelette du bloc : son titre, puis les lignes de sa phrase. Sa forme,
+ * pas sa hauteur : le bloc n'est dans le premier écran à aucun des deux
+ * écrans de la mesure, et grandit en arrivant (§19.8). */
 .barreDeTitre {
   display: block;
   inline-size: 16rem;

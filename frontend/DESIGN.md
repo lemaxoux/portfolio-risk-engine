@@ -1966,9 +1966,22 @@ quatre états de §13 :
 
 - *en cours* : le tableau montre un squelette de sa forme finale, une
   rangée par portefeuille (le nombre vient de `contenu/demo.ts`), et le
-  bloc du résultat le sien. Aucun des deux ne déplace le texte en arrivant.
-  La page n'est pas occupée en entier : son titre et son focus n'attendent
-  rien. Rien n'est annoncé.
+  bloc du résultat le sien. La page n'est pas occupée en entier : son titre
+  et son focus n'attendent rien. Rien n'est annoncé.
+  **Ce qui bouge à leur arrivée** (amendé le 2026-10-12 ; la règle était
+  « aucun des deux ne déplace le texte en arrivant »). Le tableau ne
+  déplace rien à partir de 900 px, où il est dans le premier écran (à
+  1350 × 940) : son squelette est le tableau lui-même sans ses données, sa
+  légende, ses en-têtes et ses rangées à leur hauteur, et les titres ne s'y
+  coupent pas. Sous 900 px, la liste des titres passe à la ligne après ses
+  virgules, pour que les trois colonnes tiennent sur un téléphone : le
+  tableau peut alors grandir en arrivant, hors du premier écran (à
+  412 × 823 et à 390 px). Le bloc du résultat n'est dans le premier écran à
+  aucun des deux écrans de la mesure (19.9) : il a le squelette de sa
+  forme, sans hauteur fixée, et peut grandir en arrivant. Une hauteur
+  réservée demandait des paliers mesurés, par langue et par largeur, écrits
+  en dur dans sa feuille : écartés. La 9.4 vérifie que le bloc reste hors
+  du premier écran à ces deux écrans.
 - *erreur* : si `<langue>/portfolios.json` manque, le message existant
   prend la place du tableau, avec le nom du fichier et le bouton
   « Recharger la liste » (§18.5). Si l'analyse du premier portefeuille
@@ -2006,6 +2019,15 @@ dessine aucun graphique. La médiane dépassait le seuil : la 9.4 découpe.
    **L'élément du LCP est du texte du bundle, le titre ou le chapeau ;
    jamais le tableau ni le bloc du résultat, qui attendent un fichier
    exporté.**
+   **Il n'en lance aucune non plus avant d'être peint** (2026-10-12).
+   Toute page demande la liste des portefeuilles à son montage ; quand la
+   première page est `/`, elle part après le premier affichage, comme
+   l'analyse du premier portefeuille (`lib/liste.ts`, `lib/affichage.ts`).
+   Demandée au montage, elle partait avant la première peinture : la page
+   ne l'attendait pas, mais l'estimation de Lighthouse la comptait. Mesuré
+   ce jour-là sur la page sans images, avant ce changement : 2 461,8 ms en
+   français et 2 514,8 ms en anglais, au-dessus du seuil. L'application
+   locale ne change pas.
 3. Attendre le fichier de l'analyse ne change rien de §13. La page
    attendue garde son squelette (`aria-busy`) ; le focus ne se déplace
    qu'une fois par navigation ; le retour depuis la méthode rend le focus

@@ -238,7 +238,9 @@ interface Annonce {
 function Application() {
   const route = useRoute()
   const { langue } = useLangue()
-  const { etat: liste, recharger } = useListe(langue)
+  // Sur la présentation de la démonstration, la liste part après le premier
+  // affichage : son premier écran n'attend aucune requête (DESIGN.md §19.9).
+  const { etat: liste, recharger } = useListe(langue, DEMO && route.vue === 'accueil')
   const [annonce, setAnnonce] = useState<Annonce | null>(null)
 
   const annoncer = useCallback((texte: string, page: string) => {

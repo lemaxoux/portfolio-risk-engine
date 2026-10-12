@@ -87,7 +87,7 @@ export const LIBELLES_FR: Libelles = {
       titre: 'La démonstration',
       texte:
         'Ce site est une démonstration\u00a0: des portefeuilles fixes, sans saisie ni serveur. ' +
-        "L'analyse de chacun est celle de l'application, avec sa méthodologie.",
+        "Chaque nom mène à son analyse, celle de l'application, avec sa méthodologie.",
     },
     tableau: {
       legende: (date) =>

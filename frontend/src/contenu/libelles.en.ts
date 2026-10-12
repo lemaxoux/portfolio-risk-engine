@@ -94,7 +94,7 @@ export const LIBELLES_EN: Libelles = {
       titre: 'The demonstration',
       texte:
         'This site is a demonstration: fixed portfolios, with no data entry and no server. ' +
-        "Each portfolio's analysis is the application's own, with its methodology.",
+        "Each name opens its analysis, the application's own, with its methodology.",
     },
     tableau: {
       legende: (date) =>

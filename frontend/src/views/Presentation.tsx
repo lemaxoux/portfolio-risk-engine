@@ -8,11 +8,12 @@
  *
  * ═══ LE TEXTE EST DANS LE BUNDLE, IL S'AFFICHE TOUJOURS ═══
  *
- * Le premier écran n'attend aucune requête (§19.9). Seuls deux blocs lisent
- * un fichier : le tableau des portefeuilles et le bloc du résultat. Chacun a
- * son squelette, à la hauteur de sa forme finale pour ne rien déplacer en
- * arrivant, et son message quand son fichier manque ; le reste de la page se
- * lit sans eux (§19.8). La page n'est pas « occupée » en entier.
+ * Le premier écran n'attend aucune requête (§19.9) : la liste et l'analyse
+ * du premier portefeuille sont demandées une fois ce premier écran peint.
+ * Seuls deux blocs lisent un fichier : le tableau des portefeuilles et le
+ * bloc du résultat. Chacun a le squelette de sa forme, et son message quand
+ * son fichier manque ; le reste de la page se lit sans eux (§19.8). La page
+ * n'est pas « occupée » en entier.
  *
  * ═══ AUCUN NOMBRE N'EST ÉCRIT ICI ═══
  *
@@ -86,8 +87,11 @@ function barre(largeur: string | undefined) {
  *
  * Le squelette est le même tableau, sans ses données : la légende, les
  * en-têtes, une rangée par portefeuille. Il a la même largeur, donc la même
- * légende, sur autant de lignes ; les rangées font 36 px dans les deux cas,
- * et les titres ne se coupent pas : rien ne bouge à l'arrivée.
+ * légende, sur autant de lignes. À partir de 900 px, où le tableau est dans
+ * le premier écran, les titres ne se coupent pas et les rangées font 36 px
+ * dans les deux cas : rien ne bouge à l'arrivée. En dessous, les titres
+ * passent à la ligne après leurs virgules, et le tableau, alors hors du
+ * premier écran, peut grandir en arrivant.
  */
 function TableauDesPortefeuilles({
   liste,
