@@ -1982,6 +1982,16 @@ page, elle, suit la langue du navigateur (§8.1).
   la chaîne (le bloc de mesure, thème clair, en anglais), sans composition
   ajoutée.
 
+**Réalisé le 2026-10-12** (`api/demoAuBuild.ts`). L'origine se donne par la
+variable d'environnement `MX_RISK_ORIGINE_DU_SITE` : `https://hôte`, sans
+chemin ni barre finale. Toute autre valeur arrête le build de
+démonstration. Sans elle, `index.html` reçoit la description, `og:type`,
+`og:title`, `og:description`, et `twitter:card` à « summary ». Avec elle
+s'ajoutent `og:url` et `og:image`, avec le type, les dimensions et le texte
+alternatif de l'image (celui de la première figure, en anglais) ;
+`twitter:card` passe à « summary_large_image », et l'image est émise sous
+un nom qui porte l'empreinte de son contenu. Aucune page ne la demande.
+
 Ces balises n'entrent que dans `dist-demo/index.html`, par le greffon,
 comme `noindex`. `dist/` n'en reçoit aucune. Ce qui ne se vérifie que chez
 l'hébergeur attend la 9.5 : l'aperçu dans les outils de partage malgré
@@ -2112,8 +2122,8 @@ focus quand la page attendue le prendra.
   l'application locale est le même avant et après ; le serveur de
   l'application sert un build en plusieurs fichiers.
 
-**Les tests existants que la 9.4 modifie**, avec l'accord donné d'avance
-le 2026-10-11. Trois cas, et eux seuls :
+**Les tests existants que la 9.4 modifie.** Trois cas accordés d'avance le
+2026-10-11, un quatrième accordé le 2026-10-12, et eux seuls :
 
 1. `contenu/demo.test.ts` : la liste des pages de la démonstration reçoit
    « Présentation » et « Avertissement ». Une valeur de référence change.
@@ -2124,9 +2134,15 @@ le 2026-10-11. Trois cas, et eux seuls :
    « Démo ». Ce nom propre déclaré, et lui seul : l'école garde son vrai
    nom dans la ligne de l'auteur. Une assertion prouve que la garde refuse
    encore « Montréal » seul, et un mot français accentué.
+4. `api/demoAuBuild.test.ts`, « interdit l'indexation » (2026-10-12) : la
+   balise `noindex` est la première que le greffon ajoute à `index.html`,
+   et non plus la seule. Le greffon y ajoute aussi les balises de partage
+   (19.7). L'attente « la seule balise » était accessoire : le but du test
+   est que `noindex` soit là.
 
-Les tests de `destinationDe(…, true)` restent intacts : la fonction ne
-change pas. Tout autre test existant à modifier arrête le lot.
+Les tests de `destinationDe(…, true)` restent intacts : la fonction reçoit
+un cas, la page de l'avertissement, et ses cas existants ne changent pas.
+Tout autre test existant à modifier arrête le lot.
 
 ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
 (« Two builds », « The client », « Deliberate limits of the current

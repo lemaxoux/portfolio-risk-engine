@@ -32,7 +32,9 @@
  * build:demo` (mode `demo`) écrit `dist-demo/`, un site statique sans
  * serveur : `src/api/client.ts` y lit des réponses de l'API enregistrées, et
  * le greffon de `src/api/demoAuBuild.ts` y ajoute ces fichiers, l'interdiction
- * d'indexer, et la garde qui refuse un bundle où resterait une écriture. Ce
+ * d'indexer, les balises de partage (les adresses absolues seulement si
+ * `MX_RISK_ORIGINE_DU_SITE` donne l'origine du site), et la garde qui refuse
+ * un bundle où resterait une écriture. Ce
  * greffon n'est chargé que dans ce mode : rien de la démonstration n'entre
  * dans `dist/`. Le build ordinaire charge l'autre, `sansLaDemonstration`,
  * qui en retire les captures de la page de présentation.
@@ -42,7 +44,12 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
-import { demonstration, sansLaDemonstration } from './src/api/demoAuBuild'
+import {
+  demonstration,
+  lireLOrigine,
+  sansLaDemonstration,
+  VARIABLE_DE_L_ORIGINE,
+} from './src/api/demoAuBuild'
 import { coupuresDeLaMethodologie } from './src/contenu/coupuresAuBuild'
 
 // L'adresse est celle qu'impose `backend/api/__main__.py`, pas une option.
@@ -51,13 +58,21 @@ const API = 'http://127.0.0.1:8000'
 // Ce qu'écrit `python -m tools.export_demo`, à la racine du dépôt.
 const EXPORT_DE_LA_DEMO = fileURLToPath(new URL('../demo/export', import.meta.url))
 
+// L'image de prévisualisation des liens partagés (DESIGN.md §19.7).
+const APERCU = fileURLToPath(new URL('./src/images/presentation/apercu.png', import.meta.url))
+
 export default defineConfig(({ mode }) => {
   const demo = mode === 'demo'
   return {
     plugins: [
       react(),
       coupuresDeLaMethodologie(),
-      demo ? demonstration(EXPORT_DE_LA_DEMO) : sansLaDemonstration(),
+      demo
+        ? demonstration(EXPORT_DE_LA_DEMO, {
+            origine: lireLOrigine(process.env[VARIABLE_DE_L_ORIGINE]),
+            apercu: APERCU,
+          })
+        : sansLaDemonstration(),
     ],
     server: {
       proxy: {

@@ -188,10 +188,12 @@ describe('le greffon', () => {
     expect(BALISE_ROBOTS).toEqual({ name: 'robots', content: 'noindex' })
     expect(EN_TETES).toBe('/*\n  X-Robots-Tag: noindex\n')
     const greffon = demonstration('nulle-part')
-    const transformer = greffon.transformIndexHtml as () => unknown
-    expect(transformer()).toEqual([
-      { tag: 'meta', attrs: { name: 'robots', content: 'noindex' }, injectTo: 'head' },
-    ])
+    const transformer = greffon.transformIndexHtml as () => unknown[]
+    expect(transformer()[0]).toEqual({
+      tag: 'meta',
+      attrs: { name: 'robots', content: 'noindex' },
+      injectTo: 'head',
+    })
   })
 })
 
