@@ -11,8 +11,8 @@
  *   /avertissement                 le texte de l'acceptation, à lire (9.4)
  *
  * Les deux builds lisent les mêmes adresses ; ce que chacune rend se décide
- * dans `App.tsx` : `/avertissement` n'est une page que dans la démonstration
- * (DESIGN.md §19.6).
+ * dans `App.tsx` : `/avertissement` n'est une page que dans la démonstration,
+ * où `/` rend la présentation du projet au lieu de rediriger (DESIGN.md §19).
  *
  * De VRAIES adresses et non des fragments : les fragments servent déjà aux
  * ancres des six sections (`#en-crise`) et des entrées de la méthodologie

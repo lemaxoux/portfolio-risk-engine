@@ -98,6 +98,65 @@ export interface Libelles {
     /** Sous le titre : pourquoi la page n'a rien à accepter. */
     readonly pourquoi: string
   }
+  /**
+   * La page de présentation de la démonstration, à l'adresse `/` (DESIGN.md
+   * §19). Sa prose ne contient aucun nombre, ni en chiffres ni en lettres :
+   * `presentation.test.ts` le tient. Les nombres affichés viennent de
+   * l'export ou de `contenu/demo.ts`, écrits par `format.ts`.
+   */
+  readonly presentation: {
+    readonly titre: string
+    readonly chapeau: string
+    readonly demonstration: {
+      readonly titre: string
+      readonly texte: string
+    }
+    readonly tableau: {
+      /** La légende du tableau ; la date de valorisation, en ISO. */
+      readonly legende: (date: string) => string
+      readonly colonnes: {
+        readonly portefeuille: string
+        readonly titres: string
+        readonly valeur: string
+      }
+    }
+    /** Trois points : une phrase d'attaque, puis son paragraphe. */
+    readonly distingue: {
+      readonly titre: string
+      readonly conditions: { readonly attaque: string; readonly texte: string }
+      readonly note: { readonly attaque: string; readonly texte: string }
+      readonly refus: { readonly attaque: string; readonly texte: string }
+    }
+    readonly resultat: {
+      readonly titre: string
+      readonly texte: string
+      /** Le titre du bloc : la crise rejouée, puis le portefeuille. */
+      readonly titreDuBloc: (crise: string, portefeuille: string) => string
+      /** Les deux conditions que la provenance d'une mesure ne nomme pas. */
+      readonly conditions: { readonly portefeuille: string; readonly crise: string }
+      readonly lien: string
+    }
+    /** La section « How it was built » du README, ni plus ni moins. */
+    readonly construit: {
+      readonly titre: string
+      readonly texte: string
+    }
+    readonly neMontrePas: {
+      readonly titre: string
+      readonly texte: string
+      readonly installer: string
+    }
+    /** Les textes des liens ; leurs adresses sont dans `contenu/liens.ts`. */
+    readonly liens: {
+      readonly titre: string
+      readonly code: string
+      readonly methodologie: string
+      readonly methodologieTechnique: string
+      readonly architecture: string
+      readonly avertissement: string
+    }
+    readonly auteur: string
+  }
   readonly cadre: {
     readonly allerAuContenu: string
   }

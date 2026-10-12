@@ -1,0 +1,302 @@
+/*
+ * La page de présentation — DESIGN.md §19.
+ *
+ * Une page de l'outil, pas une page de site marketing (§19.2) : une colonne
+ * de lecture, sur la grille de la méthodologie et de la liste. Prose en
+ * Spectral à la largeur de prose, alignée à gauche à toutes les largeurs,
+ * chapeau compris (`Pages.module.css`) ; tableau et bloc du résultat en IBM
+ * Plex Sans. Aucun token nouveau, aucun mouvement.
+ */
+
+/* Une partie de la page, sous son intertitre. Sans numéro (§12). */
+.partie {
+  margin-block-start: var(--space-7);
+}
+
+/* Un intertitre : à la taille du titre de la page, comme les parties de la
+ * méthodologie. Le titre n'est pas un hero (§19.2). */
+.intertitre {
+  margin-block-end: var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+/* La phrase d'attaque d'un point : un sous-titre calme (§3.3), puis son
+ * paragraphe. */
+.attaque {
+  max-inline-size: var(--prose-width);
+  margin-block: var(--space-5) var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* ───────────────────────────────────────────── Le tableau des portefeuilles */
+
+/* Le tableau tient dans la largeur de prose, avec ou sans ses données : sa
+ * légende se coupe donc de même dans le squelette et dans le tableau. */
+.tableau {
+  max-inline-size: var(--prose-width);
+}
+
+/* Les titres d'un portefeuille ne se coupent pas : la rangée garde ses
+ * 36 px, comme celle du squelette, et le tableau défile dans son cadre quand
+ * la place manque (§9.3). */
+.titres {
+  white-space: nowrap;
+}
+
+/* La place d'un texte qui arrive : une barre, sans animation (§10). En
+ * ligne, pour suivre l'alignement de sa cellule : une valeur est à droite. */
+.barre {
+  display: inline-block;
+  inline-size: 5rem;
+  max-inline-size: 100%;
+  block-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  vertical-align: middle;
+}
+
+/* Les trois colonnes du tableau, à peu près à la largeur de leurs données :
+ * un nom, une liste de titres, une valeur. */
+.barreDeNom {
+  inline-size: 3.5rem;
+}
+
+.barreDeTitres {
+  inline-size: 13.5rem;
+}
+
+.barreDeValeur {
+  inline-size: 6.5rem;
+}
+
+/* ───────────────────────────────────────────────────── Le bloc du résultat */
+
+/* Le bloc tient dans la largeur de prose : sa phrase se lit comme elle. Sa
+ * largeur décide de la hauteur réservée plus bas. */
+.resultat {
+  max-inline-size: var(--prose-width);
+  container: resultat / inline-size;
+}
+
+/* Un chiffre et ses conditions, un seul objet (§1, §9.1) : un bloc
+ * surélevé, comme celui d'une crise en section 5. */
+.bloc {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+}
+
+.titreDuBloc {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/* La phrase de l'analyse, telle que la section 5 la compose : en Plex Sans,
+ * alignée à gauche (§6.3). */
+.phrase {
+  margin-block-start: var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  text-wrap: pretty;
+}
+
+/* La couverture, sous la phrase et à sa taille (§11.2) : le libellé, la part
+ * de la valeur, puis les lignes. */
+.couverture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin-block-start: var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-ui);
+}
+
+.libelle {
+  color: var(--text-2);
+  font-weight: var(--weight-medium);
+}
+
+.lignes {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* Le point de réserve : un élément, pas une couleur de texte (§5.3). */
+.point {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--caveat);
+  transform: translateY(-0.15em);
+}
+
+/* La raison du moteur, quand il ne publie pas la comparaison. */
+.reserve {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+  color: var(--caveat);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+/* L'intertitre des conditions, comme dans un bloc mesure (§9.1). */
+.detailsTitre {
+  margin-block: var(--space-4) var(--space-1);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+}
+
+.suite {
+  margin-block-start: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/*
+ * Le bloc garde la hauteur de sa forme finale, avec ou sans ses données : il
+ * ne déplace pas le texte qui le suit en arrivant (§19.8).
+ *
+ * Cette hauteur dépend de la largeur et de la langue : la phrase et le titre
+ * se coupent à mesure que la place manque, puis la couverture et deux
+ * conditions. Elle ne se déduit pas d'un token : elle a été MESURÉE dans
+ * Chrome le 2026-10-12, à chaque largeur de 320 à 1440 px, sur l'export de
+ * la démonstration, qui est figé (hors dépôt : docs/9.4, balayage-bloc.mjs).
+ * Les paliers ci-dessous sont ce constat, arrondi au pixel supérieur, par
+ * largeur du bloc. Un contenu plus haut que son palier pousserait seulement
+ * la suite, comme sans réserve.
+ */
+.bloc:lang(fr) {
+  min-block-size: 467px;
+}
+
+.bloc:lang(en) {
+  min-block-size: 491px;
+}
+
+@container resultat (inline-size >= 276px) {
+  .bloc:lang(en) {
+    min-block-size: 471px;
+  }
+}
+
+@container resultat (inline-size >= 282px) {
+  .bloc:lang(fr) {
+    min-block-size: 432px;
+  }
+}
+
+@container resultat (inline-size >= 284px) {
+  .bloc:lang(en) {
+    min-block-size: 436px;
+  }
+}
+
+@container resultat (inline-size >= 290px) {
+  .bloc:lang(en) {
+    min-block-size: 412px;
+  }
+}
+
+@container resultat (inline-size >= 324px) {
+  .bloc:lang(fr) {
+    min-block-size: 412px;
+  }
+}
+
+@container resultat (inline-size >= 352px) {
+  .bloc:lang(en) {
+    min-block-size: 369px;
+  }
+}
+
+@container resultat (inline-size >= 358px) {
+  .bloc:lang(fr) {
+    min-block-size: 389px;
+  }
+}
+
+@container resultat (inline-size >= 388px) {
+  .bloc:lang(fr) {
+    min-block-size: 369px;
+  }
+}
+
+@container resultat (inline-size >= 490px) {
+  .bloc:lang(en) {
+    min-block-size: 348px;
+  }
+}
+
+@container resultat (inline-size >= 542px) {
+  .bloc:lang(fr) {
+    min-block-size: 348px;
+  }
+}
+
+/* Le squelette du bloc : son titre, puis les lignes de sa phrase. */
+.barreDeTitre {
+  display: block;
+  inline-size: 16rem;
+  block-size: var(--text-body);
+  margin-block-end: var(--space-4);
+}
+
+.ligne {
+  display: block;
+  inline-size: 100%;
+  margin-block-start: var(--space-2);
+}
+
+.courte {
+  inline-size: 60%;
+}
+
+/* ──────────────────────────────────────────────────── Les liens, l'auteur */
+
+.liens {
+  max-inline-size: var(--prose-width);
+  padding-inline-start: var(--space-5);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+  list-style: disc;
+}
+
+.liens li + li {
+  margin-block-start: var(--space-1);
+}
+
+/* La ligne de l'auteur, puis ses deux liens : séparés par un blanc, sans
+ * point médian (§12). */
+.auteur {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  max-inline-size: var(--prose-width);
+  margin-block-start: var(--space-6);
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-prose);
+}
+
+.liensDeLAuteur {
+  display: inline-flex;
+  gap: var(--space-4);
+}

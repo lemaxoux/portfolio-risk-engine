@@ -49,6 +49,14 @@
  * une page que là : dans l'application, elle rend « Page introuvable ».
  * Tout ce qui précède vaut pour l'application, et pour elle seule.
  *
+ * ═══ DANS LA DÉMONSTRATION, `/` EST UNE PAGE (chantier 9.4) ═══
+ *
+ * L'adresse `/` y rend la présentation du projet (`views/Presentation`,
+ * DESIGN.md §19) au lieu de rediriger. Elle n'ouvre plus le dernier
+ * portefeuille consulté, qui reste mémorisé pour le bandeau et pour
+ * « Analyse ». Dans l'application, `/` reste la redirection décrite plus
+ * bas, et la présentation sort de son build.
+ *
  * ═══ L'ANALYSE SE CHARGE À LA DEMANDE (chantier 9.4) ═══
  *
  * Son fichier, avec la bibliothèque de graphiques, n'est plus dans le fichier
@@ -99,6 +107,7 @@ import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
 import { VueMethodologie } from './views/Methodologie'
 import { VuePortefeuilles } from './views/Portefeuilles'
 import { VuePositions } from './views/Positions'
+import { VuePresentation } from './views/Presentation'
 
 type EtatAcceptation =
   | { phase: 'verification' }
@@ -272,6 +281,15 @@ function Application() {
 
   switch (route.vue) {
     case 'accueil':
+      if (DEMO) {
+        return (
+          <VuePresentation
+            liste={liste}
+            recharger={recharger}
+            portefeuille={portefeuilleEnVue()}
+          />
+        )
+      }
       return <Accueil liste={liste} recharger={recharger} />
     case 'portefeuilles':
       return (

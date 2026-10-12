@@ -74,6 +74,87 @@ export const LIBELLES_FR: Libelles = {
       "de l'accepter. La démonstration ne le demande pas\u00a0: elle ne montre aucun " +
       'portefeuille qui soit le vôtre.',
   },
+  presentation: {
+    titre: "Le risque d'un portefeuille, chaque chiffre avec ses conditions",
+    chapeau:
+      "Portfolio Risk Engine mesure le risque d'un portefeuille d'actions et de fonds cotés " +
+      'aux États-Unis. Il dit combien le portefeuille peut perdre un jour ordinaire, combien ' +
+      "il aurait perdu au pire, quelles lignes portent le risque et ce qu'il serait devenu " +
+      'pendant des crises passées. Chaque mesure est dite en mots courants, pour un lecteur ' +
+      'qui part de zéro, et montrée avec les conditions de son calcul. Tout y décrit le ' +
+      "passé\u00a0: rien n'y est une prévision.",
+    demonstration: {
+      titre: 'La démonstration',
+      texte:
+        'Ce site est une démonstration\u00a0: des portefeuilles fixes, sans saisie ni serveur. ' +
+        "L'analyse de chacun est celle de l'application, avec sa méthodologie.",
+    },
+    tableau: {
+      legende: (date) =>
+        `Les portefeuilles de la démonstration, valorisés au ${dateEnToutesLettres(date)}`,
+      colonnes: { portefeuille: 'Portefeuille', titres: 'Titres', valeur: 'Valeur' },
+    },
+    distingue: {
+      titre: 'Ce qui le distingue',
+      conditions: {
+        attaque: 'Un chiffre et ses conditions se lisent ensemble.',
+        texte:
+          "Sous chaque mesure sont écrits sa méthode, sa fenêtre d'estimation, sa période et " +
+          'sa date de valorisation, sans clic ni infobulle.',
+      },
+      note: {
+        attaque: 'Aucune note globale.',
+        texte:
+          'Réunir en un seul nombre la concentration, la part des variations qui suit le ' +
+          "marché et la couverture d'une crise demanderait une pondération que rien ne " +
+          "justifie. L'outil décrit\u00a0: il ne dit jamais quoi faire.",
+      },
+      refus: {
+        attaque: "Un chiffre qui ne veut plus rien dire n'est pas donné.",
+        texte:
+          "Quand les jours de bourse sont trop peu nombreux pour qu'une estimation veuille " +
+          "encore dire quelque chose, l'outil la refuse et dit pourquoi\u00a0; quand ils sont " +
+          'seulement peu nombreux, il la donne, et la signale. Un seuil choisi à la main est ' +
+          'signalé comme tel.',
+      },
+    },
+    resultat: {
+      titre: 'Un résultat',
+      texte:
+        "Ce qu'un portefeuille fait en temps ordinaire n'annonce pas toujours ce qu'il fait " +
+        "en crise. L'analyse du premier portefeuille l'écrit ainsi, pour la première crise " +
+        "qu'elle rejoue\u00a0:",
+      titreDuBloc: (crise, portefeuille) => `${crise}, rejouée sur ${cite(portefeuille)}`,
+      conditions: { portefeuille: 'Portefeuille', crise: 'Crise' },
+      lien: "Voir cette crise dans l'analyse",
+    },
+    construit: {
+      titre: 'Comment il a été construit',
+      texte:
+        "Construit avec Claude Code, l'agent de programmation d'Anthropic, qui a écrit le " +
+        "code, les tests et l'essentiel de la documentation. L'auteur a fixé le périmètre et " +
+        'les conventions méthodologiques, tranché chaque arbitrage, et fait vérifier chaque ' +
+        'phase de façon indépendante, dans une session Claude distincte\u00a0: suites de tests ' +
+        'relancées sur une copie propre, chiffres publiés recalculés à partir des cours ' +
+        'bruts. Les commits portent la mention Co-Authored-By.',
+    },
+    neMontrePas: {
+      titre: 'Ce que la démonstration ne montre pas',
+      texte:
+        "L'application, installée sur un poste, analyse un portefeuille saisi à la main ou " +
+        "importé d'un fichier CSV.",
+      installer: "Installer l'application\u00a0: le README du dépôt, en anglais",
+    },
+    liens: {
+      titre: 'Liens',
+      code: 'Le code source, sur GitHub',
+      methodologie: 'La méthodologie, pour un lecteur qui part de zéro',
+      methodologieTechnique: 'METHODOLOGY.md\u00a0: chaque formule, en anglais',
+      architecture: 'ARCHITECTURE.md\u00a0: les décisions de conception, en anglais',
+      avertissement: "L'avertissement",
+    },
+    auteur: 'Projet personnel de Maxence Champlong, étudiant à HEC Montréal',
+  },
   cadre: {
     allerAuContenu: 'Aller au contenu',
   },

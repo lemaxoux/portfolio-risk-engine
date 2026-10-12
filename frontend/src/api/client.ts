@@ -29,7 +29,9 @@
  * enregistrées en fichiers par `python -m tools.export_demo`, une par langue :
  * `/donnees/fr/portfolios.json` à la place de `/api/portfolios?lang=fr`. Ce
  * module est le seul à savoir d'où viennent les données ; le reste du client
- * ne lit `DEMO` que pour masquer ce qui écrit.
+ * ne lit `DEMO` que pour quatre choses : masquer ce qui écrit, afficher la
+ * mention, rendre la page de présentation à l'adresse `/`, et ne pas poser
+ * l'écran d'acceptation (DESIGN.md §18.1, §19).
  *
  * Les ÉCRITURES n'ont pas d'autre source que l'API. En démonstration, plus
  * rien ne les appelle : elles sortent du bundle avec les écrans qui les

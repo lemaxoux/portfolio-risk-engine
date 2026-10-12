@@ -81,6 +81,85 @@ export const LIBELLES_EN: Libelles = {
       'The installed application shows this text before its first use and asks you to ' +
       'accept it. The demonstration does not: none of the portfolios it shows is yours.',
   },
+  presentation: {
+    titre: 'The risk of a portfolio, every figure with its conditions',
+    chapeau:
+      'Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and ETFs. ' +
+      'It says how much the portfolio can lose on an ordinary day, how much it would have ' +
+      'lost at worst, which holdings carry the risk, and what would have become of it ' +
+      'during past crises. Each measure is put in plain words, for a reader who starts from ' +
+      'zero, and shown with the conditions of its calculation. Everything in it describes ' +
+      'the past: nothing in it is a forecast.',
+    demonstration: {
+      titre: 'The demonstration',
+      texte:
+        'This site is a demonstration: fixed portfolios, with no data entry and no server. ' +
+        "Each portfolio's analysis is the application's own, with its methodology.",
+    },
+    tableau: {
+      legende: (date) =>
+        `The demonstration portfolios, valued as of ${dateEnToutesLettres(date, EN)}`,
+      colonnes: { portefeuille: 'Portfolio', titres: 'Securities', valeur: 'Value' },
+    },
+    distingue: {
+      titre: 'What sets it apart',
+      conditions: {
+        attaque: 'A figure and its conditions are read together.',
+        texte:
+          'Under each measure, its method, estimation window, period, and valuation date are ' +
+          'written out, with no click and no tooltip.',
+      },
+      note: {
+        attaque: 'No overall rating.',
+        texte:
+          'Folding concentration, the share of the fluctuations that follows the market, and ' +
+          'the coverage of a crisis into a single number would take a weighting that nothing ' +
+          'justifies. The tool describes: it never says what to do.',
+      },
+      refus: {
+        attaque: 'A figure that no longer means anything is not given.',
+        texte:
+          'When there are too few trading days for an estimate to still mean something, the ' +
+          'tool refuses it and says why; when there are only a few, it gives it, and flags ' +
+          'it. A threshold chosen by hand is flagged as such.',
+      },
+    },
+    resultat: {
+      titre: 'A result',
+      texte:
+        'What a portfolio does in ordinary times does not always predict what it does in a ' +
+        'crisis. The analysis of the first portfolio puts it this way, for the first crisis ' +
+        'it replays:',
+      titreDuBloc: (crise, portefeuille) => `${crise}, replayed on ${citer(portefeuille)}`,
+      conditions: { portefeuille: 'Portfolio', crise: 'Crisis' },
+      lien: 'See this crisis in the analysis',
+    },
+    construit: {
+      titre: 'How it was built',
+      texte:
+        "Built with Claude Code, Anthropic's coding agent, which wrote the code, the tests, " +
+        'and most of the documentation. The author set the scope and the methodological ' +
+        'conventions, decided each trade-off, and had every phase verified independently in ' +
+        'a separate Claude session: test suites re-run on a clean copy, published figures ' +
+        'recomputed from raw prices. Commits carry a Co-Authored-By trailer.',
+    },
+    neMontrePas: {
+      titre: 'What the demonstration does not show',
+      texte:
+        'The application, installed on a computer, analyzes a portfolio entered by hand or ' +
+        'imported from a CSV file.',
+      installer: 'Install the application: the README of the repository',
+    },
+    liens: {
+      titre: 'Links',
+      code: 'The source code, on GitHub',
+      methodologie: 'The methodology, for a reader who starts from zero',
+      methodologieTechnique: 'METHODOLOGY.md: every formula',
+      architecture: 'ARCHITECTURE.md: the design decisions',
+      avertissement: 'The disclaimer',
+    },
+    auteur: 'A personal project by Maxence Champlong, a student at HEC Montréal',
+  },
   cadre: {
     allerAuContenu: 'Skip to content',
   },

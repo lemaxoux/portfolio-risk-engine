@@ -35,7 +35,8 @@ import { Provenance } from '../components/Provenance'
 import { Section } from '../components/Section'
 import commun from '../components/Section.module.css'
 import { METHODES, avecRefus } from '../contenu/methodes'
-import { TIRET_INDEFINI, dateISO, decimal, pourcentage, pourcentageSigne, seances } from '../lib/format'
+import { ecrireLaCouverture } from '../lib/couverture'
+import { TIRET_INDEFINI, dateISO, decimal, pourcentageSigne, seances } from '../lib/format'
 import { useLangue, type Langue } from '../lib/langue'
 import { majuscule } from '../lib/phrases'
 import styles from './SectionCrise.module.css'
@@ -179,7 +180,8 @@ export function BlocScenario({
   const l = libelles.crise
   const definition = scenario.scenario
   const couverture = scenario.coverage
-  const partielle = !couverture.is_complete
+  const ecriture = ecrireLaCouverture(couverture, langue)
+  const partielle = ecriture.partielle
   const lecture = phrases.lectureScenario(scenario, regime, devise)
 
   return (
@@ -209,10 +211,10 @@ export function BlocScenario({
               : pourcentageSigne(scenario.max_drawdown.value, 1, langue)
           }
         />
-        <Chiffre libelle={l.couverture} valeur={pourcentage(couverture.value_share, 0, langue)}>
+        <Chiffre libelle={l.couverture} valeur={ecriture.part}>
           <dd className={styles.sousChiffre}>
             {partielle && <span className={styles.point} aria-hidden="true" />}
-            {l.couvertes(couverture.covered_count, couverture.total_count)}
+            {ecriture.lignes}
           </dd>
         </Chiffre>
       </dl>

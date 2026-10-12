@@ -42,6 +42,8 @@ function appels(l: Libelles): Record<string, string> {
     'api.reponseInattendue': l.api.reponseInattendue(409),
     'demo.fichierIllisible': l.demo.fichierIllisible('fr/portfolios.json'),
     'demo.mention': l.demo.mention(3, '2026-09-09'),
+    'presentation.tableau.legende': l.presentation.tableau.legende('2026-09-09'),
+    'presentation.resultat.titreDuBloc': l.presentation.resultat.titreDuBloc('Krach', 'Démo'),
     'theme.vers': l.theme.vers(l.theme.sombre),
     'theme.commeLeSysteme': l.theme.commeLeSysteme(l.theme.sombre),
     'theme.fige': l.theme.fige(l.theme.clair),
@@ -199,12 +201,21 @@ const NON_PRESCRIPTIFS = new Set([
   ),
 ])
 
+/**
+ * Les noms propres que l'anglais écrit comme le français : le portefeuille
+ * « Démo » des exemples, et l'école de l'auteur, qui garde son vrai nom
+ * dans la ligne de l'auteur (DESIGN.md §19.10). Ces noms déclarés, et eux
+ * seuls, sont retirés avant le contrôle des accents.
+ */
+const NOMS_PROPRES = ['Démo', 'HEC Montréal']
+
 function fautesAnglaises(chemin: string, texte: string): string[] {
   const fautes: string[] = []
   if (ESPACE_AVANT_PONCTUATION.test(texte)) fautes.push('espace avant la ponctuation')
   if (GUILLEMET_FRANCAIS.test(texte)) fautes.push('guillemet français')
   if (CADRATIN.test(texte)) fautes.push('tiret cadratin')
-  if (ACCENT_FRANCAIS.test(texte.replaceAll('Démo', ''))) fautes.push('accent français')
+  const sansNomsPropres = NOMS_PROPRES.reduce((reste, nom) => reste.replaceAll(nom, ''), texte)
+  if (ACCENT_FRANCAIS.test(sansNomsPropres)) fautes.push('accent français')
   if (MOT_FRANCAIS.test(texte)) fautes.push('mot français')
   if (CONTRACTION.test(texte)) fautes.push('contraction')
   if (!NON_PRESCRIPTIFS.has(chemin) && PRESCRIPTIF.test(texte)) fautes.push('prescriptif')
@@ -226,6 +237,13 @@ describe('les libellés anglais', () => {
     expect(fautesAnglaises('x', 'You should sell JPM.')).not.toEqual([])
     expect(fautesAnglaises('moteur.introduction', 'it recommends nothing')).toEqual([])
     expect(fautesAnglaises('x', "The security's code: “Démo”.")).toEqual([])
+  })
+
+  it('ne laisse passer que les noms propres déclarés : l’école, pas la ville ni un mot français', () => {
+    expect(fautesAnglaises('x', 'A student at HEC Montréal')).toEqual([])
+    expect(fautesAnglaises('x', 'A student in Montréal')).not.toEqual([])
+    expect(fautesAnglaises('x', 'A student at the école')).not.toEqual([])
+    expect(fautesAnglaises('x', 'HEC Montréal, à côté')).not.toEqual([])
   })
 
   it('« Bêta » en français, « Beta » en anglais', () => {
