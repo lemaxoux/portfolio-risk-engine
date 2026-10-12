@@ -56,6 +56,7 @@ export const LIBELLES_EN: Libelles = {
     rechargerLaPage: 'Reload the page',
     portefeuillesIllisibles: 'Portfolios could not be read',
     rechargerLaListe: 'Reload the list',
+    pageNonChargee: 'This page could not be loaded. Check the connection, then reload the page.',
   },
   api: {
     serveurInjoignable: 'The API is not responding. Start it: python -m backend.api',

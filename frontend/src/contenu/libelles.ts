@@ -57,6 +57,8 @@ export interface Libelles {
     readonly rechargerLaPage: string
     readonly portefeuillesIllisibles: string
     readonly rechargerLaListe: string
+    /** Le fichier d'une page chargée à la demande n'est pas arrivé (chantier 9.4). */
+    readonly pageNonChargee: string
   }
   /** Ce que le client de l'API dit d'un échec qui n'a pas de corps du serveur. */
   readonly api: {

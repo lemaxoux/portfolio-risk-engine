@@ -38,6 +38,14 @@
  * l'adresse d'aucune page : elle rend « Page introuvable », comme toute
  * adresse inconnue, et la page des positions sort du build avec ses
  * écritures.
+ *
+ * ═══ L'ANALYSE SE CHARGE À LA DEMANDE (chantier 9.4) ═══
+ *
+ * Son fichier, avec la bibliothèque de graphiques, n'est plus dans le fichier
+ * d'entrée (`views/AnalyseALaDemande`, DESIGN.md §19.9). Il est demandé en
+ * tâche de fond une fois l'application affichée : la page d'attente ne se
+ * voit que si l'on va à une analyse avant qu'il soit arrivé. Un échec de
+ * cette avance est muet ; c'est la navigation qui le dira.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
@@ -54,6 +62,7 @@ import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
 import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
 import { aAccepte } from './lib/acceptation'
+import { apresLAffichage } from './lib/affichage'
 import {
   appliquerLangue,
   ContexteDeLangue,
@@ -74,7 +83,7 @@ import {
 } from './lib/route'
 import controles from './styles/controles.module.css'
 import { Acceptation } from './views/Acceptation'
-import { VueAnalyse } from './views/Analyse'
+import { AnalyseALaDemande, chargerLAnalyse } from './views/AnalyseALaDemande'
 import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
 import { VueMethodologie } from './views/Methodologie'
 import { VuePortefeuilles } from './views/Portefeuilles'
@@ -208,6 +217,9 @@ function Application() {
     setAnnonce({ texte, page })
   }, [])
 
+  // Le fichier de l'analyse, en tâche de fond, une fois la page affichée.
+  useEffect(() => apresLAffichage(() => void chargerLAnalyse().catch(() => undefined)), [])
+
   const chemin = route.vue === 'inconnue' ? route.chemin : cheminDe(route)
   const annonceIci = annonce !== null && annonce.page === chemin ? annonce.texte : null
 
@@ -242,7 +254,7 @@ function Application() {
       )
     case 'analyse':
       return avecPortefeuille(route.id, 'analyse', (portefeuille) => (
-        <VueAnalyse portefeuille={portefeuille} annonce={annonceIci} />
+        <AnalyseALaDemande portefeuille={portefeuille} annonce={annonceIci} />
       ))
     case 'positions':
       if (DEMO) return <PageInconnue chemin={chemin} />

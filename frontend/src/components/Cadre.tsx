@@ -52,6 +52,15 @@
  * bandeau, en texte courant qui défile avec la page ; le visiteur arrive le
  * plus souvent sur une analyse, pas sur la liste. Le build ordinaire ne la
  * contient pas.
+ *
+ * ═══ LA PAGE D'ATTENTE NE PREND RIEN (chantier 9.4) ═══
+ *
+ * L'analyse se charge à la demande (`views/AnalyseALaDemande`). Tant que son
+ * fichier n'est pas arrivé, une page d'attente tient sa place : même titre,
+ * même cadre, le squelette, `aria-busy`. Avec `attente`, ce cadre ne déplace
+ * ni le focus ni le défilement, et ne lit pas la note d'un retour : la page
+ * attendue le fait en s'installant, une seule fois par navigation
+ * (DESIGN.md §19.9).
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 
@@ -71,6 +80,8 @@ interface Props {
   readonly annonce?: string | null
   /** Le contenu arrive : `aria-busy`, et rien n'est annoncé. */
   readonly occupe?: boolean
+  /** Une page d'attente : la page attendue prendra le focus et le défilement. */
+  readonly attente?: boolean
   /** Change à chaque page : le focus revient au contenu quand elle change. */
   readonly page: string
   readonly children: ReactNode
@@ -119,7 +130,7 @@ function garderEnVue(element: HTMLElement): () => void {
   return arreter
 }
 
-export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: Props) {
+export function Cadre({ titre, entete, rail, annonce, occupe, attente, page, children }: Props) {
   const { libelles } = useLangue()
   const contenu = useRef<HTMLElement>(null)
   // La note d'un lien vers la méthode, en attente que la page soit prête.
@@ -130,6 +141,7 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
   }, [titre])
 
   useEffect(() => {
+    if (attente) return
     // Un retour arrière vers une page que quittait un lien vers la méthode :
     // le lien suivi sera rendu quand la page sera prête (effet suivant).
     const note = navigationParHistorique() ? noteDeRetourCourante() : null
@@ -150,7 +162,7 @@ export function Cadre({ titre, entete, rail, annonce, occupe, page, children }: 
     const titrePage = contenu.current?.querySelector<HTMLElement>('h1[tabindex="-1"]')
     ;(titrePage ?? contenu.current)?.focus()
     window.scrollTo({ top: 0 })
-  }, [page])
+  }, [page, attente])
 
   useEffect(() => {
     const note = retourEnAttente.current

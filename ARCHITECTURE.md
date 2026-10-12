@@ -451,7 +451,9 @@ Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`, and
 - A short history truncates the window of every measure; excluding the holding
   and reweighting the others, with a declared coverage, is left for a later
   version.
-- The bundle is not split; both methodology texts ship in it.
+- Only the analysis page, with the charting library, loads on demand.
+  Everything else ships in the entry file, both methodology texts included,
+  and nothing is split by language (`src/decoupage.test.ts`).
 - No preview of an import: the API has no read without a write.
 - One boundary rests on convention, not on a test: the client computes no
   measure.

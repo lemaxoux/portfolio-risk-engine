@@ -33,6 +33,10 @@
  * En démonstration (chantier 9.2), rien ne mène à la saisie : les états vide
  * et insuffisant, que ses portefeuilles n'atteignent pas, n'y proposent ni le
  * lien vers les positions ni le format du fichier.
+ *
+ * Cette vue se charge à la demande (chantier 9.4). Ce qui tient à l'ouverture
+ * de la page, et non à l'arrivée de son fichier, se fait avant elle : c'est
+ * `views/AnalyseALaDemande` qui mémorise le portefeuille consulté.
  */
 import { useEffect, useState } from 'react'
 
@@ -51,7 +55,7 @@ import {
 } from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
 import { useLangue } from '../lib/langue'
-import { cheminDe, memoriserPortefeuille } from '../lib/route'
+import { cheminDe } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import { SectionAuPire } from './SectionAuPire'
 import { SectionCrise } from './SectionCrise'
@@ -89,10 +93,6 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
   const positionsStockees = JSON.stringify(portefeuille.positions)
   const [etat, setEtat] = useState<Etat>({ phase: 'chargement', precedente: null })
   const [essai, setEssai] = useState(0)
-
-  useEffect(() => {
-    memoriserPortefeuille(portefeuille.id)
-  }, [portefeuille.id])
 
   useEffect(() => {
     if (vide) return

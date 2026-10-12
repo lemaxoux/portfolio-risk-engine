@@ -46,6 +46,8 @@ export const LIBELLES_FR: Libelles = {
     rechargerLaPage: 'Recharger la page',
     portefeuillesIllisibles: 'Portefeuilles illisibles',
     rechargerLaListe: 'Recharger la liste',
+    pageNonChargee:
+      "Cette page n'a pas pu être chargée. Vérifier la connexion, puis recharger la page.",
   },
   api: {
     serveurInjoignable: "L'API ne répond pas. La démarrer\u00a0: python -m backend.api",
