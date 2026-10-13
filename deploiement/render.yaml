@@ -1,0 +1,40 @@
+# Les réglages du serveur public chez son hébergeur (Render), lus comme un
+# « Blueprint ». Un fichier versionné plutôt que des réglages saisis dans un
+# tableau de bord : ils se relisent dans un commit.
+#
+# Le service est bâti depuis un dépôt PRIVÉ qui porte l'arbre de ce dépôt
+# sous `app/`, et la base du serveur sous `base/`. D'où les chemins
+# ci-dessous, et l'absence de `rootDir` : avec lui, l'hébergeur ne donne au
+# service que les fichiers de ce dossier, et la base est à côté.
+#
+# Aucun secret ici, et aucun à saisir : le serveur n'a ni clé ni `.env`.
+services:
+  - type: web
+    name: portfolio-risk-engine-lemaxoux
+    runtime: python
+    plan: free
+    region: virginia
+    # Aucun déploiement automatique : un commit ne se déploie qu'à la main,
+    # une fois vérifié.
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    buildCommand: pip install -r app/requirements-serveur.txt
+    startCommand: cd app && python -m backend.public_api
+    envVars:
+      # La version des tests. L'hébergeur demande une version complète.
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      # La seule façon de désigner la base. Relative à `app/`, le dossier
+      # d'où le serveur démarre. Sans elle, le serveur ne démarre pas.
+      - key: MX_RISK_BASE_DU_SERVEUR
+        value: ../base/serveur.sqlite
+      # Un fil pour l'algèbre linéaire : la machine n'a qu'une fraction de
+      # processeur, et plusieurs fils s'y disputeraient le même.
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: NUMEXPR_NUM_THREADS
+        value: "1"
