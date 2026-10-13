@@ -1,0 +1,19 @@
+# Dépendances du SERVEUR PUBLIC (`backend/public_api/`), versions figées
+# (Python 3.12). Installation : pip install -r requirements-serveur.txt
+#
+# Celles de requirements.txt, MOINS DEUX : `requests`, que seule l'ingestion
+# emploie, et `python-dotenv`, qui lit `.env`. Le serveur public n'importe ni
+# l'une ni l'autre ; ne pas les installer fait de cette règle un fait : les
+# importer ferait échouer son démarrage. Les versions sont celles de
+# requirements.txt, et `tests/test_serveur_public_frontiere.py` le tient.
+
+# API
+fastapi==0.141.1
+uvicorn==0.52.4
+# Lecture des fichiers déposés en multipart/form-data (lecture d'un CSV).
+python-multipart==0.0.20
+
+# Calcul quantitatif
+numpy==2.5.3
+pandas==3.0.5
+scipy==1.18.1

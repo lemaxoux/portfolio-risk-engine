@@ -41,6 +41,16 @@ est refusé. La base du serveur vit dans un autre dépôt, privé.
 Deux constructions de la même source donnent le même fichier. D'un poste à
 l'autre, ce n'est pas garanti : `VACUUM` écrit ce que sa version de SQLite
 écrit. L'empreinte date un fichier, elle n'est pas une recette.
+
+═══ L'EMPREINTE DU CODE D'UN COMMIT ═══
+
+    python -m tools.base_serveur --empreinte-du-code [COMMIT]
+
+Le serveur public dit, dans `GET /health`, l'empreinte du code qu'il exécute
+(`backend/public_api/empreinte.py`). Cette commande calcule la même sur un
+commit du dépôt, lue dans les OBJETS git et non dans l'arbre de travail : ce
+que le commit contient, pas ce qu'un poste en a fait. Les deux calculs
+portent sur le même ensemble de fichiers, défini une seule fois.
 """
 
 from __future__ import annotations
@@ -51,6 +61,7 @@ import json
 import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 from collections.abc import Sequence
 from contextlib import closing
@@ -203,11 +214,65 @@ def construire(
     }
 
 
+def _git(racine: Path, *arguments: str, entree: bytes | None = None) -> bytes:
+    try:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=racine,
+            input=entree,
+            capture_output=True,
+            check=True,
+            env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise BaseError(f"git {' '.join(arguments[:2])} a échoué dans {racine} : {exc}") from exc
+
+
+def empreinte_du_code_au_commit(commit: str = "HEAD", racine: Path = RACINE) -> tuple[str, str]:
+    """L'identifiant complet du commit, et l'empreinte de son code : celle que
+    le serveur public annonce quand il sert ce commit.
+
+    Les fichiers sont lus dans les objets git (`git cat-file`), et choisis par
+    la règle du serveur (`appartient`).
+    """
+    # Import local : lire `DATE_GEL` ou bâtir une base ne charge pas le
+    # serveur public.
+    from backend.public_api.empreinte import appartient, empreinte
+
+    identifiant = _git(racine, "rev-parse", "--verify", f"{commit}^{{commit}}").decode("ascii").strip()
+    chemins = _git(racine, "ls-tree", "-r", "--name-only", "-z", identifiant).decode("utf-8").split("\0")
+    retenus = sorted(chemin for chemin in chemins if chemin and appartient(chemin))
+    demande = "".join(f"{identifiant}:{chemin}\n" for chemin in retenus).encode("utf-8")
+    brut = _git(racine, "cat-file", "--batch", entree=demande)
+
+    # Pour chaque objet : une ligne « identifiant blob taille », le contenu,
+    # puis un saut de ligne.
+    contenus: dict[str, bytes] = {}
+    curseur = 0
+    for chemin in retenus:
+        fin = brut.index(b"\n", curseur)
+        _, genre, taille = brut[curseur:fin].split()
+        if genre != b"blob":
+            raise BaseError(f"{chemin} n'est pas un fichier dans {identifiant}.")
+        debut = fin + 1
+        contenus[chemin] = brut[debut : debut + int(taille)]
+        curseur = debut + int(taille) + 1
+    return identifiant, empreinte(contenus)
+
+
 def main(arguments: Sequence[str] | None = None) -> int:
     lecteur = argparse.ArgumentParser(
         prog=COMMANDE, description="Bâtit la base du serveur public, hors du dépôt."
     )
-    lecteur.add_argument("--sortie", type=Path, required=True, help="le fichier écrit, hors du dépôt")
+    lecteur.add_argument("--sortie", type=Path, default=None, help="le fichier écrit, hors du dépôt")
+    lecteur.add_argument(
+        "--empreinte-du-code",
+        nargs="?",
+        const="HEAD",
+        default=None,
+        metavar="COMMIT",
+        help="affiche l'empreinte du code du serveur à ce commit (HEAD par défaut), sans rien bâtir",
+    )
     lecteur.add_argument("--source", type=Path, default=SOURCE, help="la base à copier")
     lecteur.add_argument(
         "--manifeste",
@@ -216,6 +281,20 @@ def main(arguments: Sequence[str] | None = None) -> int:
         help="le manifeste de l'export, qui dit l'empreinte attendue de la source",
     )
     choix = lecteur.parse_args(arguments)
+
+    if choix.empreinte_du_code is not None:
+        try:
+            identifiant, code = empreinte_du_code_au_commit(choix.empreinte_du_code)
+        except BaseError as exc:
+            print(f"Empreinte refusée : {exc}", file=sys.stderr)
+            return 1
+        print(f"Commit : {identifiant}")
+        print(f"Empreinte du code (code_sha256) : {code}")
+        return 0
+
+    # Aucun emplacement n'est supposé : sans `--sortie`, la commande s'arrête.
+    if choix.sortie is None:
+        lecteur.error("--sortie est obligatoire : la base du serveur s'écrit hors du dépôt.")
 
     try:
         bilan = construire(

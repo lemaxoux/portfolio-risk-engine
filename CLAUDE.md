@@ -43,8 +43,10 @@ et ne se versionnent pas.
   écriture ou « /api » y reste. Ses fichiers exportés (`demo/export/`) et
   `dist-demo/` ne se versionnent pas.
 - **Aucune série d'un titre en ligne, ni rien qui permette d'en
-  reconstruire une.** L'export de la démonstration refuse des portefeuilles
-  dont une combinaison isole un titre (`tests/test_export_demo.py`).
+  reconstruire une.** Le serveur public ne rend aucune liste de points datés
+  et n'accepte ni fenêtre ni indice en paramètre ; l'export de la
+  démonstration refuse des portefeuilles dont une combinaison isole un titre
+  (`tests/test_serveur_public.py`, `tests/test_export_demo.py`).
 - **Deux langues, un seul texte par langue.** Une phrase que publie le
   serveur vit dans `backend/textes/fr/` et `backend/textes/en/`, mêmes noms
   et mêmes signatures : elle s'ajoute dans les deux, avec ses cas dans
