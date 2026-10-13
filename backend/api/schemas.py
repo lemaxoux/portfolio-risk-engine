@@ -1597,7 +1597,9 @@ class DisclaimerOut(Schema):
         )
 
     @classmethod
-    def seul(cls, window: int = DEFAULT_WINDOW, langue: Langue = "fr") -> DisclaimerOut:
+    def seul(
+        cls, window: int = DEFAULT_WINDOW, langue: Langue = "fr", en_ligne: bool = False
+    ) -> DisclaimerOut:
         """Le même bandeau, sans rapport d'analyse — pour `GET /api/disclaimer`.
 
         L'écran d'acceptation est traversé AVANT le premier accès, donc avant
@@ -1610,15 +1612,19 @@ class DisclaimerOut(Schema):
         exactement ce que le moteur de règles y met. Les deux routes servent
         donc le même texte pour la même fenêtre, et un test le vérifie plutôt
         que de le supposer.
+
+        `en_ligne` (chantier 9.6) : le texte du site, avec sa section de plus
+        (`rules.disclaimer.acceptance_sections`). Aucune route de l'application
+        ne le demande ; l'export de la démonstration l'écrit.
         """
         return cls(
             title=acceptance_title(langue),
             sections=[
                 DisclaimerSectionOut.of(s)
-                for s in acceptance_sections(window, langue=langue)
+                for s in acceptance_sections(window, langue=langue, en_ligne=en_ligne)
             ],
             confirmation=acceptance_confirmation(langue),
-            text=acceptance_text(window, langue=langue),
+            text=acceptance_text(window, langue=langue, en_ligne=en_ligne),
         )
 
 

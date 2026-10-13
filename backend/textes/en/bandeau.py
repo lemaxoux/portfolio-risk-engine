@@ -20,6 +20,15 @@ TITRE = "Before using Portfolio Risk Engine"
 CONFIRMATION = "I have read these limitations, I understand them, and I use this tool knowingly."
 
 
+# La section que le texte gagne en ligne, et là seulement (chantier 9.6) :
+# la même que `fr/bandeau.py`.
+SECTION_EN_LIGNE = (
+    "Your portfolio is sent, not stored",
+    "The portfolio that you enter or import on this site is sent to a server "
+    "for the calculation, and is not stored there.",
+)
+
+
 def duree_en_annees(annees: int) -> str:
     """« about 2 years » : le nombre et son unité liés par une espace insécable."""
     return f"about {typography.counted(annees, 'year', langue='en')}"

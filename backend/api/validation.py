@@ -25,6 +25,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from types import ModuleType
 
 from backend.db.portfolios import PositionRow
 from backend.langue import Langue
@@ -70,13 +71,19 @@ def validate(
     catalogue: Sequence[Security],
     *,
     langue: Langue = "fr",
+    redaction: ModuleType | None = None,
 ) -> tuple[list[PositionRow], tuple[Problem, ...]]:
     """Positions prêtes à écrire, et la liste complète des refus, rédigés dans
     `langue`.
 
     Quand la seconde n'est pas vide, la première ne doit pas être utilisée.
+
+    `redaction` est le module de textes qui rédige les refus : celui de l'API
+    (`textes/<langue>/api.py`) par défaut. Le serveur public passe le sien
+    (`public.py`, chantier 9.6), mêmes noms et mêmes signatures : les
+    décisions restent ici, une seule fois.
     """
-    t = textes(langue).api
+    t = textes(langue).api if redaction is None else redaction
     par_ticker = {s.ticker: s for s in catalogue}
     problemes: list[Problem] = []
     retenues: list[PositionRow] = []

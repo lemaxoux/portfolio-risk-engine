@@ -70,7 +70,7 @@ def _duree(seances: int, langue: Langue = "fr") -> str:
 
 
 def acceptance_sections(
-    window: int = DEFAULT_WINDOW, *, langue: Langue = "fr"
+    window: int = DEFAULT_WINDOW, *, langue: Langue = "fr", en_ligne: bool = False
 ) -> tuple[DisclaimerSection, ...]:
     """Les sections du texte d'acceptation, dans l'ordre, dans la langue
     demandée.
@@ -78,18 +78,26 @@ def acceptance_sections(
     `window` est la fenêtre d'estimation, en séances, que le texte cite avec sa
     durée en années ou en mois (`_duree`) : elle vient de la configuration du
     moteur, jamais d'un nombre écrit dans le texte.
+
+    `en_ligne` (chantier 9.6) : le texte du site, qui envoie le portefeuille
+    saisi à un serveur public. Il gagne une section, placée avant la dernière.
+    Faux par défaut : le texte de l'application est celui d'avant, octet pour
+    octet, et son empreinte aussi.
     """
-    return tuple(
-        DisclaimerSection(title=titre, body=corps)
-        for titre, corps in textes(langue).bandeau.sections(window, _duree(window, langue))
-    )
+    bandeau = textes(langue).bandeau
+    redigees = list(bandeau.sections(window, _duree(window, langue)))
+    if en_ligne:
+        redigees = [*redigees[:-1], bandeau.SECTION_EN_LIGNE, redigees[-1]]
+    return tuple(DisclaimerSection(title=titre, body=corps) for titre, corps in redigees)
 
 
-def acceptance_text(window: int = DEFAULT_WINDOW, *, langue: Langue = "fr") -> str:
+def acceptance_text(
+    window: int = DEFAULT_WINDOW, *, langue: Langue = "fr", en_ligne: bool = False
+) -> str:
     """Texte complet du bandeau, prêt à afficher."""
     sections = "\n\n".join(
         f"{section.title}\n{section.body}"
-        for section in acceptance_sections(window, langue=langue)
+        for section in acceptance_sections(window, langue=langue, en_ligne=en_ligne)
     )
     return f"{acceptance_title(langue)}\n\n{sections}\n\n{acceptance_confirmation(langue)}"
 

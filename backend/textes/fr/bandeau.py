@@ -25,6 +25,17 @@ CONFIRMATION = (
 )
 
 
+# La section que le texte gagne EN LIGNE, et là seulement (chantier 9.6) : le
+# site envoie le portefeuille saisi à un serveur public, ce que l'application
+# installée ne fait pas. `rules.disclaimer` la place avant la dernière section.
+# Le texte de l'application ne la contient pas : son empreinte ne change pas.
+SECTION_EN_LIGNE = (
+    "Votre portefeuille est envoyé, il n'est pas enregistré",
+    "Le portefeuille que vous saisissez ou importez sur ce site est envoyé à un "
+    "serveur pour le calcul, et n'y est pas enregistré.",
+)
+
+
 def duree_en_annees(annees: int) -> str:
     """« environ 2 ans » : le nombre et son unité liés par une espace insécable
     (`typography.counted`). Avec une espace ordinaire, « soit environ 2 »

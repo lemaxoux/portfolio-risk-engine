@@ -396,6 +396,36 @@ CAS: dict[tuple[str, str], list[Cas]] = {
     ("api", "prix_de_revient_illisible"): [lambda t, l: ("dear", ".")],
 }
 
+# Les textes du serveur public (chantier 9.6, `textes/<langue>/public.py`).
+# Ceux qu'il reprend de l'API locale, liés par leur nom, s'exercent sur les
+# cas de l'API ; les siens ont les leurs.
+REPRIS_PAR_LE_SERVEUR_PUBLIC = (
+    "doublon",
+    "quantite_non_finie",
+    "quantite_non_positive",
+    "prix_de_revient_non_fini",
+    "prix_de_revient_negatif",
+    "aucun_separateur",
+    "colonnes_manquantes",
+    "fichier_trop_volumineux",
+    "colonnes_en_trop",
+    "quantite_absente",
+    "quantite_illisible",
+    "prix_de_revient_illisible",
+)
+CAS.update({("public", nom): CAS[("api", nom)] for nom in REPRIS_PAR_LE_SERVEUR_PUBLIC})
+CAS.update(
+    {
+        ("public", "titre_inconnu"): [lambda t, l: ("XYZ", "ALFA, NEUF")],
+        ("public", "titre_sans_prix"): [lambda t, l: ("NEUF",)],
+        ("public", "trop_de_positions"): [lambda t, l: (15, 14), lambda t, l: (1500, 1)],
+        ("public", "lignes_refusees"): [lambda t, l: (2,), lambda t, l: (1234,)],
+        ("public", "lignes_du_fichier_refusees"): [lambda t, l: (2,), lambda t, l: (1234,)],
+        ("public", "corps_trop_volumineux"): [lambda t, l: (16_000,), lambda t, l: (1,)],
+        ("public", "limite_atteinte"): [lambda t, l: (20, 10), lambda t, l: (1500, 1)],
+    }
+)
+
 
 def domaines(paquet) -> set[str]:
     return {module.name for module in pkgutil.iter_modules(paquet.__path__)}

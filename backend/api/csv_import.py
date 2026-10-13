@@ -53,6 +53,7 @@ import csv
 import io
 import re
 from dataclasses import dataclass
+from types import ModuleType
 from typing import Literal
 
 from backend.langue import Langue
@@ -262,7 +263,7 @@ def _largeur(champs: list[str]) -> int:
 
 
 def _colonnes_en_trop(
-    ligne: list[str], largeur_entete: int, separateur: str, langue: Langue
+    ligne: list[str], largeur_entete: int, separateur: str, redaction: ModuleType
 ) -> str | None:
     """Le refus d'une ligne plus large que l'en-tête, ou None.
 
@@ -281,7 +282,7 @@ def _colonnes_en_trop(
     decimale_coupee = separateur == "," and all(
         champ.isdigit() for champ in en_trop if champ
     )
-    return textes(langue).api.colonnes_en_trop(largeur, largeur_entete, decimale_coupee)
+    return redaction.colonnes_en_trop(largeur, largeur_entete, decimale_coupee)
 
 
 def _colonnes(entete: list[str]) -> dict[str, int]:
@@ -294,15 +295,24 @@ def _colonnes(entete: list[str]) -> dict[str, int]:
 
 
 def read(
-    payload: bytes, filename: str | None = None, *, langue: Langue = "fr"
+    payload: bytes,
+    filename: str | None = None,
+    *,
+    langue: Langue = "fr",
+    redaction: ModuleType | None = None,
 ) -> CsvReading:
     """Lit le fichier et rend les positions soumises, sans rien valider d'autre.
 
     Lève `CsvError` quand le fichier est inexploitable dans son ensemble
     (trop gros, encodage inconnu, en-tête absent) ; rend des `Problem` quand ce
     sont des lignes précises qui sont en cause, rédigés dans `langue`.
+
+    `redaction` est le module de textes qui rédige les refus de ligne : celui
+    de l'API par défaut, celui du serveur public quand il le passe (chantier
+    9.6). Une `CsvError` garde le nom de son texte : c'est celui qui l'attrape
+    qui la rédige.
     """
-    t = textes(langue).api
+    t = textes(langue).api if redaction is None else redaction
     if len(payload) > MAX_BYTES:
         # La taille reçue n'est pas annoncée : l'appelant n'a lu que
         # `PROBE_BYTES` octets, et citer ce nombre décrirait la sonde plutôt
@@ -335,7 +345,7 @@ def read(
         if not any(champ.strip() for champ in ligne):
             continue
 
-        debord = _colonnes_en_trop(ligne, largeur_entete, separateur, langue)
+        debord = _colonnes_en_trop(ligne, largeur_entete, separateur, t)
         if debord is not None:
             problemes.append(Problem(line=numero, problem=debord))
             continue
