@@ -45,6 +45,8 @@ frontend/dist/
 # (demo/compositions.json) sont versionnées, pas ce qu'elles écrivent.
 demo/export/
 frontend/dist-demo/
+# Le dossier de travail que wrangler laisse là où un déploiement est lancé.
+.wrangler/
 
 # --- Éditeurs / OS ---
 .vscode/

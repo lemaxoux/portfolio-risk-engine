@@ -1998,6 +1998,33 @@ l'hébergeur attend la 9.5 : l'aperçu dans les outils de partage malgré
 `noindex`, les adresses absolues, la compression servie, les types de
 contenu, et le LCP remesuré sur le vrai site.
 
+**Constaté le 2026-10-13, chez l'hébergeur** (chantier 9.5). Le site est
+servi par Cloudflare Pages, à l'origine
+`https://portfolio-risk-engine-lemaxoux.pages.dev`, que le build a reçue par
+la variable. Des constats de ce jour, pas des valeurs à tenir :
+
+- *Les adresses absolues* : `og:url` vaut l'origine suivie d'une barre, et
+  `og:image` l'adresse de l'image sous cette origine. L'image y est servie
+  en `image/png`, à 1200 × 630, pour 37 030 octets.
+- *Les adresses du client* : pour toute adresse qui n'est pas un fichier
+  (`/methodologie`, `/portefeuilles/1`, `/avertissement`, une adresse
+  inconnue), l'hébergeur rend `index.html` avec un 200. Le build n'a pas de
+  `404.html`. `/index.html` est redirigée vers `/`. Un fichier de données ou
+  du bundle qui n'existe pas arrive donc comme cette page, en `text/html` :
+  le cas que §18.5 prévoit.
+- *`noindex`* : l'en-tête `X-Robots-Tag: noindex` est sur chaque réponse,
+  fichiers de données, images, redirection et repli compris.
+- *Les types et la compression* : `application/json`,
+  `application/javascript`, `text/css`, `font/woff2`, `image/png`. La page,
+  les fichiers JavaScript, les feuilles de style et les fichiers de données
+  sont servis compressés (`br`) : le fichier d'entrée passe de 401 750 à
+  126 782 octets. Ni les polices ni les images ne le sont.
+- *L'aperçu malgré `noindex`* : l'outil de LinkedIn (Post Inspector) lit le
+  titre, l'image et la description. Il signale que la description, la
+  première phrase du README, est plus courte que ce qu'il attend (« The
+  description should be at least 100 characters long »). Laissé ouvert pour
+  la 9.6 : la 9.5 ne change pas le greffon.
+
 ### 19.8 Les états
 
 Le texte de la page est dans le bundle : il s'affiche toujours, et tout de
@@ -2164,6 +2191,25 @@ Tout autre test existant à modifier arrête le lot.
   la page à 412 × 823, et à 1 956 px en français, 1 936 px en anglais, à
   1350 × 940. Il est hors du premier écran aux deux écrans de la mesure
   (19.8), comme les deux figures.
+
+**Constaté le 2026-10-13, sur le site en ligne** (chantier 9.5 ; Chrome 155,
+Lighthouse 13.5.0, profil mobile, cinq passages, la médiane) :
+
+- *Le LCP de `/`* : 1 839,8 ms en français et 1 973,2 ms en anglais. Une
+  seconde série, le même jour : 1 883,2 ms et 1 838,7 ms. L'élément du LCP
+  est le chapeau, à chaque passage. L'indice de vitesse que Lighthouse donne
+  au poste : 1 960 au premier passage, puis entre 2 632 et 3 556.
+- *Quatre passages sur vingt dépassent 2,5 s* : 2 591,0 ms en français, puis
+  2 624,3 et 2 583,5 ms en anglais, dans la première série ; 2 885,7 ms en
+  français dans la seconde. La règle est la médiane (19.9) : elle tient pour
+  les quatre médianes. La cause n'est pas établie. Les vingt passages font
+  les mêmes requêtes, et la série locale du 2026-10-12 avait un passage de
+  ce genre, à 3 563,5 ms.
+- *Avant la première peinture*, à chaque passage : la page, le fichier
+  d'entrée, sa feuille de style et quatre polices. Ni fichier de données ni
+  image (19.9, point 2). Après elle : le fichier de l'analyse et sa feuille,
+  les deux fichiers de données de la langue, et une image par figure, celle
+  du thème.
 
 ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
 (« Two builds », « The client », « Deliberate limits of the current

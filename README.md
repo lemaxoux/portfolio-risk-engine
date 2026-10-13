@@ -4,6 +4,7 @@ Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and
 ETFs. Through an API and a web interface, in English and in French, it shows
 every figure together with the conditions it was estimated under: the window,
 the valuation date, the method, and the number of trading days behind it.
+The interface can be explored in a read-only [online demonstration](https://portfolio-risk-engine-lemaxoux.pages.dev/) with fixed portfolios.
 
 It is written for two readers: an individual investor who starts from zero, for
 whom the interface explains each measure in plain words, and a reader who wants

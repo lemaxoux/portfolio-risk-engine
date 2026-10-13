@@ -394,6 +394,20 @@ Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`,
 `src/api/demoAuBuild.test.ts`, `src/api/demoAuBuild.partage.test.ts`, and
 `src/api/demoAuBuild.images.test.ts`.
 
+The demonstration is served by Cloudflare Pages, at the address that the
+README gives. The host builds nothing and is not connected to the repository:
+`frontend/dist-demo` is uploaded as it stands, by hand, with
+`wrangler pages deploy`. The build has no `404.html`, so the host answers an
+address that is not a file with `index.html`, which is what the addresses of
+the client rely on; a recorded file that is absent arrives as that page, with
+a success status, and the client reads it as a missing file. The `_headers`
+file of the build sets `X-Robots-Tag: noindex` on every response, which asks
+search engines not to index the site. No test covers a deployment. It rests on
+a procedure: it starts from `main`, from a commit that is already public and a
+clean working tree, with a build made with the origin of the site, and only
+after the digest of each file has been compared with the list recorded for
+that build.
+
 ## The client
 
 - Composing is not computing. The sentences under each measure cite only

@@ -63,6 +63,11 @@ npm run build:demo                      # la démonstration, dans dist-demo/
 `build:demo` relit `demo/export/`, que `python -m tools.export_demo` écrit
 depuis la base locale.
 
+Tout déploiement de la démonstration part de `main` et refait d'abord les
+constats : `HEAD` = `origin/main`, arbre propre, build avec l'origine du site
+(`MX_RISK_ORIGINE_DU_SITE`), liste SHA-256 vérifiée (`ARCHITECTURE.md`,
+« Two builds »).
+
 Chaque commit laisse les suites vertes et la documentation à jour
 (`README.md`, `METHODOLOGY.md`, `ARCHITECTURE.md`), ses nombres datés tenus
 par `tests/test_documents_publics.py`.
