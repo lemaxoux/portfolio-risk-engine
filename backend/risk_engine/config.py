@@ -11,13 +11,16 @@ import math
 import os
 from datetime import date
 
-from dotenv import load_dotenv
+# `backend/indice.py` est un module de données pur (aucune I/O, aucune
+# dépendance). Il n'est plus lu dans `backend.ingestion.universe` : importer
+# ce module-là chargeait le paquet d'ingestion, donc le fournisseur de prix.
+from backend.indice import BENCHMARK_TICKER
 
-# `universe` est un module de données pur (aucune I/O, aucune dépendance) :
-# l'importer ici ne crée pas de couplage entre le moteur et l'ingestion.
-from backend.ingestion.universe import BENCHMARK_TICKER
-
-load_dotenv()
+# AUCUNE LECTURE DE `.env` ICI. Ce module ne lit l'environnement qu'à l'appel
+# (`risk_free_rate`), jamais au chargement : `.env` est chargé par les points
+# d'entrée qui en ont un, `backend/db/init_db.py` pour l'application locale,
+# les outils et les tests, et l'adaptateur du fournisseur pour l'ingestion.
+# Le serveur public n'en a pas, et n'en lit aucun.
 
 # Nombre de séances par an. Convention de place (≈252 jours ouvrés hors
 # fériés), utilisée pour toutes les annualisations.
@@ -301,7 +304,7 @@ MONTE_CARLO_SIMULATIONS = 100_000
 
 # ------------------------------------------------------------- Benchmark --
 #
-# Indice de référence du beta, repris de l'univers d'ingestion plutôt que
+# Indice de référence du beta, repris de `backend/indice.py` plutôt que
 # redéclaré : deux constantes pour un même ticker finiraient par diverger.
 DEFAULT_BENCHMARK = BENCHMARK_TICKER
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import date
 
 from backend import typography
-from backend.ingestion.universe import BENCHMARK_NAMES
+from backend.indice import BENCHMARK_NAMES
 from backend.typography import MINUS, NARROW_NBSP, NBSP
 
 # ════════════════════════════════════════════════ Périodes et fenêtres ══
@@ -248,8 +248,8 @@ SERIE_CONSTANTE = "Série constante : aucune loi de Student n'est ajustable."
 # ═══════════════════════════════════════════════════ L'indice de référence ══
 
 # Ce que suit un indice de référence, pour une phrase de lecture : lu dans
-# `ingestion.universe`, où il est déclaré avec l'univers et que des tests
-# lisent. Un seul endroit pour le français.
+# `backend/indice.py`, où il est déclaré, et que `ingestion.universe`
+# réexporte pour les tests. Un seul endroit pour le français.
 NOMS_D_INDICE = BENCHMARK_NAMES
 
 

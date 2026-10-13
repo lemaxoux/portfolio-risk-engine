@@ -15,6 +15,19 @@ from __future__ import annotations
 
 from datetime import date
 
+# L'indice de référence est déclaré dans `backend/indice.py`, que le moteur lit
+# sans charger l'ingestion. Il est réexporté ici, à côté de l'univers : c'est
+# là que l'ingestion et les tests le lisent.
+from backend.indice import BENCHMARK_NAMES, BENCHMARK_TICKER
+
+__all__ = [
+    "BACKFILL_START",
+    "BENCHMARK_NAMES",
+    "BENCHMARK_TICKER",
+    "DEV_UNIVERSE",
+    "dev_tickers",
+]
+
 # Ordre volontairement conservé tel que défini : lisible et facile à relire
 # ligne à ligne, alors qu'un tri par secteur masquerait les oublis.
 DEV_UNIVERSE: dict[str, str | None] = {
@@ -62,22 +75,6 @@ DEV_UNIVERSE: dict[str, str | None] = {
 # (EWMA, façon RiskMetrics). L'historique long n'est là que pour rejouer des
 # périodes de crise identifiées sur les poids actuels du portefeuille.
 BACKFILL_START = date.fromisoformat("2005-01-01")
-
-# Benchmark utilisé pour le beta du portefeuille (Phase 4).
-BENCHMARK_TICKER = "SPY"
-
-# Ce que suit un indice de référence, pour les phrases de lecture : le ticker
-# ne dit rien à un particulier. Le nom se place après une préposition sans
-# contraction (« pour le S&P 500 ») ; la description le présente à sa première
-# apparition. Un indice absent de cette table est cité par son ticker, jamais
-# sous un nom deviné.
-#
-# SPY est le fonds coté qui réplique le S&P 500, pas l'indice lui-même. Les
-# phrases disent « le S&P 500 », comme les bornes des scénarios, relevées sur
-# ses clôtures ; l'écart (frais, dividendes) ne change pas la lecture.
-BENCHMARK_NAMES: dict[str, tuple[str, str]] = {
-    "SPY": ("le S&P 500", "l'indice de 500 grandes entreprises américaines"),
-}
 
 
 def dev_tickers() -> list[str]:
