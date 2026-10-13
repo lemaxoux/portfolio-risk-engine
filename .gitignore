@@ -16,8 +16,7 @@ env/
 !.env.example
 
 # --- Base de données locale ---
-# Les données de marché Tiingo ne sont pas redistribuables : la base ne doit
-# jamais être versionnée, même sur un dépôt privé.
+# La base locale ne se versionne pas dans ce dépôt.
 data/*.sqlite
 data/*.sqlite3
 data/*.db
