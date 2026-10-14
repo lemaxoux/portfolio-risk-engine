@@ -261,16 +261,19 @@ interface Envoi {
 /**
  * La démonstration n'a pas d'API : ni lecture, ni écriture n'y part vers
  * elle. Aucun de ses écrans ne l'appelle, et la garde du build le tient sur
- * le bundle ; à l'exécution, l'appel lève avant toute requête.
+ * le bundle ; à l'exécution, l'appel lève avant toute requête. L'adresse est
+ * écrite avant : un écran qui appellerait l'API laisserait `/api` dans le
+ * bundle, et la garde le verrait.
  */
 const SANS_API = "Le build de démonstration n'a pas d'API à appeler."
 
 /** Un appel à l'API : toute écriture, et les lectures hors démonstration. */
 async function appeler<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T> {
-  if (DEMO) throw new Error(SANS_API)
+  const adresse = `${BASE}${avecLangue(chemin, langue)}`
+  if (DEMO) throw new Error(`${SANS_API} (${adresse})`)
   let reponse: Response
   try {
-    reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
+    reponse = await fetch(adresse, requete(envoi))
   } catch {
     throw new ApiErreur(0, LIBELLES[langue].api.serveurInjoignable)
   }
@@ -329,10 +332,11 @@ function requete(envoi: Envoi | undefined): RequestInit {
 
 /** Une écriture qui ne rend rien (204) : le succès EST la réponse. */
 async function ecrireSansCorps(chemin: string, langue: Langue, envoi: Envoi): Promise<void> {
-  if (DEMO) throw new Error(SANS_API)
+  const adresse = `${BASE}${avecLangue(chemin, langue)}`
+  if (DEMO) throw new Error(`${SANS_API} (${adresse})`)
   let reponse: Response
   try {
-    reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
+    reponse = await fetch(adresse, requete(envoi))
   } catch {
     throw new ApiErreur(0, LIBELLES[langue].api.serveurInjoignable)
   }
