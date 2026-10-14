@@ -5,7 +5,10 @@ démonstration. Ces tests tiennent ce qu'il promet :
 
 * la source n'est pas modifiée, et aucun de ses portefeuilles ne sort ;
 * la copie est coupée au gel par la règle de `conftest.py` ;
-* chaque fichier est la réponse de l'application, octet pour octet ;
+* la liste, les analyses et l'univers sont des réponses de l'application,
+  octet pour octet ; le texte d'acceptation et le format du fichier CSV sont
+  ceux du site : la réponse locale, plus une section pour l'un, avec les deux
+  bornes du serveur public pour l'autre, et rien d'autre ;
 * l'export ne contient que les portefeuilles de `demo/compositions.json`, le
   premier étant la démonstration que datent le README et METHODOLOGY.md ;
 * aucune combinaison des portefeuilles publiés n'isole un titre ;
@@ -38,9 +41,15 @@ from pathlib import Path
 
 import pytest
 
+from backend.api.schemas import DisclaimerOut
 from backend.db.init_db import connect
+from backend.public_api.base import charger
+from backend.public_api.limites import OCTETS_DU_FICHIER_CSV
+from backend.textes import textes
+from backend.typography import prose
 from tests.conftest import DATE_GEL, PORTEFEUILLE_DEMO, copier_base_reelle_figee
 from tools import export_demo
+from tools.base_serveur import construire
 from tools.export_demo import (
     LANGUES,
     MANIFESTE,
@@ -57,12 +66,18 @@ QUANTITE_PRIVEE = 7919.125
 SEANCE_APRES_LE_GEL = "2026-09-10"
 
 FICHIERS_PAR_LANGUE = (
+    "csv-format.json",
     "disclaimer.json",
     "portfolios.json",
     "portfolios/1/analysis.json",
     "portfolios/2/analysis.json",
     "portfolios/3/analysis.json",
+    "securities.json",
 )
+
+# Les deux fichiers qui ne sont pas des réponses de l'application : le texte
+# d'acceptation du site et le format du fichier, aux bornes du serveur public.
+FICHIERS_DU_SITE = ("csv-format.json", "disclaimer.json")
 
 
 # ------------------------------------------------------------------ Réseau --
@@ -274,21 +289,104 @@ def test_json_strict_refuse_ce_que_le_navigateur_refuse():
 @pytest.mark.parametrize("langue", LANGUES)
 def test_chaque_fichier_est_la_reponse_de_l_api_octet_pour_octet(export, client_factory, langue):
     """L'application, interrogée de nouveau sur la copie de la langue, rend
-    les octets du fichier."""
+    les octets du fichier. Les deux fichiers du site ont leurs tests plus
+    bas."""
     with client_factory(export.copies / f"demo-{langue}.sqlite") as client:
         adresses = {
-            "disclaimer.json": f"/api/disclaimer?lang={langue}",
             "portfolios.json": f"/api/portfolios?lang={langue}",
             **{
                 f"portfolios/{numero}/analysis.json": f"/api/portfolios/{numero}/analysis?lang={langue}"
                 for numero in (1, 2, 3)
             },
+            "securities.json": f"/api/securities?lang={langue}",
         }
-        assert set(adresses) == set(FICHIERS_PAR_LANGUE)
+        assert set(adresses) == set(FICHIERS_PAR_LANGUE) - set(FICHIERS_DU_SITE)
         for fichier, adresse in adresses.items():
             reponse = client.get(adresse)
             assert reponse.status_code == 200, adresse
             assert reponse.content == export.octets(f"{langue}/{fichier}"), adresse
+
+
+# ------------------------------------- Les deux fichiers propres au site --
+
+
+@pytest.mark.parametrize("langue", LANGUES)
+def test_le_rendu_de_l_outil_redonne_les_octets_d_une_vraie_reponse(export, client_factory, langue):
+    """`rendre` écrit les deux fichiers du site. Appliqué au document d'une
+    vraie réponse de l'application, ou au modèle qu'elle sérialise, il en
+    redonne les octets : ce qu'il écrit a la forme d'une réponse."""
+    with client_factory(export.copies / f"demo-{langue}.sqlite") as client:
+        for adresse in (
+            f"/api/disclaimer?lang={langue}",
+            f"/api/csv-format?lang={langue}",
+            f"/api/securities?lang={langue}",
+            f"/api/portfolios/1/analysis?lang={langue}",
+        ):
+            reponse = client.get(adresse)
+            assert reponse.status_code == 200, adresse
+            assert export_demo.rendre(json_strict(reponse.content)) == reponse.content, adresse
+        locale = client.get(f"/api/disclaimer?lang={langue}").content
+    assert export_demo.rendre(DisclaimerOut.seul(langue=langue).model_dump(mode="json")) == locale
+
+
+@pytest.mark.parametrize("langue", LANGUES)
+def test_le_texte_d_acceptation_du_site_est_le_texte_local_plus_sa_section(
+    export, client_factory, langue
+):
+    """`disclaimer.json` : la réponse de l'application, une section de plus,
+    placée avant la dernière, et rien d'autre."""
+    with client_factory(export.copies / f"demo-{langue}.sqlite") as client:
+        local = client.get(f"/api/disclaimer?lang={langue}").json()
+    site = export.document(f"{langue}/disclaimer.json")
+    titre, corps = textes(langue).bandeau.SECTION_EN_LIGNE
+    en_ligne = {"title": prose(titre), "body": prose(corps)}
+
+    assert list(site) == list(local)
+    assert site["title"] == local["title"]
+    assert site["confirmation"] == local["confirmation"]
+    assert site["sections"] == [*local["sections"][:-1], en_ligne, local["sections"][-1]]
+    # Le texte à plat, dont le client prend l'empreinte, porte la section au
+    # même endroit : entre l'avant-dernière et la dernière du texte local.
+    derniere = f"\n\n{local['sections'][-1]['title']}\n"
+    debut, fin = local["text"].split(derniere)
+    assert site["text"] == f"{debut}\n\n{en_ligne['title']}\n{en_ligne['body']}{derniere}{fin}"
+    assert site["text"] != local["text"]
+
+
+@pytest.mark.parametrize("langue", LANGUES)
+def test_le_format_du_site_est_le_format_local_aux_bornes_du_serveur_public(
+    export, client_factory, base_figee_partagee, tmp_path, langue
+):
+    """`csv-format.json` : la réponse de l'application, où seules les deux
+    bornes changent. Ce sont celles que le serveur public applique : la
+    taille du fichier, et le nombre de titres de sa base, bâtie depuis la
+    même copie figée."""
+    with client_factory(export.copies / f"demo-{langue}.sqlite") as client:
+        local = client.get(f"/api/csv-format?lang={langue}").json()
+    site = export.document(f"{langue}/csv-format.json")
+
+    bornes = ("max_bytes", "max_positions")
+    assert list(site) == list(local)
+    assert {c: v for c, v in site.items() if c not in bornes} == {
+        c: v for c, v in local.items() if c not in bornes
+    }
+
+    serveur = tmp_path / "serveur.sqlite"
+    construire(
+        source=base_figee_partagee, sortie=serveur, md5_attendu=_md5(base_figee_partagee)
+    )
+    assert site["max_bytes"] == OCTETS_DU_FICHIER_CSV
+    assert site["max_positions"] == len(charger(serveur).catalogue)
+    assert site["max_positions"] == len(export.document(f"{langue}/securities.json"))
+    # Les bornes de l'application auraient été fausses sur le site.
+    assert (site["max_bytes"], site["max_positions"]) != (local["max_bytes"], local["max_positions"])
+
+
+def test_un_format_sans_ses_bornes_est_refuse():
+    with pytest.raises(ExportError, match="deux bornes"):
+        export_demo.format_du_site(b'{"max_bytes": 1}', 14)
+    with pytest.raises(ExportError, match="deux bornes"):
+        export_demo.format_du_site(b"[]", 14)
 
 
 def test_le_manifeste_decrit_l_export(export, compositions):

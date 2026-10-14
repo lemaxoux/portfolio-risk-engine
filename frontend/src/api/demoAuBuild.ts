@@ -102,15 +102,22 @@ function refus(message: string): Error {
   return new Error(`${message} Refaire l'export\u00a0: ${COMMANDE_D_EXPORT}`)
 }
 
-/** Les fichiers que `client.ts` demandera, pour `portefeuilles` portefeuilles. */
+/**
+ * Les fichiers que `client.ts` demandera, pour `portefeuilles` portefeuilles :
+ * dans chaque langue, le texte d'acceptation, la liste et l'analyse de chacun,
+ * puis ce que lit la saisie du portefeuille du visiteur (chantier 9.6),
+ * l'univers des titres et le format du fichier CSV.
+ */
 export function fichiersAttendus(portefeuilles: number): string[] {
   return LANGUES_DE_L_EXPORT.flatMap((langue) => [
+    `${langue}/csv-format.json`,
     `${langue}/disclaimer.json`,
     `${langue}/portfolios.json`,
     ...Array.from(
       { length: portefeuilles },
       (_, rang) => `${langue}/portfolios/${rang + 1}/analysis.json`,
     ),
+    `${langue}/securities.json`,
   ]).sort()
 }
 

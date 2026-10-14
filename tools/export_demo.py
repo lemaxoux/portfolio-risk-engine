@@ -1,12 +1,33 @@
-"""Écrit les réponses de l'API que lit la démonstration statique.
+"""Écrit les fichiers que lit le site de démonstration.
 
     python -m tools.export_demo            # écrit demo/export/
 
-La démonstration est le client, servi sans serveur : il y lit des réponses de
-l'API enregistrées en fichiers au lieu d'appeler l'API. Cet outil les
-enregistre. Il ne calcule rien et ne rédige rien : chaque fichier porte les
-OCTETS d'une réponse de l'application telle qu'elle est (`create_app()`,
-interrogée en mémoire).
+La démonstration est le client, servi comme un site statique : il y lit des
+réponses de l'API enregistrées en fichiers au lieu d'appeler l'API. Cet outil
+les enregistre. Il ne calcule rien et ne rédige rien : la liste, les analyses
+et l'univers des titres portent les OCTETS d'une réponse de l'application
+telle qu'elle est (`create_app()`, interrogée en mémoire).
+
+═══ DEUX FICHIERS NE SONT PAS DES RÉPONSES DE L'APPLICATION ═══
+
+Le site analyse aussi le portefeuille que saisit un visiteur, par un serveur
+public (chantier 9.6). Deux fichiers disent donc autre chose que l'application
+installée :
+
+* `disclaimer.json` est le texte d'acceptation du site : celui de
+  l'application, plus la section qui dit que le portefeuille saisi est envoyé
+  à un serveur (`DisclaimerOut.seul(en_ligne=True)`). Aucune route de
+  l'application ne le rend ;
+* `csv-format.json` est le format que publie `GET /api/csv-format`, où les
+  deux bornes sont celles que le serveur public applique : la taille du
+  fichier (`public_api.limites`), et le nombre de lignes, qui est le nombre
+  de titres de la base. Un format affiché avec les bornes de l'application
+  serait faux sur le site.
+
+Tous deux sont écrits par la sérialisation JSON que l'application applique à
+ses propres réponses (`rendre`) : `tests/test_export_demo.py` tient que ce
+rendu redonne les octets d'une vraie réponse, que le premier ne diffère de la
+réponse locale que par sa section, et le second que par ses deux bornes.
 
 ═══ CE QU'IL FAIT ═══
 
@@ -20,8 +41,9 @@ interrogée en mémoire).
    démonstration portent les numéros 1, 2, 3, dans l'ordre du fichier de
    compositions (`demo/compositions.json`).
 4. Il crée les portefeuilles de ce fichier, sous leur nom dans la langue de
-   la copie, puis interroge l'application : l'écran d'acceptation, la liste,
-   et l'analyse de chacun. Rien d'autre n'est exporté.
+   la copie, puis interroge l'application : la liste, l'analyse de chacun,
+   l'univers des titres et le format du fichier CSV. Il y ajoute le texte
+   d'acceptation du site. Rien d'autre n'est exporté.
 5. Il vérifie ce qu'il vient de recevoir, écrit les fichiers et leur
    manifeste (`manifeste.json` : la date du gel, l'empreinte de la source, le
    commit, chaque fichier avec son SHA-256).
@@ -313,8 +335,38 @@ def _base_designee(copie: Path) -> Iterator[None]:
             os.environ[VARIABLE_BASE] = avant
 
 
+def rendre(document: object) -> bytes:
+    """Les octets qu'aurait une réponse de l'application qui porterait ce
+    document : la sérialisation JSON de pydantic, celle que FastAPI applique
+    à ses réponses, sans rien y ajouter."""
+    from pydantic_core import to_json
+
+    return to_json(document)
+
+
+def texte_d_acceptation_du_site(langue: str) -> bytes:
+    """`disclaimer.json` : le texte de l'application, plus sa section en
+    ligne. Voir l'en-tête du module."""
+    from backend.api.schemas import DisclaimerOut
+
+    return rendre(DisclaimerOut.seul(langue=langue, en_ligne=True).model_dump(mode="json"))
+
+
+def format_du_site(format_local: bytes, titres: int) -> bytes:
+    """`csv-format.json` : le format que publie l'application, avec les deux
+    bornes du serveur public. `titres` est le nombre de titres de la base :
+    un portefeuille a une ligne par titre au plus."""
+    from backend.public_api.limites import OCTETS_DU_FICHIER_CSV
+
+    publie = json_strict(format_local)
+    if not isinstance(publie, dict) or not {"max_bytes", "max_positions"} <= publie.keys():
+        raise ExportError("Le format du fichier CSV n'a pas ses deux bornes.")
+    return rendre({**publie, "max_bytes": OCTETS_DU_FICHIER_CSV, "max_positions": titres})
+
+
 def _interroger(copie: Path, jeu: Sequence[Composition], langue: str) -> dict[str, bytes]:
-    """Les réponses de l'application sur la copie, par chemin de fichier."""
+    """Les fichiers d'une langue, par chemin : les réponses de l'application
+    sur la copie, et les deux fichiers propres au site."""
     from fastapi.testclient import TestClient
 
     from backend.api.app import create_app
@@ -334,9 +386,6 @@ def _interroger(copie: Path, jeu: Sequence[Composition], langue: str) -> dict[st
         # En gestionnaire de contexte : le `lifespan` de l'application
         # contrôle le schéma de la copie avant le premier appel.
         with TestClient(create_app()) as client:
-            fichiers[f"{langue}/disclaimer.json"] = lire(
-                client, f"/api/disclaimer?lang={langue}"
-            )
             fichiers[f"{langue}/portfolios.json"] = lire(
                 client, f"/api/portfolios?lang={langue}"
             )
@@ -344,6 +393,17 @@ def _interroger(copie: Path, jeu: Sequence[Composition], langue: str) -> dict[st
                 fichiers[f"{langue}/portfolios/{rang}/analysis.json"] = lire(
                     client, f"/api/portfolios/{rang}/analysis?lang={langue}"
                 )
+            # L'univers de la saisie : le serveur public n'a pas de route de
+            # liste, le site le lit ici.
+            univers = lire(client, f"/api/securities?lang={langue}")
+            fichiers[f"{langue}/securities.json"] = univers
+            format_local = lire(client, f"/api/csv-format?lang={langue}")
+
+    titres = json_strict(univers)
+    if not isinstance(titres, list) or not titres:
+        raise ExportError(f"{langue} : l'univers des titres est vide.")
+    fichiers[f"{langue}/csv-format.json"] = format_du_site(format_local, len(titres))
+    fichiers[f"{langue}/disclaimer.json"] = texte_d_acceptation_du_site(langue)
     return fichiers
 
 
@@ -366,7 +426,8 @@ def verifier_export(fichiers: Mapping[str, bytes], jeu: Sequence[Composition]) -
     valorisé au gel ; et les deux conditions qui font valoir la règle
     d'isolement pour les poids sont tenues : un titre a le même prix,
     strictement positif, dans tous les portefeuilles, et toutes les séries
-    portent les mêmes dates.
+    portent les mêmes dates. L'univers de la saisie porte chaque titre des
+    compositions, avec des prix.
     """
     prix: dict[str, set[float]] = {}
     dates: set[tuple[str, ...]] = set()
@@ -374,8 +435,22 @@ def verifier_export(fichiers: Mapping[str, bytes], jeu: Sequence[Composition]) -
     for langue in LANGUES:
         liste = json_strict(fichiers[f"{langue}/portfolios.json"])
         json_strict(fichiers[f"{langue}/disclaimer.json"])
+        json_strict(fichiers[f"{langue}/csv-format.json"])
         if not isinstance(liste, list) or len(liste) != len(jeu):
             raise ExportError(f"{langue} : la liste ne porte pas {len(jeu)} portefeuilles.")
+        cotes = {
+            titre["ticker"]
+            for titre in json_strict(fichiers[f"{langue}/securities.json"])
+            if titre["has_prices"]
+        }
+        absents = sorted(
+            {ticker for composition in jeu for ticker in composition.positions} - cotes
+        )
+        if absents:
+            raise ExportError(
+                f"{langue} : l'univers de la saisie n'a pas {', '.join(absents)}, "
+                "que les compositions détiennent."
+            )
 
         for rang, (publie, composition) in enumerate(zip(liste, jeu), start=1):
             ou = f"{langue}, portefeuille {rang}"
@@ -533,7 +608,7 @@ def exporter(
 
 def main(arguments: Sequence[str] | None = None) -> int:
     lecteur = argparse.ArgumentParser(
-        prog=COMMANDE, description="Écrit les réponses de l'API que lit la démonstration."
+        prog=COMMANDE, description="Écrit les fichiers que lit le site de démonstration."
     )
     lecteur.add_argument("--source", type=Path, default=SOURCE, help="la base à copier")
     lecteur.add_argument("--sortie", type=Path, default=SORTIE, help="le dossier écrit")

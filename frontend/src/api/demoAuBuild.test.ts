@@ -97,16 +97,20 @@ describe('les fichiers que lit la démonstration', () => {
 
   it('sont ceux de `client.ts`, dans les deux langues, pour chaque portefeuille', () => {
     expect(fichiersAttendus(2)).toEqual([
+      'en/csv-format.json',
       'en/disclaimer.json',
       'en/portfolios.json',
       'en/portfolios/1/analysis.json',
       'en/portfolios/2/analysis.json',
+      'en/securities.json',
+      'fr/csv-format.json',
       'fr/disclaimer.json',
       'fr/portfolios.json',
       'fr/portfolios/1/analysis.json',
       'fr/portfolios/2/analysis.json',
+      'fr/securities.json',
     ])
-    expect(fichiersAttendus(PORTEFEUILLES_DE_LA_DEMO)).toHaveLength(2 * (2 + PORTEFEUILLES_DE_LA_DEMO))
+    expect(fichiersAttendus(PORTEFEUILLES_DE_LA_DEMO)).toHaveLength(2 * (4 + PORTEFEUILLES_DE_LA_DEMO))
   })
 })
 
@@ -150,7 +154,7 @@ describe('l’export relu au build', () => {
     // Un fichier de moins : une analyse que le client demanderait en vain.
     expect(() => lireExport(ecrireExport({ chemins: attendus.slice(0, -1) }))).toThrow(/exactement/)
     // Un fichier de plus : ce que la démonstration ne lit pas ne sort pas.
-    expect(() => lireExport(ecrireExport({ chemins: [...attendus, 'fr/securities.json'] }))).toThrow(
+    expect(() => lireExport(ecrireExport({ chemins: [...attendus, 'fr/meta.json'] }))).toThrow(
       /exactement/,
     )
   })
@@ -165,7 +169,7 @@ describe('l’export relu au build', () => {
     // Le même export se lit quand la mention dit ce nombre.
     expect(
       lireExport(quatre, { date: DATE_DE_LA_DEMO, portefeuilles: PORTEFEUILLES_DE_LA_DEMO + 1 }).size,
-    ).toBe(2 * (2 + PORTEFEUILLES_DE_LA_DEMO + 1))
+    ).toBe(2 * (4 + PORTEFEUILLES_DE_LA_DEMO + 1))
   })
 
   it('refuse un manifeste illisible', () => {
