@@ -35,6 +35,13 @@
   font-weight: var(--weight-medium);
 }
 
+/* Une phrase à la place d'un sous-titre et de ce qu'il annonçait : la section
+ * 3 d'un portefeuille saisi, sans courbe (chantier 9.6). Au-dessus,
+ * l'espacement du sous-titre ; sans lui, la phrase collait au bloc mesure. */
+.aLaPlaceDuSousTitre {
+  margin-block-start: var(--space-6);
+}
+
 /* L'introduction d'une section : la question à laquelle elle répond, en deux
  * lignes. De la prose, comme le chapeau, mais au premier plan.
  *

@@ -313,7 +313,7 @@ describe('le serveur public du site (chantier 9.6)', () => {
     expect(dit).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(2)
     expect(dit).toHaveBeenCalledOnce()
-    await vi.advanceTimersByTimeAsync(100_000)
+    await vi.advanceTimersByTimeAsync(160_000)
     expect(await attente).toMatchObject({ statut: 0, detail: LIBELLES.fr.serveur.sansReponse })
   })
 
@@ -325,13 +325,62 @@ describe('le serveur public du site (chantier 9.6)', () => {
     })
     vi.stubGlobal('fetch', espion)
     const attente = client.attendreLeServeur('en', () => undefined).catch((e: unknown) => e)
-    await vi.advanceTimersByTimeAsync(100_000)
+    await vi.advanceTimersByTimeAsync(160_000)
     const erreur = await attente
     expect(erreur).toBeInstanceOf(client.ApiErreur)
     expect(erreur).toMatchObject({ statut: 0, detail: LIBELLES.en.serveur.sansReponse })
-    // Un essai toutes les trois secondes, pendant quatre-vingt-dix secondes au plus.
+    // Un essai toutes les trois secondes, pendant cent cinquante secondes au plus.
     expect(espion.mock.calls.length).toBeGreaterThan(20)
-    expect(espion.mock.calls.length).toBeLessThanOrEqual(31)
+    expect(espion.mock.calls.length).toBeLessThanOrEqual(51)
+  })
+
+  it('un serveur qui retient les essais : cent cinquante secondes d’attente, puis « sans réponse »', async () => {
+    // Ce que fait l'hébergeur pendant le réveil : la requête reste sans
+    // réponse, jusqu'à ce que l'essai l'abandonne.
+    vi.useFakeTimers()
+    const { client } = await site()
+    const espion = vi.fn(
+      (_adresse: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('Abandon', 'AbortError')))
+        }),
+    )
+    vi.stubGlobal('fetch', espion)
+    let fin: unknown = 'en attente'
+    const attente = client.attendreLeServeur('fr', () => undefined).then(
+      () => (fin = 'réveillé'),
+      (e: unknown) => (fin = e),
+    )
+    await vi.advanceTimersByTimeAsync(149_999)
+    expect(fin).toBe('en attente')
+    // Un essai de quinze secondes, puis trois secondes de pause : neuf essais
+    // partis, le dernier à 144 s, borné à ce qui restait.
+    expect(espion).toHaveBeenCalledTimes(9)
+    await vi.advanceTimersByTimeAsync(1)
+    await attente
+    expect(fin).toBeInstanceOf(client.ApiErreur)
+    expect(fin).toMatchObject({ statut: 0, detail: LIBELLES.fr.serveur.sansReponse })
+  })
+
+  it('trois essais retenus puis abandonnés, le quatrième en 200 : l’attente finit là', async () => {
+    // La suite vue par Cowork dans Chrome le 2026-10-14, serveur endormi.
+    vi.useFakeTimers()
+    const { client } = await site()
+    let essais = 0
+    const espion = vi.fn((_adresse: string, init?: RequestInit) => {
+      essais += 1
+      if (essais === 4) return Promise.resolve({ ok: true, status: 200, text: async () => SANTE })
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('Abandon', 'AbortError')))
+      })
+    })
+    vi.stubGlobal('fetch', espion)
+    const dit = vi.fn()
+    const attente = client.attendreLeServeur('en', dit)
+    await vi.advanceTimersByTimeAsync(60_000)
+    await expect(attente).resolves.toBeUndefined()
+    expect(espion).toHaveBeenCalledTimes(4)
+    expect(dit).toHaveBeenCalledOnce()
   })
 
   it('sans preuve d’acceptation de sa langue, rien ne part', async () => {

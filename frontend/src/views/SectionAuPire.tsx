@@ -18,8 +18,8 @@
  * la réponse n'a pas de série. La ligne « Niveaux » des détails du calcul,
  * qui lit deux points de la courbe, n'y est pas affichée ; le sous-titre, la
  * courbe et son tableau laissent place à une phrase, qui dit ce qui est
- * affiché et où lire le reste. Le pic, le creux et le retour au pic, qui
- * viennent de `risk.drawdown`, restent.
+ * affiché et où lire le reste, avec l'espacement du sous-titre au-dessus. Le
+ * pic, le creux et le retour au pic, qui viennent de `risk.drawdown`, restent.
  */
 import { useCallback } from 'react'
 
@@ -116,7 +116,7 @@ export function SectionAuPire({ serie, creux, asOf, devise }: Props) {
       </div>
 
       {serie === null ? (
-        <p className={commun.introduction}>{l.sansCourbe}</p>
+        <p className={`${commun.introduction} ${commun.aLaPlaceDuSousTitre}`}>{l.sansCourbe}</p>
       ) : (
         <Courbe serie={serie} creux={creux} asOf={asOf} devise={devise} options={options} />
       )}

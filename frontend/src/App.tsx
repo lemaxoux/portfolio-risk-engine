@@ -19,7 +19,8 @@
  *
  * « Portefeuille « Démo » créé. » est adressé à la page où l'on arrive, et ne
  * s'affiche que là : l'annonce d'une action ne suit pas l'utilisateur de page
- * en page.
+ * en page. Elle est écrite dans la langue du geste : changer de langue la
+ * retire (`lib/annonce.ts`, chantier 9.6).
  *
  * ═══ LA LANGUE (chantier 7D) ═══
  *
@@ -101,6 +102,7 @@ import { MessageErreur } from './components/MessageErreur'
 import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
 import { aAccepte, preuveDAcceptation, type PreuveDAcceptation } from './lib/acceptation'
 import { apresLAffichage } from './lib/affichage'
+import { annonceDeLaPage, annonceGardee, type Annonce } from './lib/annonce'
 import {
   appliquerLangue,
   ContexteDeLangue,
@@ -319,11 +321,6 @@ function Ecran({
   )
 }
 
-interface Annonce {
-  readonly texte: string
-  readonly page: string
-}
-
 function Application({ garde, setGarde }: PropsDeLaGarde) {
   const route = useRoute()
   const { langue, libelles } = useLangue()
@@ -332,15 +329,26 @@ function Application({ garde, setGarde }: PropsDeLaGarde) {
   const { etat: liste, recharger } = useListe(langue, DEMO && route.vue === 'accueil')
   const [annonce, setAnnonce] = useState<Annonce | null>(null)
 
-  const annoncer = useCallback((texte: string, page: string) => {
-    setAnnonce({ texte, page })
-  }, [])
+  // Le texte reçu est écrit dans la langue de ce rendu, celle du geste.
+  const annoncer = useCallback(
+    (texte: string, page: string) => {
+      setAnnonce({ texte, page, langue })
+    },
+    [langue],
+  )
+
+  // Changer de langue retire l'annonce (`lib/annonce.ts`). Elle ne s'affiche
+  // déjà plus dans l'autre langue ; oubliée, elle ne revient pas avec la
+  // première.
+  useEffect(() => {
+    setAnnonce((courante) => annonceGardee(courante, langue))
+  }, [langue])
 
   // Le fichier de l'analyse, en tâche de fond, une fois la page affichée.
   useEffect(() => apresLAffichage(() => void chargerLAnalyse().catch(() => undefined)), [])
 
   const chemin = route.vue === 'inconnue' ? route.chemin : cheminDe(route)
-  const annonceIci = annonce !== null && annonce.page === chemin ? annonce.texte : null
+  const annonceIci = annonceDeLaPage(annonce, chemin, langue)
 
   /**
    * La page d'un portefeuille : il est lu dans la liste, qui dit s'il existe

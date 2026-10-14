@@ -473,11 +473,14 @@ const DELAI_D_UN_ESSAI = 15_000
 const ENTRE_DEUX_ESSAIS = 3_000
 
 /**
- * Seuil CHOISI. La durée totale du réveil : « about one minute » selon
- * l'hébergeur, plus la moitié. Relevé le 2026-10-13 sur le serveur endormi :
- * 52 s jusqu'au premier `/health` en 200.
+ * Seuil CHOISI. La durée totale du réveil, du premier essai au dernier.
+ * Observé sur le serveur endormi : 52 s par `curl` le 2026-10-13, jusqu'au
+ * premier `/health` en 200 ; 71,6 s depuis un navigateur le 2026-10-14, sur
+ * le site en ligne. Pendant le réveil, l'hébergeur retient les requêtes au
+ * lieu de les refuser : les premiers essais restent sans réponse, et sont
+ * abandonnés à leur délai.
  */
-const DUREE_DU_REVEIL = 90_000
+const DUREE_DU_REVEIL = 150_000
 
 /**
  * Seuil CHOISI. Le délai d'un envoi, analyse ou fichier : quatre analyses à
