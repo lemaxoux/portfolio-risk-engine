@@ -13,7 +13,9 @@ import {
   acceptationMemorisee,
   cleAcceptation,
   empreinte,
+  estUnePreuve,
   memoriserAcceptation,
+  preuveDAcceptation,
 } from './acceptation'
 
 const TEXTE = [
@@ -141,5 +143,60 @@ describe('une acceptation par langue', () => {
     expect(aAccepte(TEXTE, 'fr')).toBe(true)
     expect(aAccepte('Before using Portfolio Risk Engine', 'en')).toBe(true)
     expect(acceptationMemorisee('en')).toBe(empreinte('Before using Portfolio Risk Engine'))
+  })
+})
+
+describe('la preuve d’acceptation (chantier 9.6)', () => {
+  // Un texte à part par cas : l'acceptation vaut le temps de la page, et ce
+  // module garde ce qui a été accepté pendant toute la suite.
+  const texte = (cas: string) => `${TEXTE}\n\n${cas}`
+
+  beforeEach(() => {
+    stockageEnMemoire()
+  })
+
+  it('n’est délivrée qu’après l’acceptation du texte, dans sa langue', () => {
+    const lu = texte('preuve après acceptation')
+    expect(preuveDAcceptation(lu, 'fr')).toBeNull()
+    memoriserAcceptation(lu, 'fr')
+    const preuve = preuveDAcceptation(lu, 'fr')
+    expect(preuve).toEqual({ langue: 'fr', empreinte: empreinte(lu) })
+    expect(estUnePreuve(preuve, 'fr')).toBe(true)
+    // Le texte anglais est un autre texte.
+    expect(preuveDAcceptation(lu, 'en')).toBeNull()
+    expect(estUnePreuve(preuve, 'en')).toBe(false)
+  })
+
+  it('un autre texte ne prouve rien, même accepté ailleurs', () => {
+    memoriserAcceptation(texte('accepté'), 'fr')
+    expect(preuveDAcceptation(texte('jamais montré'), 'fr')).toBeNull()
+  })
+
+  it('un objet de même forme n’en est pas une', () => {
+    const lu = texte('forgée')
+    memoriserAcceptation(lu, 'fr')
+    expect(estUnePreuve({ langue: 'fr', empreinte: empreinte(lu) }, 'fr')).toBe(false)
+    expect(estUnePreuve(null, 'fr')).toBe(false)
+    expect(estUnePreuve('fr', 'fr')).toBe(false)
+  })
+
+  it('se délivre aussi pendant la page où le texte a été accepté, stockage bloqué', () => {
+    const refuser = () => {
+      throw new Error('stockage bloqué')
+    }
+    vi.stubGlobal('localStorage', { getItem: refuser, setItem: refuser, removeItem: refuser })
+    const lu = texte('stockage bloqué')
+    expect(preuveDAcceptation(lu, 'en')).toBeNull()
+    memoriserAcceptation(lu, 'en')
+    expect(estUnePreuve(preuveDAcceptation(lu, 'en'), 'en')).toBe(true)
+    // L'écran, lui, revient au chargement suivant : `aAccepte` ne lit que le stockage.
+    expect(aAccepte(lu, 'en')).toBe(false)
+  })
+
+  it('un texte accepté lors d’une visite précédente prouve aussi', () => {
+    const lu = texte('visite précédente')
+    const donnees = stockageEnMemoire()
+    donnees.set(cleAcceptation('en'), empreinte(lu))
+    expect(estUnePreuve(preuveDAcceptation(lu, 'en'), 'en')).toBe(true)
   })
 })

@@ -1,15 +1,16 @@
 /**
  * Les captures de la page de présentation — DESIGN.md §19.4.
  *
- * Deux figures, toutes deux du portefeuille « Démo » : un bloc de mesure de
- * l'analyse, pris sur le build de démonstration, et le tableau de saisie de
- * l'application. Quatre fichiers chacune : une langue, un thème. Capturées
- * dans une fenêtre de 390 px de large, à l'échelle 2, passées en palette,
- * jamais retouchées ni agrandies.
+ * Une figure, du portefeuille « Démo » : un bloc de mesure de l'analyse, pris
+ * sur le build de démonstration. Quatre fichiers : une langue, un thème.
+ * Capturés dans une fenêtre de 390 px de large, à l'échelle 2, passés en
+ * palette, jamais retouchés ni agrandis. La seconde figure, le tableau de
+ * saisie de l'application, a été retirée au chantier 9.6 : le site a
+ * désormais sa propre saisie.
  *
- * La page n'en charge que deux par visite : celles de sa langue, dans son
- * thème (`components/Capture`). Importées ici, elles reçoivent de Vite une
- * empreinte dans leur nom.
+ * La page n'en charge qu'un par visite : celui de sa langue, dans son thème
+ * (`components/Capture`). Importés ici, ils reçoivent de Vite une empreinte
+ * dans leur nom.
  *
  * Les dimensions sont celles de l'affichage, la moitié de celles du fichier :
  * `captures.test.ts` les tient égales à l'en-tête de chaque PNG.
@@ -23,10 +24,6 @@ import mesureEnClair from './mesure-en-clair.png'
 import mesureEnSombre from './mesure-en-sombre.png'
 import mesureFrClair from './mesure-fr-clair.png'
 import mesureFrSombre from './mesure-fr-sombre.png'
-import saisieEnClair from './saisie-en-clair.png'
-import saisieEnSombre from './saisie-en-sombre.png'
-import saisieFrClair from './saisie-fr-clair.png'
-import saisieFrSombre from './saisie-fr-sombre.png'
 
 /** Une figure dans une langue : ses deux fichiers, et sa taille d'affichage. */
 export interface FichiersDUneCapture {
@@ -39,19 +36,9 @@ export interface FichiersDUneCapture {
 /** La largeur de la fenêtre des captures : celle d'un téléphone (§19.4). */
 const LARGEUR = 390
 
-/*
- * La capture de la saisie est rognée au bord droit de la colonne des
- * quantités, sous le tableau : plus large, elle couperait les noms des titres
- * en plein mot. Sa largeur suit donc celle des colonnes, qui tient aux
- * libellés de chaque langue.
- */
-export const CAPTURES: Record<'mesure' | 'saisie', Record<Langue, FichiersDUneCapture>> = {
+export const CAPTURES: Record<'mesure', Record<Langue, FichiersDUneCapture>> = {
   mesure: {
     fr: { claire: mesureFrClair, sombre: mesureFrSombre, largeur: LARGEUR, hauteur: 461 },
     en: { claire: mesureEnClair, sombre: mesureEnSombre, largeur: LARGEUR, hauteur: 461 },
-  },
-  saisie: {
-    fr: { claire: saisieFrClair, sombre: saisieFrSombre, largeur: 288, hauteur: 544 },
-    en: { claire: saisieEnClair, sombre: saisieEnSombre, largeur: 293, hauteur: 543 },
   },
 }

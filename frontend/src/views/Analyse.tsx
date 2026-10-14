@@ -37,13 +37,38 @@
  * Cette vue se charge à la demande (chantier 9.4). Ce qui tient à l'ouverture
  * de la page, et non à l'arrivée de son fichier, se fait avant elle : c'est
  * `views/AnalyseALaDemande` qui mémorise le portefeuille consulté.
+ *
+ * ═══ LE PORTEFEUILLE SAISI SUR LE SITE (chantier 9.6) ═══
+ *
+ * `VueAnalyseDuSaisi` montre l'analyse du portefeuille que le visiteur a
+ * saisi, demandée au serveur public : les six sections, par les mêmes
+ * composants (`pageDeLAnalyse`). Deux différences, en section 3 : la ligne
+ * « Niveaux » et la courbe, qui lisent une série que la réponse publique n'a
+ * pas, laissent place à une phrase. Le bandeau reçoit le nom et la date des
+ * positions à part de l'analyse.
+ *
+ * Ses états : vide (rien de gardé dans ce navigateur) ; en cours, la forme de
+ * la page et ce qu'observe le client, le serveur qui ne répond pas encore puis
+ * le calcul (`EtatDuServeur`) ; refus du serveur, ses phrases et « Revoir les
+ * positions » ; échec (limite atteinte, serveur occupé, aucune réponse), le
+ * message et « Réessayer ». Une analyse déjà reçue pour la même composition,
+ * dans la même langue, s'affiche sans nouvel appel (`lib/saisi`).
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
-import { ApiErreur, DEMO, getAnalysis, versApiErreur } from '../api/client'
-import type { Analysis, PortfolioDetail } from '../api/types'
+import {
+  analyserLeSaisi,
+  ApiErreur,
+  attendreLeServeur,
+  DEMO,
+  estUnRefus,
+  getAnalysis,
+  versApiErreur,
+} from '../api/client'
+import type { Analysis, PortfolioDetail, PortfolioSeries, PublicAnalysis } from '../api/types'
 import { Bandeau, BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
+import { EtatDuServeur, type EtapeDuServeur } from '../components/EtatDuServeur'
 import { FormatCsv } from '../components/FormatCsv'
 import { Lien } from '../components/Lien'
 import { MessageErreur } from '../components/MessageErreur'
@@ -52,10 +77,13 @@ import {
   pagesApplication,
   RailPages,
   RailSections,
+  type PageApplication,
 } from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
-import { useLangue } from '../lib/langue'
-import { cheminDe } from '../lib/route'
+import type { PreuveDAcceptation } from '../lib/acceptation'
+import { useLangue, type Langue } from '../lib/langue'
+import { cheminDe, SAISI } from '../lib/route'
+import { analyseDeposee, deposerLAnalyse, type PortefeuilleSaisi } from '../lib/saisi'
 import controles from '../styles/controles.module.css'
 import { SectionAuPire } from './SectionAuPire'
 import { SectionCrise } from './SectionCrise'
@@ -222,14 +250,51 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
     )
   }
 
-  const analyse = affichee
+  return pageDeLAnalyse({
+    analyse: affichee,
+    serie: affichee.series,
+    portefeuille: affichee.portfolio,
+    titre,
+    page,
+    pages,
+    annonce,
+    occupe: etat.phase === 'chargement',
+  })
+}
+
+/**
+ * La page d'une analyse lue, pour les deux vues. Une fonction qui rend la
+ * page, et non un composant : la racine reste le même `Cadre` que celle des
+ * autres états, et son titre le même nœud, qui garde le focus quand
+ * l'analyse arrive (chantier 7E).
+ */
+function pageDeLAnalyse({
+  analyse,
+  serie,
+  portefeuille,
+  titre,
+  page,
+  pages,
+  annonce,
+  occupe,
+}: {
+  analyse: PublicAnalysis
+  /** La série de la courbe ; `null` pour la réponse du serveur public, qui n'en a pas. */
+  serie: PortfolioSeries | null
+  portefeuille: { readonly name: string; readonly updated_at: string | null }
+  titre: string
+  page: string
+  pages: readonly PageApplication[]
+  annonce: string | null
+  occupe: boolean
+}): ReactNode {
   return (
     <Cadre
       titre={titre}
       page={page}
       annonce={annonce}
-      occupe={etat.phase === 'chargement'}
-      entete={<Bandeau analyse={analyse} />}
+      occupe={occupe}
+      entete={<Bandeau analyse={analyse} portefeuille={portefeuille} />}
       rail={<RailSections pages={pages} />}
     >
       <h1 tabIndex={-1} className="visuellement-cache">
@@ -246,7 +311,7 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         periode={analyse.estimation_period_label}
       />
       <SectionAuPire
-        serie={analyse.series}
+        serie={serie}
         creux={analyse.risk.drawdown}
         asOf={analyse.as_of}
         devise={analyse.valuation.currency}
@@ -269,6 +334,170 @@ export function VueAnalyse({ portefeuille, annonce }: Props) {
         bandeau={analyse.disclaimer}
         asOf={analyse.as_of}
       />
+    </Cadre>
+  )
+}
+
+// ═══════════════════════════════════════════ Le portefeuille saisi (9.6) ══
+
+type EtatDuSaisi =
+  /** La demande est en cours : rien d'observé encore, le réveil, ou le calcul. */
+  | { phase: 'envoi'; etape: EtapeDuServeur | null }
+  /** Le serveur refuse la composition gardée : ses phrases. */
+  | { phase: 'refus'; erreur: ApiErreur }
+  /** Une limite, un serveur occupé, aucune réponse : cela se réessaie. */
+  | { phase: 'echec'; erreur: ApiErreur }
+  | { phase: 'analyse'; analyse: PublicAnalysis }
+
+interface PropsDuSaisi {
+  /** Le portefeuille gardé dans ce navigateur, ou `null` s'il n'y en a pas. */
+  readonly saisi: PortefeuilleSaisi | null
+  /** La preuve que le texte d'acceptation de la langue a été accepté. */
+  readonly preuve: PreuveDAcceptation
+  readonly annonce: string | null
+}
+
+/** L'état d'arrivée : l'analyse déjà reçue pour cette composition et cette langue, sinon la demande. */
+function etatDArrivee(saisi: PortefeuilleSaisi | null, langue: Langue): EtatDuSaisi {
+  const deposee = saisi === null ? null : analyseDeposee(saisi.positions, langue)
+  return deposee === null ? { phase: 'envoi', etape: null } : { phase: 'analyse', analyse: deposee }
+}
+
+/**
+ * L'analyse du portefeuille saisi, dans le build de démonstration seulement :
+ * ailleurs, la constante vaut `null`, et la vue sort du bundle avec ce
+ * qu'elle envoie au serveur public.
+ */
+export const VueAnalyseDuSaisi = DEMO ? AnalyseDuSaisi : null
+
+function AnalyseDuSaisi({ saisi, preuve, annonce }: PropsDuSaisi) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.analyse
+  const nom = libelles.saisi.nom
+  const vide = saisi === null || saisi.positions.length === 0
+  const composition = JSON.stringify(saisi?.positions ?? [])
+  const [etat, setEtat] = useState<EtatDuSaisi>(() => etatDArrivee(saisi, langue))
+  const [essai, setEssai] = useState(0)
+
+  useEffect(() => {
+    if (saisi === null || saisi.positions.length === 0) return
+    const deja = analyseDeposee(saisi.positions, langue)
+    if (deja !== null) {
+      setEtat({ phase: 'analyse', analyse: deja })
+      return
+    }
+    const abandon = new AbortController()
+    const vivant = () => !abandon.signal.aborted
+    setEtat({ phase: 'envoi', etape: null })
+    // Le numéro de ligne d'un envoi est le rang dans le portefeuille gardé :
+    // un refus nommera la ligne que la page des positions montre.
+    const positions = saisi.positions.map((position, rang) => ({ ...position, line: rang + 1 }))
+    attendreLeServeur(
+      langue,
+      () => {
+        if (vivant()) setEtat({ phase: 'envoi', etape: 'reveil' })
+      },
+      abandon.signal,
+    )
+      .then(() => {
+        if (!vivant()) return null
+        setEtat({ phase: 'envoi', etape: 'calcul' })
+        return analyserLeSaisi(positions, langue, preuve)
+      })
+      .then(
+        (analyse) => {
+          if (analyse === null || !vivant()) return
+          deposerLAnalyse(saisi.positions, langue, analyse)
+          setEtat({ phase: 'analyse', analyse })
+        },
+        (cause: unknown) => {
+          if (!vivant()) return
+          const erreur = versApiErreur(cause, langue)
+          setEtat(estUnRefus(erreur) ? { phase: 'refus', erreur } : { phase: 'echec', erreur })
+        },
+      )
+    return () => abandon.abort()
+    // `composition` porte le contenu de `saisi`, dont l'objet change à chaque lecture.
+  }, [composition, langue, essai, preuve])
+
+  const pages = pagesApplication('analyse', SAISI, langue)
+  const titre = l.titre(nom)
+  const page = cheminDe({ vue: 'saisi' })
+  const positions = cheminDe({ vue: 'saisi-positions' })
+
+  if (vide) {
+    return (
+      <Cadre
+        titre={titre}
+        page={page}
+        annonce={annonce}
+        entete={<BandeauSimple portefeuille={nom} />}
+        rail={<RailPages pages={pages} />}
+      >
+        <AncresSections pages={pages} sections={false} />
+        <div className={styles.vide}>
+          <h1 tabIndex={-1} className={styles.titre}>
+            {l.vide(nom)}
+          </h1>
+          <p className={styles.texte}>{l.decritDesPositions}</p>
+          <Lien vers={positions}>{l.saisirOuImporter}</Lien>
+          <FormatCsv niveau={2} />
+        </div>
+      </Cadre>
+    )
+  }
+
+  if (etat.phase === 'analyse') {
+    return pageDeLAnalyse({
+      analyse: etat.analyse,
+      serie: null,
+      portefeuille: { name: nom, updated_at: saisi.modifie },
+      titre,
+      page,
+      pages,
+      annonce,
+      occupe: false,
+    })
+  }
+
+  const indisponible = etat.phase !== 'envoi'
+  return (
+    <Cadre
+      titre={indisponible ? libelles.serveur.indisponible : titre}
+      page={page}
+      annonce={annonce}
+      occupe={!indisponible}
+      entete={<BandeauSimple portefeuille={nom} />}
+      rail={<RailPages pages={pages} />}
+    >
+      <h1 tabIndex={-1} className={indisponible ? styles.titre : 'visuellement-cache'}>
+        {indisponible ? libelles.serveur.indisponible : titre}
+      </h1>
+      <AncresSections pages={pages} sections={false} />
+      {etat.phase === 'envoi' && (
+        <>
+          <EtatDuServeur etape={etat.etape} />
+          <SqueletteAnalyse />
+        </>
+      )}
+      {etat.phase === 'refus' && (
+        <div className={styles.vide}>
+          <MessageErreur erreur={etat.erreur} />
+          <p className={`${styles.texte} ${styles.suite}`}>
+            <Lien vers={positions}>{l.revoirLesPositions}</Lien>
+          </p>
+        </div>
+      )}
+      {etat.phase === 'echec' && (
+        <MessageErreur
+          erreur={etat.erreur}
+          action={
+            <button type="button" className={controles.bouton} onClick={() => setEssai((n) => n + 1)}>
+              {libelles.serveur.reessayer}
+            </button>
+          }
+        />
+      )}
     </Cadre>
   )
 }

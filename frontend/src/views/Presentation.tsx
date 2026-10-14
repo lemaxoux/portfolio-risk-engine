@@ -32,12 +32,20 @@
  * qui parle : la page montre un chiffre et ses conditions comme un seul
  * objet, au lieu de le dire.
  *
+ * ═══ LE PORTEFEUILLE DU VISITEUR (chantier 9.6) ═══
+ *
+ * Un lien suit le tableau : « Saisir ou importer votre portefeuille ». Un
+ * lien, pas un bouton d'appel (§19.2). La page réveille aussi le serveur de
+ * calcul, une fois affichée : un seul essai, muet, qui n'envoie rien
+ * (`reveillerLeServeur`). Le visiteur qui ira saisir son portefeuille
+ * trouvera plus souvent un serveur déjà démarré.
+ *
  * Cette page n'existe que dans la démonstration. Dans l'application, `/`
  * reste une redirection (`App.tsx`).
  */
 import { useEffect, useState } from 'react'
 
-import { ApiErreur, getAnalysis, versApiErreur } from '../api/client'
+import { ApiErreur, getAnalysis, reveillerLeServeur, versApiErreur } from '../api/client'
 import type { Analysis, PortfolioDetail } from '../api/types'
 import { Absent } from '../components/Absent'
 import { BandeauSimple } from '../components/Bandeau'
@@ -56,7 +64,7 @@ import { ecrireLaCouverture } from '../lib/couverture'
 import { dateISO, montant, seances } from '../lib/format'
 import { useLangue } from '../lib/langue'
 import type { EtatListe } from '../lib/liste'
-import { cheminDe } from '../lib/route'
+import { cheminDe, type PortefeuilleEnVue } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import communs from './Pages.module.css'
 import styles from './Presentation.module.css'
@@ -346,7 +354,7 @@ interface Props {
   readonly liste: EtatListe
   readonly recharger: () => Promise<void>
   /** Le dernier portefeuille consulté, s'il existe encore : le bandeau le nomme. */
-  readonly portefeuille: PortfolioDetail | null
+  readonly portefeuille: PortefeuilleEnVue | null
 }
 
 const POINTS = ['conditions', 'note', 'refus'] as const
@@ -355,6 +363,9 @@ export function VuePresentation({ liste, recharger, portefeuille }: Props) {
   const { langue, libelles } = useLangue()
   const l = libelles.presentation
   const pages = pagesApplication('presentation', portefeuille?.id ?? null, langue)
+
+  // Le réveil du serveur de calcul, après le premier affichage (§19.9).
+  useEffect(() => apresLAffichage(reveillerLeServeur), [])
 
   return (
     <Cadre
@@ -373,6 +384,9 @@ export function VuePresentation({ liste, recharger, portefeuille }: Props) {
         <h2 className={styles.intertitre}>{l.demonstration.titre}</h2>
         <p className={communs.texte}>{l.demonstration.texte}</p>
         <TableauDesPortefeuilles liste={liste} recharger={recharger} />
+        <p className={`${communs.texte} ${communs.suite}`}>
+          <Lien vers={cheminDe({ vue: 'saisi-positions' })}>{l.demonstration.saisir}</Lien>
+        </p>
       </section>
 
       <section className={styles.partie}>
@@ -408,11 +422,6 @@ export function VuePresentation({ liste, recharger, portefeuille }: Props) {
       <section className={styles.partie}>
         <h2 className={styles.intertitre}>{l.neMontrePas.titre}</h2>
         <p className={communs.texte}>{l.neMontrePas.texte}</p>
-        <Capture
-          {...CAPTURES.saisie[langue]}
-          alternative={l.neMontrePas.figure.alternative}
-          legende={l.neMontrePas.figure.legende}
-        />
         <p className={communs.texte}>
           <a href={ADRESSES.installation}>{l.neMontrePas.installer}</a>
         </p>

@@ -64,15 +64,15 @@ export const LIBELLES_FR: Libelles = {
       `Le fichier \`${fichier}\` de la démonstration manque ou n'est pas lisible. ` +
       'Recharger la page.',
     mention: (portefeuilles, date) =>
-      `Démonstration\u00a0: ${compte(portefeuilles, 'portefeuille')} fixes, ` +
+      `Démonstration\u00a0: ${compte(portefeuilles, 'portefeuille')} d'exemple, ou le vôtre, ` +
       `valorisés au ${dateEnToutesLettres(date)}.`,
     lireLAvertissement: "Lire l'avertissement",
   },
   avertissement: {
     pourquoi:
-      "L'application installée affiche ce texte avant la première utilisation et demande " +
-      "de l'accepter. La démonstration ne le demande pas\u00a0: elle ne montre aucun " +
-      'portefeuille qui soit le vôtre.',
+      "Le site demande d'accepter ce texte avant d'analyser un portefeuille que vous " +
+      "saisissez. Les portefeuilles d'exemple se lisent sans l'accepter\u00a0: aucun n'est " +
+      'le vôtre.',
   },
   presentation: {
     titre: "Le risque d'un portefeuille, chaque chiffre avec ses conditions",
@@ -86,8 +86,10 @@ export const LIBELLES_FR: Libelles = {
     demonstration: {
       titre: 'La démonstration',
       texte:
-        'Ce site est une démonstration\u00a0: des portefeuilles fixes, sans saisie ni serveur. ' +
-        "Chaque nom mène à son analyse, celle de l'application, avec sa méthodologie.",
+        "Ce site est une démonstration\u00a0: des portefeuilles d'exemple, et le vôtre si vous " +
+        'le saisissez, analysés sur une base de cours arrêtée à la date ci-dessous. Chaque nom ' +
+        "mène à son analyse, celle de l'application, avec sa méthodologie.",
+      saisir: 'Saisir ou importer votre portefeuille',
     },
     tableau: {
       legende: (date) =>
@@ -150,12 +152,10 @@ export const LIBELLES_FR: Libelles = {
     neMontrePas: {
       titre: 'Ce que la démonstration ne montre pas',
       texte:
-        "L'application, installée sur un poste, analyse un portefeuille saisi à la main ou " +
-        "importé d'un fichier CSV.",
-      figure: {
-        legende: `Le tableau de saisie de l'application, avec le portefeuille ${cite('Démo')}.`,
-        alternative: 'Le tableau de saisie\u00a0: chaque ligne porte un titre et une quantité.',
-      },
+        "L'application, installée sur un poste, met ses cours à jour, ajoute à sa base un titre " +
+        "qui y manque et garde plusieurs portefeuilles. Ici, les cours s'arrêtent à une date, la " +
+        'liste des titres est fermée, et le portefeuille que vous saisissez ' +
+        "n'est gardé que dans votre navigateur.",
       installer: "Installer l'application\u00a0: le README du dépôt, en anglais",
     },
     liens: {
@@ -286,6 +286,9 @@ export const LIBELLES_FR: Libelles = {
     retourAuPic: 'Retour au pic',
     niveaux: 'Niveaux',
     ou: "Où ce creux s'est produit",
+    sansCourbe:
+      "La courbe de valeur et son tableau ne sont affichés que pour les portefeuilles d'exemple. " +
+      'Les dates du pic et du creux sont dans les détails du calcul, ci-dessus.',
     titreSansDepart: "Valeur d'une unité investie",
     titre: (devise, depart) =>
       `Valeur de 1\u00a0${devise} placé le ${dateEnToutesLettres(depart)}`,
@@ -518,6 +521,55 @@ export const LIBELLES_FR: Libelles = {
       'Les modifications du tableau ne sont pas enregistrées. Quitter cette page les perd.',
     rester: 'Rester sur la page',
     quitter: 'Quitter sans enregistrer',
+  },
+  saisi: {
+    nom: 'Votre portefeuille',
+    titre: 'Votre portefeuille',
+    aucun:
+      'Vous pouvez composer un portefeuille parmi les titres de la base et lire son analyse. ' +
+      "Il n'est gardé que dans ce navigateur.",
+    resume: (nombre, date) => `${lignes(nombre)}, modifiées le ${dateEnToutesLettres(date)}.`,
+    effacer: 'Effacer de ce navigateur',
+    question: (nombre) =>
+      `Effacer votre portefeuille de ce navigateur\u00a0? Ses ${lignes(nombre)} seront perdues.`,
+    effacerLePortefeuille: 'Effacer le portefeuille',
+    efface: 'Portefeuille effacé de ce navigateur.',
+  },
+  positionsDuSite: {
+    listeFermee:
+      "Les titres sont ceux de la base de la démonstration\u00a0: un titre qui n'y est pas est " +
+      'refusé.',
+    tableauEstLePortefeuille:
+      "Le tableau est le portefeuille\u00a0: l'analyser remplace les positions gardées dans ce " +
+      'navigateur par les lignes affichées.',
+    envoi: 'Analyser envoie ces lignes au serveur, qui fait le calcul sans les enregistrer.',
+    analyser: 'Analyser ces positions',
+    analyseEnCours: 'Analyse en cours…',
+    rienGarde: "Rien n'a été analysé ni gardé\u00a0: ",
+    nonGardees: 'Modifications non gardées.',
+    quitterLesPerd:
+      'Les modifications du tableau ne sont gardées nulle part. Quitter cette page les perd.',
+    quitter: 'Quitter sans les garder',
+    gardees: (date, positions) =>
+      `Positions gardées dans ce navigateur le ${dateEnToutesLettres(date)}\u00a0: ` +
+      `${lignes(positions)}.`,
+    universIllisible: (detail) =>
+      `Les noms des titres n'ont pas pu être lus (${detail}). La saisie reste ` +
+      "possible\u00a0: chaque ticker est vérifié à l'analyse.",
+    fichierEnvoye: "Le fichier est envoyé au serveur, qui le lit sans l'enregistrer.",
+    stockageBloque:
+      'Ce navigateur ne garde rien pour ce site\u00a0: votre portefeuille sera perdu à la ' +
+      'fermeture de la page.',
+  },
+  serveur: {
+    reveil:
+      "Le serveur de calcul ne répond pas encore. Il s'arrête quand personne ne s'en sert et " +
+      "redémarre à la première demande\u00a0: la vôtre partira dès qu'il répondra.",
+    calcul: 'Calcul en cours sur le serveur.',
+    sansReponse: "Le serveur de calcul n'a pas répondu. Vérifier la connexion, puis réessayer.",
+    reponseIllisible: "La réponse du serveur de calcul n'a pas pu être lue. Réessayer.",
+    reessayer: 'Réessayer',
+    indisponible: 'Analyse indisponible',
   },
   saisie: {
     ticker: 'Ticker',

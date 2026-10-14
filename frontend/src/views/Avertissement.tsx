@@ -29,14 +29,14 @@
 import { useEffect, useState } from 'react'
 
 import { ApiErreur, getDisclaimer, versApiErreur } from '../api/client'
-import type { Disclaimer, PortfolioDetail } from '../api/types'
+import type { Disclaimer } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { MessageErreur } from '../components/MessageErreur'
 import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
 import { SqueletteTexte } from '../components/Squelette'
 import { useLangue } from '../lib/langue'
-import { cheminDe } from '../lib/route'
+import { cheminDe, type PortefeuilleEnVue } from '../lib/route'
 import controles from '../styles/controles.module.css'
 import styles from './Avertissement.module.css'
 import communs from './Pages.module.css'
@@ -55,7 +55,7 @@ function texteDe(etat: Etat): Disclaimer | null {
 
 interface Props {
   /** Le dernier portefeuille consulté, s'il existe encore : le bandeau le nomme. */
-  readonly portefeuille: PortfolioDetail | null
+  readonly portefeuille: PortefeuilleEnVue | null
 }
 
 export function VueAvertissement({ portefeuille }: Props) {

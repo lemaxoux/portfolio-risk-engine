@@ -13,8 +13,22 @@
  * survit à la disparition du champ qu'il décrit.
  */
 import type { components } from './schema'
+import type { components as composantsPublics } from './schema.public'
 
 type S = components['schemas']
+
+/**
+ * Le serveur public du site (chantier 9.6) a son propre schéma,
+ * `openapi.public.json`, engendré lui aussi (`schema.public.ts`). Ses
+ * sous-objets sont ceux de l'application : la même mesure se publie de la
+ * même façon des deux côtés, et TypeScript les tient pour le même type.
+ */
+type P = composantsPublics['schemas']
+
+/** L'analyse d'une composition : celle de l'application, sans `portfolio_id`, `portfolio` ni `series`. */
+export type PublicAnalysis = P['PublicAnalysisOut']
+/** Un fichier CSV lu par le serveur public : ses lignes, et comment il a été lu. */
+export type PublicCsv = P['PublicCsvOut']
 
 export type Analysis = S['AnalysisOut']
 export type Window = S['WindowOut']

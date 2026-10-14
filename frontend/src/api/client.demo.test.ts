@@ -223,3 +223,260 @@ describe('les textes d’échec, tels qu’ils sont validés', () => {
     )
   })
 })
+
+// ═══════════════════════════════════════════════ Le serveur public (9.6) ══
+
+describe('le serveur public du site (chantier 9.6)', () => {
+  const SERVEUR = 'https://serveur.exemple'
+  const SANTE = '{"status":"ready","freeze_date":"2026-09-09","database_sha256":"a","code_sha256":"b"}'
+  const PAGE_D_ATTENTE = '<!doctype html><title>Render - Application loading</title>'
+  const POSITIONS = [{ ticker: 'KO', quantity: 120, cost_basis: null, line: 1 }]
+
+  /** Le client du site, et le module d'acceptation qu'il lit : les mêmes instances. */
+  async function site() {
+    vi.stubEnv('MODE', 'demo')
+    vi.stubEnv('MX_RISK_SERVEUR_PUBLIC', SERVEUR)
+    vi.resetModules()
+    const client = await import('./client')
+    const acceptation = await import('../lib/acceptation')
+    return { client, acceptation }
+  }
+
+  /** La preuve d'un texte accepté dans cette page. */
+  function preuve(acceptation: typeof import('../lib/acceptation'), langue: 'fr' | 'en') {
+    acceptation.memoriserAcceptation(`Texte accepté (${langue})`, langue)
+    return acceptation.preuveDAcceptation(`Texte accepté (${langue})`, langue)
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('le réveil est un GET /health nu : ni corps, ni paramètre, ni en-tête, ni cookie, ni référent', async () => {
+    const { client } = await site()
+    const espion = repondre(200, SANTE)
+    client.reveillerLeServeur()
+    await vi.waitFor(() => expect(espion).toHaveBeenCalledOnce())
+    const [adresse, init] = espion.mock.calls[0] ?? []
+    expect(adresse).toBe(`${SERVEUR}/health`)
+    expect(init?.method).toBeUndefined()
+    expect(init?.body).toBeUndefined()
+    expect(init?.headers).toBeUndefined()
+    expect(init).toMatchObject({ credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store' })
+  })
+
+  it('un serveur éveillé : l’attente finit au premier essai, et rien n’est dit', async () => {
+    vi.useFakeTimers()
+    const { client } = await site()
+    const espion = repondre(200, SANTE)
+    const dit = vi.fn()
+    await client.attendreLeServeur('fr', dit)
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(espion).toHaveBeenCalledOnce()
+    expect(dit).not.toHaveBeenCalled()
+  })
+
+  it('une réponse qui n’est pas le JSON du serveur compte comme « pas encore réveillé »', async () => {
+    vi.useFakeTimers()
+    const { client } = await site()
+    const reponses = [
+      { ok: false, status: 503, text: async () => PAGE_D_ATTENTE },
+      { ok: true, status: 200, text: async () => PAGE_D_ATTENTE },
+      { ok: true, status: 200, text: async () => SANTE },
+    ]
+    const espion = vi.fn(async (_adresse: string, _init?: RequestInit) => reponses.shift())
+    vi.stubGlobal('fetch', espion)
+    const dit = vi.fn()
+    const attente = client.attendreLeServeur('en', dit)
+    await vi.advanceTimersByTimeAsync(10_000)
+    await expect(attente).resolves.toBeUndefined()
+    expect(espion).toHaveBeenCalledTimes(3)
+    // Dit une fois, dès le premier échec.
+    expect(dit).toHaveBeenCalledOnce()
+  })
+
+  it('un essai qui ne rend rien se dit au bout du silence', async () => {
+    vi.useFakeTimers()
+    const { client } = await site()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_adresse: string, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new DOMException('Abandon', 'AbortError')))
+          }),
+      ),
+    )
+    const dit = vi.fn()
+    const attente = client.attendreLeServeur('fr', dit).catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(dit).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2)
+    expect(dit).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(100_000)
+    expect(await attente).toMatchObject({ statut: 0, detail: LIBELLES.fr.serveur.sansReponse })
+  })
+
+  it('passé la durée du réveil : « sans réponse », sans cause', async () => {
+    vi.useFakeTimers()
+    const { client } = await site()
+    const espion = vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    vi.stubGlobal('fetch', espion)
+    const attente = client.attendreLeServeur('en', () => undefined).catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(100_000)
+    const erreur = await attente
+    expect(erreur).toBeInstanceOf(client.ApiErreur)
+    expect(erreur).toMatchObject({ statut: 0, detail: LIBELLES.en.serveur.sansReponse })
+    // Un essai toutes les trois secondes, pendant quatre-vingt-dix secondes au plus.
+    expect(espion.mock.calls.length).toBeGreaterThan(20)
+    expect(espion.mock.calls.length).toBeLessThanOrEqual(31)
+  })
+
+  it('sans preuve d’acceptation de sa langue, rien ne part', async () => {
+    const { client, acceptation } = await site()
+    const espion = repondre(200, '{}')
+    const fichier = new File(['ticker;quantity\nKO;1\n'], 'p.csv', { type: 'text/csv' })
+    await expect(client.analyserLeSaisi(POSITIONS, 'fr', null)).rejects.toThrow()
+    await expect(client.lireUnFichier(fichier, 'fr', null)).rejects.toThrow()
+    // Une preuve de l'autre langue, ou un objet de même forme, n'en sont pas.
+    await expect(client.analyserLeSaisi(POSITIONS, 'fr', preuve(acceptation, 'en'))).rejects.toThrow()
+    await expect(
+      client.analyserLeSaisi(POSITIONS, 'fr', { langue: 'fr', empreinte: acceptation.empreinte('x') }),
+    ).rejects.toThrow()
+    expect(espion).not.toHaveBeenCalled()
+  })
+
+  it('l’analyse part en POST, la composition dans le corps, la langue dans l’adresse', async () => {
+    const { client, acceptation } = await site()
+    const espion = repondre(200, '{"as_of": "2026-09-09"}')
+    await expect(client.analyserLeSaisi(POSITIONS, 'en', preuve(acceptation, 'en'))).resolves.toEqual({
+      as_of: '2026-09-09',
+    })
+    const [adresse, init] = espion.mock.calls[0] ?? []
+    expect(adresse).toBe(`${SERVEUR}/analysis?lang=en`)
+    expect(init?.method).toBe('POST')
+    // Aucun nom de portefeuille : les lignes, et rien d'autre.
+    expect(JSON.parse(String(init?.body))).toEqual({ positions: POSITIONS })
+    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(init).toMatchObject({ credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store' })
+  })
+
+  it('le fichier part en multipart vers /csv, sous le champ « file »', async () => {
+    const { client, acceptation } = await site()
+    const espion = repondre(200, '{"positions": [], "source": {}}')
+    const fichier = new File(['ticker;quantity\nKO;1\n'], 'p.csv', { type: 'text/csv' })
+    await client.lireUnFichier(fichier, 'fr', preuve(acceptation, 'fr'))
+    const [adresse, init] = espion.mock.calls[0] ?? []
+    expect(adresse).toBe(`${SERVEUR}/csv?lang=fr`)
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBeInstanceOf(FormData)
+    expect((init?.body as FormData).get('file')).toBeInstanceOf(File)
+    // Le navigateur pose lui-même l'en-tête du multipart, avec sa frontière.
+    expect(init?.headers).toEqual({})
+  })
+
+  it('un refus garde les phrases du serveur, telles quelles', async () => {
+    const { client, acceptation } = await site()
+    const corps = {
+      detail: '2 lignes refusées, le portefeuille n’a pas été analysé.',
+      problems: [{ line: 2, field: 'ticker', value: 'XYZ', problem: 'XYZ n’est pas un titre de la base.' }],
+    }
+    repondre(422, JSON.stringify(corps))
+    const erreur = await client.analyserLeSaisi(POSITIONS, 'fr', preuve(acceptation, 'fr')).catch((e: unknown) => e)
+    expect(erreur).toMatchObject({ statut: 422, detail: corps.detail, problems: corps.problems })
+    expect(client.estUnRefus(erreur as InstanceType<Client['ApiErreur']>)).toBe(true)
+  })
+
+  it('une limite atteinte se réessaie : ce n’est pas un refus de la composition', async () => {
+    const { client, acceptation } = await site()
+    repondre(429, '{"detail": "Trop de demandes depuis cette adresse.", "problems": []}')
+    const erreur = await client.analyserLeSaisi(POSITIONS, 'fr', preuve(acceptation, 'fr')).catch((e: unknown) => e)
+    expect(erreur).toMatchObject({ statut: 429, detail: 'Trop de demandes depuis cette adresse.' })
+    expect(client.estUnRefus(erreur as InstanceType<Client['ApiErreur']>)).toBe(false)
+  })
+
+  it('une réponse sans en-tête CORS, ou une coupure : « sans réponse »', async () => {
+    const { client, acceptation } = await site()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
+    const erreur = await client.analyserLeSaisi(POSITIONS, 'en', preuve(acceptation, 'en')).catch((e: unknown) => e)
+    expect(erreur).toMatchObject({ statut: 0, detail: LIBELLES.en.serveur.sansReponse })
+  })
+
+  it('une réponse qui n’est pas un document : « illisible », jamais son contenu', async () => {
+    const { client, acceptation } = await site()
+    for (const [statut, corps] of [
+      [200, PAGE_D_ATTENTE],
+      [200, '[]'],
+      [502, PAGE_D_ATTENTE],
+    ] as const) {
+      repondre(statut, corps)
+      const erreur = await client.analyserLeSaisi(POSITIONS, 'fr', preuve(acceptation, 'fr')).catch((e: unknown) => e)
+      expect((erreur as Error).message).toBe(LIBELLES.fr.serveur.reponseIllisible)
+      expect((erreur as Error).message).not.toContain('doctype')
+    }
+  })
+
+  it('toute adresse demandée est un fichier de /donnees/, ou l’une des trois routes du serveur', async () => {
+    const { client, acceptation } = await site()
+    const adresses: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (adresse: string) => {
+        adresses.push(adresse)
+        return { ok: true, status: 200, text: async () => (adresse.endsWith('/health') ? SANTE : '{"x": 1}') }
+      }),
+    )
+    const fichier = new File(['ticker;quantity\nKO;1\n'], 'p.csv', { type: 'text/csv' })
+    const appels: Record<string, () => unknown> = {
+      getMeta: () => client.getMeta('fr'),
+      getDisclaimer: () => client.getDisclaimer('en'),
+      getAnalysis: () => client.getAnalysis(1, 'fr'),
+      getPortfolios: () => client.getPortfolios('en'),
+      getSecurities: () => client.getSecurities('fr'),
+      getCsvFormat: () => client.getCsvFormat('en'),
+      createPortfolio: () => client.createPortfolio('Nouveau', 'fr'),
+      deletePortfolio: () => client.deletePortfolio(1, 'fr'),
+      putPositions: () => client.putPositions(1, POSITIONS, 'fr'),
+      importCsv: () => client.importCsv(1, fichier, 'fr'),
+      reveillerLeServeur: () => client.reveillerLeServeur(),
+      attendreLeServeur: () => client.attendreLeServeur('fr', () => undefined),
+      analyserLeSaisi: () => client.analyserLeSaisi(POSITIONS, 'fr', preuve(acceptation, 'fr')),
+      lireUnFichier: () => client.lireUnFichier(fichier, 'en', preuve(acceptation, 'en')),
+    }
+    // Les fonctions pures, qui ne demandent rien au réseau.
+    const PURES = ['adresseDeDemo', 'segmenter', 'versApiErreur', 'estUnRefus', 'titreSourceInjoignable', 'ApiErreur']
+    const exportees = Object.entries(client)
+      .filter(([, valeur]) => typeof valeur === 'function')
+      .map(([nom]) => nom)
+      .sort()
+    expect(exportees).toEqual([...Object.keys(appels), ...PURES].sort())
+
+    for (const appel of Object.values(appels)) {
+      await Promise.resolve(appel()).catch(() => undefined)
+    }
+    await vi.waitFor(() => expect(adresses.filter((a) => a.endsWith('/health')).length).toBeGreaterThanOrEqual(2))
+    const routes = [`${SERVEUR}/health`, ...['fr', 'en'].flatMap((l) => [`${SERVEUR}/analysis?lang=${l}`, `${SERVEUR}/csv?lang=${l}`])]
+    const permise = (adresse: string) => /^\/donnees\/(fr|en)\/[a-z0-9/-]+\.json$/.test(adresse) || routes.includes(adresse)
+    expect(adresses.filter((adresse) => !permise(adresse))).toEqual([])
+    expect(adresses.some((adresse) => adresse.includes('/api'))).toBe(false)
+    expect(adresses).toContain(`${SERVEUR}/analysis?lang=fr`)
+    expect(adresses).toContain(`${SERVEUR}/csv?lang=en`)
+  })
+
+  it('hors du site, rien n’attend ni n’envoie au serveur public', async () => {
+    vi.stubEnv('MX_RISK_SERVEUR_PUBLIC', SERVEUR)
+    const client = await clientEnMode('production')
+    const espion = repondre(200, SANTE)
+    client.reveillerLeServeur()
+    await expect(client.attendreLeServeur('fr', () => undefined)).rejects.toThrow()
+    await expect(client.analyserLeSaisi(POSITIONS, 'fr', null)).rejects.toThrow()
+    expect(espion).not.toHaveBeenCalled()
+  })
+})

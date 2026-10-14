@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  CLE_DERNIER_PORTEFEUILLE,
   cheminDe,
+  dernierPortefeuille,
   lireRoute,
+  memoriserLeSaisi,
   naviguer,
+  oublierLeSaisi,
   portefeuilleDAccueil,
   poserGarde,
+  SAISI,
+  saisiEnVue,
   type Route,
 } from './route'
 
@@ -158,5 +164,80 @@ describe('la note d’un lien vers la méthode (chantier 7E)', () => {
     const { history } = simulerFenetre('/')
     naviguer('/portefeuilles/1', { remplacer: true })
     expect(history.replaceState).toHaveBeenCalledExactlyOnceWith(null, '', '/portefeuilles/1')
+  })
+})
+
+describe('le portefeuille saisi, sur le site (chantier 9.6)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function stockage(depart: Record<string, string> = {}) {
+    const donnees = new Map(Object.entries(depart))
+    vi.stubGlobal('localStorage', {
+      getItem: (cle: string) => donnees.get(cle) ?? null,
+      setItem: (cle: string, valeur: string) => donnees.set(cle, valeur),
+      removeItem: (cle: string) => donnees.delete(cle),
+    })
+    return donnees
+  }
+
+  it('lit ses deux adresses, avec ou sans barre finale', () => {
+    expect(lireRoute('/portefeuilles/saisi')).toEqual({ vue: 'saisi' })
+    expect(lireRoute('/portefeuilles/saisi/')).toEqual({ vue: 'saisi' })
+    expect(lireRoute('/portefeuilles/saisi/positions')).toEqual({ vue: 'saisi-positions' })
+    expect(cheminDe({ vue: 'saisi' })).toBe('/portefeuilles/saisi')
+    expect(cheminDe({ vue: 'saisi-positions' })).toBe('/portefeuilles/saisi/positions')
+    for (const route of [{ vue: 'saisi' }, { vue: 'saisi-positions' }] as const) {
+      expect(lireRoute(cheminDe(route))).toEqual(route)
+    }
+  })
+
+  it('ne confond pas « saisi » avec un numéro, et ne devine rien au-delà', () => {
+    for (const chemin of [
+      '/portefeuilles/saisi/3',
+      '/portefeuilles/saisi/analyse',
+      '/portefeuilles/saisi/positions/1',
+      '/portefeuilles/saisis',
+      '/portefeuilles/Saisi',
+    ]) {
+      expect(lireRoute(chemin)).toEqual({ vue: 'inconnue', chemin })
+    }
+    expect(lireRoute('/portefeuilles/3')).toEqual({ vue: 'analyse', id: 3 })
+  })
+
+  it('peut être le dernier consulté, sans qu’un numéro soit lu à sa place', () => {
+    const donnees = stockage()
+    expect(saisiEnVue()).toBe(false)
+    memoriserLeSaisi()
+    expect(donnees.get(CLE_DERNIER_PORTEFEUILLE)).toBe(SAISI)
+    expect(saisiEnVue()).toBe(true)
+    expect(dernierPortefeuille()).toBeNull()
+    oublierLeSaisi()
+    expect(saisiEnVue()).toBe(false)
+  })
+
+  it('oublier le saisi ne touche pas à un portefeuille de la liste', () => {
+    const donnees = stockage({ [CLE_DERNIER_PORTEFEUILLE]: '2' })
+    oublierLeSaisi()
+    expect(donnees.get(CLE_DERNIER_PORTEFEUILLE)).toBe('2')
+    expect(dernierPortefeuille()).toBe(2)
+  })
+
+  it('un stockage bloqué ne lève pas : aucun portefeuille saisi en vue', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('bloqué')
+      },
+      setItem: () => {
+        throw new Error('bloqué')
+      },
+      removeItem: () => {
+        throw new Error('bloqué')
+      },
+    })
+    expect(() => memoriserLeSaisi()).not.toThrow()
+    expect(saisiEnVue()).toBe(false)
+    expect(() => oublierLeSaisi()).not.toThrow()
   })
 })

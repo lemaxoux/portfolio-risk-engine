@@ -36,7 +36,7 @@ function enTete(nom: string) {
   }
 }
 
-const FIGURES = ['mesure', 'saisie'] as const
+const FIGURES = ['mesure'] as const
 const LANGUES = ['fr', 'en'] as const
 const THEMES = [
   ['claire', 'clair'],
@@ -58,7 +58,7 @@ const DECLAREES = FIGURES.flatMap((figure) =>
 )
 
 describe('les images de la page de présentation', () => {
-  it('neuf fichiers : huit captures et l’image de prévisualisation', () => {
+  it('cinq fichiers : quatre captures et l’image de prévisualisation', () => {
     const fichiers = readdirSync(DOSSIER)
       .filter((nom) => nom.endsWith('.png'))
       .sort()

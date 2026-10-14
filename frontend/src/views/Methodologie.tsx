@@ -29,7 +29,6 @@
  */
 import { Fragment, useMemo } from 'react'
 
-import type { PortfolioDetail } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import {
@@ -41,7 +40,7 @@ import {
 import { METHODOLOGIE } from '../contenu/methodologie'
 import { lireContenu, type Bloc, type Corps, type EnLigne, type Morceau } from '../lib/contenu'
 import { useLangue } from '../lib/langue'
-import { cheminDe } from '../lib/route'
+import { cheminDe, type PortefeuilleEnVue } from '../lib/route'
 import communs from './Pages.module.css'
 import styles from './Methodologie.module.css'
 
@@ -169,7 +168,7 @@ function PartieDe({ partie }: { partie: Partie }) {
 
 interface Props {
   /** Le dernier portefeuille consulté, s'il existe encore ; sinon aucun. */
-  readonly portefeuille: PortfolioDetail | null
+  readonly portefeuille: PortefeuilleEnVue | null
 }
 
 export function VueMethodologie({ portefeuille }: Props) {

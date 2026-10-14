@@ -18,6 +18,10 @@
  * Le mot « estimation » borne la portée : les scénarios ont leurs propres
  * périodes, et le bandeau ne parle pas pour eux. Chaque bloc `<Measure>`
  * continue d'afficher la sienne ; le bandeau ne dispense de rien.
+ *
+ * Le nom du portefeuille et la date de ses positions arrivent à part de
+ * l'analyse : la réponse du serveur public, qui analyse le portefeuille saisi
+ * sur le site, n'a pas de champ `portfolio` (chantier 9.6).
  */
 import { useEffect, useRef } from 'react'
 
@@ -133,7 +137,25 @@ export function useHauteurPubliee() {
   return bandeau
 }
 
-export function Bandeau({ analyse }: { analyse: Analysis }) {
+/** Ce que le bandeau lit d'une analyse : ce que partagent la réponse de l'application et celle du serveur public. */
+type AnalyseDuBandeau = Pick<
+  Analysis,
+  'as_of' | 'estimation_window' | 'limiting_positions' | 'total_value' | 'valuation'
+>
+
+/** Le portefeuille, tel que le bandeau le nomme et date ses positions. */
+interface PortefeuilleDuBandeau {
+  readonly name: string
+  readonly updated_at: string | null
+}
+
+export function Bandeau({
+  analyse,
+  portefeuille,
+}: {
+  analyse: AnalyseDuBandeau
+  portefeuille: PortefeuilleDuBandeau
+}) {
   const { langue, libelles, phrases } = useLangue()
   const reduite = phrases.phraseFenetreReduite(
     analyse.estimation_window,
@@ -143,7 +165,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
 
   return (
     <header ref={bandeau} className={styles.bandeau}>
-      <Identite nom={analyse.portfolio.name} />
+      <Identite nom={portefeuille.name} />
 
       <div className={styles.conditions}>
         {/* Chaque condition est une PAIRE insécable : un libellé ne se sépare
@@ -163,7 +185,7 @@ export function Bandeau({ analyse }: { analyse: Analysis }) {
           </span>
         </p>
         <p className={styles.ligne}>
-          {phrases.phraseFraicheurPositions(analyse.portfolio.updated_at)}
+          {phrases.phraseFraicheurPositions(portefeuille.updated_at)}
         </p>
         {reduite !== null && (
           <p className={styles.reduite}>

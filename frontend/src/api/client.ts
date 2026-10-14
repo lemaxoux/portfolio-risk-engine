@@ -25,21 +25,40 @@
  * ═══ DEUX SOURCES, CHOISIES AU BUILD, ICI SEULEMENT ═══
  *
  * Le build de démonstration (`npm run build:demo`, mode Vite `demo`) est un
- * site statique, sans serveur. Les LECTURES y demandent des réponses de l'API
- * enregistrées en fichiers par `python -m tools.export_demo`, une par langue :
+ * site statique. Les LECTURES y demandent des réponses de l'API enregistrées
+ * en fichiers par `python -m tools.export_demo`, une par langue :
  * `/donnees/fr/portfolios.json` à la place de `/api/portfolios?lang=fr`. Ce
- * module est le seul à savoir d'où viennent les données ; le reste du client
- * ne lit `DEMO` que pour quatre choses : masquer ce qui écrit, afficher la
- * mention, rendre la page de présentation à l'adresse `/`, et ne pas poser
- * l'écran d'acceptation (DESIGN.md §18.1, §19).
+ * module est le seul à savoir d'où viennent les données, et où part une
+ * saisie ; le reste du client ne lit `DEMO` que pour masquer ce qui écrit en
+ * base, afficher la mention, rendre la page de présentation à l'adresse `/`,
+ * et ne poser l'écran d'acceptation que devant les pages du portefeuille
+ * saisi (DESIGN.md §18.1, §19).
  *
- * Les ÉCRITURES n'ont pas d'autre source que l'API. En démonstration, plus
- * rien ne les appelle : elles sortent du bundle avec les écrans qui les
- * portaient, et le build de démonstration échoue si l'une d'elles y revient.
+ * Les ÉCRITURES de l'application n'ont pas d'autre source que l'API. En
+ * démonstration, plus rien ne les appelle : elles sortent du bundle avec les
+ * écrans qui les portaient, et le build de démonstration échoue si l'une
+ * d'elles y revient.
  *
- * La démonstration a ses propres échecs. Il n'y a pas de serveur à démarrer,
- * et un fichier absent ne se voit pas au statut : un hébergeur statique rend
- * sa page d'accueil, avec un 200, pour une adresse qu'il ne connaît pas.
+ * La démonstration a ses propres échecs. Un fichier absent ne se voit pas au
+ * statut : un hébergeur statique rend sa page d'accueil, avec un 200, pour une
+ * adresse qu'il ne connaît pas.
+ *
+ * ═══ LE SERVEUR PUBLIC (chantier 9.6) ═══
+ *
+ * Le site analyse aussi le portefeuille qu'un visiteur saisit, par un serveur
+ * public sans état (`backend/public_api/`). Son adresse arrive au build
+ * (`MX_RISK_SERVEUR_PUBLIC`, lue par `vite.config.ts`), et ce module est le
+ * seul qui la lit. Trois appels, et eux seuls : le réveil (`GET /health`),
+ * l'analyse d'une composition (`POST /analysis`) et la lecture d'un fichier
+ * (`POST /csv`). Les deux envois passent par une seule fonction, où la
+ * méthode est écrite une fois : la garde du build en tient le compte.
+ *
+ * Le serveur s'arrête quand personne ne s'en sert, et redémarre à la première
+ * demande. Une réponse qui n'est pas son JSON (la page d'attente de
+ * l'hébergeur, un 503, une réponse sans en-tête CORS) compte comme « pas
+ * encore réveillé » : son contenu n'est jamais lu au-delà de ce constat, ni
+ * affiché. Aucun envoi ne part avant un `/health` réussi, ni sans la preuve
+ * que le texte d'acceptation de sa langue a été accepté (`lib/acceptation`).
  */
 import type {
   Analysis,
@@ -51,9 +70,12 @@ import type {
   PortfolioDetail,
   PositionIn,
   PositionsWritten,
+  PublicAnalysis,
+  PublicCsv,
   Security,
 } from './types'
 import { LIBELLES } from '../contenu/libelles'
+import { estUnePreuve, type PreuveDAcceptation } from '../lib/acceptation'
 import type { Langue } from '../lib/langue'
 
 const BASE = '/api'
@@ -206,6 +228,17 @@ export function versApiErreur(cause: unknown, langue: Langue = 'fr'): ApiErreur 
 }
 
 /**
+ * Un refus de ce qui a été envoyé (chantier 9.6) : le serveur public a lu la
+ * demande et la refuse, lignes, fichier ou composition. Le renvoyer telle
+ * quelle ne servirait à rien : c'est elle qui se corrige. Les autres échecs,
+ * une limite atteinte (429), un serveur occupé, une panne, aucune réponse,
+ * se réessaient.
+ */
+export function estUnRefus(erreur: ApiErreur): boolean {
+  return erreur.statut >= 400 && erreur.statut < 500 && erreur.statut !== 429
+}
+
+/**
  * Le titre de la page quand la source des données ne répond pas au démarrage.
  * Il dépend de la source, donc il se demande ici.
  */
@@ -225,8 +258,16 @@ interface Envoi {
   readonly fichier?: File
 }
 
+/**
+ * La démonstration n'a pas d'API : ni lecture, ni écriture n'y part vers
+ * elle. Aucun de ses écrans ne l'appelle, et la garde du build le tient sur
+ * le bundle ; à l'exécution, l'appel lève avant toute requête.
+ */
+const SANS_API = "Le build de démonstration n'a pas d'API à appeler."
+
 /** Un appel à l'API : toute écriture, et les lectures hors démonstration. */
 async function appeler<T>(chemin: string, langue: Langue, envoi?: Envoi): Promise<T> {
+  if (DEMO) throw new Error(SANS_API)
   let reponse: Response
   try {
     reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
@@ -288,6 +329,7 @@ function requete(envoi: Envoi | undefined): RequestInit {
 
 /** Une écriture qui ne rend rien (204) : le succès EST la réponse. */
 async function ecrireSansCorps(chemin: string, langue: Langue, envoi: Envoi): Promise<void> {
+  if (DEMO) throw new Error(SANS_API)
   let reponse: Response
   try {
     reponse = await fetch(`${BASE}${avecLangue(chemin, langue)}`, requete(envoi))
@@ -399,4 +441,249 @@ export function importCsv(
     methode: 'POST',
     fichier,
   })
+}
+
+// ═══════════════════════════════════════════════ Le serveur public (9.6) ══
+
+/**
+ * L'origine du serveur public, que le build de démonstration reçoit de
+ * `MX_RISK_SERVEUR_PUBLIC` (`vite.config.ts`, `lireLeServeur`). Vide hors de
+ * ce build : rien n'y appelle le serveur public, et ce qui suit n'y reste pas.
+ */
+const SERVEUR: string = DEMO ? (import.meta.env.MX_RISK_SERVEUR_PUBLIC ?? '') : ''
+
+/**
+ * Hors du build de démonstration, l'attente et l'envoi lèvent d'entrée : la
+ * constante y vaut faux, et le bundler retire ce qui suit, requêtes comprises.
+ * Aucune page de l'application ne les appelle.
+ */
+const HORS_DU_SITE = "Le serveur public n'existe que dans le build de démonstration."
+
+/**
+ * Seuil CHOISI. Le délai d'un essai de réveil, en millisecondes : au-delà,
+ * l'essai est abandonné et repris, le démarrage continue.
+ */
+const DELAI_D_UN_ESSAI = 15_000
+
+/** Seuil CHOISI. L'attente entre deux essais de réveil. */
+const ENTRE_DEUX_ESSAIS = 3_000
+
+/**
+ * Seuil CHOISI. La durée totale du réveil : « about one minute » selon
+ * l'hébergeur, plus la moitié. Relevé le 2026-10-13 sur le serveur endormi :
+ * 52 s jusqu'au premier `/health` en 200.
+ */
+const DUREE_DU_REVEIL = 90_000
+
+/**
+ * Seuil CHOISI. Le délai d'un envoi, analyse ou fichier : quatre analyses à
+ * la file en font vingt-cinq à trente secondes. Relevé le 2026-10-13 : une
+ * analyse de la démonstration prend 7 s, une de tous les titres 13 s.
+ */
+const DELAI_D_UN_ENVOI = 60_000
+
+/**
+ * Seuil CHOISI. Le silence avant de dire le réveil : un serveur éveillé
+ * répond à `/health` bien avant. La phrase du réveil ne s'affiche donc que
+ * quand l'attente se voit, et pas le temps d'un aller-retour.
+ */
+const SILENCE_AVANT_LE_REVEIL = 1_000
+
+/** `GET /health` a-t-il rendu le JSON du serveur, et non une page de l'hébergeur ? */
+function estLaReponseDuServeur(corps: unknown): boolean {
+  return (
+    typeof corps === 'object' &&
+    corps !== null &&
+    (corps as Record<string, unknown>)['status'] === 'ready'
+  )
+}
+
+/** Un signal qui s'arrête au premier des deux : le délai, ou l'abandon de la page. */
+function signalBorne(
+  delai: number,
+  abandon?: AbortSignal,
+): { readonly signal: AbortSignal; readonly liberer: () => void } {
+  const arret = new AbortController()
+  const minuterie = setTimeout(() => arret.abort(), Math.max(0, delai))
+  const suivre = () => arret.abort()
+  if (abandon?.aborted === true) arret.abort()
+  abandon?.addEventListener('abort', suivre, { once: true })
+  return {
+    signal: arret.signal,
+    liberer: () => {
+      clearTimeout(minuterie)
+      abandon?.removeEventListener('abort', suivre)
+    },
+  }
+}
+
+/**
+ * Un essai de réveil : `GET /health`, nu. Ni corps, ni paramètre, ni en-tête
+ * ajouté, ni cookie, ni référent : une requête « simple », sans pré-requête,
+ * qui ne porte rien d'autre que ce que le navigateur envoie de lui-même. Vrai
+ * si la réponse est le JSON du serveur ; faux pour toute autre réponse, dont
+ * le contenu n'est pas lu plus loin.
+ */
+async function sonder(delai: number, abandon?: AbortSignal): Promise<boolean> {
+  const { signal, liberer } = signalBorne(delai, abandon)
+  try {
+    const reponse = await fetch(`${SERVEUR}/health`, {
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      cache: 'no-store',
+      signal,
+    })
+    if (!reponse.ok) return false
+    return estLaReponseDuServeur(JSON.parse(await reponse.text()))
+  } catch {
+    return false
+  } finally {
+    liberer()
+  }
+}
+
+/**
+ * La page d'accueil réveille le serveur, une fois l'affichage fait : un seul
+ * essai, muet. Ni attente, ni message, ni nouvel essai.
+ */
+export function reveillerLeServeur(): void {
+  if (SERVEUR !== '') void sonder(DELAI_D_UN_ESSAI)
+}
+
+function patienter(duree: number, abandon?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const minuterie = setTimeout(resolve, duree)
+    abandon?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(minuterie)
+        resolve()
+      },
+      { once: true },
+    )
+  })
+}
+
+/**
+ * Attend que le serveur réponde, avant tout envoi : un essai, puis un toutes
+ * les trois secondes après un échec, chacun borné, pendant la durée du réveil
+ * au plus. Passé elle, lève « sans réponse », sans chercher pourquoi.
+ *
+ * `surAttente` est appelé une fois, quand l'attente se voit : le premier essai
+ * a échoué, ou n'a rien rendu au bout du silence. Un serveur éveillé répond
+ * avant, et rien n'est dit.
+ */
+export async function attendreLeServeur(
+  langue: Langue,
+  surAttente: () => void,
+  abandon?: AbortSignal,
+): Promise<void> {
+  if (!DEMO) throw new Error(HORS_DU_SITE)
+  const sansReponse = new ApiErreur(0, LIBELLES[langue].serveur.sansReponse)
+  const debut = Date.now()
+  let dite = false
+  const dire = () => {
+    if (dite || abandon?.aborted === true) return
+    dite = true
+    surAttente()
+  }
+  const silence = setTimeout(dire, SILENCE_AVANT_LE_REVEIL)
+  try {
+    for (;;) {
+      const reste = DUREE_DU_REVEIL - (Date.now() - debut)
+      if (reste <= 0 || abandon?.aborted === true) throw sansReponse
+      if (await sonder(Math.min(DELAI_D_UN_ESSAI, reste), abandon)) return
+      dire()
+      if (Date.now() - debut + ENTRE_DEUX_ESSAIS >= DUREE_DU_REVEIL) throw sansReponse
+      await patienter(ENTRE_DEUX_ESSAIS, abandon)
+    }
+  } finally {
+    clearTimeout(silence)
+  }
+}
+
+/**
+ * Ce que rend le serveur public : son document, ou son refus, dont le
+ * `detail` et les `problems` sont ses propres phrases, relayées telles
+ * quelles, comme celles de l'application.
+ */
+async function lireLaReponse<T>(reponse: Response, langue: Langue): Promise<T> {
+  const illisible = LIBELLES[langue].serveur.reponseIllisible
+  let corps: unknown = null
+  try {
+    const brut = await reponse.text()
+    corps = brut.length > 0 ? JSON.parse(brut) : null
+  } catch {
+    corps = null
+  }
+  if (!reponse.ok) {
+    throw new ApiErreur(reponse.status, detailDe(corps) ?? illisible, problemesDe(corps))
+  }
+  if (typeof corps !== 'object' || corps === null || Array.isArray(corps)) {
+    throw new ApiErreur(0, illisible)
+  }
+  return corps as T
+}
+
+/**
+ * L'envoi au serveur public : la seule écriture du site, et le seul endroit
+ * du client où sa méthode est écrite (la garde du build la compte). Rien ne
+ * part sans la preuve que le texte d'acceptation de la langue de la requête a
+ * été accepté : sans elle, l'envoi lève avant tout appel réseau. La
+ * composition voyage dans le corps, jamais dans l'adresse.
+ */
+async function envoyer<T>(
+  chemin: '/analysis' | '/csv',
+  corps: string | FormData,
+  langue: Langue,
+  preuve: PreuveDAcceptation | null,
+): Promise<T> {
+  if (!DEMO) throw new Error(HORS_DU_SITE)
+  if (!estUnePreuve(preuve, langue)) {
+    throw new Error(`Envoi refusé, faute de preuve d'acceptation dans la langue ${langue}.`)
+  }
+  const { signal, liberer } = signalBorne(DELAI_D_UN_ENVOI)
+  try {
+    let reponse: Response
+    try {
+      reponse = await fetch(`${SERVEUR}${chemin}?lang=${langue}`, {
+        method: 'POST',
+        body: corps,
+        headers: typeof corps === 'string' ? { 'Content-Type': 'application/json' } : {},
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        cache: 'no-store',
+        signal,
+      })
+    } catch {
+      throw new ApiErreur(0, LIBELLES[langue].serveur.sansReponse)
+    }
+    return await lireLaReponse<T>(reponse, langue)
+  } finally {
+    liberer()
+  }
+}
+
+/**
+ * L'analyse d'une composition par le serveur public : celle de l'application,
+ * sans identifiant, sans nom et sans série. Le nom du portefeuille n'est
+ * jamais envoyé.
+ */
+export function analyserLeSaisi(
+  positions: readonly PositionIn[],
+  langue: Langue,
+  preuve: PreuveDAcceptation | null,
+): Promise<PublicAnalysis> {
+  return envoyer<PublicAnalysis>('/analysis', JSON.stringify({ positions }), langue, preuve)
+}
+
+/** La lecture d'un fichier CSV par le serveur public : ses lignes, validées, sans analyse. */
+export function lireUnFichier(
+  fichier: File,
+  langue: Langue,
+  preuve: PreuveDAcceptation | null,
+): Promise<PublicCsv> {
+  const corps = new FormData()
+  corps.append('file', fichier, fichier.name)
+  return envoyer<PublicCsv>('/csv', corps, langue, preuve)
 }

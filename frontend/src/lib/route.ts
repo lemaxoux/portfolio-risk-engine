@@ -1,18 +1,22 @@
 /**
  * Les routes du client — History API, sans bibliothèque.
  *
- * Six adresses, et c'est tout :
+ * Huit adresses, et c'est tout :
  *
  *   /                              le dernier portefeuille ouvert, ou le premier
  *   /portefeuilles                 la liste : choisir, créer, supprimer
  *   /portefeuilles/<id>            l'analyse
  *   /portefeuilles/<id>/positions  la saisie et l'import
+ *   /portefeuilles/saisi           l'analyse du portefeuille saisi (9.6)
+ *   /portefeuilles/saisi/positions sa saisie et son import (9.6)
  *   /methodologie                  comment chaque chiffre est calculé (7B.3b)
  *   /avertissement                 le texte de l'acceptation, à lire (9.4)
  *
  * Les deux builds lisent les mêmes adresses ; ce que chacune rend se décide
- * dans `App.tsx` : `/avertissement` n'est une page que dans la démonstration,
- * où `/` rend la présentation du projet au lieu de rediriger (DESIGN.md §19).
+ * dans `App.tsx` : `/avertissement` et les deux adresses du portefeuille
+ * saisi ne sont des pages que dans la démonstration, où `/` rend la
+ * présentation du projet au lieu de rediriger (DESIGN.md §19). Le mot
+ * `saisi` ne se confond pas avec un numéro : un numéro n'a que des chiffres.
  *
  * De VRAIES adresses et non des fragments : les fragments servent déjà aux
  * ancres des six sections (`#en-crise`) et des entrées de la méthodologie
@@ -40,12 +44,31 @@ export type Route =
   | { readonly vue: 'portefeuilles' }
   | { readonly vue: 'analyse'; readonly id: number }
   | { readonly vue: 'positions'; readonly id: number }
+  | { readonly vue: 'saisi' }
+  | { readonly vue: 'saisi-positions' }
   | { readonly vue: 'methodologie' }
   | { readonly vue: 'avertissement' }
   | { readonly vue: 'inconnue'; readonly chemin: string }
 
 /** Un identifiant tel que la base les attribue : entier, à partir de 1. */
 const IDENTIFIANT = /^[1-9][0-9]*$/
+
+/**
+ * Le portefeuille saisi sur le site (chantier 9.6) : le segment de ses deux
+ * adresses, et la valeur que prend le dernier portefeuille consulté quand
+ * c'est lui.
+ */
+export const SAISI = 'saisi'
+
+/**
+ * Le portefeuille que nomme le bandeau d'une page qui n'en dépend pas, et où
+ * mène « Analyse » : un portefeuille de la liste, ou, sur le site, le
+ * portefeuille saisi.
+ */
+export interface PortefeuilleEnVue {
+  readonly id: number | typeof SAISI
+  readonly name: string
+}
 
 /** L'adresse lue en route. Pure : ni `window`, ni historique. */
 export function lireRoute(chemin: string): Route {
@@ -60,6 +83,11 @@ export function lireRoute(chemin: string): Route {
   }
   if (premier !== 'portefeuilles' || reste.length > 0) return { vue: 'inconnue', chemin }
   if (identifiant === undefined) return { vue: 'portefeuilles' }
+  if (identifiant === SAISI) {
+    if (suite === undefined) return { vue: 'saisi' }
+    if (suite === 'positions') return { vue: 'saisi-positions' }
+    return { vue: 'inconnue', chemin }
+  }
   if (!IDENTIFIANT.test(identifiant)) return { vue: 'inconnue', chemin }
   const id = Number(identifiant)
   if (suite === undefined) return { vue: 'analyse', id }
@@ -78,6 +106,10 @@ export function cheminDe(route: Exclude<Route, { vue: 'inconnue' }>): string {
       return `/portefeuilles/${route.id}`
     case 'positions':
       return `/portefeuilles/${route.id}/positions`
+    case 'saisi':
+      return `/portefeuilles/${SAISI}`
+    case 'saisi-positions':
+      return `/portefeuilles/${SAISI}/positions`
     case 'methodologie':
       return '/methodologie'
     case 'avertissement':
@@ -273,6 +305,38 @@ export function memoriserPortefeuille(id: number): void {
 /** Oublie `id` s'il est le portefeuille mémorisé — après sa suppression. */
 export function oublierPortefeuille(id: number): void {
   if (dernierPortefeuille() !== id) return
+  try {
+    localStorage.removeItem(CLE_DERNIER_PORTEFEUILLE)
+  } catch {
+    /* Rien à faire. */
+  }
+}
+
+/**
+ * Le portefeuille saisi est-il le dernier consulté ? (chantier 9.6) Sur le
+ * site, la même mémoire vaut `saisi` quand c'est lui : le bandeau des autres
+ * pages le nomme, et « Analyse » y mène. `dernierPortefeuille` ne lit qu'un
+ * numéro, et ne change pas.
+ */
+export function saisiEnVue(): boolean {
+  try {
+    return localStorage.getItem(CLE_DERNIER_PORTEFEUILLE) === SAISI
+  } catch {
+    return false
+  }
+}
+
+export function memoriserLeSaisi(): void {
+  try {
+    localStorage.setItem(CLE_DERNIER_PORTEFEUILLE, SAISI)
+  } catch {
+    /* Stockage bloqué : aucune page ne nommera le portefeuille saisi. */
+  }
+}
+
+/** Oublie le portefeuille saisi s'il est le dernier consulté : après son effacement. */
+export function oublierLeSaisi(): void {
+  if (!saisiEnVue()) return
   try {
     localStorage.removeItem(CLE_DERNIER_PORTEFEUILLE)
   } catch {

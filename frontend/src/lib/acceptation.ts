@@ -82,9 +82,61 @@ export function aAccepte(texte: string, langue: Langue = 'fr'): boolean {
 }
 
 export function memoriserAcceptation(texte: string, langue: Langue = 'fr'): void {
+  acceptesDansLaPage.set(langue, empreinte(texte))
   try {
     localStorage.setItem(cleAcceptation(langue), empreinte(texte))
   } catch {
     /* Rien à faire : l'écran reviendra au prochain chargement. */
   }
+}
+
+// ════════════════════════════════════════ La preuve d'acceptation (9.6) ══
+
+/*
+ * Sur le site, le portefeuille saisi part vers un serveur public. L'écran
+ * d'acceptation garde les deux pages d'où il part ; `client.ts` ajoute une
+ * seconde barrière : ses deux fonctions d'envoi demandent une PREUVE que le
+ * texte de la langue de la requête a été accepté, et lèvent sans rien envoyer
+ * sans elle. Seul ce module la délivre, d'après l'empreinte du texte accepté.
+ *
+ * Elle se délivre aussi pendant la page où le texte a été accepté, stockage
+ * bloqué compris : l'acceptation y vaut jusqu'à la fermeture, et l'écran
+ * revient au chargement suivant, comme dans l'application. `aAccepte` ne lit
+ * que le stockage, et ne change pas.
+ */
+
+/** L'empreinte acceptée dans cette page, par langue. */
+const acceptesDansLaPage = new Map<Langue, string>()
+
+/** Ce que porte une preuve : la langue du texte accepté, et son empreinte. */
+export interface PreuveDAcceptation {
+  readonly langue: Langue
+  readonly empreinte: string
+}
+
+/** Les preuves délivrées par ce module, et elles seules. */
+const delivrees = new WeakSet<PreuveDAcceptation>()
+
+/**
+ * La preuve que `texte` a été accepté dans `langue`, ou `null`. Le texte est
+ * celui que l'écran a montré : une acceptation d'un autre texte ne prouve rien.
+ */
+export function preuveDAcceptation(texte: string, langue: Langue): PreuveDAcceptation | null {
+  const attendue = empreinte(texte)
+  if (acceptationMemorisee(langue) !== attendue && acceptesDansLaPage.get(langue) !== attendue) {
+    return null
+  }
+  const preuve: PreuveDAcceptation = Object.freeze({ langue, empreinte: attendue })
+  delivrees.add(preuve)
+  return preuve
+}
+
+/** Une preuve délivrée ici, pour cette langue. Un objet de même forme n'en est pas une. */
+export function estUnePreuve(preuve: unknown, langue: Langue): boolean {
+  return (
+    typeof preuve === 'object' &&
+    preuve !== null &&
+    delivrees.has(preuve as PreuveDAcceptation) &&
+    (preuve as PreuveDAcceptation).langue === langue
+  )
 }

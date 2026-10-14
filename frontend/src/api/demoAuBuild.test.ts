@@ -19,13 +19,18 @@ import { LANGUES } from '../lib/langue'
 import {
   BALISE_ROBOTS,
   COMMANDE_D_EXPORT,
+  CONSTANTE_DU_SERVEUR,
   demonstration,
   EN_TETES,
+  fautesDuBuild,
   fautesDuBundle,
   fichiersAttendus,
   LANGUES_DE_L_EXPORT,
   lireExport,
+  lireLeServeur,
   MANIFESTE,
+  ORIGINES_ADMISES,
+  VARIABLE_DU_SERVEUR,
 } from './demoAuBuild'
 
 // ═════════════════════════════════════════════════ La garde du bundle ══
@@ -37,8 +42,11 @@ describe('la garde du bundle', () => {
     expect(fautesDuBundle("proxy: { '/api': {} }")).not.toEqual([])
   })
 
-  it('voit chaque méthode d’écriture, entre guillemets ou accents graves', () => {
-    expect(fautesDuBundle('fetch(u,{method:`POST`,body:b})')).toEqual(['la méthode d\'écriture `POST`'])
+  it('voit chaque méthode d’écriture de l’application, et un second POST', () => {
+    // Un POST seul est l'envoi au serveur public : le compte se tient sur le
+    // build entier (`fautesDuBuild`, contrôle c).
+    expect(fautesDuBundle('fetch(u,{method:`POST`,body:b})')).toEqual([])
+    expect(fautesDuBundle('a(`POST`);b("POST")')).toEqual(['la méthode d\'écriture POST, citée 2 fois'])
     expect(fautesDuBundle('fetch(u,{method:"PUT"})')).not.toEqual([])
     expect(fautesDuBundle("fetch(u,{method:'DELETE'})")).not.toEqual([])
     expect(fautesDuBundle('x={methode:`PATCH`}')).not.toEqual([])
@@ -236,5 +244,114 @@ describe('les deux builds', () => {
     for (const mode of ['production', 'demo']) {
       expect(greffons(configurationDe(mode))).toContain('mx-risk-coupures-de-la-methodologie')
     }
+  })
+})
+
+// ═══════════════════════════════════ La garde du build entier (chantier 9.6) ══
+
+describe('la garde du build entier', () => {
+  const SERVEUR = 'https://serveur.exemple'
+  const ENTREE = {
+    nom: 'index.js',
+    code: `const s="${SERVEUR}";fetch(s+"/health");fetch(s+"/analysis",{method:\`POST\`});a="http://www.w3.org/2000/svg"`,
+  }
+  const ANALYSE = { nom: 'Analyse.js', code: 'b="http://www.w3.org/1999/xlink";c="https://react.dev/errors/"' }
+
+  it('laisse passer un build qui n’a qu’un POST, dans le fichier du serveur, et les origines admises', () => {
+    expect(fautesDuBuild([ENTREE, ANALYSE], SERVEUR)).toEqual([])
+    expect(Object.keys(ORIGINES_ADMISES).sort()).toEqual([
+      'http://www.w3.org',
+      'https://github.com',
+      'https://react.dev',
+      'https://www.linkedin.com',
+    ])
+  })
+
+  it('a et b : /api ou une écriture de l’application, dans n’importe quel fichier', () => {
+    const fautes = fautesDuBuild([ENTREE, { nom: 'Analyse.js', code: 'fetch("/api/portfolios",{method:"PUT"})' }], SERVEUR)
+    expect(fautes.join(' ')).toContain('Analyse.js')
+    expect(fautes.join(' ')).toContain('/api')
+    expect(fautes.join(' ')).toContain('"PUT"')
+  })
+
+  it('c : un second POST, dans le même fichier ou dans un autre', () => {
+    expect(fautesDuBuild([{ ...ENTREE, code: `${ENTREE.code};x(\`POST\`)` }, ANALYSE], SERVEUR)).not.toEqual([])
+    const ailleurs = fautesDuBuild([ENTREE, { nom: 'Analyse.js', code: 'fetch(u,{method:"POST"})' }], SERVEUR)
+    expect(ailleurs.join(' ')).toContain('2 fichiers')
+  })
+
+  it('c : un POST dans un fichier qui ne porte pas l’adresse du serveur', () => {
+    const fautes = fautesDuBuild(
+      [{ nom: 'index.js', code: `const s="${SERVEUR}"` }, { nom: 'Analyse.js', code: 'fetch(u,{method:`POST`})' }],
+      SERVEUR,
+    )
+    expect(fautes.join(' ')).toContain('Analyse.js')
+    expect(fautes.join(' ')).toContain("ne porte pas l'adresse du serveur public")
+  })
+
+  it('d : une seconde adresse de serveur, ou une adresse écrite en dur', () => {
+    const fautes = fautesDuBuild([ENTREE, { nom: 'Analyse.js', code: 'fetch("https://autre.exemple/analysis")' }], SERVEUR)
+    expect(fautes.join(' ')).toContain('https://autre.exemple')
+    expect(fautesDuBuild([ENTREE, { nom: 'x.js', code: 'u="http://127.0.0.1:8000/api"' }], SERVEUR).join(' ')).toContain(
+      'http://127.0.0.1:8000',
+    )
+  })
+
+  it('d : l’adresse du serveur public doit y être', () => {
+    const fautes = fautesDuBuild([{ nom: 'index.js', code: 'fetch("/donnees/fr/portfolios.json")' }], SERVEUR)
+    expect(fautes.join(' ')).toContain(`(${SERVEUR}) n'est dans aucun fichier`)
+  })
+})
+
+// ═════════════════════════════════════════ L'adresse du serveur public (9.6) ══
+
+describe('l’adresse du serveur public', () => {
+  it('se lit dans MX_RISK_SERVEUR_PUBLIC, et elle est obligatoire', () => {
+    expect(VARIABLE_DU_SERVEUR).toBe('MX_RISK_SERVEUR_PUBLIC')
+    expect(() => lireLeServeur(undefined)).toThrow(/obligatoire/)
+    expect(() => lireLeServeur('')).toThrow(/obligatoire/)
+  })
+
+  it('une origine `https://hôte` est rendue telle quelle', () => {
+    expect(lireLeServeur('https://portfolio-risk-engine-lemaxoux.onrender.com')).toBe(
+      'https://portfolio-risk-engine-lemaxoux.onrender.com',
+    )
+  })
+
+  it('pour un essai sur le poste, `http://127.0.0.1:<port>` et `http://localhost:<port>`', () => {
+    expect(lireLeServeur('http://127.0.0.1:8002')).toBe('http://127.0.0.1:8002')
+    expect(lireLeServeur('http://localhost:8003')).toBe('http://localhost:8003')
+  })
+
+  it('refuse tout le reste : un chemin, une barre finale, un autre hôte en clair, sans port', () => {
+    for (const valeur of [
+      'https://serveur.exemple/',
+      'https://serveur.exemple/api',
+      'http://serveur.exemple',
+      'http://exemple.test:8002',
+      'http://127.0.0.1',
+      'http://127.0.0.1:8002/',
+      'serveur.exemple',
+      'ftp://serveur.exemple',
+    ]) {
+      expect(() => lireLeServeur(valeur), valeur).toThrow(VARIABLE_DU_SERVEUR)
+    }
+  })
+
+  it('le greffon la pose dans le code au build, et seulement là', () => {
+    // Construire le greffon ne lit pas la variable : la configuration se lit
+    // sans elle (les tests de la configuration de Vite).
+    const sans = demonstration('nulle-part')
+    expect(sans.name).toBe('mx-risk-demonstration')
+    const config = sans.config as () => unknown
+    expect(() => config()).toThrow(/obligatoire/)
+
+    const avec = demonstration('nulle-part', undefined, 'https://serveur.exemple').config as () => {
+      define: Record<string, string>
+    }
+    expect(avec().define).toEqual({
+      [CONSTANTE_DU_SERVEUR]: JSON.stringify('https://serveur.exemple'),
+    })
+    expect(CONSTANTE_DU_SERVEUR).toBe('import.meta.env.MX_RISK_SERVEUR_PUBLIC')
   })
 })

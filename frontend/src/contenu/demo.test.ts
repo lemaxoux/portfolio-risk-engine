@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { pagesApplication } from '../components/Navigation'
-import type { Route } from '../lib/route'
+import { SAISI, type Route } from '../lib/route'
 import { destinationDe } from '../views/Acceptation'
 import { DATE_DE_LA_DEMO, PORTEFEUILLES_DE_LA_DEMO } from './demo'
 import { LIBELLES } from './libelles'
@@ -17,22 +17,22 @@ import { LIBELLES } from './libelles'
 describe('la mention de la démonstration', () => {
   it('dit ce qu’est le site, en français', () => {
     expect(LIBELLES.fr.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)).toBe(
-      'Démonstration\u00a0: 3\u00a0portefeuilles fixes, valorisés au 9\u00a0septembre\u00a02026.',
+      "Démonstration\u00a0: 3\u00a0portefeuilles d'exemple, ou le vôtre, valorisés au 9\u00a0septembre\u00a02026.",
     )
   })
 
   it('et en anglais', () => {
     expect(LIBELLES.en.demo.mention(PORTEFEUILLES_DE_LA_DEMO, DATE_DE_LA_DEMO)).toBe(
-      'Demonstration: 3\u00a0fixed portfolios, valued as of September\u00a09,\u00a02026.',
+      'Demonstration: 3\u00a0sample portfolios, or your own, valued as of September\u00a09,\u00a02026.',
     )
   })
 
   it('écrit ses nombres par le formateur, quels qu’ils soient', () => {
     expect(LIBELLES.fr.demo.mention(1200, '2026-01-01')).toBe(
-      'Démonstration\u00a0: 1\u202f200\u00a0portefeuilles fixes, valorisés au 1er\u00a0janvier\u00a02026.',
+      "Démonstration\u00a0: 1\u202f200\u00a0portefeuilles d'exemple, ou le vôtre, valorisés au 1er\u00a0janvier\u00a02026.",
     )
     expect(LIBELLES.en.demo.mention(1200, '2026-01-01')).toBe(
-      'Demonstration: 1,200\u00a0fixed portfolios, valued as of January\u00a01,\u00a02026.',
+      'Demonstration: 1,200\u00a0sample portfolios, or your own, valued as of January\u00a01,\u00a02026.',
     )
   })
 
@@ -119,5 +119,44 @@ describe('l’écran d’acceptation de la démonstration', () => {
   it('hors démonstration, rien ne change : c’est le défaut', () => {
     expect(destinationDe(POSITIONS)).toBe('positions')
     expect(destinationDe(POSITIONS, false)).toBe('positions')
+  })
+})
+
+describe('le portefeuille saisi, sur le site (chantier 9.6)', () => {
+  it('en vue, il rend « Positions et import » à la navigation, vers ses adresses', () => {
+    expect(pagesApplication('analyse', SAISI, 'fr', true).map((page) => [page.libelle, page.vers])).toEqual([
+      ['Présentation', '/'],
+      ['Analyse', '/portefeuilles/saisi'],
+      ['Positions et import', '/portefeuilles/saisi/positions'],
+      ['Portefeuilles', '/portefeuilles'],
+      ['Méthodologie', '/methodologie'],
+      ['Avertissement', '/avertissement'],
+    ])
+    const marquees = pagesApplication('positions', SAISI, 'en', true).filter((page) => page.courante)
+    expect(marquees.map((page) => page.vers)).toEqual(['/portefeuilles/saisi/positions'])
+  })
+
+  it('ses deux pages mènent l’écran d’acceptation à leur page, sur le site', () => {
+    expect(destinationDe({ vue: 'saisi' }, true)).toBe('analyse')
+    expect(destinationDe({ vue: 'saisi-positions' }, true)).toBe('positions')
+    expect(LIBELLES.fr.acceptation.ouvrir[destinationDe({ vue: 'saisi-positions' }, true)]).toBe(
+      'Ouvrir les positions',
+    )
+    expect(LIBELLES.en.acceptation.ouvrir[destinationDe({ vue: 'saisi' }, true)]).toBe('Open the analysis')
+  })
+
+  it('hors du site, ses adresses sont celles d’aucune page', () => {
+    for (const route of [{ vue: 'saisi' }, { vue: 'saisi-positions' }] as const) {
+      expect(destinationDe(route)).toBe('page')
+      expect(destinationDe(route, false)).toBe(destinationDe({ vue: 'inconnue', chemin: '/rien' }, false))
+    }
+  })
+
+  it('son nom et le titre de son bloc ont la même valeur, en deux libellés', () => {
+    expect(LIBELLES.fr.saisi.nom).toBe('Votre portefeuille')
+    expect(LIBELLES.en.saisi.nom).toBe('Your portfolio')
+    for (const langue of ['fr', 'en'] as const) {
+      expect(LIBELLES[langue].saisi.titre).toBe(LIBELLES[langue].saisi.nom)
+    }
   })
 })

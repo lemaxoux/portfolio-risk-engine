@@ -86,10 +86,15 @@ describe('les balises de partage', () => {
     expect(INDEX).toContain(`<title>${TITRE_DU_PARTAGE}</title>`)
   })
 
-  it('la description est la première phrase du README', () => {
+  it('la description est la première phrase du README, puis un fragment de la deuxième', () => {
     const [premierParagraphe = ''] = README.split('\n\n').slice(1)
-    const premierePhrase = `${premierParagraphe.split('\n').join(' ').split('. ')[0]}.`
-    expect(DESCRIPTION_DU_PARTAGE).toBe(premierePhrase)
+    const [premiere = '', deuxieme = ''] = premierParagraphe.split('\n').join(' ').split('. ')
+    // Le fragment, lu dans la deuxième phrase : de « it shows » au deux-points.
+    const fragment = deuxieme.slice(deuxieme.indexOf('it shows'), deuxieme.indexOf(':'))
+    expect(fragment).toBe('it shows every figure together with the conditions it was estimated under')
+    expect(DESCRIPTION_DU_PARTAGE).toBe(
+      `${premiere}. ${fragment.charAt(0).toUpperCase()}${fragment.slice(1)}.`,
+    )
   })
 
   it('le texte alternatif de l’image est celui de la figure, en anglais', () => {

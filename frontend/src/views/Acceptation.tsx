@@ -43,7 +43,9 @@ const TITRE = 'texte-acceptation'
  * démonstration, l'adresse des positions n'est celle d'aucune page (chantier
  * 9.2) : le bouton dit « la page demandée », comme pour toute adresse
  * inconnue. Celle de l'avertissement non plus, hors de la démonstration,
- * qui ne pose pas cet écran (chantier 9.4).
+ * qui ne pose pas cet écran (chantier 9.4). Les deux pages du portefeuille
+ * saisi n'existent que sur le site, où l'écran est posé devant elles
+ * (chantier 9.6) ; ailleurs, elles sont des adresses inconnues.
  */
 export function destinationDe(route: Route, demo: boolean = DEMO): Destination {
   switch (route.vue) {
@@ -52,6 +54,10 @@ export function destinationDe(route: Route, demo: boolean = DEMO): Destination {
       return 'analyse'
     case 'positions':
       return demo ? 'page' : 'positions'
+    case 'saisi':
+      return demo ? 'analyse' : 'page'
+    case 'saisi-positions':
+      return demo ? 'positions' : 'page'
     case 'portefeuilles':
       return 'portefeuilles'
     case 'methodologie':

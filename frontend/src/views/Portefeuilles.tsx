@@ -26,6 +26,14 @@
  * La liste reste, pour choisir. Ce qui crée, supprime ou mène à la saisie
  * n'est pas rendu, et sort du build avec les écritures : le formulaire, la
  * colonne « Actions » et sa confirmation. Rien n'est grisé.
+ *
+ * ═══ LE PORTEFEUILLE DU VISITEUR, SOUS LES EXEMPLES (chantier 9.6) ═══
+ *
+ * Sur le site, un bloc « Votre portefeuille » suit le tableau. Vide : une
+ * phrase et le lien vers la saisie. Rempli : ses lignes et leur date, les
+ * liens vers son analyse et ses positions, et « Effacer de ce navigateur »,
+ * confirmé sur place comme une suppression. Il ne lit que ce navigateur :
+ * aucune requête.
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
@@ -49,7 +57,8 @@ import { SqueletteTableau } from '../components/Squelette'
 import { dateISO, decimal, montant, TIRET_INDEFINI } from '../lib/format'
 import { useLangue } from '../lib/langue'
 import type { EtatListe } from '../lib/liste'
-import { cheminDe, naviguer, oublierPortefeuille } from '../lib/route'
+import { cheminDe, naviguer, oublierLeSaisi, oublierPortefeuille } from '../lib/route'
+import { effacerLeSaisi, lireLeSaisi } from '../lib/saisi'
 import controles from '../styles/controles.module.css'
 import styles from './Pages.module.css'
 
@@ -102,7 +111,116 @@ export function VuePortefeuilles({ liste, recharger, annonce, annoncer }: Props)
             annoncer={annoncer}
           />
         ))}
+      {DEMO && <VotrePortefeuille annoncer={annoncer} />}
     </Cadre>
+  )
+}
+
+/**
+ * Le portefeuille saisi par le visiteur, gardé dans ce navigateur (chantier
+ * 9.6). L'effacer le retire du navigateur, et de la mémoire du dernier
+ * portefeuille consulté.
+ */
+function VotrePortefeuille({ annoncer }: Pick<Props, 'annoncer'>) {
+  const { libelles } = useLangue()
+  const s = libelles.saisi
+  const [saisi, setSaisi] = useState(lireLeSaisi)
+  const [question, setQuestion] = useState(false)
+  const effacer = useRef<HTMLButtonElement>(null)
+
+  if (saisi === null || saisi.positions.length === 0) {
+    return (
+      <section>
+        <h2 className={styles.sousTitre}>{s.titre}</h2>
+        <p className={styles.texte}>{s.aucun}</p>
+        <p className={styles.texte}>
+          <Lien vers={cheminDe({ vue: 'saisi-positions' })}>
+            {libelles.presentation.demonstration.saisir}
+          </Lien>
+        </p>
+      </section>
+    )
+  }
+
+  const lignes = saisi.positions.length
+  return (
+    <section>
+      <h2 className={styles.sousTitre}>{s.titre}</h2>
+      <p className={styles.texte}>{s.resume(lignes, saisi.modifie)}</p>
+      <p>
+        <span className={styles.actions}>
+          <Lien vers={cheminDe({ vue: 'saisi' })}>{libelles.navigation.pages.analyse}</Lien>
+          <Lien vers={cheminDe({ vue: 'saisi-positions' })}>
+            {libelles.portefeuilles.positionsDe}
+          </Lien>
+          {/* Jamais désactivé pendant la confirmation : « Annuler » lui rend
+              le focus. */}
+          <button
+            ref={effacer}
+            type="button"
+            className={controles.discret}
+            onClick={() => setQuestion(true)}
+          >
+            {s.effacer}
+          </button>
+        </span>
+      </p>
+      {question && (
+        <ConfirmationEffacement
+          lignes={lignes}
+          annuler={() => {
+            setQuestion(false)
+            effacer.current?.focus()
+          }}
+          efface={() => {
+            effacerLeSaisi()
+            oublierLeSaisi()
+            setQuestion(false)
+            setSaisi(null)
+            annoncer(s.efface, PAGE)
+            // La question a disparu avec le portefeuille : le focus revient
+            // au titre de la page plutôt que de tomber au début du document.
+            document.querySelector<HTMLElement>('main h1[tabindex="-1"]')?.focus()
+          }}
+        />
+      )}
+    </section>
+  )
+}
+
+/** La question posée avant d'effacer : sur place, focalisée, comme une suppression. */
+function ConfirmationEffacement({
+  lignes,
+  annuler,
+  efface,
+}: {
+  lignes: number
+  annuler: () => void
+  efface: () => void
+}) {
+  const { libelles } = useLangue()
+  const question = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    question.current?.focus()
+  }, [])
+  return (
+    <div className={styles.confirmation}>
+      <p className={styles.question} tabIndex={-1} ref={question}>
+        {libelles.saisi.question(lignes)}
+      </p>
+      <div className={controles.groupe}>
+        <button
+          type="button"
+          className={`${controles.bouton} ${controles.principal}`}
+          onClick={efface}
+        >
+          {libelles.saisi.effacerLePortefeuille}
+        </button>
+        <button type="button" className={controles.bouton} onClick={annuler}>
+          {libelles.portefeuilles.annuler}
+        </button>
+      </div>
+    </div>
   )
 }
 

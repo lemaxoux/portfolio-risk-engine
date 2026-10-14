@@ -72,14 +72,14 @@ export const LIBELLES_EN: Libelles = {
     fichierIllisible: (fichier) =>
       `The demonstration file \`${fichier}\` is missing or cannot be read. Reload the page.`,
     mention: (portefeuilles, date) =>
-      `Demonstration: ${compte(portefeuilles, 'fixed portfolio', undefined, EN)}, ` +
+      `Demonstration: ${compte(portefeuilles, 'sample portfolio', undefined, EN)}, or your own, ` +
       `valued as of ${dateEnToutesLettres(date, EN)}.`,
     lireLAvertissement: 'Read the disclaimer',
   },
   avertissement: {
     pourquoi:
-      'The installed application shows this text before its first use and asks you to ' +
-      'accept it. The demonstration does not: none of the portfolios it shows is yours.',
+      'The site asks you to accept this text before it analyzes a portfolio that you enter. ' +
+      'The sample portfolios can be read without accepting it: none of them is yours.',
   },
   presentation: {
     titre: 'The risk of a portfolio, every figure with its conditions',
@@ -93,8 +93,10 @@ export const LIBELLES_EN: Libelles = {
     demonstration: {
       titre: 'The demonstration',
       texte:
-        'This site is a demonstration: fixed portfolios, with no data entry and no server. ' +
-        "Each name opens its analysis, the application's own, with its methodology.",
+        'This site is a demonstration: sample portfolios, and your own if you enter it, ' +
+        'analyzed on a price database that stops at the date below. Each name opens its ' +
+        "analysis, the application's own, with its methodology.",
+      saisir: 'Enter or import your portfolio',
     },
     tableau: {
       legende: (date) =>
@@ -155,12 +157,10 @@ export const LIBELLES_EN: Libelles = {
     neMontrePas: {
       titre: 'What the demonstration does not show',
       texte:
-        'The application, installed on a computer, analyzes a portfolio entered by hand or ' +
-        'imported from a CSV file.',
-      figure: {
-        legende: `The positions table of the application, with the ${citer('Demo')} portfolio.`,
-        alternative: 'The positions table: each row holds a security and a quantity.',
-      },
+        'The application, installed on a computer, updates its prices, adds a missing ' +
+        'security to its database, and keeps several portfolios. Here, the prices stop at a ' +
+        'date, the list of securities is closed, and the portfolio that you enter is kept ' +
+        'only in your browser.',
       installer: 'Install the application: the README of the repository',
     },
     liens: {
@@ -290,6 +290,9 @@ export const LIBELLES_EN: Libelles = {
     retourAuPic: 'Recovery to the peak',
     niveaux: 'Levels',
     ou: 'Where this trough occurred',
+    sansCourbe:
+      'The value curve and its table are shown only for the sample portfolios. The dates of ' +
+      'the peak and of the trough are in the calculation details above.',
     titreSansDepart: 'Value of one unit invested',
     titre: (devise, depart) =>
       `Value of 1\u00a0${devise} invested on ${dateEnToutesLettres(depart, EN)}`,
@@ -519,6 +522,53 @@ export const LIBELLES_EN: Libelles = {
     quitterLesPerd: 'The changes to the table are not saved. Leaving this page loses them.',
     rester: 'Stay on the page',
     quitter: 'Leave without saving',
+  },
+  saisi: {
+    nom: 'Your portfolio',
+    titre: 'Your portfolio',
+    aucun:
+      'You can build a portfolio from the securities of the database and read its analysis. ' +
+      'It is kept only in this browser.',
+    resume: (nombre, date) => `${lignes(nombre, EN)}, changed on ${dateEnToutesLettres(date, EN)}.`,
+    effacer: 'Erase from this browser',
+    question: (nombre) =>
+      `Erase your portfolio from this browser? Its ${lignes(nombre, EN)} will be lost.`,
+    effacerLePortefeuille: 'Erase the portfolio',
+    efface: 'Portfolio erased from this browser.',
+  },
+  positionsDuSite: {
+    listeFermee:
+      "The securities are those of the demonstration's database: a security that is not in " +
+      'it is rejected.',
+    tableauEstLePortefeuille:
+      'The table is the portfolio: analyzing it replaces the positions kept in this browser ' +
+      'with the lines shown.',
+    envoi: 'Analyzing sends these lines to the server, which does the calculation without storing them.',
+    analyser: 'Analyze these positions',
+    analyseEnCours: 'Analyzing…',
+    rienGarde: 'Nothing was analyzed or kept: ',
+    nonGardees: 'Changes not kept.',
+    quitterLesPerd: 'The changes to the table are not kept anywhere. Leaving this page loses them.',
+    quitter: 'Leave without keeping them',
+    gardees: (date, positions) =>
+      `Positions kept in this browser on ${dateEnToutesLettres(date, EN)}: ${lignes(positions, EN)}.`,
+    universIllisible: (detail) =>
+      `The security names could not be read (${detail}). Entry remains possible: each ` +
+      'ticker is checked when the portfolio is analyzed.',
+    fichierEnvoye: 'The file is sent to the server, which reads it without storing it.',
+    stockageBloque:
+      'This browser keeps nothing for this site: your portfolio will be lost when the page is ' +
+      'closed.',
+  },
+  serveur: {
+    reveil:
+      'The calculation server does not answer yet. It stops when no one uses it and restarts ' +
+      'at the first request: yours will be sent as soon as it answers.',
+    calcul: 'The server is computing.',
+    sansReponse: 'The calculation server did not answer. Check the connection, then try again.',
+    reponseIllisible: 'The answer of the calculation server could not be read. Try again.',
+    reessayer: 'Try again',
+    indisponible: 'Analysis unavailable',
   },
   saisie: {
     ticker: 'Ticker',

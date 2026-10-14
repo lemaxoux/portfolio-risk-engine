@@ -11,6 +11,10 @@
  * les titres de ses liens. `src/decoupage.test.ts` tient les deux. Le même
  * code vaut pour les deux builds.
  *
+ * Le même fichier porte l'analyse du portefeuille saisi sur le site
+ * (chantier 9.6) : ses six sections sont celles de l'analyse. Hors du build
+ * de démonstration, elle n'est pas demandée au module.
+ *
  * ═══ LA PAGE D'ATTENTE, ET CE QUI LA REND RARE ═══
  *
  * Tant que le fichier manque, une page d'attente tient la place de
@@ -46,34 +50,44 @@ import {
 } from 'react'
 
 import { ApiErreur } from '../api/client'
-import type { PortfolioDetail } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
 import { MessageErreur } from '../components/MessageErreur'
-import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
+import {
+  AncresSections,
+  pagesApplication,
+  RailPages,
+  type PageApplication,
+} from '../components/Navigation'
 import { SqueletteAnalyse } from '../components/Squelette'
 import { useLangue } from '../lib/langue'
-import { cheminDe, memoriserPortefeuille } from '../lib/route'
+import { cheminDe, memoriserLeSaisi, memoriserPortefeuille, SAISI } from '../lib/route'
 import controles from '../styles/controles.module.css'
-import type { VueAnalyse } from './Analyse'
+import type { VueAnalyse, VueAnalyseDuSaisi } from './Analyse'
 
 type Props = ComponentProps<typeof VueAnalyse>
-type VueDeLAnalyse = ComponentType<Props>
+type PropsDuSaisi = ComponentProps<NonNullable<typeof VueAnalyseDuSaisi>>
 
-/** La vue, une fois son fichier arrivé. */
-let chargee: VueDeLAnalyse | null = null
-let demande: Promise<VueDeLAnalyse> | null = null
+/** Les deux vues du fichier de l'analyse ; celle du portefeuille saisi, sur le site seulement. */
+interface Vues {
+  readonly base: ComponentType<Props>
+  readonly saisi: ComponentType<PropsDuSaisi> | null
+}
+
+/** Les vues, une fois leur fichier arrivé. */
+let chargees: Vues | null = null
+let demande: Promise<Vues> | null = null
 
 /**
  * Demande le fichier de l'analyse, une seule fois tant que la demande tient.
  * Un échec n'est pas gardé ici : la demande suivante repart, pour un
  * navigateur qui accepte de la refaire.
  */
-export function chargerLAnalyse(): Promise<VueDeLAnalyse> {
+export function chargerLAnalyse(): Promise<Vues> {
   demande ??= import('./Analyse').then(
     (module) => {
-      chargee = module.VueAnalyse
-      return module.VueAnalyse
+      chargees = { base: module.VueAnalyse, saisi: module.VueAnalyseDuSaisi }
+      return chargees
     },
     (cause: unknown) => {
       demande = null
@@ -88,22 +102,24 @@ export function chargerLAnalyse(): Promise<VueDeLAnalyse> {
  * qu'elle charge ses données, pour que rien ne bouge quand elle arrive.
  */
 function CadreDeLAnalyse({
-  portefeuille,
+  nom,
+  page,
+  pages,
   attente,
   children,
 }: {
-  portefeuille: PortfolioDetail
+  nom: string
+  page: string
+  pages: readonly PageApplication[]
   attente: boolean
   children: ReactNode
 }) {
-  const { langue, libelles } = useLangue()
-  const nom = portefeuille.name
-  const pages = pagesApplication('analyse', portefeuille.id, langue)
+  const { libelles } = useLangue()
   const titre = libelles.analyse.titre(nom)
   return (
     <Cadre
       titre={titre}
-      page={cheminDe({ vue: 'analyse', id: portefeuille.id })}
+      page={page}
       occupe={attente}
       attente={attente}
       entete={<BandeauSimple portefeuille={nom} />}
@@ -118,35 +134,99 @@ function CadreDeLAnalyse({
   )
 }
 
-/** À la place de l'analyse, quand son fichier n'est pas arrivé. */
-function AnalyseNonChargee({ portefeuille }: Props) {
+/** Ce qui tient la place de l'analyse quand son fichier n'est pas arrivé. */
+function FichierNonCharge() {
   const { libelles } = useLangue()
   return (
-    <CadreDeLAnalyse portefeuille={portefeuille} attente={false}>
-      <MessageErreur
-        erreur={new ApiErreur(0, libelles.application.pageNonChargee)}
-        action={
-          <button
-            type="button"
-            className={controles.bouton}
-            onClick={() => window.location.reload()}
-          >
-            {libelles.application.rechargerLaPage}
-          </button>
-        }
-      />
+    <MessageErreur
+      erreur={new ApiErreur(0, libelles.application.pageNonChargee)}
+      action={
+        <button type="button" className={controles.bouton} onClick={() => window.location.reload()}>
+          {libelles.application.rechargerLaPage}
+        </button>
+      }
+    />
+  )
+}
+
+/** Le cadre d'un portefeuille de la liste : son nom, son adresse, ses pages. */
+function CadreDuPortefeuille({
+  portefeuille,
+  attente,
+  children,
+}: {
+  portefeuille: Props['portefeuille']
+  attente: boolean
+  children: ReactNode
+}) {
+  const { langue } = useLangue()
+  return (
+    <CadreDeLAnalyse
+      nom={portefeuille.name}
+      page={cheminDe({ vue: 'analyse', id: portefeuille.id })}
+      pages={pagesApplication('analyse', portefeuille.id, langue)}
+      attente={attente}
+    >
+      {children}
     </CadreDeLAnalyse>
   )
 }
 
-/** La vue déjà chargée, ou celle qui attend son fichier. */
-function vueAuMontage(): VueDeLAnalyse | LazyExoticComponent<VueDeLAnalyse> {
+/** Le cadre du portefeuille saisi, sur le site. */
+function CadreDuSaisi({ attente, children }: { attente: boolean; children: ReactNode }) {
+  const { langue, libelles } = useLangue()
   return (
-    chargee ??
-    lazy<VueDeLAnalyse>(() =>
+    <CadreDeLAnalyse
+      nom={libelles.saisi.nom}
+      page={cheminDe({ vue: 'saisi' })}
+      pages={pagesApplication('analyse', SAISI, langue)}
+      attente={attente}
+    >
+      {children}
+    </CadreDeLAnalyse>
+  )
+}
+
+/** À la place de l'analyse, quand son fichier n'est pas arrivé. */
+function AnalyseNonChargee({ portefeuille }: Props) {
+  return (
+    <CadreDuPortefeuille portefeuille={portefeuille} attente={false}>
+      <FichierNonCharge />
+    </CadreDuPortefeuille>
+  )
+}
+
+function AnalyseDuSaisiNonChargee() {
+  return (
+    <CadreDuSaisi attente={false}>
+      <FichierNonCharge />
+    </CadreDuSaisi>
+  )
+}
+
+/** La vue d'un portefeuille de la liste, déjà chargée, ou celle qui attend son fichier. */
+function vueAuMontage(): ComponentType<Props> | LazyExoticComponent<ComponentType<Props>> {
+  return (
+    chargees?.base ??
+    lazy<ComponentType<Props>>(() =>
       chargerLAnalyse().then(
-        (vue) => ({ default: vue }),
+        (vues) => ({ default: vues.base }),
         () => ({ default: AnalyseNonChargee }),
+      ),
+    )
+  )
+}
+
+/** La vue du portefeuille saisi, déjà chargée, ou celle qui attend son fichier. */
+function vueDuSaisiAuMontage():
+  | ComponentType<PropsDuSaisi>
+  | LazyExoticComponent<ComponentType<PropsDuSaisi>> {
+  return (
+    chargees?.saisi ??
+    lazy<ComponentType<PropsDuSaisi>>(() =>
+      chargerLAnalyse().then(
+        (vues) => ({ default: vues.saisi ?? AnalyseDuSaisiNonChargee }),
+        () => ({ default: AnalyseDuSaisiNonChargee }),
       ),
     )
   )
@@ -166,9 +246,30 @@ export function AnalyseALaDemande(props: Props) {
   return (
     <Suspense
       fallback={
-        <CadreDeLAnalyse portefeuille={props.portefeuille} attente>
+        <CadreDuPortefeuille portefeuille={props.portefeuille} attente>
           <SqueletteAnalyse />
-        </CadreDeLAnalyse>
+        </CadreDuPortefeuille>
+      }
+    >
+      <Vue {...props} />
+    </Suspense>
+  )
+}
+
+/** L'analyse du portefeuille saisi, sur le site (chantier 9.6). */
+export function AnalyseDuSaisiALaDemande(props: PropsDuSaisi) {
+  const [Vue] = useState(vueDuSaisiAuMontage)
+
+  useEffect(() => {
+    memoriserLeSaisi()
+  }, [])
+
+  return (
+    <Suspense
+      fallback={
+        <CadreDuSaisi attente>
+          <SqueletteAnalyse />
+        </CadreDuSaisi>
       }
     >
       <Vue {...props} />

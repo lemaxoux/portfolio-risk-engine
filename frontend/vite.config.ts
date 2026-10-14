@@ -33,9 +33,11 @@
  * serveur : `src/api/client.ts` y lit des réponses de l'API enregistrées, et
  * le greffon de `src/api/demoAuBuild.ts` y ajoute ces fichiers, l'interdiction
  * d'indexer, les balises de partage (les adresses absolues seulement si
- * `MX_RISK_ORIGINE_DU_SITE` donne l'origine du site), et la garde qui refuse
- * un bundle où resterait une écriture. Ce
- * greffon n'est chargé que dans ce mode : rien de la démonstration n'entre
+ * `MX_RISK_ORIGINE_DU_SITE` donne l'origine du site), l'adresse du serveur
+ * public qui analyse le portefeuille saisi (`MX_RISK_SERVEUR_PUBLIC`,
+ * obligatoire, contrôlée au build), et la garde qui refuse un bundle où
+ * resterait une écriture de l'application ou une seconde adresse de serveur.
+ * Ce greffon n'est chargé que dans ce mode : rien de la démonstration n'entre
  * dans `dist/`. Le build ordinaire charge l'autre, `sansLaDemonstration`,
  * qui en retire les captures de la page de présentation.
  */
@@ -49,6 +51,7 @@ import {
   lireLOrigine,
   sansLaDemonstration,
   VARIABLE_DE_L_ORIGINE,
+  VARIABLE_DU_SERVEUR,
 } from './src/api/demoAuBuild'
 import { coupuresDeLaMethodologie } from './src/contenu/coupuresAuBuild'
 
@@ -68,10 +71,14 @@ export default defineConfig(({ mode }) => {
       react(),
       coupuresDeLaMethodologie(),
       demo
-        ? demonstration(EXPORT_DE_LA_DEMO, {
-            origine: lireLOrigine(process.env[VARIABLE_DE_L_ORIGINE]),
-            apercu: APERCU,
-          })
+        ? demonstration(
+            EXPORT_DE_LA_DEMO,
+            {
+              origine: lireLOrigine(process.env[VARIABLE_DE_L_ORIGINE]),
+              apercu: APERCU,
+            },
+            process.env[VARIABLE_DU_SERVEUR],
+          )
         : sansLaDemonstration(),
     ],
     server: {

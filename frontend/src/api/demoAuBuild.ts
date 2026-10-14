@@ -42,11 +42,30 @@
  *
  * ═══ LA GARDE DU BUNDLE ═══
  *
- * La démonstration n'a aucun chemin d'écriture, et n'appelle aucune API. Ce
- * n'est pas laissé à la relecture : le build échoue si un de ses fichiers
- * JavaScript contient `/api`, ou le nom d'une méthode d'écriture entre
- * guillemets ou accents graves. Dans le build ordinaire, ces chaînes ne
- * viennent que de `client.ts`.
+ * La démonstration n'appelle pas l'API de l'application, et n'écrit rien dans
+ * une base. Sa seule écriture est l'envoi au serveur public, qui analyse le
+ * portefeuille qu'un visiteur saisit (chantier 9.6). Ce n'est pas laissé à
+ * la relecture : le build échoue, sur ses fichiers JavaScript, si
+ *
+ * a. `/api` y est écrit, où que ce soit ;
+ * b. PUT, DELETE ou PATCH y sont cités, entre guillemets ou accents graves ;
+ * c. POST y est cité plus d'une fois dans tout le build, ou ailleurs que
+ *    dans le fichier qui porte l'adresse du serveur public ;
+ * d. une adresse absolue y nomme une autre origine que celles d'une liste
+ *    fermée (`ORIGINES_ADMISES`, chacune avec sa raison) et celle du serveur
+ *    public, qui doit y être.
+ *
+ * Dans le build ordinaire, ces chaînes ne viennent que de `client.ts`.
+ *
+ * ═══ L'ADRESSE DU SERVEUR PUBLIC ═══
+ *
+ * Elle arrive au build par la variable `MX_RISK_SERVEUR_PUBLIC`, obligatoire
+ * pour la démonstration : sans elle, le site aurait des écrans de saisie sans
+ * serveur. `https://hôte`, une origine sans chemin ni barre finale ; pour un
+ * essai sur le poste, `http://127.0.0.1:<port>` ou `http://localhost:<port>`.
+ * Le contrôle se fait au build, pas à la lecture de la configuration. Le
+ * greffon la pose à la place de `import.meta.env.MX_RISK_SERVEUR_PUBLIC`, que
+ * `client.ts` est le seul à lire.
  *
  * ═══ LES IMAGES DE LA PRÉSENTATION, HORS DU BUILD ORDINAIRE ═══
  *
@@ -194,13 +213,20 @@ export function lireExport(
   return fichiers
 }
 
-/** Le nom d'une méthode d'écriture, cité comme une chaîne : guillemets ou accents graves. */
-const METHODE_D_ECRITURE =
-  /"(?:POST|PUT|DELETE|PATCH)"|'(?:POST|PUT|DELETE|PATCH)'|`(?:POST|PUT|DELETE|PATCH)`/g
+/**
+ * Le nom d'une méthode d'écriture de l'application, cité comme une chaîne :
+ * guillemets ou accents graves. POST est compté à part (contrôle c).
+ */
+const METHODE_D_ECRITURE = /"(?:PUT|DELETE|PATCH)"|'(?:PUT|DELETE|PATCH)'|`(?:PUT|DELETE|PATCH)`/g
+
+/** POST, cité comme une chaîne. */
+const POST_CITE = /"POST"|'POST'|`POST`/g
 
 /**
- * Ce qui, dans un fichier JavaScript du build de démonstration, nomme l'API
- * ou une écriture. Vide pour un fichier qui ne fait que lire ses données.
+ * Ce qui, dans UN fichier JavaScript du build de démonstration, nomme l'API
+ * ou une écriture de l'application (contrôles a et b), ou cite POST plus
+ * d'une fois. Vide pour un fichier qui ne fait que lire ses données, ou qui
+ * porte le seul envoi au serveur public.
  */
 export function fautesDuBundle(code: string): string[] {
   const fautes: string[] = []
@@ -208,7 +234,108 @@ export function fautesDuBundle(code: string): string[] {
   for (const methode of new Set(code.match(METHODE_D_ECRITURE) ?? [])) {
     fautes.push(`la méthode d'écriture ${methode}`)
   }
+  const posts = code.match(POST_CITE) ?? []
+  if (posts.length > 1) fautes.push(`la méthode d'écriture POST, citée ${posts.length} fois`)
   return fautes
+}
+
+/**
+ * Les origines qu'une adresse absolue du build peut nommer, en plus de celle
+ * du serveur public : aucune n'est un serveur que le site appelle.
+ */
+export const ORIGINES_ADMISES: Readonly<Record<string, string>> = {
+  'http://www.w3.org':
+    "les espaces de noms de SVG et de XML (React, Observable Plot)\u00a0: des noms, qu'aucune requête ne vise",
+  'https://github.com':
+    "les liens de la page de présentation vers le dépôt, ses documents et le profil de l'auteur",
+  'https://react.dev': "l'adresse que React cite dans ses messages d'erreur",
+  'https://www.linkedin.com': "le lien de la page de présentation vers le profil de l'auteur",
+}
+
+/** Une adresse absolue écrite dans un fichier : son origine, port compris. */
+const ADRESSE_ABSOLUE = /https?:\/\/[A-Za-z0-9.-]+(?::\d+)?/g
+
+/** Un fichier JavaScript du build : son nom, et son code. */
+export interface FichierJavaScript {
+  readonly nom: string
+  readonly code: string
+}
+
+/**
+ * Les fautes du build de démonstration entier, `serveur` étant l'origine du
+ * serveur public : les contrôles a et b, fichier par fichier ; c, le POST
+ * unique, dans le fichier qui porte l'adresse du serveur ; d, les origines.
+ */
+export function fautesDuBuild(fichiers: readonly FichierJavaScript[], serveur: string): string[] {
+  const fautes: string[] = []
+  for (const { nom, code } of fichiers) {
+    for (const faute of fautesDuBundle(code)) fautes.push(`${nom}\u00a0: ${faute}`)
+  }
+
+  const avecPost = fichiers.filter(({ code }) => (code.match(POST_CITE) ?? []).length > 0)
+  if (avecPost.length > 1) {
+    fautes.push(`POST est cité dans ${avecPost.length} fichiers\u00a0: ${avecPost.map((f) => f.nom).join(', ')}`)
+  }
+  for (const { nom, code } of avecPost) {
+    if (!code.includes(serveur)) {
+      fautes.push(`${nom}\u00a0: POST est cité dans un fichier qui ne porte pas l'adresse du serveur public`)
+    }
+  }
+
+  const origines = new Set(fichiers.flatMap(({ code }) => code.match(ADRESSE_ABSOLUE) ?? []))
+  for (const origine of [...origines].sort()) {
+    if (origine !== serveur && !(origine in ORIGINES_ADMISES)) {
+      fautes.push(`une adresse absolue nomme une origine qui n'est pas admise\u00a0: ${origine}`)
+    }
+  }
+  if (!origines.has(serveur)) {
+    fautes.push(`l'adresse du serveur public (${serveur}) n'est dans aucun fichier`)
+  }
+  return fautes
+}
+
+// ═════════════════════════════════════════════ L'adresse du serveur public ══
+
+/** La variable d'environnement qui donne l'adresse du serveur public (chantier 9.6). */
+export const VARIABLE_DU_SERVEUR = 'MX_RISK_SERVEUR_PUBLIC'
+
+/** Ce que le greffon remplace par l'adresse, dans le code du client. */
+export const CONSTANTE_DU_SERVEUR = 'import.meta.env.MX_RISK_SERVEUR_PUBLIC'
+
+/**
+ * L'adresse du serveur public, lue dans la variable : `https://hôte`, une
+ * origine, sans chemin ni barre finale. Une exception déclarée, pour les
+ * essais sur le poste : `http://127.0.0.1:<port>` et `http://localhost:<port>`.
+ * Absente, vide ou d'une autre forme : une erreur, qui arrête le build.
+ */
+export function lireLeServeur(valeur: string | undefined): string {
+  const forme =
+    ' «\u00a0https://hôte\u00a0», sans chemin ni barre finale, ou, pour un essai sur le poste, ' +
+    '«\u00a0http://127.0.0.1:port\u00a0»'
+  if (valeur === undefined || valeur === '') {
+    throw new Error(
+      `${VARIABLE_DU_SERVEUR} est obligatoire pour le build de démonstration\u00a0: c'est l'adresse ` +
+        `du serveur public,${forme}.`,
+    )
+  }
+  let adresse: URL | null
+  try {
+    adresse = new URL(valeur)
+  } catch {
+    adresse = null
+  }
+  const essai =
+    adresse !== null &&
+    adresse.protocol === 'http:' &&
+    (adresse.hostname === '127.0.0.1' || adresse.hostname === 'localhost') &&
+    adresse.port !== ''
+  if (adresse === null || adresse.origin !== valeur || (adresse.protocol !== 'https:' && !essai)) {
+    throw new Error(
+      `${VARIABLE_DU_SERVEUR} doit être l'origine du serveur public,${forme}\u00a0: ` +
+        `«\u00a0${valeur}\u00a0» n'en est pas une.`,
+    )
+  }
+  return valeur
 }
 
 // ═════════════════════════════════════════ Les métadonnées de partage ══
@@ -219,9 +346,14 @@ export const VARIABLE_DE_L_ORIGINE = 'MX_RISK_ORIGINE_DU_SITE'
 /** Le titre d'un lien partagé : celui de `<title>`. */
 export const TITRE_DU_PARTAGE = 'Portfolio Risk Engine'
 
-/** La description d'un lien partagé : la première phrase du README. */
+/**
+ * La description d'un lien partagé : la première phrase du README, puis un
+ * fragment de la deuxième, majuscule et point ajoutés (chantier 9.6). Elle dit
+ * la thèse du produit, et passe la longueur qu'attend l'outil de LinkedIn.
+ */
 export const DESCRIPTION_DU_PARTAGE =
-  'Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and ETFs.'
+  'Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and ETFs. ' +
+  'It shows every figure together with the conditions it was estimated under.'
 
 /**
  * Ce que montre l'image de prévisualisation : le texte alternatif anglais de
@@ -405,16 +537,21 @@ export function sansLaDemonstration(): Plugin {
 
 /**
  * Le greffon du build de démonstration ; `dossier` est celui de l'export.
- * Sans `partage`, il n'y a pas d'origine : aucune adresse absolue.
+ * Sans `partage`, il n'y a pas d'origine : aucune adresse absolue. `serveur`
+ * est la valeur brute de `MX_RISK_SERVEUR_PUBLIC`, contrôlée au build.
  */
 export function demonstration(
   dossier: string,
   partage: Partage = { origine: null, apercu: '' },
+  serveur: string | undefined = undefined,
 ): Plugin {
   const apercu = partage.origine === null ? null : lireLApercu(partage.apercu)
   return {
     name: 'mx-risk-demonstration',
     apply: 'build',
+    config() {
+      return { define: { [CONSTANTE_DU_SERVEUR]: JSON.stringify(lireLeServeur(serveur)) } }
+    },
     transformIndexHtml() {
       return [
         { tag: 'meta', attrs: { ...BALISE_ROBOTS }, injectTo: 'head' },
@@ -422,16 +559,17 @@ export function demonstration(
       ]
     },
     generateBundle(_options, bundle) {
+      const fichiers: FichierJavaScript[] = []
       for (const [nom, sortie] of Object.entries(bundle)) {
-        if (sortie.type !== 'chunk') continue
-        const fautes = fautesDuBundle(sortie.code)
-        if (fautes.length > 0) {
-          this.error(
-            `Le build de démonstration ne doit ni appeler l'API ni écrire\u00a0: ${nom} contient ` +
-              `${fautes.join(', ')}. Un écran qui écrit n'est pas masqué derrière DEMO ` +
-              '(api/client.ts).',
-          )
-        }
+        if (sortie.type === 'chunk') fichiers.push({ nom, code: sortie.code })
+      }
+      const fautes = fautesDuBuild(fichiers, lireLeServeur(serveur))
+      if (fautes.length > 0) {
+        this.error(
+          "Le build de démonstration n'appelle pas l'API, n'écrit dans aucune base, et n'a qu'un " +
+            `serveur\u00a0: ${fautes.join('\u00a0; ')}. Un écran qui écrit n'est pas masqué derrière ` +
+            'DEMO, ou une adresse a été écrite en dur (api/client.ts).',
+        )
       }
       for (const [chemin, contenu] of lireExport(dossier)) {
         this.emitFile({

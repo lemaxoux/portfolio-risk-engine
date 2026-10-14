@@ -22,22 +22,62 @@
  * historique court. En cours : le bouton dit ce qu'il fait et se désactive,
  * contre le double envoi. Erreur : chaque refus sous son champ, et leur liste
  * au-dessus du bouton ; une panne, par le message de l'API et sa suite.
+ *
+ * ═══ LA MÊME PAGE SUR LE SITE (chantier 9.6) ═══
+ *
+ * Le site a sa saisie : celle du portefeuille du visiteur, que le serveur
+ * public analyse sans rien garder. La page est la même (`PageDesPositions`),
+ * le tableau, la zone de dépôt et le format aussi ; ce qui change lui est
+ * donné par qui la monte : où elle lit les positions, ce que fait son bouton,
+ * où part le fichier, et les phrases qui le disent. Dans l'application, rien
+ * ne change à l'écran.
+ *
+ * Sur le site, « Analyser ces positions » est le seul geste qui garde :
+ * refusé, rien n'est gardé ; accepté, les lignes sont gardées dans ce
+ * navigateur avec la date du jour, et l'analyse s'ouvre, avec la réponse même
+ * de l'envoi. Un fichier lu par le serveur est gardé de même, et le tableau
+ * repart de lui. Pendant un envoi, la page dit où en est le serveur
+ * (`EtatDuServeur`), sans saut de mise en page.
  */
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ApiErreur, putPositions, versApiErreur } from '../api/client'
-import type { PortfolioDetail } from '../api/types'
+import {
+  analyserLeSaisi,
+  ApiErreur,
+  attendreLeServeur,
+  estUnRefus,
+  importCsv,
+  lireUnFichier,
+  putPositions,
+  versApiErreur,
+} from '../api/client'
+import type { CsvSource, PortfolioDetail, Position, PositionIn } from '../api/types'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
-import { MessageErreur, Segments } from '../components/MessageErreur'
-import { AncresSections, pagesApplication, RailPages } from '../components/Navigation'
-import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
 import { DepotCsv } from '../components/DepotCsv'
+import { EtatDuServeur, type EtapeDuServeur } from '../components/EtatDuServeur'
 import { FormatCsv } from '../components/FormatCsv'
+import { MessageErreur, Segments } from '../components/MessageErreur'
+import {
+  AncresSections,
+  pagesApplication,
+  RailPages,
+  type PageApplication,
+} from '../components/Navigation'
+import { cleDeRefus, TableauSaisie } from '../components/TableauSaisie'
+import type { PreuveDAcceptation } from '../lib/acceptation'
 import { rangeeApresRetrait } from '../lib/focus'
 import { useLangue } from '../lib/langue'
 import { messageDeLigne } from '../lib/phrases'
-import { cheminDe, memoriserPortefeuille, naviguer, poserGarde } from '../lib/route'
+import {
+  cheminDe,
+  memoriserLeSaisi,
+  memoriserPortefeuille,
+  naviguer,
+  poserGarde,
+  SAISI,
+} from '../lib/route'
+import { deposerLAnalyse, garderLeSaisi, lireLeSaisi, stockageDisponible } from '../lib/saisi'
 import {
   empreinteDesLignes,
   lignesDepuisPositions,
@@ -53,13 +93,6 @@ import { useUnivers } from '../lib/univers'
 import controles from '../styles/controles.module.css'
 import styles from './Pages.module.css'
 
-interface Props {
-  readonly portefeuille: PortfolioDetail
-  readonly recharger: () => Promise<void>
-  readonly annonce: string | null
-  readonly annoncer: (texte: string, page: string) => void
-}
-
 type Saisissable = 'ticker' | 'quantite' | 'prixRevient'
 
 /**
@@ -71,28 +104,242 @@ interface Depart {
   readonly suite: (() => void) | undefined
 }
 
+/** Ce qui se dit autrement sur le site, où le tableau ne s'enregistre nulle part. */
+interface TextesDeLaPage {
+  readonly tableauEstLePortefeuille: string
+  readonly universIllisible: (detail: string) => string
+  readonly rien: string
+  readonly enCours: string
+  readonly bouton: string
+  readonly nonGardees: string
+  readonly quitterLesPerd: string
+  readonly quitter: string
+}
+
+/** Ce que la page reçoit de qui la monte : l'application, ou le site. */
+interface Usage {
+  readonly nom: string
+  readonly page: string
+  readonly pages: readonly PageApplication[]
+  readonly devise: string
+  /** Les positions gardées, en base ou dans ce navigateur : le tableau s'ouvre sur elles. */
+  readonly gardees: readonly Position[]
+  readonly textes: TextesDeLaPage
+  readonly annonce: string | null
+  /**
+   * L'envoi du tableau, une fois les nombres lus : l'enregistrement, ou
+   * l'analyse. Lève une `ApiErreur` en cas de refus. `etape` dit où en est
+   * le serveur public, sur le site.
+   */
+  readonly envoyer: (positions: PositionIn[], etape: (etape: EtapeDuServeur) => void) => Promise<void>
+  /** Sur le site : l'état du serveur pendant l'envoi, et « Réessayer » après un échec. */
+  readonly serveur: boolean
+  /** Sous le premier paragraphe : ce que le site dit de plus. */
+  readonly apresLeTexte?: ReactNode
+  /** Au-dessus du bouton, sous les refus : ce que le site dit de l'envoi. */
+  readonly avantLeBouton?: ReactNode
+  /** La zone de dépôt, qui sait si le tableau porte des modifications. */
+  readonly depot: (modifie: boolean) => ReactNode
+}
+
+// ════════════════════════════════════════════════════════ L'application ══
+
+interface Props {
+  readonly portefeuille: PortfolioDetail
+  readonly recharger: () => Promise<void>
+  readonly annonce: string | null
+  readonly annoncer: (texte: string, page: string) => void
+}
+
 export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Props) {
   const nom = portefeuille.name
   const page = cheminDe({ vue: 'positions', id: portefeuille.id })
   const { langue, libelles } = useLangue()
   const l = libelles.positions
-  const pages = pagesApplication('positions', portefeuille.id, langue)
-  const devise = portefeuille.valuation?.currency ?? 'USD'
+
+  useEffect(() => {
+    memoriserPortefeuille(portefeuille.id)
+  }, [portefeuille.id])
+
+  return (
+    <PageDesPositions
+      nom={nom}
+      page={page}
+      pages={pagesApplication('positions', portefeuille.id, langue)}
+      devise={portefeuille.valuation?.currency ?? 'USD'}
+      gardees={portefeuille.positions}
+      textes={{
+        tableauEstLePortefeuille: l.tableauEstLePortefeuille,
+        universIllisible: l.universIllisible,
+        rien: l.rienEnregistre,
+        enCours: l.enregistrementEnCours,
+        bouton: l.enregistrer,
+        nonGardees: l.nonEnregistrees,
+        quitterLesPerd: l.quitterLesPerd,
+        quitter: l.quitter,
+      }}
+      annonce={annonce}
+      serveur={false}
+      envoyer={async (positions) => {
+        const ecrit = await putPositions(portefeuille.id, positions, langue)
+        annoncer(l.enregistrees(ecrit.updated_at, ecrit.positions_count), page)
+        await recharger()
+      }}
+      depot={(modifie) => (
+        <DepotCsv
+          nom={nom}
+          positionsActuelles={portefeuille.positions.length}
+          modifie={modifie}
+          envoyer={(fichier) => importCsv(portefeuille.id, fichier, langue)}
+          importe={async (lu) => {
+            annoncer(l.importe(lu.source.filename, lu.positions_count), page)
+            await recharger()
+          }}
+        />
+      )}
+    />
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════ Le site ══
+
+interface PropsDuSaisi {
+  /** La preuve que le texte d'acceptation de la langue a été accepté : sans elle, rien ne part. */
+  readonly preuve: PreuveDAcceptation
+  readonly annonce: string | null
+  readonly annoncer: (texte: string, page: string) => void
+}
+
+/** Un fichier lu par le serveur public : ses lignes, et comment il a été lu. */
+interface FichierLu {
+  readonly positions: readonly Position[]
+  readonly source: CsvSource
+}
+
+/**
+ * La page des positions du portefeuille saisi, sur le site. Le portefeuille
+ * gardé dans ce navigateur ouvre le tableau ; analyser l'envoie au serveur
+ * public, et l'analyse s'ouvre avec sa réponse.
+ */
+export function VuePositionsDuSaisi({ preuve, annonce, annoncer }: PropsDuSaisi) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.positions
+  const s = libelles.positionsDuSite
+  const nom = libelles.saisi.nom
+  const page = cheminDe({ vue: 'saisi-positions' })
+  const [saisi, setSaisi] = useState(lireLeSaisi)
+  const [stockage] = useState(stockageDisponible)
+  const gardees = saisi?.positions ?? []
+
+  useEffect(() => {
+    memoriserLeSaisi()
+  }, [])
+
+  /** Attend le serveur, puis lui fait faire `envoi` : l'état suit chaque étape. */
+  const parLeServeur = async <T,>(
+    envoi: () => Promise<T>,
+    etape: (etape: EtapeDuServeur) => void,
+  ): Promise<T> => {
+    await attendreLeServeur(langue, () => etape('reveil'))
+    etape('calcul')
+    return envoi()
+  }
+
+  return (
+    <PageDesPositions
+      nom={nom}
+      page={page}
+      pages={pagesApplication('positions', SAISI, langue)}
+      // Comme l'application pour un portefeuille sans valorisation.
+      devise="USD"
+      gardees={gardees}
+      textes={{
+        tableauEstLePortefeuille: s.tableauEstLePortefeuille,
+        universIllisible: s.universIllisible,
+        rien: s.rienGarde,
+        enCours: s.analyseEnCours,
+        bouton: s.analyser,
+        nonGardees: s.nonGardees,
+        quitterLesPerd: s.quitterLesPerd,
+        quitter: s.quitter,
+      }}
+      annonce={annonce}
+      serveur
+      apresLeTexte={
+        <>
+          <p className={styles.texte}>{s.listeFermee}</p>
+          {!stockage && <p className={styles.texte}>{s.stockageBloque}</p>}
+        </>
+      }
+      avantLeBouton={<p className={controles.aide}>{s.envoi}</p>}
+      envoyer={async (positions, etape) => {
+        const analyse = await parLeServeur(
+          () => analyserLeSaisi(positions, langue, preuve),
+          etape,
+        )
+        // Acceptées : les lignes sont gardées, datées du jour, et l'analyse
+        // que la page suivante affiche est cette réponse même.
+        const garde = garderLeSaisi(positions)
+        deposerLAnalyse(garde.positions, langue, analyse)
+        setSaisi(garde)
+        const analyseDuSaisi = cheminDe({ vue: 'saisi' })
+        annoncer(s.gardees(garde.modifie, garde.positions.length), analyseDuSaisi)
+        // Le tableau est gardé : le quitter ne perd plus rien.
+        naviguer(analyseDuSaisi, { forcer: true })
+      }}
+      depot={(modifie) => (
+        <>
+          <p className={controles.aide}>{s.fichierEnvoye}</p>
+          <DepotCsv<FichierLu>
+            nom={nom}
+            positionsActuelles={gardees.length}
+            modifie={modifie}
+            serveur
+            envoyer={(fichier, etape) =>
+              parLeServeur(() => lireUnFichier(fichier, langue, preuve), etape)
+            }
+            importe={async (lu) => {
+              setSaisi(garderLeSaisi(lu.positions))
+              annoncer(l.importe(lu.source.filename, lu.positions.length), page)
+            }}
+          />
+        </>
+      )}
+    />
+  )
+}
+
+// ═════════════════════════════════════════════════════════ La page même ══
+
+function PageDesPositions({
+  nom,
+  page,
+  pages,
+  devise,
+  gardees,
+  textes,
+  annonce,
+  envoyer,
+  serveur,
+  apresLeTexte,
+  avantLeBouton,
+  depot,
+}: Usage) {
+  const { langue, libelles } = useLangue()
+  const l = libelles.positions
   const { univers, erreur: erreurUnivers } = useUnivers(langue)
 
-  // Les positions stockées, par leur CONTENU : une liste relue à l'identique
+  // Les positions gardées, par leur CONTENU : une liste relue à l'identique
   // ne réinitialise pas le tableau.
-  const stockees = JSON.stringify(portefeuille.positions)
-  const initiales = useMemo(
-    () => lignesDepuisPositions(JSON.parse(stockees) as PortfolioDetail['positions']),
-    [stockees],
-  )
+  const stockees = JSON.stringify(gardees)
+  const initiales = useMemo(() => lignesDepuisPositions(JSON.parse(stockees) as Position[]), [stockees])
   const [lignes, setLignes] = useState<LigneSaisie[]>(initiales)
   const [refusLocaux, setRefusLocaux] = useState<RefusDeCellule[]>([])
   const [refusServeur, setRefusServeur] = useState<RefusDeCellule[]>([])
   const [generaux, setGeneraux] = useState<string[]>([])
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
   const [enCours, setEnCours] = useState(false)
+  const [etape, setEtape] = useState<EtapeDuServeur | null>(null)
   const [sortie, setSortie] = useState<Depart | null>(null)
   // Ce qui avait le focus quand la garde a retenu le départ : le lien suivi,
   // le bouton de langue. « Rester sur la page » le lui rend (chantier 7E).
@@ -109,18 +356,14 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
     noeud?.focus()
   }, [cibleDuFocus])
 
-  // Après un enregistrement ou un import, la liste relue ramène les
-  // positions en base : le tableau repart d'elles.
+  // Après un enregistrement ou un import, les positions gardées reviennent :
+  // le tableau repart d'elles.
   useEffect(() => {
     setLignes(initiales)
     setRefusLocaux([])
     setRefusServeur([])
     setGeneraux([])
   }, [initiales])
-
-  useEffect(() => {
-    memoriserPortefeuille(portefeuille.id)
-  }, [portefeuille.id])
 
   const modifie = empreinteDesLignes(lignes) !== empreinteDesLignes(initiales)
 
@@ -204,8 +447,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
 
   const montrerResume = () => setCibleDuFocus({ id: 'resume' })
 
-  const enregistrer = async (evenement: FormEvent<HTMLFormElement>) => {
-    evenement.preventDefault()
+  const envoyerLeTableau = async () => {
     setErreur(null)
     setRefusServeur([])
     setGeneraux([])
@@ -216,10 +458,9 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       return
     }
     setEnCours(true)
+    setEtape(null)
     try {
-      const ecrit = await putPositions(portefeuille.id, positions, langue)
-      annoncer(l.enregistrees(ecrit.updated_at, ecrit.positions_count), page)
-      await recharger()
+      await envoyer(positions, setEtape)
       // Désactivé pendant l'envoi, le bouton a perdu le focus : il le
       // retrouve, plutôt que de laisser la tabulation repartir du début.
       setCibleDuFocus({ id: 'enregistrer-positions' })
@@ -235,7 +476,13 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       montrerResume()
     } finally {
       setEnCours(false)
+      setEtape(null)
     }
+  }
+
+  const soumettre = (evenement: FormEvent<HTMLFormElement>) => {
+    evenement.preventDefault()
+    void envoyerLeTableau()
   }
 
   const tousLesRefus = [...refusServeur, ...refusLocaux].sort(
@@ -257,6 +504,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
 
       {sortie !== null && (
         <ConfirmationSortie
+          textes={textes}
           quitter={() =>
             sortie.suite !== undefined ? sortie.suite() : naviguer(sortie.cible, { forcer: true })
           }
@@ -265,10 +513,11 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
       )}
 
       <p className={styles.texte}>
-        {portefeuille.positions.length === 0 ? l.aucune(nom) : l.tableauEstLePortefeuille}
+        {gardees.length === 0 ? l.aucune(nom) : textes.tableauEstLePortefeuille}
       </p>
+      {apresLeTexte}
 
-      <form className={styles.saisie} onSubmit={(e) => void enregistrer(e)} noValidate>
+      <form className={styles.saisie} onSubmit={soumettre} noValidate>
         <h2 className={styles.sousTitreProche}>{l.saisir}</h2>
         <TableauSaisie
           legende={l.legende(nom)}
@@ -282,7 +531,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
         />
         <p className={controles.aide}>{l.aide}</p>
         {erreurUnivers !== null && (
-          <p className={controles.aide}>{l.universIllisible(erreurUnivers.detail)}</p>
+          <p className={controles.aide}>{textes.universIllisible(erreurUnivers.detail)}</p>
         )}
         <div>
           <button type="button" className={controles.bouton} onClick={ajouter}>
@@ -300,11 +549,25 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
             role={erreur === null ? 'alert' : undefined}
           >
             {erreur !== null ? (
-              <MessageErreur erreur={erreur} />
+              <MessageErreur
+                erreur={erreur}
+                action={
+                  serveur && !estUnRefus(erreur) ? (
+                    <button
+                      type="button"
+                      className={controles.bouton}
+                      disabled={enCours}
+                      onClick={() => void envoyerLeTableau()}
+                    >
+                      {libelles.serveur.reessayer}
+                    </button>
+                  ) : undefined
+                }
+              />
             ) : (
               <>
                 <p className={styles.question}>
-                  {l.rienEnregistre}
+                  {textes.rien}
                   {tousLesRefus.length > 0
                     ? l.aCorriger(new Set(tousLesRefus.map((r) => r.ligne)).size)
                     : l.saisieRefusee}
@@ -326,6 +589,7 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
           </div>
         )}
 
+        {avantLeBouton}
         <div className={controles.groupe}>
           <button
             id="enregistrer-positions"
@@ -333,23 +597,15 @@ export function VuePositions({ portefeuille, recharger, annonce, annoncer }: Pro
             className={`${controles.bouton} ${controles.principal}`}
             disabled={enCours}
           >
-            {enCours ? l.enregistrementEnCours : l.enregistrer}
+            {enCours ? textes.enCours : textes.bouton}
           </button>
-          {modifie && <span className={controles.aide}>{l.nonEnregistrees}</span>}
+          {modifie && <span className={controles.aide}>{textes.nonGardees}</span>}
         </div>
+        {serveur && enCours && <EtatDuServeur etape={etape} />}
       </form>
 
       <h2 className={styles.sousTitre}>{l.importer}</h2>
-      <DepotCsv
-        portefeuilleId={portefeuille.id}
-        nom={nom}
-        positionsActuelles={portefeuille.positions.length}
-        modifie={modifie}
-        importe={async (lu) => {
-          annoncer(l.importe(lu.source.filename, lu.positions_count), page)
-          await recharger()
-        }}
-      />
+      {depot(modifie)}
       <FormatCsv niveau={3} />
     </Cadre>
   )
@@ -366,9 +622,16 @@ const CHAMP_DE: Record<Saisissable, Champ> = {
  * de page, focalisée. « Rester sur la page » ne perd rien ; « Quitter sans
  * enregistrer » suit le lien retenu.
  */
-function ConfirmationSortie({ quitter, rester }: { quitter: () => void; rester: () => void }) {
+function ConfirmationSortie({
+  textes,
+  quitter,
+  rester,
+}: {
+  textes: TextesDeLaPage
+  quitter: () => void
+  rester: () => void
+}) {
   const { libelles } = useLangue()
-  const l = libelles.positions
   const question = useRef<HTMLParagraphElement>(null)
   useEffect(() => {
     question.current?.focus()
@@ -376,14 +639,14 @@ function ConfirmationSortie({ quitter, rester }: { quitter: () => void; rester: 
   return (
     <div className={styles.confirmation}>
       <p ref={question} tabIndex={-1} className={styles.question}>
-        {l.quitterLesPerd}
+        {textes.quitterLesPerd}
       </p>
       <div className={controles.groupe}>
         <button type="button" className={`${controles.bouton} ${controles.principal}`} onClick={rester}>
-          {l.rester}
+          {libelles.positions.rester}
         </button>
         <button type="button" className={controles.bouton} onClick={quitter}>
-          {l.quitter}
+          {textes.quitter}
         </button>
       </div>
     </div>

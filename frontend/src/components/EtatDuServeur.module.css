@@ -1,0 +1,26 @@
+/*
+ * L'état du serveur de calcul du site (chantier 9.6) — DESIGN.md §13.
+ *
+ * Une case de grille, deux phrases dedans, l'une sur l'autre : la case prend
+ * la hauteur de la plus longue, à toute largeur, et ne change pas de taille
+ * quand la phrase dite change. Ni bordure, ni fond, ni icône : une phrase,
+ * comme une aide, mais au premier plan (--text-1), parce qu'elle dit ce qui
+ * se passe.
+ */
+.etat {
+  display: grid;
+  max-inline-size: var(--prose-width);
+  margin-block-end: var(--space-5);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.phrase {
+  grid-area: 1 / 1;
+  text-wrap: pretty;
+}
+
+/* La phrase qui n'est pas dite garde sa place, et elle seule. */
+.tue {
+  visibility: hidden;
+}

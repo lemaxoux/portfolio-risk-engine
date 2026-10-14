@@ -25,7 +25,7 @@ import { useEffect, useState } from 'react'
 import { DEMO } from '../api/client'
 import { LIBELLES, type PageDuSite } from '../contenu/libelles'
 import { useLangue, type Langue } from '../lib/langue'
-import { cheminDe } from '../lib/route'
+import { cheminDe, SAISI } from '../lib/route'
 import { Lien } from './Lien'
 import styles from './Navigation.module.css'
 
@@ -42,15 +42,19 @@ export interface PageApplication {
  * montrer. La méthodologie l'est toujours, en dernier : elle ne dépend
  * d'aucun portefeuille. Les noms sont ceux de la langue demandée.
  *
- * `demo` : la démonstration n'a pas de page de saisie (chantier 9.2).
- * « Positions et import » n'y est pas proposée, plutôt que grisée. Elle a
- * deux pages de plus (chantier 9.4, DESIGN.md §19.5) : « Présentation », en
- * tête, à l'adresse `/`, et « Avertissement », en dernier, pour que la liste
- * reste celle de toutes les pages.
+ * `demo` : la démonstration n'a pas de page de saisie pour ses portefeuilles
+ * d'exemple (chantier 9.2). « Positions et import » n'y est pas proposée,
+ * plutôt que grisée. Elle a deux pages de plus (chantier 9.4, DESIGN.md
+ * §19.5) : « Présentation », en tête, à l'adresse `/`, et « Avertissement »,
+ * en dernier, pour que la liste reste celle de toutes les pages.
+ *
+ * Quand le portefeuille en vue est celui que le visiteur a saisi (`saisi`,
+ * chantier 9.6), « Analyse » mène à son analyse, et « Positions et import »
+ * revient, comme dans l'application.
  */
 export function pagesApplication(
   courante: PageDuSite,
-  id: number | null,
+  id: number | typeof SAISI | null,
   langue: Langue = 'fr',
   demo: boolean = DEMO,
 ): PageApplication[] {
@@ -64,14 +68,15 @@ export function pagesApplication(
     })
   }
   if (id !== null) {
+    const saisi = id === SAISI
     pages.push({
-      vers: cheminDe({ vue: 'analyse', id }),
+      vers: saisi ? cheminDe({ vue: 'saisi' }) : cheminDe({ vue: 'analyse', id }),
       libelle: noms.analyse,
       courante: courante === 'analyse',
     })
-    if (!demo) {
+    if (!demo || saisi) {
       pages.push({
-        vers: cheminDe({ vue: 'positions', id }),
+        vers: saisi ? cheminDe({ vue: 'saisi-positions' }) : cheminDe({ vue: 'positions', id }),
         libelle: noms.positions,
         courante: courante === 'positions',
       })

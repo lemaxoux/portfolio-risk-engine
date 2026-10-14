@@ -21,39 +21,64 @@
  * Après un import, la provenance du fichier est affichée comme celle d'une
  * mesure : encodage, séparateur, décimale OBSERVÉE, lignes lues. Un fichier
  * « mixte » se voit, et un résultat inattendu se comprend au lieu de se subir.
+ *
+ * ═══ SUR LE SITE (chantier 9.6) ═══
+ *
+ * La page qui la monte dit où part le fichier (`envoyer`) : l'import en base
+ * de l'application, ou la lecture par le serveur public, qui rend les lignes
+ * sans rien garder. Sur le site (`serveur`), l'envoi attend d'abord que le
+ * serveur réponde, et la zone dit où il en est (`EtatDuServeur`) ; un échec
+ * qui n'est pas un refus du fichier se réessaie sur place.
  */
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 
-import { ApiErreur, importCsv, versApiErreur } from '../api/client'
-import type { CsvImport } from '../api/types'
+import { ApiErreur, estUnRefus, versApiErreur } from '../api/client'
+import type { CsvSource } from '../api/types'
 import { nomDecimale, nomEncodage } from '../lib/csv'
 import { useLangue } from '../lib/langue'
 import { cite } from '../lib/phrases'
 import controles from '../styles/controles.module.css'
+import { EtatDuServeur, type EtapeDuServeur } from './EtatDuServeur'
 import { MessageErreur } from './MessageErreur'
 import { Provenance } from './Provenance'
 import styles from './DepotCsv.module.css'
 
-interface Props {
-  readonly portefeuilleId: number
+/** Ce que rend la lecture d'un fichier, import en base ou lecture du serveur public : comment il a été lu. */
+interface Lu {
+  readonly source: CsvSource
+}
+
+interface Props<R extends Lu> {
   readonly nom: string
-  /** Le nombre de positions actuellement en base : ce que l'import remplace. */
+  /** Le nombre de positions gardées : ce que l'import remplace. */
   readonly positionsActuelles: number
   /** Le tableau porte des modifications non enregistrées. */
   readonly modifie: boolean
-  /** Après un import réussi : annoncer, et relire la liste. */
-  readonly importe: (resultat: CsvImport) => Promise<void>
+  /** L'envoi du fichier. `etape` dit où en est le serveur public, sur le site. */
+  readonly envoyer: (fichier: File, etape: (etape: EtapeDuServeur) => void) => Promise<R>
+  /** Après un import réussi : garder, annoncer, relire. */
+  readonly importe: (resultat: R) => Promise<void>
+  /** Sur le site : l'état du serveur pendant l'envoi, et « Réessayer » après un échec. */
+  readonly serveur?: boolean
 }
 
-export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, importe }: Props) {
+export function DepotCsv<R extends Lu>({
+  nom,
+  positionsActuelles,
+  modifie,
+  envoyer,
+  importe,
+  serveur = false,
+}: Props<R>) {
   const { langue, libelles } = useLangue()
   const l = libelles.csv
   const champ = useRef<HTMLInputElement>(null)
   const [fichier, setFichier] = useState<File | null>(null)
   const [survol, setSurvol] = useState(false)
   const [enCours, setEnCours] = useState(false)
+  const [etape, setEtape] = useState<EtapeDuServeur | null>(null)
   const [erreur, setErreur] = useState<ApiErreur | null>(null)
-  const [resultat, setResultat] = useState<CsvImport | null>(null)
+  const [resultat, setResultat] = useState<R | null>(null)
   const blocLu = useRef<HTMLDivElement>(null)
   const bouton = useRef<HTMLButtonElement>(null)
 
@@ -88,13 +113,13 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
     choisir(depose)
   }
 
-  const importer = async (evenement: FormEvent<HTMLFormElement>) => {
-    evenement.preventDefault()
+  const importer = async () => {
     if (fichier === null) return
     setEnCours(true)
+    setEtape(null)
     setErreur(null)
     try {
-      const lu = await importCsv(portefeuilleId, fichier, langue)
+      const lu = await envoyer(fichier, setEtape)
       setResultat(lu)
       setFichier(null)
       if (champ.current !== null) champ.current.value = ''
@@ -105,11 +130,17 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
       setCibleDuFocus({ cible: 'bouton' })
     } finally {
       setEnCours(false)
+      setEtape(null)
     }
   }
 
+  const soumettre = (evenement: FormEvent<HTMLFormElement>) => {
+    evenement.preventDefault()
+    void importer()
+  }
+
   return (
-    <form className={styles.formulaire} onSubmit={(e) => void importer(e)}>
+    <form className={styles.formulaire} onSubmit={soumettre}>
       <div
         className={survol ? `${styles.zone} ${styles.survol}` : styles.zone}
         onDragOver={(e) => {
@@ -153,10 +184,27 @@ export function DepotCsv({ portefeuilleId, nom, positionsActuelles, modifie, imp
               {enCours ? l.importEnCours : l.importer}
             </button>
           </div>
+          {serveur && enCours && <EtatDuServeur etape={etape} />}
         </div>
       )}
 
-      {erreur !== null && <MessageErreur erreur={erreur} />}
+      {erreur !== null && (
+        <MessageErreur
+          erreur={erreur}
+          action={
+            serveur && !estUnRefus(erreur) && fichier !== null ? (
+              <button
+                type="button"
+                className={controles.bouton}
+                disabled={enCours}
+                onClick={() => void importer()}
+              >
+                {libelles.serveur.reessayer}
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {resultat !== null && (
         <div ref={blocLu} tabIndex={-1} className={styles.lu}>

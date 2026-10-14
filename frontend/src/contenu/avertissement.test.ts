@@ -116,15 +116,14 @@ describe('le lien de la mention', () => {
 })
 
 describe('la phrase de la page', () => {
-  it('dit pourquoi la page n’a rien à accepter, dans les deux langues', () => {
+  it('dit quand le texte est à accepter, dans les deux langues', () => {
     expect(LIBELLES.fr.avertissement.pourquoi).toBe(
-      "L'application installée affiche ce texte avant la première utilisation et demande de " +
-        "l'accepter. La démonstration ne le demande pas\u00a0: elle ne montre aucun portefeuille " +
-        'qui soit le vôtre.',
+      "Le site demande d'accepter ce texte avant d'analyser un portefeuille que vous saisissez. " +
+        "Les portefeuilles d'exemple se lisent sans l'accepter\u00a0: aucun n'est le vôtre.",
     )
     expect(LIBELLES.en.avertissement.pourquoi).toBe(
-      'The installed application shows this text before its first use and asks you to accept it. ' +
-        'The demonstration does not: none of the portfolios it shows is yours.',
+      'The site asks you to accept this text before it analyzes a portfolio that you enter. ' +
+        'The sample portfolios can be read without accepting it: none of them is yours.',
     )
   })
 

@@ -32,22 +32,32 @@
  * connue : aucune page ne s'affiche dans une langue dont le texte n'a pas
  * été accepté.
  *
- * ═══ LA DÉMONSTRATION N'A PAS DE PAGE DE SAISIE (chantier 9.2) ═══
+ * ═══ LES PORTEFEUILLES DE LA DÉMONSTRATION N'ONT PAS DE SAISIE (9.2) ═══
  *
  * Dans le build de démonstration, `/portefeuilles/<id>/positions` n'est
  * l'adresse d'aucune page : elle rend « Page introuvable », comme toute
- * adresse inconnue, et la page des positions sort du build avec ses
+ * adresse inconnue, et l'enregistrement en base sort du build avec ses
  * écritures.
  *
- * ═══ LA DÉMONSTRATION NE POSE PAS L'ÉCRAN D'ACCEPTATION (chantier 9.4) ═══
+ * ═══ L'ÉCRAN D'ACCEPTATION, DEVANT LE PORTEFEUILLE SAISI (9.4, 9.6) ═══
  *
- * Cet écran a été décidé pour quelqu'un qui analyse son propre portefeuille,
- * et la démonstration n'en montre aucun (DESIGN.md §15, §19.6). Dans son
- * build, rien n'attend le texte au démarrage, aucune acceptation n'est lue ni
- * mémorisée, et un changement de langue relit la page en place, dans tous
- * les cas. Le texte y reste lisible à l'adresse `/avertissement`, qui n'est
- * une page que là : dans l'application, elle rend « Page introuvable ».
- * Tout ce qui précède vaut pour l'application, et pour elle seule.
+ * Cet écran a été décidé pour quelqu'un qui analyse son propre portefeuille
+ * (DESIGN.md §15). Les portefeuilles d'exemple de la démonstration ne le sont
+ * pas : rien n'attend le texte au démarrage, et le texte se lit à l'adresse
+ * `/avertissement`, qui n'est une page que là (§19.6). Dans l'application,
+ * elle rend « Page introuvable ».
+ *
+ * Le visiteur peut aussi saisir son propre portefeuille, que le serveur
+ * public analyse (chantier 9.6). Ses deux pages, `/portefeuilles/saisi` et
+ * `/portefeuilles/saisi/positions`, sont gardées par l'écran d'acceptation de
+ * la langue de la page, celui de l'application, avec le texte du site : tant
+ * qu'il n'est pas accepté, il remplace la page, et rien n'est envoyé. Il se
+ * traverse une fois par langue ; changer de langue sur l'une de ces deux
+ * pages, vers une langue dont le texte n'a pas été accepté, remplace la page
+ * par l'écran de cette langue, la garde des modifications consultée d'abord,
+ * comme dans l'application. Ailleurs, le changement de langue reste en place.
+ * L'acceptation délivre la preuve sans laquelle `client.ts` n'envoie rien.
+ * Dans l'application, ces deux adresses rendent « Page introuvable ».
  *
  * ═══ DANS LA DÉMONSTRATION, `/` EST UNE PAGE (chantier 9.4) ═══
  *
@@ -65,7 +75,16 @@
  * voit que si l'on va à une analyse avant qu'il soit arrivé. Un échec de
  * cette avance est muet ; c'est la navigation qui le dira.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react'
 
 import {
   ApiErreur,
@@ -79,7 +98,7 @@ import { BandeauSimple } from './components/Bandeau'
 import { Cadre } from './components/Cadre'
 import { MessageErreur } from './components/MessageErreur'
 import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
-import { aAccepte } from './lib/acceptation'
+import { aAccepte, preuveDAcceptation, type PreuveDAcceptation } from './lib/acceptation'
 import { apresLAffichage } from './lib/affichage'
 import {
   appliquerLangue,
@@ -93,20 +112,29 @@ import { useListe, type EtatListe } from './lib/liste'
 import {
   cheminDe,
   dernierPortefeuille,
+  lireRoute,
   marquerGesteDecide,
   naviguer,
   portefeuilleDAccueil,
   remplacerLaPage,
+  SAISI,
+  saisiEnVue,
   useRoute,
+  type PortefeuilleEnVue,
 } from './lib/route'
+import { lireLeSaisi } from './lib/saisi'
 import controles from './styles/controles.module.css'
 import { Acceptation } from './views/Acceptation'
-import { AnalyseALaDemande, chargerLAnalyse } from './views/AnalyseALaDemande'
+import {
+  AnalyseALaDemande,
+  AnalyseDuSaisiALaDemande,
+  chargerLAnalyse,
+} from './views/AnalyseALaDemande'
 import { VueAvertissement } from './views/Avertissement'
 import { PageInconnue, PortefeuilleIntrouvable } from './views/Introuvable'
 import { VueMethodologie } from './views/Methodologie'
 import { VuePortefeuilles } from './views/Portefeuilles'
-import { VuePositions } from './views/Positions'
+import { VuePositions, VuePositionsDuSaisi } from './views/Positions'
 import { VuePresentation } from './views/Presentation'
 
 type EtatAcceptation =
@@ -116,11 +144,30 @@ type EtatAcceptation =
   | { phase: 'acceptation'; bandeau: Disclaimer; decidee?: boolean }
   | { phase: 'acceptee' }
 
+/**
+ * La garde des deux pages du portefeuille saisi, sur le site (chantier 9.6),
+ * pour la langue affichée. `inconnue` : pas encore vérifiée dans cette langue.
+ * `acceptee` porte la preuve que `client.ts` demande avant tout envoi.
+ */
+type GardeDuSaisi =
+  | { phase: 'inconnue' }
+  | { phase: 'erreur'; erreur: ApiErreur }
+  /** `decidee` : l'écran remplace une page après un geste, et son titre prend le focus. */
+  | { phase: 'acceptation'; bandeau: Disclaimer; decidee?: boolean }
+  | { phase: 'acceptee'; preuve: PreuveDAcceptation }
+
+/** L'adresse est-elle celle d'une des deux pages du portefeuille saisi ? */
+function estUnePageDuSaisi(chemin: string): boolean {
+  const vue = lireRoute(chemin).vue
+  return vue === 'saisi' || vue === 'saisi-positions'
+}
+
 export function App() {
   const [langue, setLangue] = useState<Langue>(langueDeLaPage)
   const [etat, setEtat] = useState<EtatAcceptation>(
     DEMO ? { phase: 'acceptee' } : { phase: 'verification' },
   )
+  const [garde, setGarde] = useState<GardeDuSaisi>({ phase: 'inconnue' })
   const langueDuDemarrage = useRef(langue)
 
   useEffect(() => {
@@ -157,7 +204,33 @@ export function App() {
         setEtat(suivant)
       }
       if (DEMO) {
-        passer({ phase: 'acceptee' })
+        // Hors des pages du portefeuille saisi, la page reste en place ; la
+        // garde se vérifiera dans la nouvelle langue en y arrivant.
+        if (!estUnePageDuSaisi(window.location.pathname)) {
+          setGarde({ phase: 'inconnue' })
+          passer({ phase: 'acceptee' })
+          return
+        }
+        getDisclaimer(nouvelle).then(
+          (bandeau) => {
+            const preuve = preuveDAcceptation(bandeau.text, nouvelle)
+            if (preuve !== null) {
+              setGarde({ phase: 'acceptee', preuve })
+              passer({ phase: 'acceptee' })
+              return
+            }
+            remplacerLaPage(() => {
+              setGarde({ phase: 'acceptation', bandeau, decidee: true })
+              passer({ phase: 'acceptee' })
+            })
+          },
+          (cause: unknown) => {
+            remplacerLaPage(() => {
+              setGarde({ phase: 'erreur', erreur: versApiErreur(cause, nouvelle) })
+              passer({ phase: 'acceptee' })
+            })
+          },
+        )
         return
       }
       getDisclaimer(nouvelle).then(
@@ -177,16 +250,31 @@ export function App() {
 
   return (
     <ContexteDeLangue.Provider value={contexte}>
-      <Ecran etat={etat} accepter={() => setEtat({ phase: 'acceptee' })} />
+      <Ecran
+        etat={etat}
+        accepter={() => setEtat({ phase: 'acceptee' })}
+        garde={garde}
+        setGarde={setGarde}
+      />
     </ContexteDeLangue.Provider>
   )
 }
 
+interface PropsDeLaGarde {
+  readonly garde: GardeDuSaisi
+  readonly setGarde: Dispatch<SetStateAction<GardeDuSaisi>>
+}
+
 /** L'écran que demande l'état de l'acceptation, dans la langue affichée. */
-function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void }) {
+function Ecran({
+  etat,
+  accepter,
+  garde,
+  setGarde,
+}: { etat: EtatAcceptation; accepter: () => void } & PropsDeLaGarde) {
   const { langue, libelles } = useLangue()
 
-  if (DEMO) return <Application />
+  if (DEMO) return <Application garde={garde} setGarde={setGarde} />
   if (etat.phase === 'acceptation') {
     // Une clé par langue : la case cochée sous un texte ne l'est pas sous
     // l'autre.
@@ -199,7 +287,7 @@ function Ecran({ etat, accepter }: { etat: EtatAcceptation; accepter: () => void
       />
     )
   }
-  if (etat.phase === 'acceptee') return <Application />
+  if (etat.phase === 'acceptee') return <Application garde={garde} setGarde={setGarde} />
 
   return (
     <Cadre
@@ -235,9 +323,9 @@ interface Annonce {
   readonly page: string
 }
 
-function Application() {
+function Application({ garde, setGarde }: PropsDeLaGarde) {
   const route = useRoute()
-  const { langue } = useLangue()
+  const { langue, libelles } = useLangue()
   // Sur la présentation de la démonstration, la liste part après le premier
   // affichage : son premier écran n'attend aucune requête (DESIGN.md §19.9).
   const { etat: liste, recharger } = useListe(langue, DEMO && route.vue === 'accueil')
@@ -273,9 +361,11 @@ function Application() {
   /**
    * Le portefeuille que nomme le bandeau d'une page qui n'en dépend pas : le
    * dernier consulté s'il existe encore ; sinon aucun, et pas le premier de
-   * la liste, que personne n'a ouvert.
+   * la liste, que personne n'a ouvert. Sur le site, ce peut être le
+   * portefeuille saisi (chantier 9.6).
    */
-  const portefeuilleEnVue = (): PortfolioDetail | null => {
+  const portefeuilleEnVue = (): PortefeuilleEnVue | null => {
+    if (DEMO && saisiEnVue()) return { id: SAISI, name: libelles.saisi.nom }
     if (liste.phase !== 'prete') return null
     const memorise = dernierPortefeuille()
     return liste.portefeuilles.find((p) => p.id === memorise) ?? null
@@ -319,6 +409,26 @@ function Application() {
           annoncer={annoncer}
         />
       ))
+    case 'saisi':
+      // Les deux pages du portefeuille saisi n'existent que sur le site, où
+      // l'écran d'acceptation les garde.
+      if (!DEMO) return <PageInconnue chemin={chemin} />
+      return (
+        <GardeDuPortefeuilleSaisi garde={garde} setGarde={setGarde} forme="analyse">
+          {(preuve) => (
+            <AnalyseDuSaisiALaDemande saisi={lireLeSaisi()} preuve={preuve} annonce={annonceIci} />
+          )}
+        </GardeDuPortefeuilleSaisi>
+      )
+    case 'saisi-positions':
+      if (!DEMO) return <PageInconnue chemin={chemin} />
+      return (
+        <GardeDuPortefeuilleSaisi garde={garde} setGarde={setGarde} forme="tableau">
+          {(preuve) => (
+            <VuePositionsDuSaisi preuve={preuve} annonce={annonceIci} annoncer={annoncer} />
+          )}
+        </GardeDuPortefeuilleSaisi>
+      )
     case 'methodologie':
       // Elle ne dépend d'aucun portefeuille, et n'attend pas la liste.
       return <VueMethodologie portefeuille={portefeuilleEnVue()} />
@@ -330,6 +440,91 @@ function Application() {
     case 'inconnue':
       return <PageInconnue chemin={chemin} />
   }
+}
+
+/**
+ * La garde des deux pages du portefeuille saisi (chantier 9.6) : le texte du
+ * site, lu dans la langue de la page ; l'écran d'acceptation tant qu'il n'est
+ * pas accepté ; la page, avec la preuve, une fois qu'il l'est. Rien n'est
+ * envoyé avant : la page n'est pas montée.
+ */
+function GardeDuPortefeuilleSaisi({
+  garde,
+  setGarde,
+  forme,
+  children,
+}: PropsDeLaGarde & {
+  forme: 'analyse' | 'tableau'
+  children: (preuve: PreuveDAcceptation) => ReactNode
+}) {
+  const { langue, libelles } = useLangue()
+  // Une preuve d'une autre langue ne vaut pas pour celle-ci : la garde se
+  // vérifie de nouveau.
+  const aVerifier =
+    garde.phase === 'inconnue' || (garde.phase === 'acceptee' && garde.preuve.langue !== langue)
+
+  useEffect(() => {
+    if (!aVerifier) return
+    let vivant = true
+    getDisclaimer(langue).then(
+      (bandeau) => {
+        if (!vivant) return
+        const preuve = preuveDAcceptation(bandeau.text, langue)
+        setGarde(preuve !== null ? { phase: 'acceptee', preuve } : { phase: 'acceptation', bandeau })
+      },
+      (cause: unknown) => {
+        if (vivant) setGarde({ phase: 'erreur', erreur: versApiErreur(cause, langue) })
+      },
+    )
+    return () => {
+      vivant = false
+    }
+  }, [aVerifier, langue, setGarde])
+
+  if (garde.phase === 'acceptee' && !aVerifier) return children(garde.preuve)
+  if (garde.phase === 'acceptation') {
+    const bandeau = garde.bandeau
+    // Une clé par langue : la case cochée sous un texte ne l'est pas sous
+    // l'autre.
+    return (
+      <Acceptation
+        key={langue}
+        bandeau={bandeau}
+        focaliser={garde.decidee === true}
+        onAccepte={() => {
+          const preuve = preuveDAcceptation(bandeau.text, langue)
+          if (preuve !== null) setGarde({ phase: 'acceptee', preuve })
+        }}
+      />
+    )
+  }
+  return (
+    <Cadre
+      titre={garde.phase === 'erreur' ? titreSourceInjoignable(langue) : libelles.application.chargement}
+      page={window.location.pathname}
+      occupe={garde.phase !== 'erreur'}
+      entete={<BandeauSimple portefeuille={libelles.saisi.nom} />}
+    >
+      {garde.phase === 'erreur' ? (
+        <MessageErreur
+          erreur={garde.erreur}
+          action={
+            <button
+              type="button"
+              className={controles.bouton}
+              onClick={() => window.location.reload()}
+            >
+              {libelles.application.rechargerLaPage}
+            </button>
+          }
+        />
+      ) : forme === 'tableau' ? (
+        <SqueletteTableau rangees={6} />
+      ) : (
+        <SqueletteAnalyse />
+      )}
+    </Cadre>
+  )
 }
 
 /**

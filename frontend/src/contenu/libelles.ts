@@ -110,6 +110,8 @@ export interface Libelles {
     readonly demonstration: {
       readonly titre: string
       readonly texte: string
+      /** Le lien qui suit le tableau, vers la saisie du portefeuille du visiteur (chantier 9.6). */
+      readonly saisir: string
     }
     readonly tableau: {
       /** La légende du tableau ; la date de valorisation, en ISO. */
@@ -146,8 +148,6 @@ export interface Libelles {
     readonly neMontrePas: {
       readonly titre: string
       readonly texte: string
-      /** La capture du tableau de saisie : sa légende, puis ce que montre l'image. */
-      readonly figure: { readonly legende: string; readonly alternative: string }
       readonly installer: string
     }
     /** Les textes des liens ; leurs adresses sont dans `contenu/liens.ts`. */
@@ -262,6 +262,11 @@ export interface Libelles {
     readonly retourAuPic: string
     readonly niveaux: string
     readonly ou: string
+    /**
+     * À la place de la courbe et de son tableau, pour le portefeuille saisi
+     * (chantier 9.6) : ce qui est affiché, et où lire le reste.
+     */
+    readonly sansCourbe: string
     readonly titreSansDepart: string
     readonly titre: (devise: string, depart: string) => string
     readonly unite: (depart: string | null) => string
@@ -454,6 +459,56 @@ export interface Libelles {
     readonly quitterLesPerd: string
     readonly rester: string
     readonly quitter: string
+  }
+  /**
+   * Le portefeuille saisi sur le site (chantier 9.6) : un seul, sans nom à
+   * saisir, gardé dans ce navigateur et nulle part ailleurs.
+   */
+  readonly saisi: {
+    /** Son nom : le bandeau, les titres de ses pages. */
+    readonly nom: string
+    /** Le titre de son bloc, sur la page des portefeuilles : la même valeur, un autre libellé. */
+    readonly titre: string
+    readonly aucun: string
+    /** Ses lignes, et la date en ISO de leur dernier envoi accepté. */
+    readonly resume: (lignes: number, date: string) => string
+    readonly effacer: string
+    readonly question: (lignes: number) => string
+    readonly effacerLePortefeuille: string
+    readonly efface: string
+  }
+  /**
+   * La page des positions du portefeuille saisi, sur le site : ce qui s'y dit
+   * autrement que dans l'application, où le tableau s'enregistre en base.
+   */
+  readonly positionsDuSite: {
+    readonly listeFermee: string
+    readonly tableauEstLePortefeuille: string
+    readonly envoi: string
+    readonly analyser: string
+    readonly analyseEnCours: string
+    readonly rienGarde: string
+    readonly nonGardees: string
+    readonly quitterLesPerd: string
+    readonly quitter: string
+    /** L'annonce d'une analyse acceptée : la date en ISO, puis le nombre de lignes gardées. */
+    readonly gardees: (date: string, positions: number) => string
+    readonly universIllisible: (detail: string) => string
+    readonly fichierEnvoye: string
+    readonly stockageBloque: string
+  }
+  /**
+   * Le serveur de calcul du site (chantier 9.6) : son réveil, son calcul, et
+   * ce qui se dit quand il ne répond pas. Ses refus sont ses propres phrases,
+   * affichées telles quelles.
+   */
+  readonly serveur: {
+    readonly reveil: string
+    readonly calcul: string
+    readonly sansReponse: string
+    readonly reponseIllisible: string
+    readonly reessayer: string
+    readonly indisponible: string
   }
   readonly saisie: {
     readonly ticker: string
