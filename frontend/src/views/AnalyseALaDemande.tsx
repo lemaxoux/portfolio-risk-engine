@@ -52,6 +52,7 @@ import {
 import { ApiErreur } from '../api/client'
 import { BandeauSimple } from '../components/Bandeau'
 import { Cadre } from '../components/Cadre'
+import { EtatDuServeur } from '../components/EtatDuServeur'
 import { MessageErreur } from '../components/MessageErreur'
 import {
   AncresSections,
@@ -267,7 +268,10 @@ export function AnalyseDuSaisiALaDemande(props: PropsDuSaisi) {
   return (
     <Suspense
       fallback={
+        // La place de l'état du serveur est prise dès l'attente : la vue qui
+        // arrive l'occupe sans rien déplacer.
         <CadreDuSaisi attente>
+          <EtatDuServeur etape={null} />
           <SqueletteAnalyse />
         </CadreDuSaisi>
       }

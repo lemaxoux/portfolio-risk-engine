@@ -283,7 +283,9 @@ export function VuePositionsDuSaisi({ preuve, annonce, annoncer }: PropsDuSaisi)
         deposerLAnalyse(garde.positions, langue, analyse)
         setSaisi(garde)
         const analyseDuSaisi = cheminDe({ vue: 'saisi' })
-        annoncer(s.gardees(garde.modifie, garde.positions.length), analyseDuSaisi)
+        // Sans stockage, rien n'est gardé dans ce navigateur : la page le dit
+        // déjà, et l'annonce le dirait à tort.
+        if (stockage) annoncer(s.gardees(garde.modifie, garde.positions.length), analyseDuSaisi)
         // Le tableau est gardé : le quitter ne perd plus rien.
         naviguer(analyseDuSaisi, { forcer: true })
       }}

@@ -96,6 +96,7 @@ import {
 import type { Disclaimer, PortfolioDetail } from './api/types'
 import { BandeauSimple } from './components/Bandeau'
 import { Cadre } from './components/Cadre'
+import { EtatDuServeur } from './components/EtatDuServeur'
 import { MessageErreur } from './components/MessageErreur'
 import { SqueletteAnalyse, SqueletteTableau } from './components/Squelette'
 import { aAccepte, preuveDAcceptation, type PreuveDAcceptation } from './lib/acceptation'
@@ -521,7 +522,12 @@ function GardeDuPortefeuilleSaisi({
       ) : forme === 'tableau' ? (
         <SqueletteTableau rangees={6} />
       ) : (
-        <SqueletteAnalyse />
+        // La place de l'état du serveur, prise dès l'attente, comme sur la page
+        // qui va s'afficher : rien ne bouge quand elle arrive.
+        <>
+          <EtatDuServeur etape={null} />
+          <SqueletteAnalyse />
+        </>
       )}
     </Cadre>
   )
