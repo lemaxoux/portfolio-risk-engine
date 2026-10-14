@@ -44,7 +44,9 @@ Versions are pinned on both sides (`requirements.txt`, `requirements-dev.txt`,
 | `backend/rules` | reads the results of the engine and turns them into findings; imports no calculation module | `test_le_moteur_de_regles_n_importe_aucun_module_de_calcul` |
 | `backend/textes` | writes every published sentence, one module per language and per domain; the engine and the rules decide which sentence; may read the constants and pure helpers of `risk_engine.config`, nothing else from the engine | `tests/test_textes_symetriques.py` |
 | `backend/api` | HTTP only: no arithmetic, no SQL, no `asdict`, no `exclude_none`; imports only types from the calculation modules | `tests/test_api_discipline.py` |
-| `backend/db` | schema, initialization, explicit migrations, writes of user data | `tests/test_db_schema.py`, `tests/test_db_migration.py` |
+| `backend/public_api` | the public server of the demonstration site: three routes, a database opened read-only, texts of its own; imports neither the local application, nor the ingestion, nor the provider | `tests/test_serveur_public.py`, `tests/test_serveur_public_frontiere.py` |
+| `backend/db` | schema, initialization, explicit migrations, writes of user data; for the public server, a read-only opening and nothing else (`lecture_seule.py`) | `tests/test_db_schema.py`, `tests/test_db_migration.py`, `tests/test_lecture_seule.py` |
+| `backend/indice.py` | the benchmark, its ticker and what it tracks, in a module with no import: the engine reads it there, so that loading the engine loads neither the ingestion nor the provider | `tests/test_serveur_public_frontiere.py` |
 | `backend/typography.py`, `frontend/src/lib/format.ts` | the only places that write a number | `tests/test_nombres_publies.py`, `tests/test_typographie_partagee.py` |
 | `frontend/src` | composes the page from published fields and computes no measure | convention, no test; colors and font sizes: `tokens.test.ts` |
 
@@ -160,6 +162,15 @@ as a reason carry the name of their text function and its arguments, and the
 route writes them in the language of the response.
 
 Checked by `tests/test_api_portfolios.py` and `tests/test_api_csv.py`.
+
+The public server has texts of its own (`backend/textes/<lang>/public.py`):
+its reader has no installation, so a refusal names no command and no part of
+the local application. It keeps the body of a refusal, `detail` then
+`problems`, and calls the validation and the CSV reader of the local
+application with these texts. A test calls every function of these modules
+and reads the real error responses of the server, in both languages.
+
+Checked by `tests/test_serveur_public.py` and `tests/test_textes_symetriques.py`.
 
 ## CSV import
 
@@ -287,6 +298,13 @@ not the code, and would fail the day after a refresh with no line changed.
   fragment with its reason, or a figure of a dated result, inside its block. A
   figure that changes with the code or the data, such as a count of tests, a
   bundle size, or a VaR, has no place in them.
+- The database of the public server is built by `python -m tools.base_serveur`,
+  with the cut of `tests/conftest.py`: a copy of the source, truncated at the
+  freeze date, emptied of its portfolios, then compacted, so that nothing
+  removed stays in the bytes of the file. The command checks that its source
+  is the one the export of the demonstration was made from, refuses an output
+  inside the repository, and writes the fingerprint of the result
+  (`tests/test_base_serveur.py`).
 
 ## Ingestion and the local database
 
@@ -349,34 +367,102 @@ at `/docs`.
 
 In development, two processes: Vite serves the page and forwards `/api` to the
 API. In production, FastAPI serves `frontend/dist`. In both cases the browser
-sees a single origin, and the server has no CORS middleware: a permission that
-production never uses is a permission that ends up widened. Without
-`frontend/dist`, the application starts and serves the API alone, so the
-Python suite runs on a machine without Node. The fallback to `index.html`
+sees a single origin, and the local application has no CORS middleware: a
+permission that production never uses is a permission that ends up widened.
+Without `frontend/dist`, the application starts and serves the API alone, so
+the Python suite runs on a machine without Node. The fallback to `index.html`
 never masks the API: an unknown path under `/api` returns a JSON 404, not the
 page (`tests/test_api_static.py`).
+
+### The public server
+
+The demonstration site analyzes a portfolio that a visitor enters through a
+server of its own, `python -m backend.public_api` (DESIGN.md §20). It is a
+separate application, not the local one with routes taken out: it imports
+neither `backend/api/app.py`, nor the ingestion, nor the provider, nor
+anything that reads `.env`, which a fresh interpreter checks
+(`tests/test_serveur_public_frontiere.py`). No path contains `/api`.
+
+| Method | Path | Role |
+|---|---|---|
+| GET | `/health` | the wake-up call: the freeze date, and the fingerprints of the database it opened and of the code it runs |
+| POST | `/analysis?lang=` | the analysis of a composition sent in the body |
+| POST | `/csv?lang=` | the reading of a CSV file: the lines, validated, and how the file was read; no analysis |
+
+- It shares the engine, the rules, the typography, the written texts, the
+  schemas of the parts of an analysis, the validation, and the CSV reader.
+  Its analysis is the local one without `portfolio_id`, `portfolio`, and
+  `series`: no identifier, no name, no series.
+- The database is opened read-only by SQLite itself
+  (`backend/db/lecture_seule.py`). The engine reads a portfolio by its number
+  from the `positions` table; the received composition is written into two
+  temporary tables of the same names, which SQLite reads before those of the
+  database, and an authorizer then refuses anything but a read, temporary
+  tables included. The engine is unchanged, and the composition disappears
+  with the connection of the request. Two analyses at once have two
+  connections (`tests/test_lecture_seule.py`).
+- The composition travels in the body of a `POST`, never in the address,
+  which the request logs of the host record. The server logs neither bodies
+  nor addresses.
+- CORS allows one origin, the site's, written in the code, without
+  credentials; a development origin is added only by an environment variable
+  (`MX_RISK_ORIGINE_DE_DEVELOPPEMENT`). CORS keeps another site from reading
+  a response, not from having one computed: a write request that carries
+  another origin is refused before any calculation.
+- Its bounds are declared as chosen in `backend/public_api/limites.py`: the
+  size of a body and of a file, the requests per address over a period, the
+  analyses running and waiting. The number of lines of a portfolio is
+  derived, not chosen: the securities that have prices, since a duplicate is
+  refused.
+- Every response carries `X-Robots-Tag: noindex` and `Cache-Control:
+  no-store`, refusals included, and `/docs`, `/redoc`, and `/openapi.json`
+  are unknown paths. The schema is committed
+  (`frontend/src/api/openapi.public.json`) and compared byte for byte with
+  the one the application generates, like the local one
+  (`tests/test_openapi_public.py`).
+- Neither a window nor a benchmark is a parameter: the engine's defaults
+  apply, and a parameter in the address changes no byte of the response.
+  Two analyses of the same portfolio over windows that differ by one session
+  differ by one observation, whose return the published mean and volatility
+  give back exactly; sweeping the window would rebuild the series of a
+  portfolio of one holding, that is, of a security (`CLAUDE.md`, the rule on
+  series).
+
+Checked by `tests/test_serveur_public.py`, `tests/test_serveur_public_frontiere.py`,
+and `tests/test_lecture_seule.py`.
 
 ## Two builds
 
 `npm run build` writes `frontend/dist`, the application that FastAPI serves.
-`npm run build:demo` writes `frontend/dist-demo`, a static site with no
-server: the same client, in which `src/api/client.ts` reads API responses
-recorded as files instead of calling the API. That module remains the only one
-that knows where the data come from. The rest of the client reads the build
-mode only to hide what writes, to say what the site is in a notice at the top
-of every page, to render a presentation page at the address `/`, where the
-application redirects to a portfolio, and to leave out the acceptance screen,
-whose text the demonstration shows on a page of its own (DESIGN.md §18 and
-DESIGN.md §19).
+`npm run build:demo` writes `frontend/dist-demo`, a static site: the same
+client, in which `src/api/client.ts` reads API responses recorded as files
+instead of calling the API, and sends a portfolio entered by the visitor to
+the public server. That module remains the only one that knows where the data
+come from and where an entry goes. The rest of the client reads the build mode
+only to hide what writes to a database, to say what the site is in a notice at
+the top of every page, to render a presentation page at the address `/`, where
+the application redirects to a portfolio, and to render the two pages of the
+entered portfolio, the only ones in front of which the acceptance screen
+stands (DESIGN.md §18, DESIGN.md §19, and DESIGN.md §20).
 The files are written by `python -m tools.export_demo`, which copies the database,
 truncates the copy at the freeze date of the tests, replaces its portfolios
 with those of `demo/compositions.json`, and calls the application as it is, so
-that each file carries the bytes of one response. The demonstration has no
-write path: the screens that create, delete, enter, or import are left out of
-the bundle, and the build fails if the bundle still names the API or a write
-method. It publishes measures of portfolios, never the series of one security:
-the export refuses a set of portfolios in which a linear combination isolates
-a security. Neither the exported files nor the builds are committed.
+that each file carries the bytes of one response. Two files are not responses
+of the local application: the acceptance text of the site, the local one with
+a section added, and the CSV format with the bounds of the public server. Each
+is a response model, serialized the way the application serializes its
+responses, and a test holds that equality on real responses. The universe of
+securities is exported too, for the entry table.
+The demonstration writes nothing to a database: the screens that create,
+delete, enter, or import into one are left out of the bundle. The guard of the
+build reads every emitted file and refuses the build on any `/api`; on any
+`PUT`, `DELETE`, or `PATCH`; on a second `POST`, or one outside the file that
+carries the address of the public server; and on an absolute origin outside a
+closed list, each entry with its reason, plus that address, which is required.
+It publishes measures of portfolios, never the series of one security: the
+export refuses a set of portfolios in which a linear combination isolates a
+security, and the response of the public server has no series. Neither the
+exported files nor the builds are committed.
 
 Each build has a plugin of its own (`src/api/demoAuBuild.ts`). The plugin of
 the demonstration adds the recorded files, forbids indexing, runs the guard on
@@ -385,10 +471,14 @@ and the Open Graph tags, in English, the language of the repository. No
 address is written in the source: the tags that need an absolute address, and
 the preview image, are written only when the environment variable
 `MX_RISK_ORIGINE_DU_SITE` gives the origin of the site, and a value that is not
-an origin stops the build. The plugin of the ordinary build removes the
-screenshots of the presentation page, which the bundler emits even though the
-page is left out of that bundle, and fails if a file of the build still names
-one of them.
+an origin stops the build. The address of the public server arrives the same
+way, through `MX_RISK_SERVEUR_PUBLIC`, which the build of the demonstration
+requires: without it, the site would have entry screens and no server. A
+value that is not an origin stops the build. The plugin of the ordinary build
+removes the screenshots of the presentation page, which the bundler emits even
+though the page is left out of that bundle, and fails if a file of the build
+still names one of them; the code that calls the public server is left out of
+that bundle.
 
 Checked by `tests/test_export_demo.py`, `src/api/client.demo.test.ts`,
 `src/api/demoAuBuild.test.ts`, `src/api/demoAuBuild.partage.test.ts`, and
@@ -404,9 +494,26 @@ a success status, and the client reads it as a missing file. The `_headers`
 file of the build sets `X-Robots-Tag: noindex` on every response, which asks
 search engines not to index the site. No test covers a deployment. It rests on
 a procedure: it starts from `main`, from a commit that is already public and a
-clean working tree, with a build made with the origin of the site, and only
-after the digest of each file has been compared with the list recorded for
-that build.
+clean working tree, with a build made with the origin of the site and the
+address of the public server, and only after the digest of each file has been
+compared with the list recorded for that build. The address of the server in
+the bundle is checked with the rest.
+
+The public server is hosted by Render, from a private repository. Its `app/`
+directory is the tree of a public commit, placed by `git read-tree`, next to
+the database of the server, which never enters the public repository and is
+built by `python -m tools.base_serveur` (“Tests on a frozen database”). The
+settings of the service are versioned in the public repository
+(`deploiement/render.yaml`), and a deployment is started by hand. Three
+equalities check what is served: the tree under `app/` is the tree of the
+public commit, that commit is on the public `main`, and the database has its
+recorded fingerprint. From outside, `GET /health` gives the fingerprint of the
+database that the server opened and of the code that it runs, which
+`python -m tools.base_serveur --empreinte-du-code <commit>` recomputes from the
+objects of the public commit. A change to the code served under `backend/`, or
+to `requirements-serveur.txt`, changes that fingerprint and calls for a
+deployment of the server; a change to the client calls only for one of the
+site. No test covers a deployment of the server either.
 
 ## The client
 
@@ -421,9 +528,10 @@ that build.
   so a middle click opens a tab.
 - The list of portfolios is loaded once and reread after each write; each page
   learns there what it knows about a portfolio before any other call.
-- One status region announces what an action just did; the focus follows the
-  page; a guard keeps unsaved changes from being lost silently, and asks its
-  question on the page itself.
+- One status region announces what an action just did, in the language of
+  the action: a change of language withdraws it (`src/lib/annonce.ts`). The
+  focus follows the page; a guard keeps unsaved changes from being lost
+  silently, and asks its question on the page itself.
 - The input table is the portfolio: saving sends a `PUT` that replaces every
   position. The only local check is syntactic (does a typed number read?), and
   the server refuses the rest, line by line.
@@ -432,17 +540,27 @@ that build.
 - The acceptance screen is a full page, not a modal window. Its text comes from
   `GET /api/disclaimer`, and the acceptance is remembered under the fingerprint
   of the text, once per language: a reworded limitation brings the screen
-  back. The demonstration does not pose it, because it shows no portfolio that
-  belongs to the reader; the same text stays one click away from every page,
-  on a page of its own (DESIGN.md §19.6).
+  back. The demonstration poses it only in front of the two pages of the
+  entered portfolio, before anything is sent, with the text of the site; the
+  sample portfolios belong to no reader. The functions that send ask for a
+  proof of acceptance in the language of the request, which only
+  `src/lib/acceptation.ts` delivers. The same text stays one click away from
+  every page, on a page of its own (DESIGN.md §19.6, DESIGN.md §20.3).
+- The entered portfolio is kept in the browser alone, with the date of its
+  last accepted analysis; without storage, it lives in the memory of the page
+  (`src/lib/saisi.ts`). The public server stops when no one uses it: before
+  sending, the client waits for `GET /health`, retrying for a bounded time,
+  and says what it observes, never a duration. A response that is not the
+  server's JSON, such as the waiting page of the host, counts as not awake
+  yet, and its content is never shown (DESIGN.md §20.7).
 - The demonstration opens on a presentation page (`src/views/Presentation.tsx`,
   DESIGN.md §19). Its prose contains no number: every number it shows is read
   from an exported file and written by the formatter, and its result is a
   sentence of the analysis, composed by the function that composes it there.
   Its first screen waits for no request and starts none before it is painted:
-  the list of portfolios, the analysis of the first one, the screenshots, and
-  the code of the analysis page are requested once the page is displayed
-  (`src/lib/affichage.ts`).
+  the list of portfolios, the analysis of the first one, the screenshots, the
+  code of the analysis page, and a bare wake-up call to the public server are
+  requested once the page is displayed (`src/lib/affichage.ts`).
 - Each figure of that page carries one image per theme, and the style sheet
   shows the one of the current theme: no component knows the theme. The
   hidden image is never requested (`src/components/Capture.tsx`).
@@ -500,6 +618,10 @@ that build.
   and nothing is split by language (`src/decoupage.test.ts`).
 - The sharing metadata of the demonstration are in English only: `index.html`
   is a static file and has one language.
-- No preview of an import: the API has no read without a write.
+- The site analyzes a portfolio of the visitor on a database frozen at a date,
+  with a closed list of securities, one portfolio kept in the browser alone,
+  and no value curve for it.
+- In the local application, no preview of an import: the API has no read
+  without a write.
 - One boundary rests on convention, not on a test: the client computes no
   measure.

@@ -1264,6 +1264,9 @@ au regard de §11.
   - *erreur* — ce qui a échoué et l'action suivante, dans la voix de
     l'interface. Une erreur ne s'excuse pas et n'est jamais vague.
 
+  Sur le site, les pages du portefeuille saisi ont en plus les états du
+  serveur de calcul : réveil, calcul, refus, limite, sans réponse (§20.7).
+
 ---
 
 ## 14. Stack et organisation
@@ -1389,11 +1392,12 @@ bug en attente.
   le texte anglais est un autre texte. Son bouton dit la page où il mène,
   celle de l'adresse d'arrivée (« Ouvrir la méthodologie », « Open the
   methodology »), et la phrase sous lui le même geste. Dans la
-  démonstration, cet écran n'est pas posé (décision du 2026-10-11, §19) :
-  il a été décidé pour quelqu'un qui analyse son propre portefeuille, et la
-  démonstration n'en montre aucun. Son texte y reste lisible, à un clic au
-  plus de chaque page. L'application locale garde son acceptation telle
-  quelle.
+  démonstration, cet écran n'est posé que devant les deux pages du
+  portefeuille saisi (chantier 9.6, §20.3) : il a été décidé pour quelqu'un
+  qui analyse son propre portefeuille, et les portefeuilles d'exemple ne le
+  sont pas (décision du 2026-10-11, §19). Son texte y reste lisible, à un
+  clic au plus de chaque page. L'application locale garde son acceptation
+  telle quelle.
 - Ensuite, un **rappel court et permanent** en pied de la section 6, en texte
   courant, sans case ni bouton.
 
@@ -1553,30 +1557,39 @@ captures et les outils dans `docs/` (hors dépôt).
 
 ## 18. Le mode démonstration
 
-**Section du 2026-10-10, chantier 9.2.** Le site public est d'abord une
-démonstration figée : le même client, servi en fichiers statiques, sans
-serveur (`npm run build:demo`). Il lit des réponses de l'API enregistrées par
-`python -m tools.export_demo` au lieu d'appeler l'API. Trois portefeuilles
-fixes, « Démo », « Tech » et « Défensif » (« Demo », « Tech » et
-« Defensive » en anglais), valorisés au 2026-09-09. Tout ce que ce document
-demande d'une page vaut pour elle : les deux langues, les deux thèmes, la
-méthodologie. Cette section et la §19 disent seulement ce qui diffère.
+**Section du 2026-10-10, chantier 9.2, amendée le 2026-10-14 (chantier
+9.6).** Le site public est une démonstration : le même client, servi en
+fichiers statiques (`npm run build:demo`). Ses trois portefeuilles
+d'exemple, « Démo », « Tech » et « Défensif » (« Demo », « Tech » et
+« Defensive » en anglais), valorisés au 2026-09-09, sont lus dans des
+réponses de l'API enregistrées par `python -m tools.export_demo`, au lieu
+d'appeler l'API. Le portefeuille que le visiteur saisit est envoyé à un
+serveur public, qui l'analyse sans rien garder (§20). Tout ce que ce
+document demande d'une page vaut pour elle : les deux langues, les deux
+thèmes, la méthodologie. Cette section, la §19 et la §20 disent seulement
+ce qui diffère.
 
-### 18.1 Rien n'écrit, rien n'est grisé
+### 18.1 Rien n'écrit en base, rien n'est grisé
 
 Le client ne lit le mode (`DEMO`, dans `api/client.ts`) que pour quatre
-choses : masquer ce qui écrit, afficher la mention, rendre la page d'accueil
-à l'adresse `/`, et ne pas poser l'écran d'acceptation (§19). Ce qui est
-masqué n'est pas rendu, et sort du build :
+choses : masquer ce qui écrit en base, afficher la mention, rendre la page
+d'accueil à l'adresse `/`, et rendre les deux pages du portefeuille saisi,
+les seules devant lesquelles l'écran d'acceptation est posé (§19, §20). Ce
+qui est masqué n'est pas rendu, et sort du build :
 
 - **Portefeuilles** : le formulaire « Nouveau portefeuille », la colonne
   « Actions » entière (le lien « Positions » et le bouton « Supprimer ») et
   la confirmation de suppression. Restent la phrase d'introduction, la
-  légende et les cinq autres colonnes.
-- **Navigation**, rail et liste d'ancres, sur toutes les pages : l'entrée
-  « Positions et import ».
-- **Analyse**, états vide et insuffisant : le lien vers les positions et le
-  format du fichier.
+  légende et les cinq autres colonnes, et le bloc « Votre portefeuille »
+  s'y ajoute (§20.8).
+- **Navigation**, rail et liste d'ancres : l'entrée « Positions et import »,
+  sauf quand le portefeuille en vue est le portefeuille saisi (§19.5).
+- **Analyse** d'un portefeuille d'exemple, états vide et insuffisant : le
+  lien vers les positions et le format du fichier.
+- **Les écritures en base** : créer, supprimer, saisir ou importer les
+  positions d'un portefeuille de la base. Leurs écrans ne sont pas rendus,
+  et leurs requêtes sortent du build (18.2). La saisie du site envoie au
+  serveur public, et garde dans le navigateur (§20.6).
 
 Aucune entrée grisée, aucun « bientôt » : une page ne propose que ce qui
 existe.
@@ -1586,6 +1599,10 @@ existe.
 `/portefeuilles/<id>/positions` n'est l'adresse d'aucune page de la
 démonstration. Elle rend l'état existant « Page introuvable » : « Aucune
 page à cette adresse », l'adresse citée, le lien « Voir les portefeuilles ».
+Les portefeuilles d'exemple ne se modifient pas. Les deux adresses du
+portefeuille saisi, `/portefeuilles/saisi` et
+`/portefeuilles/saisi/positions`, sont des pages du site (§20.2) ; dans
+l'application, elles rendent « Page introuvable ».
 
 Un numéro de portefeuille inconnu rend « Portefeuille introuvable », avec le
 texte de l'application : c'est la liste qui dit ce qui existe, avant tout
@@ -1596,11 +1613,18 @@ autre appel.
 En tête du contenu de chaque page (`Cadre`), sous le bandeau, avant le
 titre :
 
-- « Démonstration : 3 portefeuilles fixes, valorisés au 9 septembre 2026. »
-- « Demonstration: 3 fixed portfolios, valued as of September 9, 2026. »
+- « Démonstration : 3 portefeuilles d'exemple, ou le vôtre, valorisés au
+  9 septembre 2026. »
+- « Demonstration: 3 sample portfolios, or your own, valued as of
+  September 9, 2026. »
 
-Du texte courant (`--text-sm`, `--text-2`), qui défile avec la page : une
-ligne à partir de 900 px, deux à 390 et à 320 px. Pas dans le bandeau, qui y
+Depuis le chantier 9.6, elle dit, sur chaque page, la date de tous les
+cours, ceux de l'analyse d'un portefeuille saisi compris. Jusque-là, elle
+disait « 3 portefeuilles fixes », « 3 fixed portfolios ».
+
+Du texte courant (`--text-sm`, `--text-2`), qui défile avec la page. Avec
+son lien, mesurée le 2026-10-14 : trois lignes à 390 et à 320 px, deux à
+1 350 px, dans les deux langues (§20.11). Pas dans le bandeau, qui y
 gagnerait une ligne à toutes les largeurs (§8.1). Elle se termine par un
 lien vers l'avertissement (§19). Elle ne promet aucune fonction à venir.
 
@@ -1627,14 +1651,17 @@ débordement à ces quatre largeurs.
 
 ### 18.5 Les quatre états (§13)
 
-- *vide* et *insuffisant* : les trois portefeuilles ne les atteignent pas,
-  l'export exige une analyse de chacun. Une liste vide n'est pas un état de
-  la démonstration, qui n'a rien pour créer un portefeuille : elle se dit
-  comme un fichier illisible.
+- *vide* et *insuffisant* : les trois portefeuilles d'exemple ne les
+  atteignent pas, l'export exige une analyse de chacun. Une liste vide n'est
+  pas un état de la démonstration, qui n'a rien pour créer un portefeuille
+  en base : elle se dit comme un fichier illisible. Le portefeuille saisi a
+  son état vide (§20.7).
 - *en cours* : les squelettes, inchangés.
-- *erreur* : la démonstration a ses propres textes. Elle n'a pas de serveur
-  à démarrer : « L'API ne répond pas. La démarrer : python -m backend.api »
-  n'y est jamais affiché, ni « L'API a répondu un corps vide ».
+- *erreur* : la démonstration a ses propres textes. Ses fichiers n'ont pas
+  de serveur à démarrer : « L'API ne répond pas. La démarrer : python -m
+  backend.api » n'y est jamais affiché, ni « L'API a répondu un corps
+  vide ». Le serveur public a ses propres états et ses propres textes
+  (§20.7).
   - La requête n'aboutit pas : « Les données de la démonstration n'ont pas
     pu être chargées. Vérifier la connexion, puis recharger la page. »,
     « The demonstration data could not be loaded. Check the connection, then
@@ -1658,7 +1685,7 @@ débordement à ces quatre largeurs.
 La méthodologie et ses renvois ; les six sections de l'analyse et le rappel
 en pied de la section 6 ; la légende « Portefeuilles en base » et le texte
 d'un numéro inconnu. L'écran d'acceptation et l'adresse `/` ont changé le
-2026-10-11 (§19).
+2026-10-11 (§19), l'écran d'acceptation de nouveau le 2026-10-14 (§20.3).
 
 ---
 
@@ -1675,9 +1702,10 @@ ses métadonnées. Comme la §18, cette section dit seulement ce qui diffère.
 Le mode n'est lu que pour les quatre choses de §18.1. Deux sont décrites
 ici, chacune avec ce qu'elle entraîne : rendre la page d'accueil, donc le
 chemin qui y mène (la marque cliquable et l'entrée « Présentation »,
-19.5) ; ne pas poser l'écran d'acceptation, donc ce qui garde son texte
-lisible (la page de l'avertissement, son entrée et le lien de la mention,
-19.6).
+19.5) ; ne pas poser l'écran d'acceptation devant les portefeuilles
+d'exemple, donc ce qui garde son texte lisible (la page de
+l'avertissement, son entrée et le lien de la mention, 19.6). Depuis le
+2026-10-14, il est posé devant les pages du portefeuille saisi (§20.3).
 
 ### 19.1 La page et son ordre
 
@@ -1700,7 +1728,11 @@ sont ceux de la page ; ils n'ont pas de numéro (§12).
 2. **« La démonstration ».** Ce qu'est le site, puis le tableau des
    portefeuilles, chacun un lien vers son analyse. En second, parce que
    c'est là que la page mène : sur un téléphone, l'entrée se voit sans
-   défiler longtemps.
+   défiler longtemps. Depuis le chantier 9.6, le texte dit que le site
+   analyse aussi le portefeuille du visiteur, sur une base de cours
+   arrêtée à la date du tableau, et un lien suit le tableau, « Saisir ou
+   importer votre portefeuille », « Enter or import your portfolio » : un
+   lien, pas un bouton d'appel (19.2).
 3. **« Ce qui le distingue ».** Trois points, chacun une phrase d'attaque
    puis son paragraphe : « Un chiffre et ses conditions se lisent
    ensemble. », avec la première capture ; « Aucune note globale. » ; « Un
@@ -1717,6 +1749,13 @@ sont ceux de la page ; ils n'ont pas de numéro (§12).
    README, ni plus ni moins.
 6. **« Ce que la démonstration ne montre pas ».** La saisie, avec la
    seconde capture, et un lien vers l'installation, dans le README.
+   Depuis le chantier 9.6, le site a sa saisie : la partie dit ce que
+   l'application installée fait de plus (ses cours mis à jour, un titre
+   ajouté à sa base, plusieurs portefeuilles gardés) et ce que le site
+   limite (des cours arrêtés à une date, une liste de titres fermée, un
+   portefeuille gardé dans le navigateur seulement). La capture de la
+   saisie, sa légende et son texte alternatif sont retirés (décision du
+   2026-10-13) ; le titre et le lien restent.
 7. **« Liens »**, puis l'auteur.
 
 **La page n'affirme que ce que le moteur fait.** Le troisième point
@@ -1836,6 +1875,12 @@ Deux captures, et elles seules, toutes deux du portefeuille « Démo » :
    qui ne contient que les portefeuilles de la démonstration
    (`python -m tools.export_demo --garder-les-copies`).
 
+**Une seule depuis le 2026-10-14** (chantier 9.6, décision du 2026-10-13) :
+le site a sa propre saisie, et la capture de celle de l'application est
+retirée avec sa figure (19.1, point 6). Restent les quatre fichiers du bloc
+de mesure, dont un chargé par visite ; ce qui suit sur la saisie décrit la
+capture retirée.
+
 Leur cadrage est celui de la proposition (§6.1). Elles sortent de la chaîne
 des captures de la phase 8 (`docs/outils/`, hors dépôt : `vitrine.mjs`,
 `rogner-png.mjs`, `optimiser-png.mjs`), telles quelles, jamais retouchées.
@@ -1910,7 +1955,9 @@ tableau de saisie.
   « Méthodologie », « Avertissement » (« Overview », « Analysis »,
   « Portfolios », « Methodology », « Disclaimer »). La page n'a pas de
   sections à lister : elle est courte. Sous 900 px, la même liste en tête
-  de page.
+  de page. Quand le portefeuille en vue est le portefeuille saisi,
+  « Positions et import » suit « Analyse », comme dans l'application
+  (chantier 9.6) : sa page des positions existe.
 - **« Analyse » sans portefeuille consulté** n'est pas proposée, comme
   ailleurs : sans portefeuille en vue, elle n'a rien à montrer. Le tableau
   de la page est l'entrée. Une fois un portefeuille consulté, le bandeau le
@@ -1946,22 +1993,28 @@ pas posé, et son texte y reste lisible, à un clic au plus de chaque page.
   `<langue>/disclaimer.json`, tels quels, sans copie dans le client. La
   phrase de confirmation n'est pas affichée : il n'y a ni case ni bouton,
   et une phrase à la première personne sans rien à cocher ne dit rien.
-  Sous le titre, une phrase du client dit pourquoi la page n'a rien à
-  accepter : « L'application installée affiche ce texte avant la première
-  utilisation et demande de l'accepter. La démonstration ne le demande
-  pas : elle ne montre aucun portefeuille qui soit le vôtre. »
+  Sous le titre, une phrase du client dit quand le texte est à accepter :
+  « Le site demande d'accepter ce texte avant d'analyser un portefeuille
+  que vous saisissez. Les portefeuilles d'exemple se lisent sans
+  l'accepter : aucun n'est le vôtre. » (chantier 9.6). Jusque-là, elle
+  disait que la démonstration ne le demandait pas. Depuis le même
+  chantier, le fichier a une section de plus, celle du site (§20.3) : la
+  page la montre.
 - **Son titre**, dans la page et dans l'onglet, est celui du fichier,
   seul, comme sur l'écran d'acceptation (§6.3). Bandeau simple, liste des
   pages, mention.
 - **Ce que devient l'acceptation.** Plus rien n'attend le texte au
-  démarrage, et aucune acceptation n'est mémorisée. Changer de langue relit
-  la page en place, dans tous les cas (§8.1). Le titre d'un démarrage qui
-  échoue n'a plus d'occasion de s'afficher (§18.5) ; son libellé reste.
+  démarrage. Changer de langue relit la page en place (§8.1), sauf sur les
+  deux pages du portefeuille saisi, gardées par l'écran de la langue
+  (§20.3). Le titre d'un démarrage qui échoue n'a plus d'occasion de
+  s'afficher (§18.5) ; son libellé reste. Depuis le chantier 9.6,
+  l'acceptation se mémorise de nouveau, celle du texte du site, par
+  langue, sous les clés de l'application.
 - **Ce qui ne change pas.** Le rappel en pied de la section 6, qui vient de
   la réponse d'analyse (§15). L'acceptation de l'application locale.
 
-L'acceptation bloquante reviendra avant la première analyse d'un
-portefeuille saisi par le visiteur (9.6).
+L'acceptation bloquante est revenue avec la saisie du site : elle est posée
+devant les deux pages du portefeuille saisi, avant tout envoi (§20.3).
 
 ### 19.7 Les métadonnées de partage
 
@@ -2024,6 +2077,16 @@ la variable. Des constats de ce jour, pas des valeurs à tenir :
   première phrase du README, est plus courte que ce qu'il attend (« The
   description should be at least 100 characters long »). Laissé ouvert pour
   la 9.6 : la 9.5 ne change pas le greffon.
+
+**La description, depuis le chantier 9.6** (option A, décision du
+2026-10-13) : la première phrase du README, une espace, puis un fragment de
+sa deuxième phrase, mot pour mot, majuscule et point ajoutés. « Portfolio
+Risk Engine measures the risk of a portfolio of US-listed stocks and ETFs.
+It shows every figure together with the conditions it was estimated
+under. » : 159 caractères, au-dessus des 100 que l'outil de LinkedIn
+attend. `api/demoAuBuild.partage.test.ts` la tient contre le README,
+fragment compris. Le constat dans l'outil de LinkedIn se refait sur le site
+redéployé : au 2026-10-14, il n'est pas refait.
 
 ### 19.8 Les états
 
@@ -2095,6 +2158,9 @@ dessine aucun graphique. La médiane dépassait le seuil : la 9.4 découpe.
    ce jour-là sur la page sans images, avant ce changement : 2 461,8 ms en
    français et 2 514,8 ms en anglais, au-dessus du seuil. L'application
    locale ne change pas.
+   **Le réveil du serveur public part aussi après l'affichage** (chantier
+   9.6, §20.10) : un seul `GET /health`, nu, par le même moyen. Rien de ce
+   que `/` attend n'en dépend. La mesure est refaite (19.10).
 3. Attendre le fichier de l'analyse ne change rien de §13. La page
    attendue garde son squelette (`aria-busy`) ; le focus ne se déplace
    qu'une fois par navigation ; le retour depuis la méthode rend le focus
@@ -2211,6 +2277,353 @@ Lighthouse 13.5.0, profil mobile, cinq passages, la médiane) :
   les deux fichiers de données de la langue, et une image par figure, celle
   du thème.
 
+**Constaté le 2026-10-14, chantier 9.6** (le build de contrôle, fait avec
+l'adresse du serveur public et l'origine du site, servi en local par
+`vite preview` ; Chrome 155, Lighthouse 13.5.0, profil mobile, cinq
+passages, la médiane ; les requêtes vers le serveur public bloquées par
+Lighthouse, pour ne pas le réveiller) :
+
+- *Le LCP de `/`* : au lot 2, 2 259,2 ms en français et 2 303,4 ms en
+  anglais ; au lot 3, après les corrections, 2 274,8 ms en français et
+  2 275,8 ms en anglais. L'élément du LCP est le chapeau, à chaque
+  passage.
+- *Le réveil de `/`* part après la première peinture : à 293 ms, la
+  première peinture à 88 ms (lot 2, sur le site servi en local, contre le
+  serveur public d'essai). Ni cookie, ni référent, ni corps, ni paramètre.
+
 ARCHITECTURE.md décrit ce que le code fait : il change avec lui, en 9.4
 (« Two builds », « The client », « Deliberate limits of the current
 version »).
+
+---
+
+## 20. La saisie en ligne
+
+**Section du 2026-10-14, chantier 9.6.** Le site analyse aussi un
+portefeuille que le visiteur compose : il l'envoie à un serveur public
+(`backend/public_api/`), qui le calcule sur une base figée et ne garde
+rien. L'application locale ne change pas : les pages du portefeuille saisi
+n'y existent pas, et son build ne reçoit rien de ce qui suit
+(`ARCHITECTURE.md`, « Two builds »). Comme les §18 et §19, cette section
+dit seulement ce qui diffère. La proposition validée et ses décisions sont
+dans `saisie-proposition.md` (document de cadrage, hors dépôt).
+
+### 20.1 Ce que le site devient
+
+- **Trois portefeuilles d'exemple et un portefeuille du visiteur.** Les
+  exemples sont lus dans des fichiers (§18) ; le portefeuille saisi,
+  « Votre portefeuille », est analysé par le serveur public, par les mêmes
+  composants.
+- **Une base figée.** Celle du serveur s'arrête au 2026-09-09, comme les
+  exemples : la mention le dit sur chaque page (§18.3). Elle ne se met pas
+  à jour.
+- **Une liste de titres fermée** : ceux de la base du serveur, que le site
+  lit dans `<langue>/securities.json`. Un titre qui n'y est pas est refusé
+  sous son champ (20.6). Aucun titre ne s'ajoute.
+- **Le serveur ne garde rien.** La composition part dans le corps d'une
+  requête, que rien ne journalise, et aucune route n'écrit. Le portefeuille
+  n'est gardé que dans le navigateur du visiteur (20.2).
+
+### 20.2 Les adresses, et le portefeuille saisi
+
+| Adresse | Sur le site | Dans l'application |
+|---|---|---|
+| `/portefeuilles/saisi` | L'analyse du portefeuille saisi. | « Page introuvable ». |
+| `/portefeuilles/saisi/positions` | Sa saisie et son import. | « Page introuvable ». |
+| `/portefeuilles/<numéro>/positions` | « Page introuvable » (§18.2). | La saisie. |
+
+- **Un seul portefeuille, sans nom à saisir.** Il s'appelle « Votre
+  portefeuille », « Your portfolio », dans la langue de la page (décision
+  du 2026-10-13 ; la proposition disait « Mon portefeuille »). Ni
+  formulaire, ni nom gardé, ni nom envoyé. Deux libellés de même valeur,
+  `saisi.nom` et `saisi.titre`.
+- **Gardé dans le navigateur**, sous `mx-risk-portefeuille-saisi` : les
+  lignes que le serveur a acceptées, à l'analyse du tableau ou à la lecture
+  d'un fichier (ticker, quantité, prix de revient), et la date de leur
+  dernière modification, lue à l'horloge du navigateur. Un contenu qui ne se
+  lit pas comme attendu est absent (`lib/saisi.ts`).
+- **Sans stockage**, quand le navigateur le refuse, le portefeuille vit
+  dans la mémoire de la page : la saisie et l'analyse marchent le temps de
+  la page, et la page des positions le dit. L'annonce « Positions gardées
+  dans ce navigateur… » n'est pas faite : elle serait fausse.
+- **L'analyse reçue** est gardée le temps de la page, par composition et
+  par langue : la page de l'analyse affiche la réponse même qui a validé
+  la saisie, sans second appel. Une autre langue redemande l'analyse.
+- **Le dernier portefeuille consulté** (`mx-risk-portefeuille`) peut être
+  le portefeuille saisi : le bandeau des autres pages le nomme, et
+  « Analyse » y mène. L'effacer (20.8) l'oublie aussi là.
+
+### 20.3 L'acceptation
+
+- **Posée devant les deux pages du portefeuille saisi, et elles seules.**
+  Arriver à l'une sans avoir accepté le texte de la langue de la page
+  affiche l'écran d'acceptation à sa place : celui de l'application (§15),
+  bouton de langue en tête, case, bouton qui dit où il mène (« Ouvrir
+  l'analyse », « Ouvrir les positions »). Tout envoi part de ces deux
+  pages : aucun n'est possible avant.
+- **Par langue.** Changer de langue sur l'une d'elles, vers une langue dont
+  le texte n'est pas accepté, remplace la page par l'écran de cette langue,
+  la garde des modifications consultée d'abord ; vers une langue acceptée,
+  la page reste, et se relit. Ailleurs, le changement de langue reste en
+  place (§19.6).
+- **Une seconde barrière, dans `client.ts`.** Les deux fonctions qui
+  envoient demandent une preuve d'acceptation de la langue de la requête,
+  que seul `lib/acceptation.ts` délivre, d'après l'empreinte du texte. Sans
+  elle, elles lèvent sans appeler le réseau.
+- **Le texte** est `<langue>/disclaimer.json` : celui de l'application,
+  avec une section de plus, placée avant « Utilisation à vos risques ».
+  « Votre portefeuille est envoyé, il n'est pas enregistré » : « Le
+  portefeuille que vous saisissez ou importez sur ce site est envoyé à un
+  serveur pour le calcul, et n'y est pas enregistré. » En anglais, « Your
+  portfolio is sent, not stored » : « The portfolio that you enter or
+  import on this site is sent to a server for the calculation, and is not
+  stored there. » L'empreinte acceptée est celle de ce texte ; les clés du
+  stockage sont celles de l'application (`mx-risk-acceptation`,
+  `mx-risk-acceptation-en`).
+- **Le rappel en pied de la section 6** vient de la réponse d'analyse,
+  comme dans l'application (§15). Celle du serveur public porte le texte de
+  l'application, sans la section du site.
+- **Le réveil ne demande rien** : il n'envoie rien (20.7).
+
+### 20.4 L'en-tête de l'analyse
+
+| Élément | Portefeuille d'exemple | Portefeuille saisi |
+|---|---|---|
+| Nom | Celui du fichier. | « Votre portefeuille ». |
+| Fraîcheur des positions | « Positions jamais modifiées depuis l'application » (§18.4). | « Positions modifiées le 2026-10-14 » : la phrase de §8.1, avec la date gardée avec les lignes. |
+| Valorisation, fenêtre, valeur | Lues dans la réponse. | Lues dans la réponse du serveur. |
+
+La date des positions est postérieure à la date de valorisation, et c'est
+vrai : les positions sont d'aujourd'hui, les cours s'arrêtent au gel. La
+mention le dit (§18.3). L'horloge du navigateur date un geste du visiteur,
+comme `updated_at` dans l'application ; aucune date de cours n'en vient. Le
+bandeau reçoit le nom et la date à part de l'analyse : la réponse publique
+n'a pas de champ `portfolio`.
+
+### 20.5 La section 3, sans courbe
+
+La réponse du serveur public n'a pas de série (`CLAUDE.md`, « Aucune série
+d'un titre en ligne »). Les six sections sont celles de l'application, à
+deux différences près, en section 3 :
+
+- la ligne « Niveaux » des détails du calcul, qui lit deux points de la
+  courbe, n'est pas affichée ;
+- le sous-titre « Où ce creux s'est produit », la courbe et son tableau
+  replié laissent place à une phrase, de la prose comme une introduction,
+  avec l'espacement du sous-titre au-dessus d'elle (`--space-6`) : « La
+  courbe de valeur et son tableau ne sont affichés que pour les
+  portefeuilles d'exemple. Les dates du pic et du creux sont dans les
+  détails du calcul, ci-dessus. » Elle dit ce qui est affiché et où lire le
+  reste ; elle ne donne aucune raison.
+
+Le pic, le creux et le retour au pic viennent de `risk.drawdown` : ils
+restent. Les portefeuilles d'exemple gardent leur section 3 telle quelle.
+**L'espacement est corrigé le 2026-10-14** (lot 3) : la phrase collait au
+bas du bloc de la perte maximale. Mesuré dans Chrome, 32 px au-dessus
+d'elle à 390, 718 et 1 350 px, comme au-dessus du sous-titre d'un
+portefeuille d'exemple (`views/SectionAuPire.test.ts`).
+
+### 20.6 La page des positions
+
+`TableauSaisie`, `DepotCsv` et `FormatCsv` sont ceux de l'application. La
+page reçoit de `client.ts` ce qui change.
+
+| | Application | Site |
+|---|---|---|
+| L'univers | `GET /api/securities` | `<langue>/securities.json` |
+| Le format du fichier | `GET /api/csv-format` | `<langue>/csv-format.json`, aux bornes du serveur public |
+| Le bouton | « Enregistrer les positions » : la base | « Analyser ces positions » : le serveur public, puis le navigateur |
+| Le fichier | lu et enregistré en base | lu par le serveur public, qui rend les lignes ; gardées dans le navigateur |
+| Les refus | sous chaque champ, par `problems[].line` | les mêmes, par le même code |
+
+- **Le tableau ne se garde qu'en l'analysant** : « Analyser ces positions »
+  est son seul bouton. Le serveur valide en calculant. Refusée, rien n'est
+  gardé. Acceptée, les lignes sont gardées avec la date du jour, et
+  l'analyse s'ouvre, avec la réponse même et l'annonce « Positions gardées
+  dans ce navigateur le 14 octobre 2026 : 2 lignes. ».
+- **Les phrases du site** : sous l'introduction, la liste fermée, et, sans
+  stockage, ce qui sera perdu ; avant le bouton, « Analyser envoie ces
+  lignes au serveur, qui fait le calcul sans les enregistrer. » ; au-dessus
+  de la zone de dépôt, « Le fichier est envoyé au serveur, qui le lit sans
+  l'enregistrer. ».
+- **Le fichier** est lu par le serveur, qui rend les lignes : le client les
+  garde, recharge le tableau, annonce l'import et montre la provenance
+  (« Lu dans le fichier »), comme l'application. L'analyse se demande
+  ensuite, à sa page.
+- La garde des modifications non gardées, sa question sur place et
+  `beforeunload` restent, avec les textes du site.
+
+### 20.7 Les états
+
+Le serveur public s'arrête quand personne ne s'en sert, et redémarre à la
+première demande. Avant tout envoi, le client attend qu'il réponde à
+`GET /health`. Il dit ce qu'il observe, jamais une durée.
+
+| État | Où | Ce qui s'affiche |
+|---|---|---|
+| vide | Analyse, positions, bloc de la page des portefeuilles | Les textes de l'application (« « Votre portefeuille » n'a encore aucune position. »), le lien vers la saisie, le format du fichier. |
+| réveil | Analyse ; envoi d'une saisie ou d'un fichier | La phrase du réveil, et le squelette de la page attendue. |
+| calcul | Les mêmes | « Calcul en cours sur le serveur. », la page occupée. |
+| refus, titres | Positions | Sous chaque champ, et la liste au-dessus du bouton : l'écran de l'application. Sur l'analyse, un refus de la composition gardée : ses phrases, et « Revoir les positions ». |
+| refus, fichier | Zone de dépôt | Le message du serveur, à la place de celui de l'application. |
+| limite, serveur occupé | Là où l'envoi est parti | Le texte du serveur, tel quel, et « Réessayer ». |
+| sans réponse | Les mêmes | « Le serveur de calcul n'a pas répondu. Vérifier la connexion, puis réessayer. », et « Réessayer ». Sur l'analyse, le titre devient « Analyse indisponible ». |
+| réponse illisible | Les mêmes | « La réponse du serveur de calcul n'a pas pu être lue. Réessayer. » |
+
+- **Le réveil.** Un essai, puis un toutes les 3 s après un échec, chacun
+  abandonné à 15 s, pendant 150 s au plus : passé ce délai, « sans
+  réponse ». Des seuils choisis, dans `api/client.ts`. Le réveil a pris
+  52 s par `curl` le 2026-10-13, jusqu'au premier `/health` en 200, et
+  71,6 s depuis un navigateur le 2026-10-14 ; pendant le réveil,
+  l'hébergeur retient les requêtes au lieu de les refuser. La durée totale
+  était de 90 s jusqu'au lot 3 du chantier. Un envoi est abandonné à 60 s.
+- **La phrase du réveil** ne s'affiche qu'après une seconde de silence, ou
+  au premier échec, seuil choisi : un serveur éveillé répond avant, et rien
+  ne clignote.
+- **Une réponse qui n'est pas le JSON du serveur** (la page d'attente de
+  l'hébergeur, un 503, une réponse sans en-tête CORS) compte comme « pas
+  encore réveillé ». Son contenu n'est ni lu plus loin, ni affiché.
+- **Aucun saut de mise en page.** La place de l'état est prise dès
+  l'attente, avant que rien ne soit dit, et les deux phrases, réveil et
+  calcul, sont posées dans la même case, la plus longue donnant la hauteur
+  (`components/EtatDuServeur`).
+- **Le focus** suit §13. Il ne se déplace qu'une fois par navigation, au
+  titre de la page ; un état qui en remplace un autre sur la même page ne
+  le déplace pas, et la région de l'état, `role="status"`, se lit quand
+  elle change. Sur la page des positions, un refus porte le focus au
+  résumé des refus, comme dans l'application.
+- **Ce qu'un écran d'échec ne dit pas** : ni cause devinée (le client ne
+  distingue pas un serveur qui démarre d'un serveur en panne), ni durée, ni
+  texte de l'hébergeur. Une limite posée par l'hébergeur lui-même arrive
+  sans en-tête CORS : le client la voit comme « sans réponse », et ne
+  l'appelle pas autrement.
+
+### 20.8 Le bloc « Votre portefeuille »
+
+Sur la page des portefeuilles, sous le tableau des trois exemples, une
+section « Votre portefeuille », « Your portfolio » :
+
+- **vide** : « Vous pouvez composer un portefeuille parmi les titres de la
+  base et lire son analyse. Il n'est gardé que dans ce navigateur. », et le
+  lien « Saisir ou importer votre portefeuille » ;
+- **rempli** : « 2 lignes, modifiées le 14 octobre 2026. », les liens
+  « Analyse » et « Positions », et « Effacer de ce navigateur ». Effacer
+  demande d'abord, sur place, comme une suppression : « Effacer votre
+  portefeuille de ce navigateur ? Ses 2 lignes seront perdues. »,
+  « Effacer le portefeuille », « Annuler ». Effacé, le portefeuille quitte
+  le navigateur et la mémoire du dernier consulté ; « Portefeuille effacé
+  de ce navigateur. » est annoncé, et le focus revient au titre de la page.
+
+### 20.9 Les textes, tels que validés
+
+Validés le 2026-10-13 avec la proposition (§10), corrections comprises ;
+ils sont dans `contenu/libelles.fr.ts` et `libelles.en.ts`, groupes
+`saisi`, `positionsDuSite` et `serveur`. Les libellés de l'application qui
+restent vrais sont réemployés (« Positions de … », « Saisir les
+positions », « Ajouter une ligne », l'aide du tableau, le format du
+fichier, « Revoir les positions », « Annuler »).
+
+| Libellé | Français | Anglais |
+|---|---|---|
+| `saisi.nom`, `saisi.titre` | Votre portefeuille | Your portfolio |
+| `positionsDuSite.listeFermee` | Les titres sont ceux de la base de la démonstration : un titre qui n'y est pas est refusé. | The securities are those of the demonstration's database: a security that is not in it is rejected. |
+| `positionsDuSite.tableauEstLePortefeuille` | Le tableau est le portefeuille : l'analyser remplace les positions gardées dans ce navigateur par les lignes affichées. | The table is the portfolio: analyzing it replaces the positions kept in this browser with the lines shown. |
+| `positionsDuSite.analyser` | Analyser ces positions | Analyze these positions |
+| `positionsDuSite.analyseEnCours` | Analyse en cours… | Analyzing… |
+| `positionsDuSite.rienGarde` | Rien n'a été analysé ni gardé : | Nothing was analyzed or kept: |
+| `positionsDuSite.nonGardees` | Modifications non gardées. | Changes not kept. |
+| `positionsDuSite.quitterLesPerd` | Les modifications du tableau ne sont gardées nulle part. Quitter cette page les perd. | The changes to the table are not kept anywhere. Leaving this page loses them. |
+| `positionsDuSite.quitter` | Quitter sans les garder | Leave without keeping them |
+| `positionsDuSite.universIllisible` | Les noms des titres n'ont pas pu être lus (…). La saisie reste possible : chaque ticker est vérifié à l'analyse. | The security names could not be read (…). Entry remains possible: each ticker is checked when the portfolio is analyzed. |
+| `positionsDuSite.stockageBloque` | Ce navigateur ne garde rien pour ce site : votre portefeuille sera perdu à la fermeture de la page. | This browser keeps nothing for this site: your portfolio will be lost when the page is closed. |
+| `serveur.reveil` | Le serveur de calcul ne répond pas encore. Il s'arrête quand personne ne s'en sert et redémarre à la première demande : la vôtre partira dès qu'il répondra. | The calculation server does not answer yet. It stops when no one uses it and restarts at the first request: yours will be sent as soon as it answers. |
+| `serveur.calcul` | Calcul en cours sur le serveur. | The server is computing. |
+| `serveur.reessayer` | Réessayer | Try again |
+| `serveur.indisponible` | Analyse indisponible | Analysis unavailable |
+
+Les autres textes de cette section sont cités où ils servent : la phrase
+sans courbe (20.5), les phrases de la page des positions (20.6), les états
+(20.7), le bloc (20.8), la section de l'acceptation (20.3), la mention
+(§18.3), la page de l'avertissement (§19.6), l'accueil (§19.1). Les refus
+et la limite sont les phrases du serveur (`backend/textes/<langue>/
+public.py`), affichées telles quelles, comme celles de l'application ; les
+erreurs de validation de FastAPI restent en anglais dans les deux langues,
+comme dans l'application. Un terme hors du glossaire anglais (§15),
+« calculation server », validé avec le reste.
+
+### 20.10 Le poids de la page
+
+La saisie entre dans le fichier d'entrée du site, comme elle est dans celui
+de l'application ; seule l'analyse se charge à la demande (§19.9). Sur
+`/`, le réveil du serveur public part après l'affichage, par
+`lib/affichage.ts`, comme le fichier de l'analyse : un seul `GET /health`,
+nu, muet (ni attente, ni message, ni nouvel essai). Le LCP de `/` est
+remesuré à chaque lot du chantier (19.10) : la médiane reste sous 2,5 s,
+l'élément est le chapeau.
+
+### 20.11 Les tests existants modifiés, et les constats datés
+
+**Les tests existants modifiés**, avec l'accord de Maxence, et eux seuls :
+les dix cas de la proposition (§11), un onzième pour la décision 7, un
+douzième au lot 3. Le troisième, prévu sous condition, n'a pas servi.
+
+1. `tests/test_export_demo.py`, `FICHIERS_PAR_LANGUE` : sept noms par
+   langue, `securities.json` et `csv-format.json` en plus.
+2. Même fichier, chaque fichier est une réponse de l'API : les cinq fichiers
+   qui sont des réponses locales ; `disclaimer.json` et `csv-format.json`
+   ont leurs tests à eux.
+3. Même fichier, les langues ne diffèrent par aucun nombre : non modifié.
+   `csv-format.json` ne diffère entre les langues que par son exemple, un
+   texte.
+4. `tests/test_textes_symetriques.py`, la table `CAS` : les lignes des
+   textes du serveur public. Aucune assertion modifiée.
+5. `contenu/demo.test.ts`, la mention : les quatre chaînes de la nouvelle.
+6. `contenu/avertissement.test.ts`, la phrase de la page : les deux
+   nouvelles chaînes, et le titre du cas.
+7. `api/demoAuBuild.test.ts`, les méthodes d'écriture : un POST seul n'est
+   pas une faute, deux le sont ; PUT, DELETE et PATCH le restent.
+8. Même fichier, les fichiers attendus : douze chemins pour deux
+   portefeuilles, et le fichier de trop s'appelle autrement.
+9. `api/demoAuBuild.partage.test.ts`, la description : la première phrase
+   du README, puis le fragment de la deuxième, lu dans le README.
+10. `contenu/libelles.test.ts`, la table `appels()` : quatre lignes
+    ajoutées. Aucune assertion modifiée.
+11. `images/presentation/captures.test.ts` : quatre captures au lieu de
+    huit (décision 7).
+12. `api/client.demo.test.ts` (lot 3) : les deux cas qui supposaient un
+    réveil de 90 s avancent leur horloge au-delà de 150 s, et le second
+    borne ses essais à 51 au lieu de 31.
+
+**Constaté le 2026-10-14**, dans Chrome 155, sur le site servi en local
+contre le serveur public d'essai (`MX_RISK_ORIGINE_DE_DEVELOPPEMENT`) et un
+faux relais d'hébergeur endormi, hors dépôt. Des constats de ce jour, pas
+des valeurs à tenir :
+
+- *L'acceptation* précède tout envoi : rien ne part avant elle. Depuis la
+  page d'accueil, seul le réveil part vers le serveur, à 293 ms, après la
+  première peinture (88 ms).
+- *Le réveil* : la phrase à 0,5 s derrière une page d'attente sans CORS, à
+  1,5 s derrière des requêtes retenues, puis le calcul ; aucun saut de mise
+  en page. Au lot 3, un réveil de 100 s, requêtes retenues : six essais, le
+  sixième, parti 90 s après le premier, reçoit la réponse, et l'analyse
+  s'affiche 96,3 s après l'arrivée sur la page. Avec l'ancien seuil de
+  90 s, l'attente aurait fini à 87 s sur « sans réponse », d'après le code.
+- *Sans réponse*, au bout de la durée du réveil (90 s au lot 2, 150 s au
+  lot 3, dans les captures), puis « Réessayer » ; la limite atteinte (429),
+  sa phrase telle quelle et « Réessayer ». Non provoqué : le serveur occupé
+  (503), qui suit le chemin de la limite.
+- *Les captures du lot 3*, à 390 px, sombre et clair, dans les deux
+  langues (hors dépôt) : aucun débordement, aucune page coupée.
+- *La langue* : changée sur une page gardée, l'écran de l'autre langue,
+  puis l'analyse redemandée dans cette langue ; l'annonce de l'envoi
+  retirée (lot 3).
+- *La mention avec son lien* : trois lignes à 390 et à 320 px, deux à
+  1 350 px, dans les deux langues. La date du tableau de l'accueil est
+  dans sa légende, 16 px sous « arrêtée à la date ci-dessous », à 390, 500
+  et 1 350 px.
+- *L'application locale* : son texte rendu est le même avant et après le
+  chantier, octet pour octet, deux langues et quatre variantes.
+- *Le réveil vu de Render*, par Cowork, dans Chrome, depuis le site en
+  ligne, serveur endormi : trois essais retenus sans réponse puis
+  abandonnés, le quatrième en 200 ; jamais la page d'attente de
+  l'hébergeur ; 71,6 s en tout.

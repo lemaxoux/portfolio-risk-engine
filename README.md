@@ -4,7 +4,7 @@ Portfolio Risk Engine measures the risk of a portfolio of US-listed stocks and
 ETFs. Through an API and a web interface, in English and in French, it shows
 every figure together with the conditions it was estimated under: the window,
 the valuation date, the method, and the number of trading days behind it.
-The interface can be explored in a read-only [online demonstration](https://portfolio-risk-engine-lemaxoux.pages.dev/) with fixed portfolios.
+The interface can be explored in an [online demonstration](https://portfolio-risk-engine-lemaxoux.pages.dev/): sample portfolios, or a portfolio of your own, analyzed on a database frozen at a fixed date.
 
 It is written for two readers: an individual investor who starts from zero, for
 whom the interface explains each measure in plain words, and a reader who wants
@@ -178,7 +178,7 @@ backend/
   risk_engine/     the measures, the crisis replays, the regime comparisons
   rules/           the rules engine: findings, thresholds, acceptance text
   textes/          every published sentence, in French and in English
-  api/             FastAPI: serializes, computes nothing
+  api/ public_api/ FastAPI: the local API and the public server; neither computes
   db/              SQLite schema, migrations, writes of user data
   typography.py    the only writer of numbers on the server
 frontend/

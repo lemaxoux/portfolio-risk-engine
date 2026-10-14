@@ -34,14 +34,26 @@ et ne se versionnent pas.
   `python -m tools.openapi_schema`, puis `cd frontend; npm run api:types`.
 - **Une source de données, choisie au build, dans `client.ts` seulement.**
   `frontend/src/api/client.ts` est le seul module qui sait d'où viennent les
-  données : l'API, ou, dans le build de démonstration (`npm run build:demo`),
-  les réponses enregistrées par `python -m tools.export_demo`. Le reste du
-  client ne lit `DEMO` que pour quatre choses : masquer ce qui écrit,
-  afficher la mention, rendre la page d'accueil à l'adresse `/`, et ne pas
-  poser l'écran d'acceptation (DESIGN.md §18.1, §19).
-  La démonstration n'a aucun chemin d'écriture : son build échoue si une
-  écriture ou « /api » y reste. Ses fichiers exportés (`demo/export/`) et
-  `dist-demo/` ne se versionnent pas.
+  données, et où part une saisie : l'API ; ou, dans le build de
+  démonstration (`npm run build:demo`), les réponses enregistrées par
+  `python -m tools.export_demo`, et un serveur public dont l'adresse arrive
+  au build (`MX_RISK_SERVEUR_PUBLIC`, obligatoire). Le reste du client ne lit
+  `DEMO` que pour quatre choses : masquer ce qui écrit en base, afficher la
+  mention, rendre la page d'accueil à l'adresse `/`, et rendre les deux
+  pages du portefeuille saisi, les seules devant lesquelles l'écran
+  d'acceptation est posé (DESIGN.md §18.1, §19, §20).
+  La démonstration n'écrit dans aucune base. La garde de son build refuse
+  « /api », toute écriture de l'application et toute seconde adresse de
+  serveur : au plus un POST, celui du serveur public, et des origines d'une
+  liste fermée. Ses fichiers exportés (`demo/export/`) et `dist-demo/` ne se
+  versionnent pas.
+- **Le serveur public est une application à part** (`backend/public_api/`),
+  sur une base ouverte en lecture seule (`backend/db/lecture_seule.py`),
+  sans ingestion ni fournisseur, avec ses propres textes
+  (`backend/textes/<langue>/public.py`) ; ni fenêtre ni indice en
+  paramètre. Sa base se bâtit par `python -m tools.base_serveur` et ne va
+  jamais dans le dépôt (`tests/test_serveur_public.py`,
+  `tests/test_serveur_public_frontiere.py`).
 - **Aucune série d'un titre en ligne, ni rien qui permette d'en
   reconstruire une.** Le serveur public ne rend aucune liste de points datés
   et n'accepte ni fenêtre ni indice en paramètre ; l'export de la
@@ -66,12 +78,25 @@ npm run build:demo                      # la démonstration, dans dist-demo/
 ```
 
 `build:demo` relit `demo/export/`, que `python -m tools.export_demo` écrit
-depuis la base locale.
+depuis la base locale, et demande l'adresse du serveur public :
+`MX_RISK_SERVEUR_PUBLIC=https://hôte`, sans chemin ni barre finale (pour un
+essai, `http://127.0.0.1:<port>`). La base du serveur public se bâtit hors
+du dépôt : `python -m tools.base_serveur --sortie <fichier>`.
 
 Tout déploiement de la démonstration part de `main` et refait d'abord les
 constats : `HEAD` = `origin/main`, arbre propre, build avec l'origine du site
-(`MX_RISK_ORIGINE_DU_SITE`), liste SHA-256 vérifiée (`ARCHITECTURE.md`,
-« Two builds »).
+(`MX_RISK_ORIGINE_DU_SITE`) et l'adresse du serveur public
+(`MX_RISK_SERVEUR_PUBLIC`), liste SHA-256 vérifiée, l'adresse du serveur
+dans le bundle avec elle (`ARCHITECTURE.md`, « Two builds »).
+
+Tout déploiement du serveur public part d'un commit public vérifié, par le
+dépôt privé, à la main : l'arbre `app/` du dépôt privé est celui de ce
+commit, ce commit est sur `origin/main`, l'empreinte de la base est
+vérifiée, et `GET /health` rend l'empreinte du code que
+`python -m tools.base_serveur --empreinte-du-code <commit>` calcule. Un
+changement sous `backend/` ou de `requirements-serveur.txt` change cette
+empreinte : le serveur est à redéployer. Un changement du client seul ne
+redéploie que le site (`ARCHITECTURE.md`, « Two builds »).
 
 Chaque commit laisse les suites vertes et la documentation à jour
 (`README.md`, `METHODOLOGY.md`, `ARCHITECTURE.md`), ses nombres datés tenus

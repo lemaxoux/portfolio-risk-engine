@@ -1,18 +1,20 @@
 /**
  * La page de l'avertissement — DESIGN.md §19.6 (chantier 9.4).
  *
- * La démonstration ne pose pas l'écran d'acceptation : il a été décidé pour
- * quelqu'un qui analyse son propre portefeuille, et elle n'en montre aucun.
- * Son texte reste lisible ici, à un clic au plus de chaque page : le lien qui
- * termine la mention (`components/Cadre`) et la dernière entrée de la liste
- * des pages y mènent.
+ * La démonstration ne pose l'écran d'acceptation que devant les deux pages du
+ * portefeuille saisi (chantier 9.6, DESIGN.md §20.3) : il a été décidé pour
+ * quelqu'un qui analyse son propre portefeuille, et les portefeuilles
+ * d'exemple ne le sont pas. Son texte reste lisible ici, à un clic au plus de
+ * chaque page : le lien qui termine la mention (`components/Cadre`) et la
+ * dernière entrée de la liste des pages y mènent.
  *
  * LE TEXTE VIENT DU FICHIER EXPORTÉ, en entier : le titre et les sections de
  * `<langue>/disclaimer.json`, sans copie dans le client, comme sur l'écran
  * d'acceptation. La phrase de confirmation n'est pas affichée : il n'y a ni
  * case ni bouton, et une phrase à la première personne sans rien à cocher ne
- * dit rien. Sous le titre, une phrase du client dit pourquoi la page n'a rien
- * à accepter.
+ * dit rien. Sous le titre, une phrase du client dit quand le texte est à
+ * accepter : avant d'analyser un portefeuille saisi, pas pour lire les
+ * exemples.
  *
  * LE TITRE EXISTE TOUT DE SUITE, pour recevoir le focus après une navigation
  * (§13). Il dit le nom de la page tant que le fichier n'est pas là, ou s'il

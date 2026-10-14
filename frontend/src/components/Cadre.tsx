@@ -57,14 +57,15 @@
  * ═══ LA MENTION DE LA DÉMONSTRATION (chantier 9.2) ═══
  *
  * Dans le build de démonstration, chaque page dit d'abord ce qu'est le site :
- * des portefeuilles fixes, valorisés à une date. En tête du contenu, sous le
- * bandeau, en texte courant qui défile avec la page ; le visiteur arrive le
- * plus souvent sur une analyse, pas sur la liste. Le build ordinaire ne la
- * contient pas. Elle se termine par un lien vers l'avertissement (chantier
- * 9.4, DESIGN.md §19.6) : la démonstration ne pose pas l'écran
- * d'acceptation, et son texte reste ainsi à un clic de chaque page, pages
- * introuvables comprises. Le lien est un libellé à part, la phrase ne change
- * pas.
+ * des portefeuilles d'exemple, ou celui du visiteur (chantier 9.6), valorisés
+ * à une date. En tête du contenu, sous le bandeau, en texte courant qui
+ * défile avec la page ; le visiteur arrive le plus souvent sur une analyse,
+ * pas sur la liste. Le build ordinaire ne la contient pas. Elle se termine
+ * par un lien vers l'avertissement (chantier 9.4, DESIGN.md §19.6) : la
+ * démonstration ne pose l'écran d'acceptation que devant les pages du
+ * portefeuille saisi (§20.3), et son texte reste ainsi à un clic de chaque
+ * page, pages introuvables comprises. Le lien est un libellé à part, la
+ * phrase ne change pas.
  *
  * ═══ LA PAGE D'ATTENTE NE PREND RIEN (chantier 9.4) ═══
  *
