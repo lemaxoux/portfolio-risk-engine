@@ -8,8 +8,8 @@ rules engine, and four dated results from the project.
 
 It is written for a reader who knows the quantitative vocabulary. The
 methodology page of the application explains the same rules to a reader who
-starts from zero:
-[frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md).
+starts from zero. It can be read [on the demonstration site](https://portfolio-risk-engine-lemaxoux.pages.dev/methodologie?lang=en)
+or as [frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md).
 The design decisions behind the code are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Reading this document

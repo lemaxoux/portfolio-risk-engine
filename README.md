@@ -200,10 +200,9 @@ tools/             the OpenAPI export and a one-glyph font generator
 - [ARCHITECTURE.md](ARCHITECTURE.md): the design decisions and what verifies
   them; for the developer.
 - The methodology page of the application, written for a reader who starts
-  from zero:
-  [frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md),
-  which GitHub renders as it stands, or the `/methodologie` page of a local
-  installation.
+  from zero: [on the demonstration site](https://portfolio-risk-engine-lemaxoux.pages.dev/methodologie?lang=en),
+  or as [frontend/src/contenu/methodologie.en.md](frontend/src/contenu/methodologie.en.md),
+  which GitHub renders as it stands.
 - [frontend/DESIGN.md](frontend/DESIGN.md): the visual specification, in French.
 
 ## How it was built
